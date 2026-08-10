@@ -7,7 +7,7 @@
     "dev": "node --watch src/index.ts",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "lint": "echo 'Linting API pending...'",
+    "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
