@@ -3,7 +3,7 @@ function App() {
     <div>
       <h1>Transcendence-base</h1>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
