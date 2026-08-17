@@ -1,0 +1,52 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: database 
+    restart: always
+    environment:
+      POSTGRES_USER: mi_usuario
+      POSTGRES_PASSWORD: mi_password
+      POSTGRES_DB: mi_base_datos
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/conf/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+        # healthcheck:
+        # test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+        # interval: 5s
+        # timeout: 5s
+        #retries: 10
+
+  backend:
+    build: 
+      context: .
+      dockerfile: ./apps/api/Dockerfile
+    container_name: api
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      - DATABASE_URL=postgres://mi_usuario:mi_password@db:5432/mi_base_datos
+      - PORT=5000
+        #volumes:
+        #- ./api:/app
+        #- /app/node_modules
+    depends_on:
+      - db
+        #        condition: service_healthy
+
+  frontend:
+    build:
+      context: .
+      dockerfile: ./apps/web/Dockerfile
+    container_name: web
+    restart: always
+    ports:
+      - "5173:5173"
+    depends_on:
+      backend:
+        condition: service_started
+
+volumes:
+  postgres_data:
