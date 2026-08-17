@@ -1,0 +1,9 @@
+apps/web/Dockerfile
+apps/web/.dockerignore
+node_modules
+dist
+.git
+.gitignore
+*.log
+*.local
+README.md
