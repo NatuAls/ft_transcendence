@@ -35,7 +35,9 @@ export const listUsersQuerySchema = paginationQuerySchema.extend({
   q: z.string().trim().max(120).optional(),
   globalRole: globalRoleSchema.optional(),
   isActive: z.stringbool().optional(),
-  sort: z.enum(['createdAt', 'username', 'email', 'lastLoginAt']).default('createdAt'),
+  sort: z
+    .enum(['createdAt', 'username', 'email', 'lastLoginAt'])
+    .default('createdAt'),
   order: z.enum(['asc', 'desc']).default('desc'),
 });
 

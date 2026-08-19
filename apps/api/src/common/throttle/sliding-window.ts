@@ -16,7 +16,11 @@ export interface RateVerdict {
  * timestamp as score, we drop everything older than the window and count what
  * is left.
  */
-export async function hit(key: string, limit: number, windowSeconds: number): Promise<RateVerdict> {
+export async function hit(
+  key: string,
+  limit: number,
+  windowSeconds: number,
+): Promise<RateVerdict> {
   const now = Date.now();
   const windowMs = windowSeconds * 1000;
   const redisKey = `rl:${key}:${windowSeconds}`;
@@ -24,7 +28,11 @@ export async function hit(key: string, limit: number, windowSeconds: number): Pr
   try {
     const pipeline = redis.multi();
     pipeline.zremrangebyscore(redisKey, 0, now - windowMs);
-    pipeline.zadd(redisKey, now, `${now}-${Math.random().toString(36).slice(2, 10)}`);
+    pipeline.zadd(
+      redisKey,
+      now,
+      `${now}-${Math.random().toString(36).slice(2, 10)}`,
+    );
     pipeline.zcard(redisKey);
     pipeline.pexpire(redisKey, windowMs);
     const results = await pipeline.exec();
@@ -39,6 +47,11 @@ export async function hit(key: string, limit: number, windowSeconds: number): Pr
     };
   } catch {
     // Redis down: do not lock users out of the whole product over rate limiting.
-    return { allowed: true, limit, remaining: limit, resetSeconds: windowSeconds };
+    return {
+      allowed: true,
+      limit,
+      remaining: limit,
+      resetSeconds: windowSeconds,
+    };
   }
 }

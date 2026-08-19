@@ -5,7 +5,9 @@ import { createLogger } from '../common/logger.ts';
 
 const logger = createLogger('prisma');
 
-const adapter = new PrismaPg({ connectionString: loadConfiguration().DATABASE_URL });
+const adapter = new PrismaPg({
+  connectionString: loadConfiguration().DATABASE_URL,
+});
 
 /**
  * Single Prisma connection for the process. Slow queries are logged so the

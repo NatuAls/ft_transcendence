@@ -52,7 +52,10 @@ export async function searchTickets(
     where.push(Prisma.sql`t."organizationId" = ${query.organizationId}::uuid`);
   } else if (actor.globalRole !== 'GLOBAL_ADMIN') {
     if (allowedOrganizationIds.length === 0) {
-      return { data: [], meta: { total: 0, page: 1, take: query.take, pages: 1, tookMs: 0 } };
+      return {
+        data: [],
+        meta: { total: 0, page: 1, take: query.take, pages: 1, tookMs: 0 },
+      };
     }
     where.push(
       Prisma.sql`t."organizationId" IN (${Prisma.join(allowedOrganizationIds.map((id) => Prisma.sql`${id}::uuid`))})`,
@@ -60,12 +63,17 @@ export async function searchTickets(
   }
 
   if (query.status?.length) {
-    where.push(Prisma.sql`t."status"::text IN (${Prisma.join(query.status.map((s) => Prisma.sql`${s}`))})`);
+    where.push(
+      Prisma.sql`t."status"::text IN (${Prisma.join(query.status.map((s) => Prisma.sql`${s}`))})`,
+    );
   }
   if (query.priority?.length) {
-    where.push(Prisma.sql`t."priority"::text IN (${Prisma.join(query.priority.map((p) => Prisma.sql`${p}`))})`);
+    where.push(
+      Prisma.sql`t."priority"::text IN (${Prisma.join(query.priority.map((p) => Prisma.sql`${p}`))})`,
+    );
   }
-  if (query.categoryId) where.push(Prisma.sql`t."categoryId" = ${query.categoryId}::uuid`);
+  if (query.categoryId)
+    where.push(Prisma.sql`t."categoryId" = ${query.categoryId}::uuid`);
 
   if (query.assignedToId === 'unassigned') {
     where.push(Prisma.sql`t."assignedToId" IS NULL`);
@@ -87,10 +95,14 @@ export async function searchTickets(
     );
   }
 
-  if (query.createdFrom) where.push(Prisma.sql`t."createdAt" >= ${new Date(query.createdFrom)}`);
-  if (query.createdTo) where.push(Prisma.sql`t."createdAt" <= ${new Date(query.createdTo)}`);
-  if (query.updatedFrom) where.push(Prisma.sql`t."updatedAt" >= ${new Date(query.updatedFrom)}`);
-  if (query.updatedTo) where.push(Prisma.sql`t."updatedAt" <= ${new Date(query.updatedTo)}`);
+  if (query.createdFrom)
+    where.push(Prisma.sql`t."createdAt" >= ${new Date(query.createdFrom)}`);
+  if (query.createdTo)
+    where.push(Prisma.sql`t."createdAt" <= ${new Date(query.createdTo)}`);
+  if (query.updatedFrom)
+    where.push(Prisma.sql`t."updatedAt" >= ${new Date(query.updatedFrom)}`);
+  if (query.updatedTo)
+    where.push(Prisma.sql`t."updatedAt" <= ${new Date(query.updatedTo)}`);
 
   const hasText = Boolean(query.q && query.q.trim().length >= 2);
   // helpdesk_unaccent() is our IMMUTABLE wrapper around unaccent(), created in
@@ -109,7 +121,9 @@ export async function searchTickets(
     );
   }
 
-  const whereSql = where.length ? Prisma.sql`WHERE ${Prisma.join(where, ' AND ')}` : Prisma.empty;
+  const whereSql = where.length
+    ? Prisma.sql`WHERE ${Prisma.join(where, ' AND ')}`
+    : Prisma.empty;
 
   // Sorting: whitelist only, never interpolate the raw sort parameter.
   const sortColumn =
@@ -163,7 +177,10 @@ export async function searchTickets(
     GROUP BY GROUPING SETS ((t."status"), (t."priority"))
   `);
 
-  const facets = { status: {} as Record<string, number>, priority: {} as Record<string, number> };
+  const facets = {
+    status: {} as Record<string, number>,
+    priority: {} as Record<string, number>,
+  };
   for (const row of facetRows) {
     if (row.status) facets.status[row.status] = Number(row.count);
     else if (row.priority) facets.priority[row.priority] = Number(row.count);

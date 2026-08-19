@@ -13,15 +13,13 @@ import { Errors } from '../../common/errors/domain-error.ts';
 import type { RequestActor, RequestMembership } from '../../common/types.ts';
 
 const slugify = (value: string): string =>
-  (
-    value
-      .normalize('NFD')
-      .replace(/[̀-ͯ]/g, '')
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 48) || 'org'
-  );
+  value
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48) || 'org';
 
 function subject(actor: RequestActor, membership?: RequestMembership) {
   return {
@@ -78,9 +76,17 @@ export async function findOne(
   return { ...org, myRole: membership?.role ?? null };
 }
 
-export async function create(actor: RequestActor, input: CreateOrganizationInput) {
+export async function create(
+  actor: RequestActor,
+  input: CreateOrganizationInput,
+) {
   const slug = input.slug ?? slugify(input.name);
-  if (await prisma.organization.findUnique({ where: { slug }, select: { id: true } })) {
+  if (
+    await prisma.organization.findUnique({
+      where: { slug },
+      select: { id: true },
+    })
+  ) {
     throw Errors.slugTaken();
   }
   return events.runInTransaction(async (tx) => {
@@ -100,9 +106,19 @@ export async function create(actor: RequestActor, input: CreateOrganizationInput
           ],
         },
       },
-      select: { id: true, name: true, slug: true, description: true, createdAt: true, createdById: true },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        description: true,
+        createdAt: true,
+        createdById: true,
+      },
     });
-    events.emit(DomainEvents.organizationCreated, { organization: org, actorId: actor.id });
+    events.emit(DomainEvents.organizationCreated, {
+      organization: org,
+      actorId: actor.id,
+    });
     return { ...org, myRole: 'ORG_ADMIN' as OrgRole };
   });
 }
@@ -120,11 +136,23 @@ export async function update(
       where: { id },
       data: {
         ...(input.name ? { name: input.name } : {}),
-        ...(input.description !== undefined ? { description: input.description } : {}),
+        ...(input.description !== undefined
+          ? { description: input.description }
+          : {}),
       },
-      select: { id: true, name: true, slug: true, description: true, createdAt: true, createdById: true },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        description: true,
+        createdAt: true,
+        createdById: true,
+      },
     });
-    events.emit(DomainEvents.organizationUpdated, { organization: org, actorId: actor.id });
+    events.emit(DomainEvents.organizationUpdated, {
+      organization: org,
+      actorId: actor.id,
+    });
     return org;
   });
 }
@@ -135,10 +163,18 @@ export async function remove(
   id: string,
 ): Promise<void> {
   const org = await findOne(actor, membership, id);
-  assertPolicy('organization:delete', subject(actor, membership), { ownerId: org.createdById });
+  assertPolicy('organization:delete', subject(actor, membership), {
+    ownerId: org.createdById,
+  });
   await events.runInTransaction(async (tx) => {
-    await tx.organization.update({ where: { id }, data: { deletedAt: new Date() } });
-    events.emit(DomainEvents.organizationDeleted, { organizationId: id, actorId: actor.id });
+    await tx.organization.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+    events.emit(DomainEvents.organizationDeleted, {
+      organizationId: id,
+      actorId: actor.id,
+    });
   });
 }
 
@@ -162,7 +198,14 @@ export async function listMembers(
           id: true,
           username: true,
           email: true,
-          profile: { select: { displayName: true, avatarUrl: true, isOnline: true, lastSeenAt: true } },
+          profile: {
+            select: {
+              displayName: true,
+              avatarUrl: true,
+              isOnline: true,
+              lastSeenAt: true,
+            },
+          },
         },
       },
     },
@@ -181,7 +224,10 @@ export async function invite(
 
   const identifier = input.identifier.trim().toLowerCase();
   const user = await prisma.user.findFirst({
-    where: { OR: [{ email: identifier }, { username: identifier }], deletedAt: null },
+    where: {
+      OR: [{ email: identifier }, { username: identifier }],
+      deletedAt: null,
+    },
     select: { id: true, email: true, username: true },
   });
   if (!user) throw Errors.resourceNotFound('user');
@@ -194,21 +240,42 @@ export async function invite(
 
   const created = await events.runInTransaction(async (tx) => {
     const member = await tx.organizationMember.create({
-      data: { organizationId: id, userId: user.id, role: input.role, invitedById: actor.id },
+      data: {
+        organizationId: id,
+        userId: user.id,
+        role: input.role,
+        invitedById: actor.id,
+      },
       select: {
         id: true,
         role: true,
         joinedAt: true,
         organizationId: true,
-        user: { select: { id: true, username: true, email: true, profile: { select: { displayName: true, avatarUrl: true } } } },
+        user: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            profile: { select: { displayName: true, avatarUrl: true } },
+          },
+        },
       },
     });
-    events.emit(DomainEvents.memberAdded, { member, organization: org, actorId: actor.id });
+    events.emit(DomainEvents.memberAdded, {
+      member,
+      organization: org,
+      actorId: actor.id,
+    });
     return member;
   });
 
   await invalidateMembership(user.id, id);
-  await sendOrganizationInvite(user.email, org.name, actor.username, `${origin}/app/organizations/${org.slug}`);
+  await sendOrganizationInvite(
+    user.email,
+    org.name,
+    actor.username,
+    `${origin}/app/organizations/${org.slug}`,
+  );
   return created;
 }
 
@@ -221,15 +288,24 @@ export async function changeRole(
 ) {
   await findOne(actor, membership, id);
   assertPolicy('member:changeRole', subject(actor, membership));
-  if (role !== 'ORG_ADMIN' && (await isLastAdmin(id, userId))) throw Errors.lastAdmin();
+  if (role !== 'ORG_ADMIN' && (await isLastAdmin(id, userId)))
+    throw Errors.lastAdmin();
 
   const member = await events.runInTransaction(async (tx) => {
     const updated = await tx.organizationMember.update({
       where: { organizationId_userId: { organizationId: id, userId } },
       data: { role },
-      select: { id: true, role: true, organizationId: true, user: { select: { id: true, username: true } } },
+      select: {
+        id: true,
+        role: true,
+        organizationId: true,
+        user: { select: { id: true, username: true } },
+      },
     });
-    events.emit(DomainEvents.memberUpdated, { member: updated, actorId: actor.id });
+    events.emit(DomainEvents.memberUpdated, {
+      member: updated,
+      actorId: actor.id,
+    });
     return updated;
   });
   await invalidateMembership(userId, id);
@@ -245,31 +321,50 @@ export async function removeMember(
   await findOne(actor, membership, id);
   const isSelf = userId === actor.id;
   const lastAdmin = await isLastAdmin(id, userId);
-  assertPolicy(isSelf ? 'member:leave' : 'member:remove', subject(actor, membership), {
-    isLastAdmin: lastAdmin,
-  });
+  assertPolicy(
+    isSelf ? 'member:leave' : 'member:remove',
+    subject(actor, membership),
+    {
+      isLastAdmin: lastAdmin,
+    },
+  );
   if (lastAdmin) throw Errors.lastAdmin();
 
   await events.runInTransaction(async (tx) => {
     // Open tickets assigned to the departing member go back to the pool,
     // otherwise they would silently become unreachable work.
     await tx.ticket.updateMany({
-      where: { organizationId: id, assignedToId: userId, status: { in: ['OPEN', 'IN_PROGRESS'] } },
+      where: {
+        organizationId: id,
+        assignedToId: userId,
+        status: { in: ['OPEN', 'IN_PROGRESS'] },
+      },
       data: { assignedToId: null },
     });
-    await tx.organizationMember.delete({ where: { organizationId_userId: { organizationId: id, userId } } });
-    events.emit(DomainEvents.memberRemoved, { organizationId: id, userId, actorId: actor.id });
+    await tx.organizationMember.delete({
+      where: { organizationId_userId: { organizationId: id, userId } },
+    });
+    events.emit(DomainEvents.memberRemoved, {
+      organizationId: id,
+      userId,
+      actorId: actor.id,
+    });
   });
   await invalidateMembership(userId, id);
 }
 
-async function isLastAdmin(organizationId: string, userId: string): Promise<boolean> {
+async function isLastAdmin(
+  organizationId: string,
+  userId: string,
+): Promise<boolean> {
   const [target, adminCount] = await Promise.all([
     prisma.organizationMember.findUnique({
       where: { organizationId_userId: { organizationId, userId } },
       select: { role: true },
     }),
-    prisma.organizationMember.count({ where: { organizationId, role: 'ORG_ADMIN' } }),
+    prisma.organizationMember.count({
+      where: { organizationId, role: 'ORG_ADMIN' },
+    }),
   ]);
   return target?.role === 'ORG_ADMIN' && adminCount <= 1;
 }
@@ -285,7 +380,14 @@ export async function listCategories(
   return prisma.category.findMany({
     where: { organizationId: id },
     orderBy: { name: 'asc' },
-    select: { id: true, name: true, description: true, color: true, isActive: true, _count: { select: { tickets: true } } },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      color: true,
+      isActive: true,
+      _count: { select: { tickets: true } },
+    },
   });
 }
 
@@ -307,10 +409,25 @@ export async function createCategory(
   }
   return events.runInTransaction(async (tx) => {
     const category = await tx.category.create({
-      data: { organizationId: id, name: input.name, description: input.description ?? null, color: input.color },
-      select: { id: true, name: true, description: true, color: true, isActive: true },
+      data: {
+        organizationId: id,
+        name: input.name,
+        description: input.description ?? null,
+        color: input.color,
+      },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        color: true,
+        isActive: true,
+      },
     });
-    events.emit(DomainEvents.categoryCreated, { category, organizationId: id, actorId: actor.id });
+    events.emit(DomainEvents.categoryCreated, {
+      category,
+      organizationId: id,
+      actorId: actor.id,
+    });
     return category;
   });
 }
@@ -324,15 +441,28 @@ export async function updateCategory(
 ) {
   await findOne(actor, membership, id);
   assertPolicy('category:write', subject(actor, membership));
-  const existing = await prisma.category.findFirst({ where: { id: categoryId, organizationId: id }, select: { id: true } });
+  const existing = await prisma.category.findFirst({
+    where: { id: categoryId, organizationId: id },
+    select: { id: true },
+  });
   if (!existing) throw Errors.resourceNotFound('category');
   return events.runInTransaction(async (tx) => {
     const category = await tx.category.update({
       where: { id: categoryId },
       data: input,
-      select: { id: true, name: true, description: true, color: true, isActive: true },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        color: true,
+        isActive: true,
+      },
     });
-    events.emit(DomainEvents.categoryUpdated, { category, organizationId: id, actorId: actor.id });
+    events.emit(DomainEvents.categoryUpdated, {
+      category,
+      organizationId: id,
+      actorId: actor.id,
+    });
     return category;
   });
 }
@@ -345,33 +475,64 @@ export async function removeCategory(
 ): Promise<void> {
   await findOne(actor, membership, id);
   assertPolicy('category:write', subject(actor, membership));
-  const existing = await prisma.category.findFirst({ where: { id: categoryId, organizationId: id }, select: { id: true } });
+  const existing = await prisma.category.findFirst({
+    where: { id: categoryId, organizationId: id },
+    select: { id: true },
+  });
   if (!existing) throw Errors.resourceNotFound('category');
   await events.runInTransaction(async (tx) => {
     await tx.category.delete({ where: { id: categoryId } });
-    events.emit(DomainEvents.categoryDeleted, { categoryId, organizationId: id, actorId: actor.id });
+    events.emit(DomainEvents.categoryDeleted, {
+      categoryId,
+      organizationId: id,
+      actorId: actor.id,
+    });
   });
 }
 
 // --------------------------------------------------------------------- stats --
-export async function stats(actor: RequestActor, membership: RequestMembership | undefined, id: string) {
+export async function stats(
+  actor: RequestActor,
+  membership: RequestMembership | undefined,
+  id: string,
+) {
   await findOne(actor, membership, id);
   assertPolicy('stats:read', subject(actor, membership));
 
-  const [byStatus, byPriority, total, unassigned, avgFirstResponse] = await Promise.all([
-    prisma.ticket.groupBy({ by: ['status'], where: { organizationId: id }, _count: true }),
-    prisma.ticket.groupBy({ by: ['priority'], where: { organizationId: id }, _count: true }),
-    prisma.ticket.count({ where: { organizationId: id } }),
-    prisma.ticket.count({ where: { organizationId: id, assignedToId: null, status: { in: ['OPEN', 'IN_PROGRESS'] } } }),
-    prisma.$queryRawUnsafe<Array<{ avg: number | null }>>(
-      `SELECT avg(extract(epoch FROM ("firstResponseAt" - "createdAt")))::float AS avg
+  const [byStatus, byPriority, total, unassigned, avgFirstResponse] =
+    await Promise.all([
+      prisma.ticket.groupBy({
+        by: ['status'],
+        where: { organizationId: id },
+        _count: true,
+      }),
+      prisma.ticket.groupBy({
+        by: ['priority'],
+        where: { organizationId: id },
+        _count: true,
+      }),
+      prisma.ticket.count({ where: { organizationId: id } }),
+      prisma.ticket.count({
+        where: {
+          organizationId: id,
+          assignedToId: null,
+          status: { in: ['OPEN', 'IN_PROGRESS'] },
+        },
+      }),
+      prisma.$queryRawUnsafe<Array<{ avg: number | null }>>(
+        `SELECT avg(extract(epoch FROM ("firstResponseAt" - "createdAt")))::float AS avg
        FROM tickets WHERE "organizationId" = $1::uuid AND "firstResponseAt" IS NOT NULL`,
-      id,
-    ),
-  ]);
+        id,
+      ),
+    ]);
 
-  const toMap = (rows: Array<{ _count: number } & Record<string, unknown>>, key: string) =>
-    Object.fromEntries(rows.map((row) => [String(row[key]), row._count])) as Record<string, number>;
+  const toMap = (
+    rows: Array<{ _count: number } & Record<string, unknown>>,
+    key: string,
+  ) =>
+    Object.fromEntries(
+      rows.map((row) => [String(row[key]), row._count]),
+    ) as Record<string, number>;
 
   return {
     total,

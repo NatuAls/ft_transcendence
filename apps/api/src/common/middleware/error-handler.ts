@@ -10,7 +10,11 @@ interface PrismaLikeError {
   meta?: { target?: string[] };
 }
 
-function toBody(exception: unknown, requestId: string, path: string): ApiErrorBody {
+function toBody(
+  exception: unknown,
+  requestId: string,
+  path: string,
+): ApiErrorBody {
   const base = { requestId, timestamp: new Date().toISOString(), path };
 
   if (exception instanceof DomainError) {
@@ -70,15 +74,25 @@ function toBody(exception: unknown, requestId: string, path: string): ApiErrorBo
  * shape and guarantees nothing internal leaks: no stack traces, no SQL, no
  * file paths, no dependency versions. Must be mounted LAST.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function errorHandler(exception: unknown, req: Request, res: Response, _next: NextFunction): void {
+export function errorHandler(
+  exception: unknown,
+  req: Request,
+  res: Response,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Express only treats a 4-arg function as error middleware
+  _next: NextFunction,
+): void {
   const requestId = req.requestId ?? 'unknown';
   const body = toBody(exception, requestId, req.originalUrl ?? req.url ?? '');
 
   if (body.statusCode >= 500) {
-    logger.error(`[${requestId}] ${req.method} ${body.path} -> ${body.statusCode} ${body.code}`, exception);
+    logger.error(
+      `[${requestId}] ${req.method} ${body.path} -> ${body.statusCode} ${body.code}`,
+      exception,
+    );
   } else if (body.statusCode !== 404) {
-    logger.warn(`[${requestId}] ${req.method} ${body.path} -> ${body.statusCode} ${body.code}`);
+    logger.warn(
+      `[${requestId}] ${req.method} ${body.path} -> ${body.statusCode} ${body.code}`,
+    );
   }
 
   if (!res.headersSent) {

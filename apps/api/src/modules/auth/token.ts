@@ -44,7 +44,13 @@ export async function issueTokens(
   const config = loadConfiguration();
   const jti = uuidv7();
   const accessToken = signAccessToken(
-    { sub: user.id, username: user.username, email: user.email, role: user.globalRole, jti },
+    {
+      sub: user.id,
+      username: user.username,
+      email: user.email,
+      role: user.globalRole,
+      jti,
+    },
     config.ACCESS_TOKEN_TTL,
   );
 
@@ -101,9 +107,13 @@ export async function rotateTokens(
     throw Errors.refreshReused();
   }
   if (session.expiresAt.getTime() < Date.now()) throw Errors.tokenInvalid();
-  if (!session.user.isActive || session.user.deletedAt) throw Errors.accountDisabled();
+  if (!session.user.isActive || session.user.deletedAt)
+    throw Errors.accountDisabled();
 
-  const issued = await issueTokens(session.user, { ...context, familyId: session.familyId });
+  const issued = await issueTokens(session.user, {
+    ...context,
+    familyId: session.familyId,
+  });
 
   const newSession = await prisma.userSession.findUnique({
     where: { refreshTokenHash: sha256(issued.refreshToken) },
@@ -117,7 +127,9 @@ export async function rotateTokens(
   return { ...issued, userId: session.userId };
 }
 
-export async function revokeByRefreshToken(refreshToken: string): Promise<void> {
+export async function revokeByRefreshToken(
+  refreshToken: string,
+): Promise<void> {
   await prisma.userSession.updateMany({
     where: { refreshTokenHash: sha256(refreshToken), revokedAt: null },
     data: { revokedAt: new Date() },
@@ -139,7 +151,10 @@ export async function revokeAllForUser(userId: string): Promise<void> {
 }
 
 /** Adds the current access token's jti to the revocation list until it expires. */
-export async function revokeAccessToken(jti: string, expUnixSeconds: number): Promise<void> {
+export async function revokeAccessToken(
+  jti: string,
+  expUnixSeconds: number,
+): Promise<void> {
   const ttl = Math.max(1, expUnixSeconds - Math.floor(Date.now() / 1000));
   await revokeJti(jti, ttl);
 }

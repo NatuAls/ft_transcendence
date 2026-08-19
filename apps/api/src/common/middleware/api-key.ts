@@ -14,7 +14,8 @@ import { Errors } from '../errors/domain-error.ts';
 export function apiKeyAuth(): RequestHandler {
   return async (req: Request, _res: Response, next: NextFunction) => {
     const raw = req.headers['x-api-key'];
-    if (typeof raw !== 'string' || raw.length < 20) throw Errors.apiKeyInvalid();
+    if (typeof raw !== 'string' || raw.length < 20)
+      throw Errors.apiKeyInvalid();
 
     const withoutEnv = raw.replace(/^hdl_(live|test)_/, '');
     const [prefix, secret] = withoutEnv.split('.');
@@ -30,13 +31,20 @@ export function apiKeyAuth(): RequestHandler {
         revokedAt: true,
         expiresAt: true,
         createdBy: {
-          select: { id: true, username: true, email: true, globalRole: true, isActive: true },
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            globalRole: true,
+            isActive: true,
+          },
         },
       },
     });
 
     if (!key || key.revokedAt) throw Errors.apiKeyInvalid();
-    if (key.expiresAt && key.expiresAt.getTime() < Date.now()) throw Errors.apiKeyInvalid();
+    if (key.expiresAt && key.expiresAt.getTime() < Date.now())
+      throw Errors.apiKeyInvalid();
     if (!key.createdBy.isActive) throw Errors.apiKeyInvalid();
 
     const valid = await argon2.verify(key.keyHash, secret).catch(() => false);
@@ -53,7 +61,9 @@ export function apiKeyAuth(): RequestHandler {
     };
 
     // Fire-and-forget: last-used tracking must never slow the request down.
-    void prisma.apiKey.update({ where: { id: key.id }, data: { lastUsedAt: new Date() } }).catch(() => undefined);
+    void prisma.apiKey
+      .update({ where: { id: key.id }, data: { lastUsedAt: new Date() } })
+      .catch(() => undefined);
 
     next();
   };
@@ -62,7 +72,8 @@ export function apiKeyAuth(): RequestHandler {
 /** Scope required on the API key for a given public-API route. */
 export function requireScope(scope: ApiScope): RequestHandler {
   return (req: Request, _res: Response, next: NextFunction) => {
-    if (!req.actor?.scopes?.includes(scope)) throw Errors.apiKeyMissingScope(scope);
+    if (!req.actor?.scopes?.includes(scope))
+      throw Errors.apiKeyMissingScope(scope);
     next();
   };
 }

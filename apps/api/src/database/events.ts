@@ -29,7 +29,9 @@ class TransactionalEventEmitter {
 
   constructor() {
     this.bus.setMaxListeners(50);
-    this.bus.on('error', (error) => logger.error('event handler failed', error));
+    this.bus.on('error', (error) =>
+      logger.error('event handler failed', error),
+    );
   }
 
   on<P>(name: string, handler: (payload: P) => void | Promise<void>): void {

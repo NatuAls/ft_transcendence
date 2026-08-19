@@ -40,7 +40,12 @@ const HttpStatus = {
 
 const err =
   (status: number) =>
-  (code: string, messageKey: string, message: string, details?: DomainError['details']) =>
+  (
+    code: string,
+    messageKey: string,
+    message: string,
+    details?: DomainError['details'],
+  ) =>
     new DomainError(code, messageKey, message, status, details);
 
 export const badRequest = err(HttpStatus.BAD_REQUEST);
@@ -75,7 +80,11 @@ export const Errors = {
       'This account has been disabled.',
     ),
   tokenInvalid: () =>
-    unauthorized('AUTH_TOKEN_INVALID', 'errors.auth.tokenInvalid', 'Token is invalid or expired.'),
+    unauthorized(
+      'AUTH_TOKEN_INVALID',
+      'errors.auth.tokenInvalid',
+      'Token is invalid or expired.',
+    ),
   refreshReused: () =>
     unauthorized(
       'AUTH_REFRESH_REUSED',
@@ -83,9 +92,17 @@ export const Errors = {
       'Refresh token reuse detected; all sessions revoked.',
     ),
   emailTaken: () =>
-    conflict('AUTH_EMAIL_TAKEN', 'errors.auth.emailTaken', 'That email is already registered.'),
+    conflict(
+      'AUTH_EMAIL_TAKEN',
+      'errors.auth.emailTaken',
+      'That email is already registered.',
+    ),
   usernameTaken: () =>
-    conflict('AUTH_USERNAME_TAKEN', 'errors.auth.usernameTaken', 'That username is already taken.'),
+    conflict(
+      'AUTH_USERNAME_TAKEN',
+      'errors.auth.usernameTaken',
+      'That username is already taken.',
+    ),
   wrongPassword: () =>
     badRequest(
       'AUTH_WRONG_PASSWORD',
@@ -95,12 +112,25 @@ export const Errors = {
 
   // authorisation
   forbiddenAction: (action: string) =>
-    forbidden('RBAC_FORBIDDEN', 'errors.rbac.forbidden', `Your role is not allowed to ${action}.`),
-  notAMember: () => notFound('ORG_NOT_A_MEMBER', 'errors.org.notFound', 'Organization not found.'),
+    forbidden(
+      'RBAC_FORBIDDEN',
+      'errors.rbac.forbidden',
+      `Your role is not allowed to ${action}.`,
+    ),
+  notAMember: () =>
+    notFound(
+      'ORG_NOT_A_MEMBER',
+      'errors.org.notFound',
+      'Organization not found.',
+    ),
 
   // generic
   resourceNotFound: (what: string) =>
-    notFound(`${what.toUpperCase()}_NOT_FOUND`, `errors.${what}.notFound`, `${what} not found.`),
+    notFound(
+      `${what.toUpperCase()}_NOT_FOUND`,
+      `errors.${what}.notFound`,
+      `${what} not found.`,
+    ),
 
   // tickets
   invalidTransition: (from: string, to: string) =>
@@ -124,9 +154,17 @@ export const Errors = {
 
   // organizations
   slugTaken: () =>
-    conflict('ORG_SLUG_TAKEN', 'errors.org.slugTaken', 'That organization slug is already in use.'),
+    conflict(
+      'ORG_SLUG_TAKEN',
+      'errors.org.slugTaken',
+      'That organization slug is already in use.',
+    ),
   alreadyMember: () =>
-    conflict('ORG_ALREADY_MEMBER', 'errors.org.alreadyMember', 'User is already a member.'),
+    conflict(
+      'ORG_ALREADY_MEMBER',
+      'errors.org.alreadyMember',
+      'User is already a member.',
+    ),
   lastAdmin: () =>
     conflict(
       'ORG_LAST_ADMIN',
@@ -162,9 +200,17 @@ export const Errors = {
 
   // social
   cannotFriendSelf: () =>
-    badRequest('FRIEND_SELF', 'errors.friend.self', 'You cannot add yourself as a friend.'),
+    badRequest(
+      'FRIEND_SELF',
+      'errors.friend.self',
+      'You cannot add yourself as a friend.',
+    ),
   friendshipExists: () =>
-    conflict('FRIEND_EXISTS', 'errors.friend.exists', 'A friendship or request already exists.'),
+    conflict(
+      'FRIEND_EXISTS',
+      'errors.friend.exists',
+      'A friendship or request already exists.',
+    ),
 
   // api keys / rate limit
   apiKeyInvalid: () =>

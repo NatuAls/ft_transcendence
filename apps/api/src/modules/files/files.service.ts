@@ -47,17 +47,25 @@ export async function upload(
   actor: RequestActor,
   membership: RequestMembership | undefined,
   target: { ticketId?: string; commentId?: string },
-  file: { buffer: Buffer; originalname: string; mimetype: string; size: number },
+  file: {
+    buffer: Buffer;
+    originalname: string;
+    mimetype: string;
+    size: number;
+  },
 ) {
   const config = loadConfiguration();
-  if (file.size > config.UPLOAD_MAX_BYTES) throw Errors.fileTooLarge(config.UPLOAD_MAX_BYTES);
+  if (file.size > config.UPLOAD_MAX_BYTES)
+    throw Errors.fileTooLarge(config.UPLOAD_MAX_BYTES);
 
   const mime = await detectMime(file.buffer, file.mimetype);
-  if (!ALLOWED.has(mime) && !TEXT_TYPES.has(mime)) throw Errors.fileTypeNotAllowed(mime);
+  if (!ALLOWED.has(mime) && !TEXT_TYPES.has(mime))
+    throw Errors.fileTypeNotAllowed(mime);
 
   const ticketId = target.ticketId ?? null;
   const commentId = target.commentId ?? null;
-  if (Boolean(ticketId) === Boolean(commentId)) throw Errors.resourceNotFound('ticket');
+  if (Boolean(ticketId) === Boolean(commentId))
+    throw Errors.resourceNotFound('ticket');
 
   let organizationId: string;
   let resolvedTicketId: string;
@@ -65,7 +73,10 @@ export async function upload(
   if (ticketId) {
     const ticket = await prisma.ticket.findUnique({
       where: { id: ticketId },
-      select: { organizationId: true, _count: { select: { attachments: true } } },
+      select: {
+        organizationId: true,
+        _count: { select: { attachments: true } },
+      },
     });
     if (!ticket) throw Errors.resourceNotFound('ticket');
     if (ticket._count.attachments >= config.UPLOAD_MAX_PER_TICKET) {
@@ -83,8 +94,10 @@ export async function upload(
     resolvedTicketId = comment.ticketId;
   }
 
-  const effectiveMembership = membership ?? (await membershipOf(actor.id, organizationId));
-  if (!effectiveMembership && actor.globalRole !== 'GLOBAL_ADMIN') throw Errors.notAMember();
+  const effectiveMembership =
+    membership ?? (await membershipOf(actor.id, organizationId));
+  if (!effectiveMembership && actor.globalRole !== 'GLOBAL_ADMIN')
+    throw Errors.notAMember();
   assertPolicy('attachment:create', subject(actor, effectiveMembership));
 
   const extension = ALLOWED.get(mime) ?? TEXT_TYPES.get(mime) ?? 'bin';
@@ -107,10 +120,24 @@ export async function upload(
         sizeBytes: file.size,
         checksumSha256: checksum,
       },
-      select: { id: true, originalName: true, mimeType: true, sizeBytes: true, createdAt: true },
+      select: {
+        id: true,
+        originalName: true,
+        mimeType: true,
+        sizeBytes: true,
+        createdAt: true,
+      },
     });
-    events.emit(DomainEvents.attachmentCreated, { attachment, ticketId: resolvedTicketId, organizationId, actorId: actor.id });
-    return { ...attachment, downloadUrl: `/api/v1/attachments/${attachment.id}` };
+    events.emit(DomainEvents.attachmentCreated, {
+      attachment,
+      ticketId: resolvedTicketId,
+      organizationId,
+      actorId: actor.id,
+    });
+    return {
+      ...attachment,
+      downloadUrl: `/api/v1/attachments/${attachment.id}`,
+    };
   });
 }
 
@@ -125,7 +152,13 @@ export async function metadata(actor: RequestActor, id: string) {
       sizeBytes: true,
       uploadedById: true,
       ticket: { select: { id: true, organizationId: true, createdById: true } },
-      comment: { select: { ticket: { select: { id: true, organizationId: true, createdById: true } } } },
+      comment: {
+        select: {
+          ticket: {
+            select: { id: true, organizationId: true, createdById: true },
+          },
+        },
+      },
     },
   });
   if (!attachment) throw Errors.resourceNotFound('attachment');
@@ -134,17 +167,27 @@ export async function metadata(actor: RequestActor, id: string) {
   if (!ticket) throw Errors.resourceNotFound('attachment');
 
   const membership = await membershipOf(actor.id, ticket.organizationId);
-  if (!membership && actor.globalRole !== 'GLOBAL_ADMIN') throw Errors.notAMember();
-  assertPolicy('attachment:read', subject(actor, membership), { ownerId: ticket.createdById });
+  if (!membership && actor.globalRole !== 'GLOBAL_ADMIN')
+    throw Errors.notAMember();
+  assertPolicy('attachment:read', subject(actor, membership), {
+    ownerId: ticket.createdById,
+  });
 
-  return { ...attachment, ticketId: ticket.id, organizationId: ticket.organizationId };
+  return {
+    ...attachment,
+    ticketId: ticket.id,
+    organizationId: ticket.organizationId,
+  };
 }
 
 export function absolutePath(storageKey: string): string {
   return join(loadConfiguration().UPLOAD_DIR, 'attachments', storageKey);
 }
 
-export async function thumbnail(storageKey: string, mimeType: string): Promise<Buffer | null> {
+export async function thumbnail(
+  storageKey: string,
+  mimeType: string,
+): Promise<Buffer | null> {
   if (!mimeType.startsWith('image/')) return null;
   try {
     return await sharp(absolutePath(storageKey))
@@ -159,11 +202,20 @@ export async function thumbnail(storageKey: string, mimeType: string): Promise<B
 export async function remove(actor: RequestActor, id: string): Promise<void> {
   const attachment = await metadata(actor, id);
   const membership = await membershipOf(actor.id, attachment.organizationId);
-  assertPolicy('attachment:delete', subject(actor, membership), { ownerId: attachment.uploadedById });
+  assertPolicy('attachment:delete', subject(actor, membership), {
+    ownerId: attachment.uploadedById,
+  });
 
   await events.runInTransaction(async (tx) => {
-    await tx.attachment.update({ where: { id }, data: { deletedAt: new Date(), status: 'DELETED' } });
-    events.emit(DomainEvents.attachmentDeleted, { attachmentId: id, ticketId: attachment.ticketId, actorId: actor.id });
+    await tx.attachment.update({
+      where: { id },
+      data: { deletedAt: new Date(), status: 'DELETED' },
+    });
+    events.emit(DomainEvents.attachmentDeleted, {
+      attachmentId: id,
+      ticketId: attachment.ticketId,
+      actorId: actor.id,
+    });
   });
   await unlink(absolutePath(attachment.storageKey)).catch(() => undefined);
 }

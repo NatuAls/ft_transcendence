@@ -22,7 +22,11 @@ async function timed(
   const started = Date.now();
   try {
     const ok = await probe();
-    return { name, status: ok ? 'up' : optional ? 'degraded' : 'down', latencyMs: Date.now() - started };
+    return {
+      name,
+      status: ok ? 'up' : optional ? 'degraded' : 'down',
+      latencyMs: Date.now() - started,
+    };
   } catch (error) {
     return {
       name,
@@ -64,7 +68,10 @@ async function probe(): Promise<ServiceStatus[]> {
 export const healthRouter: Router = Router();
 
 healthRouter.get('/', (_req, res) => {
-  res.json({ status: 'ok', uptimeSeconds: Math.floor((Date.now() - bootedAt) / 1000) });
+  res.json({
+    status: 'ok',
+    uptimeSeconds: Math.floor((Date.now() - bootedAt) / 1000),
+  });
 });
 
 healthRouter.get('/ready', async (_req, res) => {

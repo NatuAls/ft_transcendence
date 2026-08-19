@@ -27,7 +27,9 @@ function orgIdOf(actor: RequestActor): string {
   return actor.organizationId;
 }
 
-function membershipOfActor(actor: RequestActor): Promise<RequestMembership | undefined> {
+function membershipOfActor(
+  actor: RequestActor,
+): Promise<RequestMembership | undefined> {
   return membershipOf(actor.id, orgIdOf(actor));
 }
 
@@ -47,7 +49,11 @@ export const publicApiRouter: Router = Router();
 
 publicApiRouter.get('/me', ...apiKeyRoute, (req, res) => {
   const actor = req.actor!;
-  res.json({ organizationId: actor.organizationId, scopes: actor.scopes ?? [], owner: { id: actor.id, username: actor.username } });
+  res.json({
+    organizationId: actor.organizationId,
+    scopes: actor.scopes ?? [],
+    owner: { id: actor.id, username: actor.username },
+  });
 });
 
 // ---- tickets --------------------------------------------------------------------
@@ -67,16 +73,37 @@ publicApiRouter.get(
   },
 );
 
-publicApiRouter.get('/tickets/:id', ...apiKeyRoute, requireScope('tickets:read'), async (req, res) => {
-  const actor = req.actor!;
-  res.json(await tickets.findOne(actor, await membershipOfActor(actor), param(req.params.id)));
-});
+publicApiRouter.get(
+  '/tickets/:id',
+  ...apiKeyRoute,
+  requireScope('tickets:read'),
+  async (req, res) => {
+    const actor = req.actor!;
+    res.json(
+      await tickets.findOne(
+        actor,
+        await membershipOfActor(actor),
+        param(req.params.id),
+      ),
+    );
+  },
+);
 
-publicApiRouter.post('/tickets', ...apiKeyRoute, requireScope('tickets:write'), async (req, res) => {
-  const actor = req.actor!;
-  const input = createTicketSchema.parse({ ...req.body, organizationId: orgIdOf(actor) });
-  res.status(201).json(await tickets.create(actor, await membershipOfActor(actor), input));
-});
+publicApiRouter.post(
+  '/tickets',
+  ...apiKeyRoute,
+  requireScope('tickets:write'),
+  async (req, res) => {
+    const actor = req.actor!;
+    const input = createTicketSchema.parse({
+      ...req.body,
+      organizationId: orgIdOf(actor),
+    });
+    res
+      .status(201)
+      .json(await tickets.create(actor, await membershipOfActor(actor), input));
+  },
+);
 
 publicApiRouter.put(
   '/tickets/:id',
@@ -85,7 +112,14 @@ publicApiRouter.put(
   validate(updateTicketSchema),
   async (req, res) => {
     const actor = req.actor!;
-    res.json(await tickets.update(actor, await membershipOfActor(actor), param(req.params.id), req.body));
+    res.json(
+      await tickets.update(
+        actor,
+        await membershipOfActor(actor),
+        param(req.params.id),
+        req.body,
+      ),
+    );
   },
 );
 
@@ -96,21 +130,48 @@ publicApiRouter.patch(
   validate(updateTicketSchema),
   async (req, res) => {
     const actor = req.actor!;
-    res.json(await tickets.update(actor, await membershipOfActor(actor), param(req.params.id), req.body));
+    res.json(
+      await tickets.update(
+        actor,
+        await membershipOfActor(actor),
+        param(req.params.id),
+        req.body,
+      ),
+    );
   },
 );
 
-publicApiRouter.delete('/tickets/:id', ...apiKeyRoute, requireScope('tickets:write'), async (req, res) => {
-  const actor = req.actor!;
-  await tickets.remove(actor, await membershipOfActor(actor), param(req.params.id));
-  res.status(204).end();
-});
+publicApiRouter.delete(
+  '/tickets/:id',
+  ...apiKeyRoute,
+  requireScope('tickets:write'),
+  async (req, res) => {
+    const actor = req.actor!;
+    await tickets.remove(
+      actor,
+      await membershipOfActor(actor),
+      param(req.params.id),
+    );
+    res.status(204).end();
+  },
+);
 
 // ---- comments -------------------------------------------------------------------
-publicApiRouter.get('/tickets/:id/comments', ...apiKeyRoute, requireScope('comments:read'), async (req, res) => {
-  const actor = req.actor!;
-  res.json(await tickets.listComments(actor, await membershipOfActor(actor), param(req.params.id)));
-});
+publicApiRouter.get(
+  '/tickets/:id/comments',
+  ...apiKeyRoute,
+  requireScope('comments:read'),
+  async (req, res) => {
+    const actor = req.actor!;
+    res.json(
+      await tickets.listComments(
+        actor,
+        await membershipOfActor(actor),
+        param(req.params.id),
+      ),
+    );
+  },
+);
 
 publicApiRouter.post(
   '/tickets/:id/comments',
@@ -119,15 +180,35 @@ publicApiRouter.post(
   validate(createCommentSchema),
   async (req, res) => {
     const actor = req.actor!;
-    res.status(201).json(await tickets.addComment(actor, await membershipOfActor(actor), param(req.params.id), req.body));
+    res
+      .status(201)
+      .json(
+        await tickets.addComment(
+          actor,
+          await membershipOfActor(actor),
+          param(req.params.id),
+          req.body,
+        ),
+      );
   },
 );
 
 // ---- categories -----------------------------------------------------------------
-publicApiRouter.get('/categories', ...apiKeyRoute, requireScope('categories:read'), async (req, res) => {
-  const actor = req.actor!;
-  res.json(await orgs.listCategories(actor, await membershipOfActor(actor), orgIdOf(actor)));
-});
+publicApiRouter.get(
+  '/categories',
+  ...apiKeyRoute,
+  requireScope('categories:read'),
+  async (req, res) => {
+    const actor = req.actor!;
+    res.json(
+      await orgs.listCategories(
+        actor,
+        await membershipOfActor(actor),
+        orgIdOf(actor),
+      ),
+    );
+  },
+);
 
 publicApiRouter.post(
   '/categories',
@@ -136,7 +217,16 @@ publicApiRouter.post(
   validate(createCategorySchema),
   async (req, res) => {
     const actor = req.actor!;
-    res.status(201).json(await orgs.createCategory(actor, await membershipOfActor(actor), orgIdOf(actor), req.body));
+    res
+      .status(201)
+      .json(
+        await orgs.createCategory(
+          actor,
+          await membershipOfActor(actor),
+          orgIdOf(actor),
+          req.body,
+        ),
+      );
   },
 );
 
@@ -147,30 +237,58 @@ publicApiRouter.put(
   validate(updateCategorySchema),
   async (req, res) => {
     const actor = req.actor!;
-    res.json(await orgs.updateCategory(actor, await membershipOfActor(actor), orgIdOf(actor), param(req.params.id), req.body));
+    res.json(
+      await orgs.updateCategory(
+        actor,
+        await membershipOfActor(actor),
+        orgIdOf(actor),
+        param(req.params.id),
+        req.body,
+      ),
+    );
   },
 );
 
-publicApiRouter.delete('/categories/:id', ...apiKeyRoute, requireScope('categories:write'), async (req, res) => {
-  const actor = req.actor!;
-  await orgs.removeCategory(actor, await membershipOfActor(actor), orgIdOf(actor), param(req.params.id));
-  res.status(204).end();
-});
+publicApiRouter.delete(
+  '/categories/:id',
+  ...apiKeyRoute,
+  requireScope('categories:write'),
+  async (req, res) => {
+    const actor = req.actor!;
+    await orgs.removeCategory(
+      actor,
+      await membershipOfActor(actor),
+      orgIdOf(actor),
+      param(req.params.id),
+    );
+    res.status(204).end();
+  },
+);
 
 // ---- stats ------------------------------------------------------------------------
-publicApiRouter.get('/organizations/:id/stats', ...apiKeyRoute, requireScope('stats:read'), async (req, res) => {
-  const actor = req.actor!;
-  const id = param(req.params.id);
-  if (id !== orgIdOf(actor)) throw Errors.notAMember();
-  res.json(await orgs.stats(actor, await membershipOfActor(actor), id));
-});
+publicApiRouter.get(
+  '/organizations/:id/stats',
+  ...apiKeyRoute,
+  requireScope('stats:read'),
+  async (req, res) => {
+    const actor = req.actor!;
+    const id = param(req.params.id);
+    if (id !== orgIdOf(actor)) throw Errors.notAMember();
+    res.json(await orgs.stats(actor, await membershipOfActor(actor), id));
+  },
+);
 
 /** Session-authenticated management of the keys themselves (not part of the public surface). */
 export const apiKeysRouter: Router = Router({ mergeParams: true });
 
-apiKeysRouter.get('/', ...authed, orgScope({ minRoles: ['ORG_ADMIN'] }), async (req, res) => {
-  res.json(await apiKeys.list(param(req.params.organizationId)));
-});
+apiKeysRouter.get(
+  '/',
+  ...authed,
+  orgScope({ minRoles: ['ORG_ADMIN'] }),
+  async (req, res) => {
+    res.json(await apiKeys.list(param(req.params.organizationId)));
+  },
+);
 
 apiKeysRouter.post(
   '/',
@@ -178,11 +296,30 @@ apiKeysRouter.post(
   orgScope({ minRoles: ['ORG_ADMIN'] }),
   validate(createApiKeySchema),
   async (req, res) => {
-    res.status(201).json(await apiKeys.create(req.actor!, req.membership, param(req.params.organizationId), req.body));
+    res
+      .status(201)
+      .json(
+        await apiKeys.create(
+          req.actor!,
+          req.membership,
+          param(req.params.organizationId),
+          req.body,
+        ),
+      );
   },
 );
 
-apiKeysRouter.delete('/:id', ...authed, orgScope({ minRoles: ['ORG_ADMIN'] }), async (req, res) => {
-  await apiKeys.revoke(req.actor!, req.membership, param(req.params.organizationId), param(req.params.id));
-  res.status(204).end();
-});
+apiKeysRouter.delete(
+  '/:id',
+  ...authed,
+  orgScope({ minRoles: ['ORG_ADMIN'] }),
+  async (req, res) => {
+    await apiKeys.revoke(
+      req.actor!,
+      req.membership,
+      param(req.params.organizationId),
+      param(req.params.id),
+    );
+    res.status(204).end();
+  },
+);

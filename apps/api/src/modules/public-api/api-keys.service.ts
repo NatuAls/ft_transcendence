@@ -48,7 +48,12 @@ export async function create(
 
   const prefix = randomBytes(4).toString('hex');
   const secret = randomBytes(32).toString('base64url');
-  const keyHash = await argon2.hash(secret, { type: argon2.argon2id, memoryCost: 19456, timeCost: 2, parallelism: 1 });
+  const keyHash = await argon2.hash(secret, {
+    type: argon2.argon2id,
+    memoryCost: 19456,
+    timeCost: 2,
+    parallelism: 1,
+  });
 
   const key = await prisma.apiKey.create({
     data: {
@@ -58,9 +63,18 @@ export async function create(
       prefix,
       keyHash,
       scopes: input.scopes,
-      ...(input.expiresInDays ? { expiresAt: new Date(Date.now() + input.expiresInDays * 86_400_000) } : {}),
+      ...(input.expiresInDays
+        ? { expiresAt: new Date(Date.now() + input.expiresInDays * 86_400_000) }
+        : {}),
     },
-    select: { id: true, name: true, prefix: true, scopes: true, expiresAt: true, createdAt: true },
+    select: {
+      id: true,
+      name: true,
+      prefix: true,
+      scopes: true,
+      expiresAt: true,
+      createdAt: true,
+    },
   });
 
   return { ...key, secret: `hdl_live_${prefix}.${secret}` };
@@ -73,7 +87,13 @@ export async function revoke(
   id: string,
 ): Promise<void> {
   assertPolicy('apiKey:manage', subject(actor, membership));
-  const existing = await prisma.apiKey.findFirst({ where: { id, organizationId }, select: { id: true } });
+  const existing = await prisma.apiKey.findFirst({
+    where: { id, organizationId },
+    select: { id: true },
+  });
   if (!existing) throw Errors.resourceNotFound('apiKey');
-  await prisma.apiKey.update({ where: { id }, data: { revokedAt: new Date() } });
+  await prisma.apiKey.update({
+    where: { id },
+    data: { revokedAt: new Date() },
+  });
 }

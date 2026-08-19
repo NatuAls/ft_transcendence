@@ -18,8 +18,12 @@ const REFRESH_COOKIE = 'hd_refresh';
 const SESSION_HINT_COOKIE = 'hd_session';
 
 function contextOf(req: Request): auth.RequestContext {
-  const proto = (req.headers['x-forwarded-proto'] as string | undefined) ?? 'https';
-  const host = (req.headers['x-forwarded-host'] as string | undefined) ?? req.headers.host ?? 'localhost';
+  const proto =
+    (req.headers['x-forwarded-proto'] as string | undefined) ?? 'https';
+  const host =
+    (req.headers['x-forwarded-host'] as string | undefined) ??
+    req.headers.host ??
+    'localhost';
   return {
     userAgent: req.headers['user-agent'],
     ip: req.ip,
@@ -60,20 +64,36 @@ function clearAuthCookies(res: Response): void {
 
 export const authRouter: Router = Router();
 
-authRouter.post('/register', rateLimitDefault, validate(registerSchema), async (req, res) => {
-  const result = await auth.register(req.body, contextOf(req));
-  setRefreshCookie(res, result.refreshToken, result.refreshExpiresAt);
-  res.status(201).json({ user: result.user, accessToken: result.accessToken });
-});
+authRouter.post(
+  '/register',
+  rateLimitDefault,
+  validate(registerSchema),
+  async (req, res) => {
+    const result = await auth.register(req.body, contextOf(req));
+    setRefreshCookie(res, result.refreshToken, result.refreshExpiresAt);
+    res
+      .status(201)
+      .json({ user: result.user, accessToken: result.accessToken });
+  },
+);
 
-authRouter.post('/login', rateLimitDefault, validate(loginSchema), async (req, res) => {
-  const result = await auth.login(req.body, contextOf(req));
-  setRefreshCookie(res, result.refreshToken, result.refreshExpiresAt);
-  res.status(200).json({ user: result.user, accessToken: result.accessToken });
-});
+authRouter.post(
+  '/login',
+  rateLimitDefault,
+  validate(loginSchema),
+  async (req, res) => {
+    const result = await auth.login(req.body, contextOf(req));
+    setRefreshCookie(res, result.refreshToken, result.refreshExpiresAt);
+    res
+      .status(200)
+      .json({ user: result.user, accessToken: result.accessToken });
+  },
+);
 
 authRouter.post('/refresh', rateLimitDefault, async (req, res) => {
-  const token = (req.cookies as Record<string, string> | undefined)?.[REFRESH_COOKIE];
+  const token = (req.cookies as Record<string, string> | undefined)?.[
+    REFRESH_COOKIE
+  ];
   if (!token) throw Errors.tokenInvalid();
   const result = await auth.refresh(token, contextOf(req));
   setRefreshCookie(res, result.refreshToken, result.refreshExpiresAt);
@@ -81,7 +101,9 @@ authRouter.post('/refresh', rateLimitDefault, async (req, res) => {
 });
 
 authRouter.post('/logout', ...authed, async (req, res) => {
-  const token = (req.cookies as Record<string, string> | undefined)?.[REFRESH_COOKIE];
+  const token = (req.cookies as Record<string, string> | undefined)?.[
+    REFRESH_COOKIE
+  ];
   await auth.logout(token);
   clearAuthCookies(res);
   res.status(204).end();
@@ -97,10 +119,15 @@ authRouter.get('/me', ...authed, async (req, res) => {
   res.json(await auth.sessionUser(req.actor!.id));
 });
 
-authRouter.post('/verify-email', rateLimitDefault, validate(verifyEmailSchema), async (req, res) => {
-  await auth.verifyEmail(req.body.token);
-  res.status(204).end();
-});
+authRouter.post(
+  '/verify-email',
+  rateLimitDefault,
+  validate(verifyEmailSchema),
+  async (req, res) => {
+    await auth.verifyEmail(req.body.token);
+    res.status(204).end();
+  },
+);
 
 authRouter.post(
   '/forgot-password',
@@ -112,10 +139,15 @@ authRouter.post(
   },
 );
 
-authRouter.post('/reset-password', rateLimitDefault, validate(resetPasswordSchema), async (req, res) => {
-  await auth.resetPassword(req.body);
-  res.status(204).end();
-});
+authRouter.post(
+  '/reset-password',
+  rateLimitDefault,
+  validate(resetPasswordSchema),
+  async (req, res) => {
+    await auth.resetPassword(req.body);
+    res.status(204).end();
+  },
+);
 
 authRouter.post(
   '/change-password',

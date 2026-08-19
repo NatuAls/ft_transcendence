@@ -9,7 +9,10 @@ type Target = 'body' | 'query' | 'params';
  * This is how "validated in both the frontend and backend" is satisfied
  * without the two definitions being able to drift apart.
  */
-export function validate<T>(schema: ZodType<T>, target: Target = 'body'): RequestHandler {
+export function validate<T>(
+  schema: ZodType<T>,
+  target: Target = 'body',
+): RequestHandler {
   return (req: Request, _res: Response, next: NextFunction) => {
     try {
       const parsed = schema.parse(req[target]);
@@ -34,7 +37,9 @@ export function validate<T>(schema: ZodType<T>, target: Target = 'body'): Reques
             path: issue.path.join('.') || '(root)',
             code: issue.code,
             // Contracts put i18n keys in `message`; anything else is a plain description.
-            messageKey: issue.message.startsWith('errors.') ? issue.message : 'errors.field.invalid',
+            messageKey: issue.message.startsWith('errors.')
+              ? issue.message
+              : 'errors.field.invalid',
           })),
         );
       }

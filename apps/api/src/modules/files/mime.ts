@@ -22,7 +22,10 @@ export const TEXT_TYPES = new Map<string, string>([
 // eslint-disable-next-line no-control-regex
 const BINARY_MARKER = /[\x00-\x08\x0B\x0C\x0E-\x1F]/;
 
-export async function detectMime(buffer: Buffer, declared: string): Promise<string> {
+export async function detectMime(
+  buffer: Buffer,
+  declared: string,
+): Promise<string> {
   const detected = await fileTypeFromBuffer(buffer);
   if (detected) return detected.mime;
 

@@ -1,16 +1,34 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { TICKET_TRANSITIONS, canTransition, type TicketStatus } from 'contracts';
-import { assertTransition, buildReference, shouldAutoClose, timestampsFor } from '../../src/modules/tickets/domain/state-machine.ts';
+import {
+  TICKET_TRANSITIONS,
+  canTransition,
+  type TicketStatus,
+} from 'contracts';
+import {
+  assertTransition,
+  buildReference,
+  shouldAutoClose,
+  timestampsFor,
+} from '../../src/modules/tickets/domain/state-machine.ts';
 
 const ALL: TicketStatus[] = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'];
 
 describe('ticket state machine', () => {
   it('accepts exactly the 6 transitions declared in the design document', () => {
-    const allowed = ALL.flatMap((from) => TICKET_TRANSITIONS[from].map((to) => `${from}->${to}`));
+    const allowed = ALL.flatMap((from) =>
+      TICKET_TRANSITIONS[from].map((to) => `${from}->${to}`),
+    );
     assert.deepStrictEqual(
       allowed.sort(),
-      ['OPEN->IN_PROGRESS', 'OPEN->CLOSED', 'IN_PROGRESS->RESOLVED', 'RESOLVED->CLOSED', 'RESOLVED->IN_PROGRESS', 'CLOSED->IN_PROGRESS'].sort(),
+      [
+        'OPEN->IN_PROGRESS',
+        'OPEN->CLOSED',
+        'IN_PROGRESS->RESOLVED',
+        'RESOLVED->CLOSED',
+        'RESOLVED->IN_PROGRESS',
+        'CLOSED->IN_PROGRESS',
+      ].sort(),
     );
   });
 
@@ -25,7 +43,8 @@ describe('ticket state machine', () => {
   }
 
   it('rejects a no-op transition', () => {
-    for (const status of ALL) assert.throws(() => assertTransition(status, status));
+    for (const status of ALL)
+      assert.throws(() => assertTransition(status, status));
   });
 
   it('stamps resolvedAt when resolving and clears it when reopening', () => {

@@ -3,7 +3,11 @@ import { mkdir, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import sharp from 'sharp';
 import { fileTypeFromBuffer } from 'file-type';
-import type { ListUsersQuery, UpdatePreferencesInput, UpdateProfileInput } from 'contracts';
+import type {
+  ListUsersQuery,
+  UpdatePreferencesInput,
+  UpdateProfileInput,
+} from 'contracts';
 import type { GlobalRole } from '../../generated/prisma/client.ts';
 import { prisma } from '../../database/prisma.ts';
 import { DomainEvents, events } from '../../database/events.ts';
@@ -31,9 +35,14 @@ export async function publicProfile(username: string) {
         },
       },
       memberships: {
-        select: { role: true, organization: { select: { id: true, name: true, slug: true } } },
+        select: {
+          role: true,
+          organization: { select: { id: true, name: true, slug: true } },
+        },
       },
-      _count: { select: { ticketsCreated: true, ticketsAssigned: true, comments: true } },
+      _count: {
+        select: { ticketsCreated: true, ticketsAssigned: true, comments: true },
+      },
     },
   });
   if (!user) throw Errors.resourceNotFound('user');
@@ -47,7 +56,10 @@ export async function publicProfile(username: string) {
     isOnline: user.profile?.isOnline ?? false,
     lastSeenAt: user.profile?.lastSeenAt?.toISOString() ?? null,
     createdAt: user.createdAt.toISOString(),
-    organizations: user.memberships.map((m) => ({ ...m.organization, role: m.role })),
+    organizations: user.memberships.map((m) => ({
+      ...m.organization,
+      role: m.role,
+    })),
     stats: {
       ticketsCreated: user._count.ticketsCreated,
       ticketsAssigned: user._count.ticketsAssigned,
@@ -64,17 +76,29 @@ export async function updateProfile(userId: string, input: UpdateProfileInput) {
       ...(input.firstName || input.lastName
         ? {
             displayName:
-              input.displayName ?? (`${input.firstName ?? ''} ${input.lastName ?? ''}`.trim() || undefined),
+              input.displayName ??
+              (`${input.firstName ?? ''} ${input.lastName ?? ''}`.trim() ||
+                undefined),
           }
         : {}),
     },
-    select: { displayName: true, firstName: true, lastName: true, bio: true, jobTitle: true, avatarUrl: true },
+    select: {
+      displayName: true,
+      firstName: true,
+      lastName: true,
+      bio: true,
+      jobTitle: true,
+      avatarUrl: true,
+    },
   });
   events.emit(DomainEvents.accountUpdated, { userId });
   return profile;
 }
 
-export async function updatePreferences(userId: string, input: UpdatePreferencesInput) {
+export async function updatePreferences(
+  userId: string,
+  input: UpdatePreferencesInput,
+) {
   const { locale, timezone, theme, ...notify } = input;
   const [user] = await prisma.$transaction([
     prisma.user.update({
@@ -102,25 +126,40 @@ export async function updatePreferences(userId: string, input: UpdatePreferences
  */
 export async function setAvatar(
   userId: string,
-  file: { buffer: Buffer; mimetype: string; size: number; originalname: string },
+  file: {
+    buffer: Buffer;
+    mimetype: string;
+    size: number;
+    originalname: string;
+  },
 ) {
   const config = loadConfiguration();
   const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
-  if (!allowed.includes(file.mimetype)) throw Errors.fileTypeNotAllowed(file.mimetype);
+  if (!allowed.includes(file.mimetype))
+    throw Errors.fileTypeNotAllowed(file.mimetype);
   if (file.size > 5 * 1024 * 1024) throw Errors.fileTooLarge(5 * 1024 * 1024);
 
   const detected = await fileTypeFromBuffer(file.buffer);
   if (!detected || !allowed.includes(detected.mime)) {
-    throw Errors.fileTypeNotAllowed(detected?.mime ?? extname(file.originalname));
+    throw Errors.fileTypeNotAllowed(
+      detected?.mime ?? extname(file.originalname),
+    );
   }
 
   const dir = join(config.UPLOAD_DIR, 'avatars');
   await mkdir(dir, { recursive: true });
   const key = `${uuidv7()}.webp`;
-  const output = await sharp(file.buffer).rotate().resize(512, 512, { fit: 'cover' }).webp({ quality: 82 }).toBuffer();
+  const output = await sharp(file.buffer)
+    .rotate()
+    .resize(512, 512, { fit: 'cover' })
+    .webp({ quality: 82 })
+    .toBuffer();
   await writeFile(join(dir, key), output);
 
-  const previous = await prisma.userProfile.findUnique({ where: { userId }, select: { avatarUrl: true } });
+  const previous = await prisma.userProfile.findUnique({
+    where: { userId },
+    select: { avatarUrl: true },
+  });
   const avatarUrl = `/api/v1/users/avatars/${key}`;
   await prisma.userProfile.update({ where: { userId }, data: { avatarUrl } });
 
@@ -133,7 +172,10 @@ export async function setAvatar(
 }
 
 export async function clearAvatar(userId: string) {
-  await prisma.userProfile.update({ where: { userId }, data: { avatarUrl: null } });
+  await prisma.userProfile.update({
+    where: { userId },
+    data: { avatarUrl: null },
+  });
   return { avatarUrl: null };
 }
 
@@ -149,7 +191,11 @@ export async function autocomplete(term: string) {
       ],
     },
     take: 10,
-    select: { id: true, username: true, profile: { select: { displayName: true, avatarUrl: true } } },
+    select: {
+      id: true,
+      username: true,
+      profile: { select: { displayName: true, avatarUrl: true } },
+    },
   });
 }
 
@@ -183,7 +229,9 @@ export async function listAll(query: ListUsersQuery) {
         createdAt: true,
         lastLoginAt: true,
         emailVerifiedAt: true,
-        profile: { select: { displayName: true, avatarUrl: true, isOnline: true } },
+        profile: {
+          select: { displayName: true, avatarUrl: true, isOnline: true },
+        },
         _count: { select: { memberships: true, ticketsCreated: true } },
       },
     }),
@@ -192,8 +240,13 @@ export async function listAll(query: ListUsersQuery) {
   return paginate(rows, total, query.page, query.take);
 }
 
-export async function setStatus(actor: RequestActor, userId: string, isActive: boolean) {
-  if (userId === actor.id) throw Errors.forbiddenAction('suspend your own account');
+export async function setStatus(
+  actor: RequestActor,
+  userId: string,
+  isActive: boolean,
+) {
+  if (userId === actor.id)
+    throw Errors.forbiddenAction('suspend your own account');
   const user = await prisma.user.update({
     where: { id: userId },
     data: { isActive },
@@ -203,8 +256,13 @@ export async function setStatus(actor: RequestActor, userId: string, isActive: b
   return user;
 }
 
-export async function setGlobalRole(actor: RequestActor, userId: string, globalRole: GlobalRole) {
-  if (userId === actor.id) throw Errors.forbiddenAction('change your own global role');
+export async function setGlobalRole(
+  actor: RequestActor,
+  userId: string,
+  globalRole: GlobalRole,
+) {
+  if (userId === actor.id)
+    throw Errors.forbiddenAction('change your own global role');
   const user = await prisma.user.update({
     where: { id: userId },
     data: { globalRole },
@@ -214,8 +272,12 @@ export async function setGlobalRole(actor: RequestActor, userId: string, globalR
   return user;
 }
 
-export async function softDelete(actor: RequestActor, userId: string): Promise<void> {
-  if (userId === actor.id) throw Errors.forbiddenAction('delete your own account here');
+export async function softDelete(
+  actor: RequestActor,
+  userId: string,
+): Promise<void> {
+  if (userId === actor.id)
+    throw Errors.forbiddenAction('delete your own account here');
   await prisma.user.update({
     where: { id: userId },
     data: { deletedAt: new Date(), isActive: false },

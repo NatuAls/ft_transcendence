@@ -7,7 +7,10 @@ import { loadConfiguration } from '../../config/env.ts';
 import { Errors } from '../../common/errors/domain-error.ts';
 import { param } from '../../common/utils/http.ts';
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 12 * 1024 * 1024 } });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 12 * 1024 * 1024 },
+});
 
 export const filesRouter: Router = Router();
 
@@ -31,10 +34,24 @@ filesRouter.get('/attachments/limits', ...authed, (_req, res) => {
   });
 });
 
-filesRouter.post('/tickets/:ticketId/attachments', ...authed, upload.single('file'), async (req, res) => {
-  if (!req.file) throw Errors.resourceNotFound('file');
-  res.status(201).json(await files.upload(req.actor!, undefined, { ticketId: param(req.params.ticketId) }, req.file));
-});
+filesRouter.post(
+  '/tickets/:ticketId/attachments',
+  ...authed,
+  upload.single('file'),
+  async (req, res) => {
+    if (!req.file) throw Errors.resourceNotFound('file');
+    res
+      .status(201)
+      .json(
+        await files.upload(
+          req.actor!,
+          undefined,
+          { ticketId: param(req.params.ticketId) },
+          req.file,
+        ),
+      );
+  },
+);
 
 filesRouter.post(
   '/tickets/:ticketId/comments/:commentId/attachments',
@@ -42,7 +59,16 @@ filesRouter.post(
   upload.single('file'),
   async (req, res) => {
     if (!req.file) throw Errors.resourceNotFound('file');
-    res.status(201).json(await files.upload(req.actor!, undefined, { commentId: param(req.params.commentId) }, req.file));
+    res
+      .status(201)
+      .json(
+        await files.upload(
+          req.actor!,
+          undefined,
+          { commentId: param(req.params.commentId) },
+          req.file,
+        ),
+      );
   },
 );
 
@@ -54,14 +80,20 @@ filesRouter.get('/attachments/:id', ...authed, async (req, res) => {
   res.setHeader('Content-Type', attachment.mimeType);
   res.setHeader('Content-Length', attachment.sizeBytes);
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(attachment.originalName)}"`);
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="${encodeURIComponent(attachment.originalName)}"`,
+  );
   res.setHeader('Cache-Control', 'private, no-store');
   createReadStream(path).pipe(res);
 });
 
 filesRouter.get('/attachments/:id/thumbnail', ...authed, async (req, res) => {
   const attachment = await files.metadata(req.actor!, param(req.params.id));
-  const buffer = await files.thumbnail(attachment.storageKey, attachment.mimeType);
+  const buffer = await files.thumbnail(
+    attachment.storageKey,
+    attachment.mimeType,
+  );
   if (!buffer) throw Errors.resourceNotFound('thumbnail');
   res.setHeader('Content-Type', 'image/webp');
   res.setHeader('Cache-Control', 'private, max-age=600');

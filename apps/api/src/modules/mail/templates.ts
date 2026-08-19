@@ -4,7 +4,11 @@ export interface EmailContent {
   text: string;
 }
 
-function layout(title: string, body: string, cta?: { label: string; url: string }): string {
+function layout(
+  title: string,
+  body: string,
+  cta?: { label: string; url: string },
+): string {
   return `<!doctype html><html><body style="font-family:system-ui,sans-serif;background:#f7f9fa;padding:24px">
   <div style="max-width:520px;margin:auto;background:#fff;border:1px solid #dce3e7;border-radius:12px;padding:24px">
     <h1 style="color:#0d6c90;font-size:18px;margin:0 0 12px">HelpDesk Lite</h1>
@@ -23,7 +27,10 @@ function layout(title: string, body: string, cta?: { label: string; url: string 
   </div></body></html>`;
 }
 
-export function emailVerificationTemplate(name: string, url: string): EmailContent {
+export function emailVerificationTemplate(
+  name: string,
+  url: string,
+): EmailContent {
   return {
     subject: 'Confirm your HelpDesk Lite account',
     html: layout(
@@ -54,9 +61,13 @@ export function gdprConfirmationTemplate(
 ): EmailContent {
   const isDelete = type === 'DELETE';
   return {
-    subject: isDelete ? 'Confirm deletion of your HelpDesk Lite data' : 'Confirm your data export',
+    subject: isDelete
+      ? 'Confirm deletion of your HelpDesk Lite data'
+      : 'Confirm your data export',
     html: layout(
-      isDelete ? `Account deletion requested, ${name}` : `Data export requested, ${name}`,
+      isDelete
+        ? `Account deletion requested, ${name}`
+        : `Data export requested, ${name}`,
       isDelete
         ? '<p>You asked us to permanently delete your account and personal data.</p><p><strong>This cannot be undone.</strong> You will also be asked to type your username to confirm.</p><p>The link expires in 30 minutes.</p>'
         : '<p>You asked for a copy of your personal data. Confirm below and we will build a ZIP archive containing your profile, tickets, comments, messages and attachments in JSON and CSV.</p><p>The link expires in 30 minutes; the download expires 24 hours after that.</p>',
@@ -66,7 +77,10 @@ export function gdprConfirmationTemplate(
   };
 }
 
-export function gdprExportReadyTemplate(name: string, url: string): EmailContent {
+export function gdprExportReadyTemplate(
+  name: string,
+  url: string,
+): EmailContent {
   return {
     subject: 'Your HelpDesk Lite data export is ready',
     html: layout(
@@ -78,7 +92,11 @@ export function gdprExportReadyTemplate(name: string, url: string): EmailContent
   };
 }
 
-export function organizationInviteTemplate(orgName: string, inviter: string, url: string): EmailContent {
+export function organizationInviteTemplate(
+  orgName: string,
+  inviter: string,
+  url: string,
+): EmailContent {
   return {
     subject: `You have been added to ${orgName}`,
     html: layout(

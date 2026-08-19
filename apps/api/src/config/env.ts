@@ -8,16 +8,24 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('production'),
   PORT: z.coerce.number().int().default(3000),
   APP_VERSION: z.string().default('1.0.0'),
-  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'verbose']).default('info'),
+  LOG_LEVEL: z
+    .enum(['fatal', 'error', 'warn', 'info', 'debug', 'verbose'])
+    .default('info'),
 
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   REDIS_URL: z.string().default('redis://redis:6379'),
 
-  JWT_ACCESS_SECRET: z.string().min(32, 'JWT_ACCESS_SECRET must be at least 32 chars'),
+  JWT_ACCESS_SECRET: z
+    .string()
+    .min(32, 'JWT_ACCESS_SECRET must be at least 32 chars'),
   // Declared for parity with the reference app; currently unused - refresh
   // tokens are opaque random bytes, not JWTs (see modules/auth/token.ts).
-  JWT_REFRESH_SECRET: z.string().min(32, 'JWT_REFRESH_SECRET must be at least 32 chars'),
-  PASSWORD_PEPPER: z.string().min(16, 'PASSWORD_PEPPER must be at least 16 chars'),
+  JWT_REFRESH_SECRET: z
+    .string()
+    .min(32, 'JWT_REFRESH_SECRET must be at least 32 chars'),
+  PASSWORD_PEPPER: z
+    .string()
+    .min(16, 'PASSWORD_PEPPER must be at least 16 chars'),
   ACCESS_TOKEN_TTL: z.string().default('15m'),
   REFRESH_TOKEN_TTL: z.string().default('7d'),
 

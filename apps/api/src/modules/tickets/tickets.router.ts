@@ -1,4 +1,9 @@
-import { Router, type NextFunction, type Request, type Response } from 'express';
+import {
+  Router,
+  type NextFunction,
+  type Request,
+  type Response,
+} from 'express';
 import {
   assignTicketSchema,
   changeStatusSchema,
@@ -23,7 +28,11 @@ import { param } from '../../common/utils/http.ts';
  * URL or body. For ticket-id routes, the organization isn't in the URL - it
  * has to be looked up from the ticket itself.
  */
-async function resolveTicketMembership(req: Request, _res: Response, next: NextFunction) {
+async function resolveTicketMembership(
+  req: Request,
+  _res: Response,
+  next: NextFunction,
+) {
   if (req.membership) return next();
   const ticket = await prisma.ticket.findUnique({
     where: { id: param(req.params.id) },
@@ -37,19 +46,24 @@ async function resolveTicketMembership(req: Request, _res: Response, next: NextF
 
 export const ticketsRouter: Router = Router();
 
-ticketsRouter.get('/', ...authed, validate(searchTicketsQuerySchema, 'query'), async (req, res) => {
-  const memberships = await prisma.organizationMember.findMany({
-    where: { userId: req.actor!.id },
-    select: { organizationId: true },
-  });
-  res.json(
-    await search.searchTickets(
-      req.actor!,
-      memberships.map((m) => m.organizationId),
-      req.query as unknown as Parameters<typeof search.searchTickets>[2],
-    ),
-  );
-});
+ticketsRouter.get(
+  '/',
+  ...authed,
+  validate(searchTicketsQuerySchema, 'query'),
+  async (req, res) => {
+    const memberships = await prisma.organizationMember.findMany({
+      where: { userId: req.actor!.id },
+      select: { organizationId: true },
+    });
+    res.json(
+      await search.searchTickets(
+        req.actor!,
+        memberships.map((m) => m.organizationId),
+        req.query as unknown as Parameters<typeof search.searchTickets>[2],
+      ),
+    );
+  },
+);
 
 ticketsRouter.post(
   '/',
@@ -58,13 +72,22 @@ ticketsRouter.post(
   requirePolicy('ticket:create'),
   validate(createTicketSchema),
   async (req, res) => {
-    res.status(201).json(await tickets.create(req.actor!, req.membership, req.body));
+    res
+      .status(201)
+      .json(await tickets.create(req.actor!, req.membership, req.body));
   },
 );
 
-ticketsRouter.get('/:id', ...authed, resolveTicketMembership, async (req, res) => {
-  res.json(await tickets.findOne(req.actor!, req.membership, param(req.params.id)));
-});
+ticketsRouter.get(
+  '/:id',
+  ...authed,
+  resolveTicketMembership,
+  async (req, res) => {
+    res.json(
+      await tickets.findOne(req.actor!, req.membership, param(req.params.id)),
+    );
+  },
+);
 
 ticketsRouter.patch(
   '/:id',
@@ -72,7 +95,14 @@ ticketsRouter.patch(
   resolveTicketMembership,
   validate(updateTicketSchema),
   async (req, res) => {
-    res.json(await tickets.update(req.actor!, req.membership, param(req.params.id), req.body));
+    res.json(
+      await tickets.update(
+        req.actor!,
+        req.membership,
+        param(req.params.id),
+        req.body,
+      ),
+    );
   },
 );
 
@@ -82,7 +112,14 @@ ticketsRouter.patch(
   resolveTicketMembership,
   validate(changeStatusSchema),
   async (req, res) => {
-    res.json(await tickets.changeStatus(req.actor!, req.membership, param(req.params.id), req.body));
+    res.json(
+      await tickets.changeStatus(
+        req.actor!,
+        req.membership,
+        param(req.params.id),
+        req.body,
+      ),
+    );
   },
 );
 
@@ -92,22 +129,52 @@ ticketsRouter.patch(
   resolveTicketMembership,
   validate(assignTicketSchema),
   async (req, res) => {
-    res.json(await tickets.assign(req.actor!, req.membership, param(req.params.id), req.body));
+    res.json(
+      await tickets.assign(
+        req.actor!,
+        req.membership,
+        param(req.params.id),
+        req.body,
+      ),
+    );
   },
 );
 
-ticketsRouter.delete('/:id', ...authed, resolveTicketMembership, async (req, res) => {
-  await tickets.remove(req.actor!, req.membership, param(req.params.id));
-  res.status(204).end();
-});
+ticketsRouter.delete(
+  '/:id',
+  ...authed,
+  resolveTicketMembership,
+  async (req, res) => {
+    await tickets.remove(req.actor!, req.membership, param(req.params.id));
+    res.status(204).end();
+  },
+);
 
-ticketsRouter.get('/:id/history', ...authed, resolveTicketMembership, async (req, res) => {
-  res.json(await tickets.history(req.actor!, req.membership, param(req.params.id)));
-});
+ticketsRouter.get(
+  '/:id/history',
+  ...authed,
+  resolveTicketMembership,
+  async (req, res) => {
+    res.json(
+      await tickets.history(req.actor!, req.membership, param(req.params.id)),
+    );
+  },
+);
 
-ticketsRouter.get('/:id/comments', ...authed, resolveTicketMembership, async (req, res) => {
-  res.json(await tickets.listComments(req.actor!, req.membership, param(req.params.id)));
-});
+ticketsRouter.get(
+  '/:id/comments',
+  ...authed,
+  resolveTicketMembership,
+  async (req, res) => {
+    res.json(
+      await tickets.listComments(
+        req.actor!,
+        req.membership,
+        param(req.params.id),
+      ),
+    );
+  },
+);
 
 ticketsRouter.post(
   '/:id/comments',
@@ -115,7 +182,16 @@ ticketsRouter.post(
   resolveTicketMembership,
   validate(createCommentSchema),
   async (req, res) => {
-    res.status(201).json(await tickets.addComment(req.actor!, req.membership, param(req.params.id), req.body));
+    res
+      .status(201)
+      .json(
+        await tickets.addComment(
+          req.actor!,
+          req.membership,
+          param(req.params.id),
+          req.body,
+        ),
+      );
   },
 );
 
@@ -137,7 +213,17 @@ ticketsRouter.patch(
   },
 );
 
-ticketsRouter.delete('/:id/comments/:commentId', ...authed, resolveTicketMembership, async (req, res) => {
-  await tickets.removeComment(req.actor!, req.membership, param(req.params.id), param(req.params.commentId));
-  res.status(204).end();
-});
+ticketsRouter.delete(
+  '/:id/comments/:commentId',
+  ...authed,
+  resolveTicketMembership,
+  async (req, res) => {
+    await tickets.removeComment(
+      req.actor!,
+      req.membership,
+      param(req.params.id),
+      param(req.params.commentId),
+    );
+    res.status(204).end();
+  },
+);

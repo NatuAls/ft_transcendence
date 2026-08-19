@@ -6,7 +6,9 @@ import { paginationQuerySchema, uuidSchema } from './common.ts';
 
 export const createApiKeySchema = z.object({
   name: z.string().trim().min(3).max(60),
-  scopes: z.array(apiScopeSchema).min(1, { message: 'errors.apiKey.scopesRequired' }),
+  scopes: z
+    .array(apiScopeSchema)
+    .min(1, { message: 'errors.apiKey.scopesRequired' }),
   expiresInDays: z.coerce.number().int().min(1).max(365).optional(),
 });
 

@@ -5,9 +5,19 @@ import { z } from 'zod';
  */
 export const globalRoleSchema = z.enum(['USER', 'GLOBAL_ADMIN']);
 export const orgRoleSchema = z.enum(['MEMBER', 'AGENT', 'ORG_ADMIN']);
-export const ticketStatusSchema = z.enum(['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED']);
+export const ticketStatusSchema = z.enum([
+  'OPEN',
+  'IN_PROGRESS',
+  'RESOLVED',
+  'CLOSED',
+]);
 export const ticketPrioritySchema = z.enum(['LOW', 'MEDIUM', 'HIGH']);
-export const friendshipStatusSchema = z.enum(['PENDING', 'ACCEPTED', 'DECLINED', 'BLOCKED']);
+export const friendshipStatusSchema = z.enum([
+  'PENDING',
+  'ACCEPTED',
+  'DECLINED',
+  'BLOCKED',
+]);
 export const localeSchema = z.enum(['EN', 'ES', 'AR']);
 export const notificationEntitySchema = z.enum([
   'TICKET',
@@ -20,7 +30,11 @@ export const notificationEntitySchema = z.enum([
   'MESSAGE',
   'ACCOUNT',
 ]);
-export const notificationActionSchema = z.enum(['CREATED', 'UPDATED', 'DELETED']);
+export const notificationActionSchema = z.enum([
+  'CREATED',
+  'UPDATED',
+  'DELETED',
+]);
 export const gdprRequestTypeSchema = z.enum(['EXPORT', 'DELETE']);
 export const apiScopeSchema = z.enum([
   'tickets:read',
@@ -48,13 +62,14 @@ export type ApiScope = z.infer<typeof apiScopeSchema>;
  * fail with 409 TICKET_INVALID_TRANSITION, both through the web app and
  * through the public API.
  */
-export const TICKET_TRANSITIONS: Readonly<Record<TicketStatus, readonly TicketStatus[]>> =
-  Object.freeze({
-    OPEN: ['IN_PROGRESS', 'CLOSED'],
-    IN_PROGRESS: ['RESOLVED'],
-    RESOLVED: ['CLOSED', 'IN_PROGRESS'],
-    CLOSED: ['IN_PROGRESS'],
-  });
+export const TICKET_TRANSITIONS: Readonly<
+  Record<TicketStatus, readonly TicketStatus[]>
+> = Object.freeze({
+  OPEN: ['IN_PROGRESS', 'CLOSED'],
+  IN_PROGRESS: ['RESOLVED'],
+  RESOLVED: ['CLOSED', 'IN_PROGRESS'],
+  CLOSED: ['IN_PROGRESS'],
+});
 
 export function canTransition(from: TicketStatus, to: TicketStatus): boolean {
   return TICKET_TRANSITIONS[from].includes(to);

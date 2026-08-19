@@ -28,7 +28,10 @@ export function createApp(): Express {
   app.set('trust proxy', 1);
 
   app.use(
-    helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: { policy: 'same-origin' } }),
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginResourcePolicy: { policy: 'same-origin' },
+    }),
   );
   app.use(compression());
   app.use(cookieParser());

@@ -43,7 +43,10 @@ export async function pingRedis(): Promise<boolean> {
 }
 
 // ---- token revocation -------------------------------------------------------
-export async function revokeJti(jti: string, ttlSeconds: number): Promise<void> {
+export async function revokeJti(
+  jti: string,
+  ttlSeconds: number,
+): Promise<void> {
   await redis.set(`revoked:${jti}`, '1', 'EX', Math.max(ttlSeconds, 1));
 }
 
@@ -59,8 +62,16 @@ export async function isRevoked(jti: string): Promise<boolean> {
 }
 
 // ---- presence -----------------------------------------------------------------
-export async function touchPresence(userId: string, ttlSeconds = 60): Promise<void> {
-  await redis.set(`presence:${userId}`, Date.now().toString(), 'EX', ttlSeconds);
+export async function touchPresence(
+  userId: string,
+  ttlSeconds = 60,
+): Promise<void> {
+  await redis.set(
+    `presence:${userId}`,
+    Date.now().toString(),
+    'EX',
+    ttlSeconds,
+  );
 }
 
 export async function clearPresence(userId: string): Promise<void> {

@@ -40,10 +40,21 @@ export async function verifyMail(): Promise<boolean> {
   }
 }
 
-async function send(to: string, subject: string, html: string, text: string): Promise<void> {
+async function send(
+  to: string,
+  subject: string,
+  html: string,
+  text: string,
+): Promise<void> {
   try {
     const config = loadConfiguration();
-    await getTransporter().sendMail({ from: config.MAIL_FROM, to, subject, html, text });
+    await getTransporter().sendMail({
+      from: config.MAIL_FROM,
+      to,
+      subject,
+      html,
+      text,
+    });
     logger.info(`mail sent to ${to}: ${subject}`);
   } catch (error) {
     // A failing mailbox must never break the request that triggered it.
@@ -51,12 +62,20 @@ async function send(to: string, subject: string, html: string, text: string): Pr
   }
 }
 
-export async function sendEmailVerification(to: string, name: string, url: string): Promise<void> {
+export async function sendEmailVerification(
+  to: string,
+  name: string,
+  url: string,
+): Promise<void> {
   const { subject, html, text } = emailVerificationTemplate(name, url);
   await send(to, subject, html, text);
 }
 
-export async function sendPasswordReset(to: string, name: string, url: string): Promise<void> {
+export async function sendPasswordReset(
+  to: string,
+  name: string,
+  url: string,
+): Promise<void> {
   const { subject, html, text } = passwordResetTemplate(name, url);
   await send(to, subject, html, text);
 }
@@ -71,7 +90,11 @@ export async function sendGdprConfirmation(
   await send(to, subject, html, text);
 }
 
-export async function sendGdprExportReady(to: string, name: string, url: string): Promise<void> {
+export async function sendGdprExportReady(
+  to: string,
+  name: string,
+  url: string,
+): Promise<void> {
   const { subject, html, text } = gdprExportReadyTemplate(name, url);
   await send(to, subject, html, text);
 }
@@ -82,6 +105,10 @@ export async function sendOrganizationInvite(
   inviter: string,
   url: string,
 ): Promise<void> {
-  const { subject, html, text } = organizationInviteTemplate(orgName, inviter, url);
+  const { subject, html, text } = organizationInviteTemplate(
+    orgName,
+    inviter,
+    url,
+  );
   await send(to, subject, html, text);
 }

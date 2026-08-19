@@ -1,4 +1,8 @@
-import { canTransition, TICKET_TRANSITIONS, type TicketStatus } from 'contracts';
+import {
+  canTransition,
+  TICKET_TRANSITIONS,
+  type TicketStatus,
+} from 'contracts';
 import { Errors } from '../../../common/errors/domain-error.ts';
 
 /**
@@ -39,8 +43,16 @@ export function timestampsFor(to: TicketStatus): Record<string, Date | null> {
 /** A ticket that has been resolved for 7 days closes itself. */
 export const AUTO_CLOSE_AFTER_MS = 7 * 24 * 3600 * 1000;
 
-export function shouldAutoClose(status: TicketStatus, resolvedAt: Date | null, now = new Date()): boolean {
-  return status === 'RESOLVED' && resolvedAt !== null && now.getTime() - resolvedAt.getTime() >= AUTO_CLOSE_AFTER_MS;
+export function shouldAutoClose(
+  status: TicketStatus,
+  resolvedAt: Date | null,
+  now = new Date(),
+): boolean {
+  return (
+    status === 'RESOLVED' &&
+    resolvedAt !== null &&
+    now.getTime() - resolvedAt.getTime() >= AUTO_CLOSE_AFTER_MS
+  );
 }
 
 /** ACME-0042 style reference, unique inside an organization. */

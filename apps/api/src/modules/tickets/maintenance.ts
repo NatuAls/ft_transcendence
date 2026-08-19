@@ -16,7 +16,10 @@ async function autoCloseResolvedTickets(): Promise<void> {
 
   for (const ticket of stale) {
     await prisma.$transaction([
-      prisma.ticket.update({ where: { id: ticket.id }, data: { status: 'CLOSED', closedAt: new Date() } }),
+      prisma.ticket.update({
+        where: { id: ticket.id },
+        data: { status: 'CLOSED', closedAt: new Date() },
+      }),
       prisma.ticketHistory.create({
         data: {
           ticketId: ticket.id,
@@ -43,12 +46,20 @@ async function pruneExpired(): Promise<void> {
       data: { status: 'EXPIRED' },
     }),
   ]);
-  logger.info(`pruned ${sessions.count} sessions, ${tokens.count} tokens, expired ${requests.count} GDPR requests`);
+  logger.info(
+    `pruned ${sessions.count} sessions, ${tokens.count} tokens, expired ${requests.count} GDPR requests`,
+  );
 }
 
 function everyHour(fn: () => Promise<void>): void {
   const HOUR_MS = 3_600_000;
-  setInterval(() => void fn().catch((error: unknown) => logger.error('hourly job failed', error)), HOUR_MS);
+  setInterval(
+    () =>
+      void fn().catch((error: unknown) =>
+        logger.error('hourly job failed', error),
+      ),
+    HOUR_MS,
+  );
 }
 
 function dailyAt(hour: number, fn: () => Promise<void>): void {
@@ -59,8 +70,16 @@ function dailyAt(hour: number, fn: () => Promise<void>): void {
     next.setHours(hour, 0, 0, 0);
     if (next.getTime() <= now.getTime()) next.setDate(next.getDate() + 1);
     setTimeout(() => {
-      void fn().catch((error: unknown) => logger.error('daily job failed', error));
-      setInterval(() => void fn().catch((error: unknown) => logger.error('daily job failed', error)), DAY_MS);
+      void fn().catch((error: unknown) =>
+        logger.error('daily job failed', error),
+      );
+      setInterval(
+        () =>
+          void fn().catch((error: unknown) =>
+            logger.error('daily job failed', error),
+          ),
+        DAY_MS,
+      );
     }, next.getTime() - now.getTime());
   };
   schedule();

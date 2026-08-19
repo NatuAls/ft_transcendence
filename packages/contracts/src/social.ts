@@ -32,4 +32,6 @@ export const listNotificationsQuerySchema = paginationQuerySchema.extend({
 });
 
 export type SendMessageInput = z.infer<typeof sendMessageSchema>;
-export type ListNotificationsQuery = z.infer<typeof listNotificationsQuerySchema>;
+export type ListNotificationsQuery = z.infer<
+  typeof listNotificationsQuerySchema
+>;

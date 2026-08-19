@@ -15,8 +15,12 @@ import { param } from '../../common/utils/http.ts';
 import { apiKeysRouter } from '../public-api/public-api.router.ts';
 
 function originOf(req: Request): string {
-  const proto = (req.headers['x-forwarded-proto'] as string | undefined) ?? 'https';
-  const host = (req.headers['x-forwarded-host'] as string | undefined) ?? req.headers.host ?? 'localhost';
+  const proto =
+    (req.headers['x-forwarded-proto'] as string | undefined) ?? 'https';
+  const host =
+    (req.headers['x-forwarded-host'] as string | undefined) ??
+    req.headers.host ??
+    'localhost';
   return `${proto}://${host}`;
 }
 
@@ -26,13 +30,29 @@ organizationsRouter.get('/', ...authed, async (req, res) => {
   res.json(await orgs.listMine(req.actor!));
 });
 
-organizationsRouter.post('/', ...authed, validate(createOrganizationSchema), async (req, res) => {
-  res.status(201).json(await orgs.create(req.actor!, req.body));
-});
+organizationsRouter.post(
+  '/',
+  ...authed,
+  validate(createOrganizationSchema),
+  async (req, res) => {
+    res.status(201).json(await orgs.create(req.actor!, req.body));
+  },
+);
 
-organizationsRouter.get('/:organizationId', ...authed, orgScope(), async (req, res) => {
-  res.json(await orgs.findOne(req.actor!, req.membership, param(req.params.organizationId)));
-});
+organizationsRouter.get(
+  '/:organizationId',
+  ...authed,
+  orgScope(),
+  async (req, res) => {
+    res.json(
+      await orgs.findOne(
+        req.actor!,
+        req.membership,
+        param(req.params.organizationId),
+      ),
+    );
+  },
+);
 
 organizationsRouter.patch(
   '/:organizationId',
@@ -40,7 +60,14 @@ organizationsRouter.patch(
   orgScope({ minRoles: ['ORG_ADMIN'] }),
   validate(updateOrganizationSchema),
   async (req, res) => {
-    res.json(await orgs.update(req.actor!, req.membership, param(req.params.organizationId), req.body));
+    res.json(
+      await orgs.update(
+        req.actor!,
+        req.membership,
+        param(req.params.organizationId),
+        req.body,
+      ),
+    );
   },
 );
 
@@ -49,14 +76,29 @@ organizationsRouter.delete(
   ...authed,
   orgScope({ minRoles: ['ORG_ADMIN'] }),
   async (req, res) => {
-    await orgs.remove(req.actor!, req.membership, param(req.params.organizationId));
+    await orgs.remove(
+      req.actor!,
+      req.membership,
+      param(req.params.organizationId),
+    );
     res.status(204).end();
   },
 );
 
-organizationsRouter.get('/:organizationId/members', ...authed, orgScope(), async (req, res) => {
-  res.json(await orgs.listMembers(req.actor!, req.membership, param(req.params.organizationId)));
-});
+organizationsRouter.get(
+  '/:organizationId/members',
+  ...authed,
+  orgScope(),
+  async (req, res) => {
+    res.json(
+      await orgs.listMembers(
+        req.actor!,
+        req.membership,
+        param(req.params.organizationId),
+      ),
+    );
+  },
+);
 
 organizationsRouter.post(
   '/:organizationId/members',
@@ -66,7 +108,15 @@ organizationsRouter.post(
   async (req, res) => {
     res
       .status(201)
-      .json(await orgs.invite(req.actor!, req.membership, param(req.params.organizationId), req.body, originOf(req)));
+      .json(
+        await orgs.invite(
+          req.actor!,
+          req.membership,
+          param(req.params.organizationId),
+          req.body,
+          originOf(req),
+        ),
+      );
   },
 );
 
@@ -93,19 +143,45 @@ organizationsRouter.delete(
   ...authed,
   orgScope({ minRoles: ['ORG_ADMIN'] }),
   async (req, res) => {
-    await orgs.removeMember(req.actor!, req.membership, param(req.params.organizationId), param(req.params.userId));
+    await orgs.removeMember(
+      req.actor!,
+      req.membership,
+      param(req.params.organizationId),
+      param(req.params.userId),
+    );
     res.status(204).end();
   },
 );
 
-organizationsRouter.post('/:organizationId/leave', ...authed, orgScope(), async (req, res) => {
-  await orgs.removeMember(req.actor!, req.membership, param(req.params.organizationId), req.actor!.id);
-  res.status(204).end();
-});
+organizationsRouter.post(
+  '/:organizationId/leave',
+  ...authed,
+  orgScope(),
+  async (req, res) => {
+    await orgs.removeMember(
+      req.actor!,
+      req.membership,
+      param(req.params.organizationId),
+      req.actor!.id,
+    );
+    res.status(204).end();
+  },
+);
 
-organizationsRouter.get('/:organizationId/categories', ...authed, orgScope(), async (req, res) => {
-  res.json(await orgs.listCategories(req.actor!, req.membership, param(req.params.organizationId)));
-});
+organizationsRouter.get(
+  '/:organizationId/categories',
+  ...authed,
+  orgScope(),
+  async (req, res) => {
+    res.json(
+      await orgs.listCategories(
+        req.actor!,
+        req.membership,
+        param(req.params.organizationId),
+      ),
+    );
+  },
+);
 
 organizationsRouter.post(
   '/:organizationId/categories',
@@ -115,7 +191,14 @@ organizationsRouter.post(
   async (req, res) => {
     res
       .status(201)
-      .json(await orgs.createCategory(req.actor!, req.membership, param(req.params.organizationId), req.body));
+      .json(
+        await orgs.createCategory(
+          req.actor!,
+          req.membership,
+          param(req.params.organizationId),
+          req.body,
+        ),
+      );
   },
 );
 
@@ -142,13 +225,29 @@ organizationsRouter.delete(
   ...authed,
   orgScope({ minRoles: ['ORG_ADMIN'] }),
   async (req, res) => {
-    await orgs.removeCategory(req.actor!, req.membership, param(req.params.organizationId), param(req.params.categoryId));
+    await orgs.removeCategory(
+      req.actor!,
+      req.membership,
+      param(req.params.organizationId),
+      param(req.params.categoryId),
+    );
     res.status(204).end();
   },
 );
 
-organizationsRouter.get('/:organizationId/stats', ...authed, orgScope(), async (req, res) => {
-  res.json(await orgs.stats(req.actor!, req.membership, param(req.params.organizationId)));
-});
+organizationsRouter.get(
+  '/:organizationId/stats',
+  ...authed,
+  orgScope(),
+  async (req, res) => {
+    res.json(
+      await orgs.stats(
+        req.actor!,
+        req.membership,
+        param(req.params.organizationId),
+      ),
+    );
+  },
+);
 
 organizationsRouter.use('/:organizationId/api-keys', apiKeysRouter);

@@ -18,7 +18,8 @@ export function signAccessToken(
   const options: SignOptions = {
     issuer: ISSUER,
     audience: AUDIENCE,
-    expiresIn: (expiresIn ?? config.ACCESS_TOKEN_TTL) as SignOptions['expiresIn'],
+    expiresIn: (expiresIn ??
+      config.ACCESS_TOKEN_TTL) as SignOptions['expiresIn'],
   };
   return jwt.sign(payload, config.JWT_ACCESS_SECRET, options);
 }

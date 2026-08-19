@@ -47,8 +47,11 @@ interface PolicyRule {
 
 const isOwner = (s: PolicySubject, r: PolicyResource) =>
   Boolean(r.ownerId && r.ownerId === s.userId);
-const withinMinutes = (minutes: number) => (_s: PolicySubject, r: PolicyResource) =>
-  Boolean(r.createdAt && Date.now() - r.createdAt.getTime() <= minutes * 60_000);
+const withinMinutes =
+  (minutes: number) => (_s: PolicySubject, r: PolicyResource) =>
+    Boolean(
+      r.createdAt && Date.now() - r.createdAt.getTime() <= minutes * 60_000,
+    );
 
 export const POLICIES = {
   // ---- tickets ----------------------------------------------------------------
@@ -69,18 +72,34 @@ export const POLICIES = {
     ownRecord: (s, r) => isOwner(s, r) && r.status === 'RESOLVED',
     description: 'change ticket status',
   },
-  'ticket:selfAssign': { minRole: 'AGENT', description: 'assign a ticket to yourself' },
-  'ticket:assignOther': { minRole: 'ORG_ADMIN', description: 'assign a ticket to another agent' },
+  'ticket:selfAssign': {
+    minRole: 'AGENT',
+    description: 'assign a ticket to yourself',
+  },
+  'ticket:assignOther': {
+    minRole: 'ORG_ADMIN',
+    description: 'assign a ticket to another agent',
+  },
   'ticket:reopen': { minRole: 'AGENT', description: 'reopen a closed ticket' },
   'ticket:delete': { minRole: 'ORG_ADMIN', description: 'delete a ticket' },
-  'ticket:viewInternalNotes': { minRole: 'AGENT', description: 'read internal notes' },
+  'ticket:viewInternalNotes': {
+    minRole: 'AGENT',
+    description: 'read internal notes',
+  },
 
   // ---- comments and attachments -------------------------------------------------
-  'comment:create': { minRole: 'MEMBER', description: 'comment on a visible ticket' },
-  'comment:createInternal': { minRole: 'AGENT', description: 'write an internal note' },
+  'comment:create': {
+    minRole: 'MEMBER',
+    description: 'comment on a visible ticket',
+  },
+  'comment:createInternal': {
+    minRole: 'AGENT',
+    description: 'write an internal note',
+  },
   'comment:update': {
     minRole: 'ORG_ADMIN',
-    ownRecord: (s, r) => isOwner(s, r) && (s.orgRole !== 'MEMBER' || withinMinutes(15)(s, r)),
+    ownRecord: (s, r) =>
+      isOwner(s, r) && (s.orgRole !== 'MEMBER' || withinMinutes(15)(s, r)),
     description: 'edit a comment',
   },
   'comment:delete': {
@@ -88,7 +107,10 @@ export const POLICIES = {
     ownRecord: isOwner,
     description: 'delete a comment',
   },
-  'attachment:create': { minRole: 'MEMBER', description: 'upload an attachment' },
+  'attachment:create': {
+    minRole: 'MEMBER',
+    description: 'upload an attachment',
+  },
   'attachment:read': {
     minRole: 'AGENT',
     ownRecord: isOwner,
@@ -101,16 +123,26 @@ export const POLICIES = {
   },
 
   // ---- organization, members, categories -----------------------------------------
-  'organization:read': { minRole: 'MEMBER', description: 'view the organization' },
-  'organization:update': { minRole: 'ORG_ADMIN', description: 'edit the organization' },
+  'organization:read': {
+    minRole: 'MEMBER',
+    description: 'view the organization',
+  },
+  'organization:update': {
+    minRole: 'ORG_ADMIN',
+    description: 'edit the organization',
+  },
   'organization:delete': {
     minRole: 'ORG_ADMIN',
-    precondition: (s, r) => Boolean(r.ownerId && r.ownerId === s.userId) || s.isGlobalAdmin,
+    precondition: (s, r) =>
+      Boolean(r.ownerId && r.ownerId === s.userId) || s.isGlobalAdmin,
     description: 'delete the organization',
   },
   'member:read': { minRole: 'MEMBER', description: 'list members' },
   'member:invite': { minRole: 'ORG_ADMIN', description: 'invite a member' },
-  'member:changeRole': { minRole: 'ORG_ADMIN', description: 'change a member role' },
+  'member:changeRole': {
+    minRole: 'ORG_ADMIN',
+    description: 'change a member role',
+  },
   'member:remove': { minRole: 'ORG_ADMIN', description: 'remove a member' },
   'member:leave': {
     minRole: 'MEMBER',
@@ -118,16 +150,40 @@ export const POLICIES = {
     description: 'leave the organization',
   },
   'category:read': { minRole: 'MEMBER', description: 'list categories' },
-  'category:write': { minRole: 'ORG_ADMIN', description: 'create, edit or delete a category' },
-  'apiKey:manage': { minRole: 'ORG_ADMIN', description: 'create, rotate or revoke API keys' },
-  'stats:read': { minRole: 'AGENT', description: 'read organization statistics' },
+  'category:write': {
+    minRole: 'ORG_ADMIN',
+    description: 'create, edit or delete a category',
+  },
+  'apiKey:manage': {
+    minRole: 'ORG_ADMIN',
+    description: 'create, rotate or revoke API keys',
+  },
+  'stats:read': {
+    minRole: 'AGENT',
+    description: 'read organization statistics',
+  },
 
   // ---- platform -------------------------------------------------------------------
-  'user:listAll': { globalAdminOnly: true, description: 'list every user on the platform' },
-  'user:updateOther': { globalAdminOnly: true, description: 'edit another user profile' },
-  'user:setStatus': { globalAdminOnly: true, description: 'suspend or reactivate an account' },
-  'user:setGlobalRole': { globalAdminOnly: true, description: 'change a global role' },
-  'user:deleteOther': { globalAdminOnly: true, description: 'delete another account' },
+  'user:listAll': {
+    globalAdminOnly: true,
+    description: 'list every user on the platform',
+  },
+  'user:updateOther': {
+    globalAdminOnly: true,
+    description: 'edit another user profile',
+  },
+  'user:setStatus': {
+    globalAdminOnly: true,
+    description: 'suspend or reactivate an account',
+  },
+  'user:setGlobalRole': {
+    globalAdminOnly: true,
+    description: 'change a global role',
+  },
+  'user:deleteOther': {
+    globalAdminOnly: true,
+    description: 'delete another account',
+  },
   'audit:read': { globalAdminOnly: true, description: 'read the audit log' },
 } as const satisfies Record<string, PolicyRule>;
 
@@ -150,8 +206,16 @@ export function evaluatePolicy(
   resource: PolicyResource = {},
 ): PolicyDecision {
   const rule = POLICIES[policy] as PolicyRule;
-  const deny = (reason: string): PolicyDecision => ({ allowed: false, policy, reason });
-  const allow = (): PolicyDecision => ({ allowed: true, policy, reason: 'granted' });
+  const deny = (reason: string): PolicyDecision => ({
+    allowed: false,
+    policy,
+    reason,
+  });
+  const allow = (): PolicyDecision => ({
+    allowed: true,
+    policy,
+    reason: 'granted',
+  });
 
   if (rule.precondition && !rule.precondition(subject, resource)) {
     return deny('precondition-failed');
@@ -165,7 +229,8 @@ export function evaluatePolicy(
 
   if (rule.minRole) {
     if (!subject.orgRole) return deny('not-a-member');
-    if (ORG_ROLE_RANK[subject.orgRole] >= ORG_ROLE_RANK[rule.minRole]) return allow();
+    if (ORG_ROLE_RANK[subject.orgRole] >= ORG_ROLE_RANK[rule.minRole])
+      return allow();
     if (rule.ownRecord?.(subject, resource)) return allow();
     return deny('insufficient-org-role');
   }
@@ -179,5 +244,7 @@ export function evaluatePolicy(
  * again on the server for every single request.
  */
 export function effectivePermissions(subject: PolicySubject): PolicyId[] {
-  return ALL_POLICIES.filter((policy) => evaluatePolicy(policy, subject, {}).allowed);
+  return ALL_POLICIES.filter(
+    (policy) => evaluatePolicy(policy, subject, {}).allowed,
+  );
 }

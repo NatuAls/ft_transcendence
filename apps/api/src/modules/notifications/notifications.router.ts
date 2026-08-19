@@ -7,9 +7,19 @@ import { param } from '../../common/utils/http.ts';
 
 export const notificationsRouter: Router = Router();
 
-notificationsRouter.get('/', ...authed, validate(listNotificationsQuerySchema, 'query'), async (req, res) => {
-  res.json(await notifications.list(req.actor!.id, req.query as unknown as Parameters<typeof notifications.list>[1]));
-});
+notificationsRouter.get(
+  '/',
+  ...authed,
+  validate(listNotificationsQuerySchema, 'query'),
+  async (req, res) => {
+    res.json(
+      await notifications.list(
+        req.actor!.id,
+        req.query as unknown as Parameters<typeof notifications.list>[1],
+      ),
+    );
+  },
+);
 
 notificationsRouter.get('/unread-count', ...authed, async (req, res) => {
   res.json({ count: await notifications.unreadCount(req.actor!.id) });

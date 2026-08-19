@@ -36,12 +36,18 @@ export function paginate<T>(
 }
 
 export function encodeCursor(value: { createdAt: Date; id: string }): string {
-  return Buffer.from(`${value.createdAt.toISOString()}|${value.id}`).toString('base64url');
+  return Buffer.from(`${value.createdAt.toISOString()}|${value.id}`).toString(
+    'base64url',
+  );
 }
 
-export function decodeCursor(cursor: string): { createdAt: Date; id: string } | null {
+export function decodeCursor(
+  cursor: string,
+): { createdAt: Date; id: string } | null {
   try {
-    const [iso, id] = Buffer.from(cursor, 'base64url').toString('utf8').split('|');
+    const [iso, id] = Buffer.from(cursor, 'base64url')
+      .toString('utf8')
+      .split('|');
     if (!iso || !id) return null;
     const createdAt = new Date(iso);
     return Number.isNaN(createdAt.getTime()) ? null : { createdAt, id };

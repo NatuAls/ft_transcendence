@@ -5,7 +5,11 @@ import { orgRoleSchema } from './enums.ts';
 /** Organization & membership contracts. */
 
 export const createOrganizationSchema = z.object({
-  name: z.string().trim().min(2, { message: 'errors.org.nameTooShort' }).max(80),
+  name: z
+    .string()
+    .trim()
+    .min(2, { message: 'errors.org.nameTooShort' })
+    .max(80),
   slug: slugSchema.optional(),
   description: z.string().trim().max(500).optional(),
 });

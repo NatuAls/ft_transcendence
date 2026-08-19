@@ -1,7 +1,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { isUuid, uuidv7 } from '../../src/common/utils/uuid.ts';
-import { decodeCursor, encodeCursor, paginate, MAX_TAKE } from '../../src/common/utils/pagination.ts';
+import {
+  decodeCursor,
+  encodeCursor,
+  paginate,
+  MAX_TAKE,
+} from '../../src/common/utils/pagination.ts';
 
 describe('uuid v7', () => {
   it('produces valid, version-7, time-ordered identifiers', () => {
@@ -24,10 +29,16 @@ describe('pagination', () => {
   });
 
   it('round-trips a cursor', () => {
-    const value = { createdAt: new Date('2026-08-17T10:00:00.000Z'), id: 'abc' };
+    const value = {
+      createdAt: new Date('2026-08-17T10:00:00.000Z'),
+      id: 'abc',
+    };
     const decoded = decodeCursor(encodeCursor(value));
     assert.strictEqual(decoded?.id, 'abc');
-    assert.strictEqual(decoded?.createdAt.toISOString(), value.createdAt.toISOString());
+    assert.strictEqual(
+      decoded?.createdAt.toISOString(),
+      value.createdAt.toISOString(),
+    );
   });
 
   it('returns null for a malformed cursor instead of throwing', () => {

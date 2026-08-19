@@ -23,10 +23,15 @@ function enforce(verdict: RateVerdict, res: Response): void {
  * reset-password. Runs before `requireAuth()` so floods are rejected before
  * paying for a JWT verify + DB lookup.
  */
-export async function rateLimitDefault(req: Request, res: Response, _next: NextFunction) {
+export async function rateLimitDefault(
+  req: Request,
+  res: Response,
+  _next: NextFunction,
+) {
   const config = loadConfiguration();
   const ip = req.ip ?? 'unknown';
-  const isAuthRoute = /\/auth\/(login|register|forgot-password|reset-password)/.test(req.path);
+  const isAuthRoute =
+    /\/auth\/(login|register|forgot-password|reset-password)/.test(req.path);
   const verdict = isAuthRoute
     ? await hit(`auth:${ip}`, config.RATE_LIMIT_AUTH_PER_MIN, 60)
     : await hit(`req:${ip}`, config.RATE_LIMIT_GLOBAL_PER_MIN, 60);
@@ -38,13 +43,25 @@ export async function rateLimitDefault(req: Request, res: Response, _next: NextF
  * Fine-grained per-API-key limit (60/min + 1000/hour). Only meaningful after
  * `apiKeyAuth()` has populated `req.actor.apiKeyId`.
  */
-export async function rateLimitApiKey(req: Request, res: Response, next: NextFunction) {
+export async function rateLimitApiKey(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
   const config = loadConfiguration();
   const apiKeyId = req.actor?.apiKeyId;
   if (!apiKeyId) return next();
 
-  const perMinute = await hit(`key:${apiKeyId}:m`, config.API_KEY_RATE_PER_MIN, 60);
-  const perHour = await hit(`key:${apiKeyId}:h`, config.API_KEY_RATE_PER_HOUR, 3600);
+  const perMinute = await hit(
+    `key:${apiKeyId}:m`,
+    config.API_KEY_RATE_PER_MIN,
+    60,
+  );
+  const perHour = await hit(
+    `key:${apiKeyId}:h`,
+    config.API_KEY_RATE_PER_HOUR,
+    3600,
+  );
   enforce(!perMinute.allowed ? perMinute : perHour, res);
   next();
 }

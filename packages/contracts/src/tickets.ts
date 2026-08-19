@@ -27,7 +27,9 @@ export const updateTicketSchema = z
     priority: ticketPrioritySchema.optional(),
     categoryId: uuidSchema.nullable().optional(),
   })
-  .refine((d) => Object.keys(d).length > 0, { message: 'errors.common.emptyPatch' });
+  .refine((d) => Object.keys(d).length > 0, {
+    message: 'errors.common.emptyPatch',
+  });
 
 export const changeStatusSchema = z
   .object({
@@ -72,7 +74,9 @@ export const searchTicketsQuerySchema = paginationQuerySchema.extend({
   status: csvEnum(['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED']),
   priority: csvEnum(['LOW', 'MEDIUM', 'HIGH']),
   categoryId: uuidSchema.optional(),
-  assignedToId: z.union([uuidSchema, z.literal('me'), z.literal('unassigned')]).optional(),
+  assignedToId: z
+    .union([uuidSchema, z.literal('me'), z.literal('unassigned')])
+    .optional(),
   createdById: z.union([uuidSchema, z.literal('me')]).optional(),
   hasAttachments: z.stringbool().optional(),
   createdFrom: z.iso.datetime({ offset: true }).or(z.iso.date()).optional(),
@@ -80,7 +84,14 @@ export const searchTicketsQuerySchema = paginationQuerySchema.extend({
   updatedFrom: z.iso.datetime({ offset: true }).or(z.iso.date()).optional(),
   updatedTo: z.iso.datetime({ offset: true }).or(z.iso.date()).optional(),
   sort: z
-    .enum(['createdAt', 'updatedAt', 'priority', 'status', 'title', 'reference'])
+    .enum([
+      'createdAt',
+      'updatedAt',
+      'priority',
+      'status',
+      'title',
+      'reference',
+    ])
     .default('createdAt'),
   order: z.enum(['asc', 'desc']).default('desc'),
 });

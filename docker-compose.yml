@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mi_password}
       POSTGRES_DB: ${POSTGRES_DB:-mi_base_datos}
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./apps/database/conf:/docker-entrypoint-initdb.d:ro
@@ -23,7 +23,7 @@ services:
     container_name: redis
     restart: always
     ports:
-      - "6379:6379"
+      - '6379:6379'
     volumes:
       - redis_data:/data
 
@@ -32,8 +32,8 @@ services:
     container_name: mailpit
     restart: always
     ports:
-      - "1025:1025" # SMTP
-      - "8025:8025" # web UI
+      - '1025:1025' # SMTP
+      - '8025:8025' # web UI
 
   backend:
     build:
@@ -42,7 +42,7 @@ services:
     container_name: api
     restart: always
     ports:
-      - "5000:5000"
+      - '5000:5000'
     environment:
       - DATABASE_URL=postgres://${POSTGRES_USER:-mi_usuario}:${POSTGRES_PASSWORD:-mi_password}@db:5432/${POSTGRES_DB:-mi_base_datos}
       - PORT=5000
@@ -80,7 +80,7 @@ services:
     container_name: web
     restart: always
     ports:
-      - "5173:5173"
+      - '5173:5173'
     depends_on:
       backend:
         condition: service_started

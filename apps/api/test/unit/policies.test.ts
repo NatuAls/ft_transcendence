@@ -1,10 +1,19 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import type { OrgRole } from '../../src/generated/prisma/client.ts';
-import { ALL_POLICIES, effectivePermissions, evaluatePolicy, type PolicyId } from '../../src/rbac/policies.ts';
+import {
+  ALL_POLICIES,
+  effectivePermissions,
+  evaluatePolicy,
+  type PolicyId,
+} from '../../src/rbac/policies.ts';
 
 const ROLES: OrgRole[] = ['MEMBER', 'AGENT', 'ORG_ADMIN'];
-const subject = (orgRole?: OrgRole, isGlobalAdmin = false) => ({ userId: 'u1', isGlobalAdmin, orgRole });
+const subject = (orgRole?: OrgRole, isGlobalAdmin = false) => ({
+  userId: 'u1',
+  isGlobalAdmin,
+  orgRole,
+});
 const ownedByMe = { ownerId: 'u1' };
 const ownedByOther = { ownerId: 'u2' };
 
@@ -21,9 +30,14 @@ describe('RBAC policy matrix', () => {
   });
 
   it('denies every organization-scoped policy to a user with no membership', () => {
-    const scoped = ALL_POLICIES.filter((policy) => !policy.startsWith('user:') && policy !== 'audit:read');
+    const scoped = ALL_POLICIES.filter(
+      (policy) => !policy.startsWith('user:') && policy !== 'audit:read',
+    );
     for (const policy of scoped) {
-      assert.strictEqual(evaluatePolicy(policy, subject(undefined)).allowed, false);
+      assert.strictEqual(
+        evaluatePolicy(policy, subject(undefined)).allowed,
+        false,
+      );
     }
     assert.ok(scoped.length > 20);
   });
@@ -53,7 +67,10 @@ describe('RBAC policy matrix', () => {
   ];
   for (const [policy, role] of denials) {
     it(`denies ${policy} to ${role}`, () => {
-      assert.strictEqual(evaluatePolicy(policy, subject(role), ownedByOther).allowed, false);
+      assert.strictEqual(
+        evaluatePolicy(policy, subject(role), ownedByOther).allowed,
+        false,
+      );
     });
   }
 
@@ -84,56 +101,101 @@ describe('RBAC policy matrix', () => {
 
   describe('record-level ownership escapes', () => {
     it('lets an author read and edit their own OPEN ticket', () => {
-      assert.strictEqual(evaluatePolicy('ticket:read', subject('MEMBER'), ownedByMe).allowed, true);
       assert.strictEqual(
-        evaluatePolicy('ticket:update', subject('MEMBER'), { ...ownedByMe, status: 'OPEN' }).allowed,
+        evaluatePolicy('ticket:read', subject('MEMBER'), ownedByMe).allowed,
+        true,
+      );
+      assert.strictEqual(
+        evaluatePolicy('ticket:update', subject('MEMBER'), {
+          ...ownedByMe,
+          status: 'OPEN',
+        }).allowed,
         true,
       );
     });
 
     it('stops an author editing their own ticket once an agent picked it up', () => {
       assert.strictEqual(
-        evaluatePolicy('ticket:update', subject('MEMBER'), { ...ownedByMe, status: 'IN_PROGRESS' }).allowed,
+        evaluatePolicy('ticket:update', subject('MEMBER'), {
+          ...ownedByMe,
+          status: 'IN_PROGRESS',
+        }).allowed,
         false,
       );
     });
 
     it('never lets a MEMBER read someone else ticket', () => {
-      assert.strictEqual(evaluatePolicy('ticket:read', subject('MEMBER'), ownedByOther).allowed, false);
+      assert.strictEqual(
+        evaluatePolicy('ticket:read', subject('MEMBER'), ownedByOther).allowed,
+        false,
+      );
     });
 
     it('lets the author close their own resolved ticket but nothing else', () => {
       assert.strictEqual(
-        evaluatePolicy('ticket:changeStatus', subject('MEMBER'), { ...ownedByMe, status: 'RESOLVED' }).allowed,
+        evaluatePolicy('ticket:changeStatus', subject('MEMBER'), {
+          ...ownedByMe,
+          status: 'RESOLVED',
+        }).allowed,
         true,
       );
       assert.strictEqual(
-        evaluatePolicy('ticket:changeStatus', subject('MEMBER'), { ...ownedByMe, status: 'OPEN' }).allowed,
+        evaluatePolicy('ticket:changeStatus', subject('MEMBER'), {
+          ...ownedByMe,
+          status: 'OPEN',
+        }).allowed,
         false,
       );
     });
   });
 
   describe('platform administrators', () => {
-    const platformOnly: PolicyId[] = ['user:listAll', 'user:updateOther', 'user:setStatus', 'user:setGlobalRole', 'user:deleteOther', 'audit:read'];
+    const platformOnly: PolicyId[] = [
+      'user:listAll',
+      'user:updateOther',
+      'user:setStatus',
+      'user:setGlobalRole',
+      'user:deleteOther',
+      'audit:read',
+    ];
 
     for (const policy of platformOnly) {
       it(`${policy} requires GLOBAL_ADMIN`, () => {
-        for (const role of ROLES) assert.strictEqual(evaluatePolicy(policy, subject(role)).allowed, false);
-        assert.strictEqual(evaluatePolicy(policy, subject(undefined, true)).allowed, true);
+        for (const role of ROLES)
+          assert.strictEqual(
+            evaluatePolicy(policy, subject(role)).allowed,
+            false,
+          );
+        assert.strictEqual(
+          evaluatePolicy(policy, subject(undefined, true)).allowed,
+          true,
+        );
       });
     }
 
     it('bypasses organization roles but still respects preconditions', () => {
-      assert.strictEqual(evaluatePolicy('ticket:delete', subject(undefined, true)).allowed, true);
-      assert.strictEqual(evaluatePolicy('member:leave', subject('ORG_ADMIN'), { isLastAdmin: true }).allowed, false);
+      assert.strictEqual(
+        evaluatePolicy('ticket:delete', subject(undefined, true)).allowed,
+        true,
+      );
+      assert.strictEqual(
+        evaluatePolicy('member:leave', subject('ORG_ADMIN'), {
+          isLastAdmin: true,
+        }).allowed,
+        false,
+      );
     });
   });
 
   it('reports effective permissions that grow monotonically with role', () => {
-    const counts = ROLES.map((role) => effectivePermissions(subject(role)).length);
+    const counts = ROLES.map(
+      (role) => effectivePermissions(subject(role)).length,
+    );
     assert.ok(counts[0]! < counts[1]!);
     assert.ok(counts[1]! < counts[2]!);
-    assert.strictEqual(effectivePermissions(subject('ORG_ADMIN', true)).length, ALL_POLICIES.length);
+    assert.strictEqual(
+      effectivePermissions(subject('ORG_ADMIN', true)).length,
+      ALL_POLICIES.length,
+    );
   });
 });

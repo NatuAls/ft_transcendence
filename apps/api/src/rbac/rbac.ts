@@ -2,7 +2,11 @@ import type { OrgRole } from '../generated/prisma/client.ts';
 import { prisma } from '../database/prisma.ts';
 import { redis } from '../database/redis.ts';
 import type { RequestMembership } from '../common/types.ts';
-import { evaluatePolicy, type PolicyId, type PolicyResource } from './policies.ts';
+import {
+  evaluatePolicy,
+  type PolicyId,
+  type PolicyResource,
+} from './policies.ts';
 import { Errors } from '../common/errors/domain-error.ts';
 
 const CACHE_TTL = 30;
@@ -38,7 +42,10 @@ export async function membershipOf(
   return row ? { userId, organizationId, role: row.role } : undefined;
 }
 
-export async function invalidateMembership(userId: string, organizationId: string): Promise<void> {
+export async function invalidateMembership(
+  userId: string,
+  organizationId: string,
+): Promise<void> {
   try {
     await redis.del(`membership:${userId}:${organizationId}`);
   } catch {

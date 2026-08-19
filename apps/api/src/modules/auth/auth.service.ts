@@ -8,11 +8,18 @@ import type {
 } from 'contracts';
 import { prisma } from '../../database/prisma.ts';
 import { DomainEvents, events } from '../../database/events.ts';
-import { sendEmailVerification, sendPasswordReset } from '../mail/mail.service.ts';
+import {
+  sendEmailVerification,
+  sendPasswordReset,
+} from '../mail/mail.service.ts';
 import { Errors } from '../../common/errors/domain-error.ts';
 import { effectivePermissions } from '../../rbac/policies.ts';
 import { createLogger } from '../../common/logger.ts';
-import { fakeVerifyPassword, hashPassword, verifyPassword } from './password.ts';
+import {
+  fakeVerifyPassword,
+  hashPassword,
+  verifyPassword,
+} from './password.ts';
 import {
   createOneTimeToken,
   hashOneTimeToken,
@@ -50,8 +57,14 @@ export async function register(
   ctx: RequestContext,
 ): Promise<{ user: SessionUser } & IssuedTokens> {
   const [emailTaken, usernameTaken] = await Promise.all([
-    prisma.user.findUnique({ where: { email: input.email }, select: { id: true } }),
-    prisma.user.findUnique({ where: { username: input.username }, select: { id: true } }),
+    prisma.user.findUnique({
+      where: { email: input.email },
+      select: { id: true },
+    }),
+    prisma.user.findUnique({
+      where: { username: input.username },
+      select: { id: true },
+    }),
   ]);
   if (emailTaken) throw Errors.emailTaken();
   if (usernameTaken) throw Errors.usernameTaken();
@@ -88,7 +101,11 @@ export async function register(
     return created;
   });
 
-  await sendEmailVerification(user.email, input.firstName, `${ctx.origin}/verify-email?token=${token}`);
+  await sendEmailVerification(
+    user.email,
+    input.firstName,
+    `${ctx.origin}/verify-email?token=${token}`,
+  );
 
   const issued = await issueTokens(user, ctx);
   return { user: await sessionUser(user.id), ...issued };
@@ -139,18 +156,26 @@ export async function login(
   return { user: await sessionUser(user.id), ...issued };
 }
 
-async function registerFailedLogin(userId: string, current: number): Promise<void> {
+async function registerFailedLogin(
+  userId: string,
+  current: number,
+): Promise<void> {
   const next = current + 1;
   const overflow = next - MAX_FAILED_LOGINS;
   const lockedUntil =
     overflow >= 0
-      ? new Date(Date.now() + (LOCK_STEPS_MS[Math.min(overflow, LOCK_STEPS_MS.length - 1)] ?? 900_000))
+      ? new Date(
+          Date.now() +
+            (LOCK_STEPS_MS[Math.min(overflow, LOCK_STEPS_MS.length - 1)] ??
+              900_000),
+        )
       : null;
   await prisma.user.update({
     where: { id: userId },
     data: { failedLoginCount: next, lockedUntil },
   });
-  if (lockedUntil) logger.warn(`account ${userId} locked until ${lockedUntil.toISOString()}`);
+  if (lockedUntil)
+    logger.warn(`account ${userId} locked until ${lockedUntil.toISOString()}`);
 }
 
 // ----------------------------------------------------------------------- refresh --
@@ -174,22 +199,47 @@ export async function logoutAll(userId: string): Promise<void> {
 export async function verifyEmail(token: string): Promise<void> {
   const row = await prisma.verificationToken.findUnique({
     where: { tokenHash: hashOneTimeToken(token) },
-    select: { id: true, userId: true, purpose: true, expiresAt: true, usedAt: true },
+    select: {
+      id: true,
+      userId: true,
+      purpose: true,
+      expiresAt: true,
+      usedAt: true,
+    },
   });
-  if (!row || row.purpose !== 'EMAIL_VERIFY' || row.usedAt || row.expiresAt.getTime() < Date.now()) {
+  if (
+    !row ||
+    row.purpose !== 'EMAIL_VERIFY' ||
+    row.usedAt ||
+    row.expiresAt.getTime() < Date.now()
+  ) {
     throw Errors.tokenInvalid();
   }
   await prisma.$transaction([
-    prisma.verificationToken.update({ where: { id: row.id }, data: { usedAt: new Date() } }),
-    prisma.user.update({ where: { id: row.userId }, data: { emailVerifiedAt: new Date() } }),
+    prisma.verificationToken.update({
+      where: { id: row.id },
+      data: { usedAt: new Date() },
+    }),
+    prisma.user.update({
+      where: { id: row.userId },
+      data: { emailVerifiedAt: new Date() },
+    }),
   ]);
 }
 
 /** Always resolves the same way, so nobody can probe which emails exist. */
-export async function forgotPassword(email: string, ctx: RequestContext): Promise<void> {
+export async function forgotPassword(
+  email: string,
+  ctx: RequestContext,
+): Promise<void> {
   const user = await prisma.user.findUnique({
     where: { email },
-    select: { id: true, email: true, deletedAt: true, profile: { select: { firstName: true } } },
+    select: {
+      id: true,
+      email: true,
+      deletedAt: true,
+      profile: { select: { firstName: true } },
+    },
   });
   if (!user || user.deletedAt) return;
 
@@ -212,14 +262,28 @@ export async function forgotPassword(email: string, ctx: RequestContext): Promis
 export async function resetPassword(input: ResetPasswordInput): Promise<void> {
   const row = await prisma.verificationToken.findUnique({
     where: { tokenHash: hashOneTimeToken(input.token) },
-    select: { id: true, userId: true, purpose: true, expiresAt: true, usedAt: true },
+    select: {
+      id: true,
+      userId: true,
+      purpose: true,
+      expiresAt: true,
+      usedAt: true,
+    },
   });
-  if (!row || row.purpose !== 'PASSWORD_RESET' || row.usedAt || row.expiresAt.getTime() < Date.now()) {
+  if (
+    !row ||
+    row.purpose !== 'PASSWORD_RESET' ||
+    row.usedAt ||
+    row.expiresAt.getTime() < Date.now()
+  ) {
     throw Errors.tokenInvalid();
   }
   const passwordHash = await hashPassword(input.password);
   await prisma.$transaction([
-    prisma.verificationToken.update({ where: { id: row.id }, data: { usedAt: new Date() } }),
+    prisma.verificationToken.update({
+      where: { id: row.id },
+      data: { usedAt: new Date() },
+    }),
     prisma.user.update({
       where: { id: row.userId },
       data: { passwordHash, failedLoginCount: 0, lockedUntil: null },
@@ -229,7 +293,10 @@ export async function resetPassword(input: ResetPasswordInput): Promise<void> {
   await revokeAllForUser(row.userId);
 }
 
-export async function changePassword(userId: string, input: ChangePasswordInput): Promise<void> {
+export async function changePassword(
+  userId: string,
+  input: ChangePasswordInput,
+): Promise<void> {
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
     select: { passwordHash: true },
@@ -311,12 +378,21 @@ export async function sessionUser(userId: string): Promise<SessionUser> {
 export async function listSessions(userId: string) {
   return prisma.userSession.findMany({
     where: { userId, revokedAt: null, expiresAt: { gt: new Date() } },
-    select: { id: true, userAgent: true, ip: true, createdAt: true, expiresAt: true },
+    select: {
+      id: true,
+      userAgent: true,
+      ip: true,
+      createdAt: true,
+      expiresAt: true,
+    },
     orderBy: { createdAt: 'desc' },
   });
 }
 
-export async function revokeSession(userId: string, sessionId: string): Promise<void> {
+export async function revokeSession(
+  userId: string,
+  sessionId: string,
+): Promise<void> {
   await prisma.userSession.updateMany({
     where: { id: sessionId, userId, revokedAt: null },
     data: { revokedAt: new Date() },
