@@ -8,8 +8,12 @@ COPY /packages/ ./packages/
 
 RUN npm install
 
+COPY apps/api/prisma ./prisma
+
+RUN npx prisma generate
+
 COPY apps/api/ .	
 
-EXPOSE 5000
+#EXPOSE 5000
 
 CMD ["npm", "run", "dev"]
