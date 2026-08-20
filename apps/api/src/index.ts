@@ -1,24 +1,43 @@
-import express, { type Express, type Request, type Response } from 'express';
+// Integración trasladada desde /home/elerazo-/trascenda_felipe_comu/apps/api/src/index.ts.
+// Este bootstrap conecta la base de datos, Redis, HTTP, Socket.IO y los jobs
+// de mantenimiento antes de publicar la API.
+import { mkdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { createServer } from 'node:http';
+import { loadConfiguration } from './config/env.ts';
+import { createLogger } from './common/logger.ts';
+import { connectDatabase } from './database/prisma.ts';
+import { connectRedis } from './database/redis.ts';
+import { createApp } from './app.ts';
+import { startMaintenanceJobs } from './modules/tickets/maintenance.ts';
+import { createSocketServer } from './modules/realtime/socket-server.ts';
+import { attachEventBridge } from './modules/realtime/event-bridge.ts';
+import { registerNotificationListeners } from './modules/notifications/notifications.service.ts';
 
-// Prueba de importación: verifica que la instancia singleton se puede cargar.
-// Todavía no hacemos consultas ni usamos Prisma contra la base de datos.
-// Usamos la extensión .ts porque Docker ejecuta este archivo directamente con
-// `node --watch`; al compilar con TypeScript se transforma automáticamente a .js.
-import { prisma } from './config/prisma.ts';
+const logger = createLogger('bootstrap');
 
-// Evitamos que esta prueba de importación sea considerada una variable sin uso
-// hasta que los servicios empiecen a utilizar el cliente de Prisma.
-void prisma;
+async function bootstrap(): Promise<void> {
+  const config = loadConfiguration();
 
-const app: Express = express();
+  // Fail fast if the upload volume is not writable, rather than at first upload.
+  for (const dir of ['avatars', 'attachments', 'gdpr']) {
+    mkdirSync(join(config.UPLOAD_DIR, dir), { recursive: true });
+  }
 
-app.get('/', (req: Request, res: Response) => {
-  res.send('Hello World! LOS PUTOS AMOS DE EL BACKEND, Y NO ESTAN LLORANDO CON EL BACK EL QUE DIGA ESO MIENTE XD');
-});
+  await connectDatabase();
+  await connectRedis();
 
-// Backend fix: Docker publica el puerto 5000; usamos PORT y escuchamos en todas las interfaces del contenedor.
-//app.listen(3000);
-const port = Number(process.env.PORT ?? 5000);
-app.listen(port, '0.0.0.0', () => {
-  console.log(`API listening on port ${port}`);
-});
+  const app = createApp();
+  const server = createServer(app);
+
+  const realtime = createSocketServer(server);
+  attachEventBridge(realtime);
+  registerNotificationListeners();
+  startMaintenanceJobs();
+
+  server.listen(config.PORT, '0.0.0.0', () => {
+    logger.info(`API listening on 0.0.0.0:${config.PORT} (${config.NODE_ENV})`);
+  });
+}
+
+void bootstrap();
