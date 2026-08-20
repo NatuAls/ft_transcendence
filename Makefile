@@ -25,7 +25,7 @@ build:
 	@$(COMPOSE) $(COMPOSE_FILE) build
 
 it: # usage make it ID=wordpress
-	@$(DOCKER) exec -it $(ID) sh
+	@$(DOCKER) exec -it $(ID) sh || true
 clean:
 	@$(COMPOSE) $(COMPOSE_FILE) down --remove-orphans
 	@printf "$(GREEN)Contenedores detenidos y eliminados.$(NC)\n"
@@ -36,7 +36,7 @@ fclean:
 	docker system prune -af
 
 logs:
-	@$(COMPOSE) $(COMPOSE_FILE) logs --follow $(ID)
+	@$(COMPOSE) $(COMPOSE_FILE) logs --follow $(ID) || true
 
 ps:
 	@$(COMPOSE) $(COMPOSE_FILE) ps
