@@ -1,7 +1,11 @@
+// Modelo de dominio trasladado desde
+// /home/elerazo-/trascenda_felipe_comu/apps/api/prisma/schema.prisma.
+// Conserva la salida generada bajo la estructura actual de apps/api.
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
+//
+// HelpDesk Lite data model - 19 models, 12 enums.
+// Ported from example/apps/api/prisma/schema.prisma.
 
 generator client {
   provider = "prisma-client"
@@ -10,12 +14,537 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-   //url      = env("DATABASE_URL")
+  // Prisma 7: the connection URL is no longer declared here. The CLI
+  // (migrate/studio) reads it from `prisma.config.ts`; the runtime
+  // PrismaClient receives it via a driver adapter, see src/database/prisma.ts.
+  //
+  // NOTE: there is deliberately no `extensions = [...]` here.
+  //
+  // Declaring extensions in the datasource requires the `postgresqlExtensions`
+  // preview feature, and turning it on would make Prisma the owner of the
+  // extensions: `migrate dev` would then see the extensions our init script
+  // already created (including uuid-ossp, which is not in any list Prisma
+  // knows) as schema drift and offer to RESET the database.
+  //
+  // Extensions and the `helpdesk_es` text-search configuration are created once
+  // by apps/database/conf/01-extensions.sql, which Postgres runs before
+  // anything else can connect. That file is the single source of truth, and it
+  // can express things Prisma cannot (CREATE TEXT SEARCH CONFIGURATION).
+  // @db.Citext keeps working: the native type does not need the preview flag,
+  // only the extension being installed - which it is.
 }
 
+// ------------------------------------------------------------------ enums --
+
+enum GlobalRole {
+  USER
+  GLOBAL_ADMIN
+}
+
+enum OrgRole {
+  MEMBER
+  AGENT
+  ORG_ADMIN
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  BLOCKED
+}
+
+enum NotificationEntity {
+  TICKET
+  COMMENT
+  ATTACHMENT
+  ORGANIZATION
+  MEMBERSHIP
+  CATEGORY
+  FRIENDSHIP
+  MESSAGE
+  ACCOUNT
+}
+
+enum NotificationAction {
+  CREATED
+  UPDATED
+  DELETED
+}
+
+enum AttachmentStatus {
+  PENDING
+  READY
+  QUARANTINED
+  DELETED
+}
+
+enum GdprRequestType {
+  EXPORT
+  DELETE
+}
+
+enum GdprRequestStatus {
+  AWAITING_CONFIRMATION
+  CONFIRMED
+  PROCESSING
+  COMPLETED
+  FAILED
+  EXPIRED
+}
+
+enum VerificationPurpose {
+  EMAIL_VERIFY
+  PASSWORD_RESET
+  GDPR_EXPORT
+  GDPR_DELETE
+}
+
+enum Locale {
+  EN
+  ES
+  AR
+}
+
+// --------------------------------------------------------------- identity --
+
+/// Credentials and security flags. Never returned to a client as-is.
 model User {
-  id    Int    @id @default(autoincrement())
-  email String @unique
-  name  String
-  passwd String
+  id               String     @id @default(uuid(7)) @db.Uuid
+  email            String     @unique @db.Citext
+  username         String     @unique @db.Citext
+  passwordHash     String
+  globalRole       GlobalRole @default(USER)
+  isActive         Boolean    @default(true)
+  emailVerifiedAt  DateTime?
+  failedLoginCount Int        @default(0)
+  lockedUntil      DateTime?
+  locale           Locale     @default(EN)
+  timezone         String     @default("Europe/Madrid")
+  theme            String     @default("system")
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  lastLoginAt      DateTime?
+  deletedAt        DateTime?
+
+  profile              UserProfile?
+  preferences          NotificationPreference?
+  sessions             UserSession[]
+  verificationTokens   VerificationToken[]
+  sentFriendRequests   Friendship[]         @relation("FriendshipRequester")
+  receivedFriendReqs   Friendship[]         @relation("FriendshipAddressee")
+  memberships          OrganizationMember[]
+  invitedMemberships   OrganizationMember[] @relation("MembershipInviter")
+  organizationsCreated Organization[]       @relation("OrganizationCreator")
+  ticketsCreated       Ticket[]             @relation("TicketAuthor")
+  ticketsAssigned      Ticket[]             @relation("TicketAssignee")
+  comments             TicketComment[]
+  historyEntries       TicketHistory[]
+  attachments          Attachment[]
+  conversationMembers  ConversationMember[]
+  messages             Message[]
+  notifications        Notification[]       @relation("NotificationRecipient")
+  notificationsCaused  Notification[]       @relation("NotificationActor")
+  apiKeys              ApiKey[]
+  gdprRequests         GdprRequest[]
+  auditLogs            AuditLog[]
+
+  @@index([deletedAt])
+  @@index([globalRole, isActive])
+  @@map("users")
+}
+
+/// Public-facing identity. Split from User so profile reads never touch credentials.
+model UserProfile {
+  userId      String    @id @db.Uuid
+  firstName   String
+  lastName    String
+  displayName String
+  avatarUrl   String?
+  bio         String?   @db.VarChar(500)
+  jobTitle    String?   @db.VarChar(80)
+  isOnline    Boolean   @default(false)
+  lastSeenAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([isOnline])
+  @@map("user_profiles")
+}
+
+model NotificationPreference {
+  userId               String  @id @db.Uuid
+  notifyOnTicketUpdate Boolean @default(true)
+  notifyOnComment      Boolean @default(true)
+  notifyOnMention      Boolean @default(true)
+  notifyOnMessage      Boolean @default(true)
+  notifyOnFriendship   Boolean @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
+}
+
+/// Refresh-token family. `familyId` powers reuse detection: replaying a rotated
+/// token revokes the whole family.
+model UserSession {
+  id               String    @id @default(uuid(7)) @db.Uuid
+  userId           String    @db.Uuid
+  familyId         String    @db.Uuid
+  refreshTokenHash String    @unique
+  userAgent        String?   @db.VarChar(400)
+  ip               String?   @db.VarChar(64)
+  expiresAt        DateTime
+  createdAt        DateTime  @default(now())
+  revokedAt        DateTime?
+  replacedById     String?   @db.Uuid
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([familyId])
+  @@index([expiresAt])
+  @@map("user_sessions")
+}
+
+model VerificationToken {
+  id        String              @id @default(uuid(7)) @db.Uuid
+  userId    String              @db.Uuid
+  purpose   VerificationPurpose
+  tokenHash String              @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime            @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
+  @@index([expiresAt])
+  @@map("verification_tokens")
+}
+
+model Friendship {
+  id          String           @id @default(uuid(7)) @db.Uuid
+  requesterId String           @db.Uuid
+  addresseeId String           @db.Uuid
+  status      FriendshipStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  requester User @relation("FriendshipRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee User @relation("FriendshipAddressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, addresseeId])
+  @@index([addresseeId, status])
+  @@index([requesterId, status])
+  @@map("friendships")
+}
+
+// ---------------------------------------------------------- organizations --
+
+model Organization {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  name        String    @db.VarChar(80)
+  slug        String    @unique @db.VarChar(48)
+  description String?   @db.VarChar(500)
+  logoUrl     String?
+  ticketSeq   Int       @default(0) /// drives the human-readable ACME-0042 reference
+  createdById String    @db.Uuid
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  createdBy  User                 @relation("OrganizationCreator", fields: [createdById], references: [id])
+  members    OrganizationMember[]
+  categories Category[]
+  tickets    Ticket[]
+  apiKeys    ApiKey[]
+
+  @@index([deletedAt])
+  @@map("organizations")
+}
+
+/// Join entity with its own attributes - this is what makes RBAC possible.
+model OrganizationMember {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  organizationId String   @db.Uuid
+  userId         String   @db.Uuid
+  role           OrgRole  @default(MEMBER)
+  invitedById    String?  @db.Uuid
+  joinedAt       DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  invitedBy    User?        @relation("MembershipInviter", fields: [invitedById], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@index([organizationId, role])
+  @@map("organization_members")
+}
+
+model Category {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  organizationId String   @db.Uuid
+  name           String   @db.VarChar(60)
+  description    String?  @db.VarChar(240)
+  color          String   @default("#0d6c90") @db.VarChar(7)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tickets      Ticket[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId, isActive])
+  @@map("categories")
+}
+
+// --------------------------------------------------------------- helpdesk --
+
+model Ticket {
+  id              String         @id @default(uuid(7)) @db.Uuid
+  reference       String         @db.VarChar(24)
+  organizationId  String         @db.Uuid
+  createdById     String         @db.Uuid
+  assignedToId    String?        @db.Uuid
+  categoryId      String?        @db.Uuid
+  title           String         @db.VarChar(160)
+  description     String
+  status          TicketStatus   @default(OPEN)
+  priority        TicketPriority @default(MEDIUM)
+  resolution      String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  firstResponseAt DateTime?
+  resolvedAt      DateTime?
+  closedAt        DateTime?
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User            @relation("TicketAuthor", fields: [createdById], references: [id])
+  assignedTo   User?           @relation("TicketAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  category     Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  comments     TicketComment[]
+  history      TicketHistory[]
+  attachments  Attachment[]
+
+  @@unique([organizationId, reference])
+  @@index([organizationId, status, priority, createdAt(sort: Desc)])
+  @@index([organizationId, assignedToId, status])
+  @@index([createdById])
+  @@index([categoryId])
+  @@map("tickets")
+}
+
+model TicketComment {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  ticketId   String    @db.Uuid
+  authorId   String    @db.Uuid
+  body       String
+  /// Internal notes are visible to AGENT / ORG_ADMIN only.
+  isInternal Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  ticket      Ticket       @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author      User         @relation(fields: [authorId], references: [id])
+  attachments Attachment[]
+
+  @@index([ticketId, createdAt])
+  @@index([authorId])
+  @@map("ticket_comments")
+}
+
+/// Append-only audit trail of the domain. Never updated, never deleted.
+model TicketHistory {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  ticketId    String   @db.Uuid
+  changedById String   @db.Uuid
+  field       String   @db.VarChar(40)
+  oldValue    String?  @db.VarChar(400)
+  newValue    String?  @db.VarChar(400)
+  note        String?  @db.VarChar(500)
+  createdAt   DateTime @default(now())
+
+  ticket    Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  changedBy User   @relation(fields: [changedById], references: [id])
+
+  @@index([ticketId, createdAt(sort: Desc)])
+  @@map("ticket_history")
+}
+
+/// Polymorphic but constrained: exactly one of ticketId / commentId is set.
+/// Enforced by a CHECK constraint added in the manual migration, not just in code.
+model Attachment {
+  id             String           @id @default(uuid(7)) @db.Uuid
+  ticketId       String?          @db.Uuid
+  commentId      String?          @db.Uuid
+  uploadedById   String           @db.Uuid
+  originalName   String           @db.VarChar(255)
+  storageKey     String           @unique
+  mimeType       String           @db.VarChar(120)
+  sizeBytes      Int
+  checksumSha256 String           @db.VarChar(64)
+  status         AttachmentStatus @default(READY)
+  createdAt      DateTime         @default(now())
+  deletedAt      DateTime?
+
+  ticket     Ticket?        @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  comment    TicketComment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  uploadedBy User           @relation(fields: [uploadedById], references: [id])
+
+  @@index([ticketId])
+  @@index([commentId])
+  @@index([checksumSha256])
+  @@map("attachments")
+}
+
+// ---------------------------------------------------------- communication --
+
+model Conversation {
+  id            String    @id @default(uuid(7)) @db.Uuid
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastMessageAt DateTime?
+
+  members  ConversationMember[]
+  messages Message[]
+
+  @@index([lastMessageAt(sort: Desc)])
+  @@map("conversations")
+}
+
+model ConversationMember {
+  conversationId String    @db.Uuid
+  userId         String    @db.Uuid
+  joinedAt       DateTime  @default(now())
+  lastReadAt     DateTime?
+  mutedUntil     DateTime?
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, userId])
+  @@index([userId])
+  @@map("conversation_members")
+}
+
+model Message {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  conversationId String    @db.Uuid
+  senderId       String    @db.Uuid
+  body           String    @db.VarChar(2000)
+  createdAt      DateTime  @default(now())
+  editedAt       DateTime?
+  deletedAt      DateTime?
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id])
+
+  @@index([conversationId, createdAt(sort: Desc)])
+  @@map("messages")
+}
+
+/// Generic notification: 9 entities x 3 actions, one table.
+/// Stores i18n KEYS, never rendered text, so a notification reads in whatever
+/// language the recipient picks later.
+model Notification {
+  id             String             @id @default(uuid(7)) @db.Uuid
+  userId         String             @db.Uuid
+  entity         NotificationEntity
+  action         NotificationAction
+  entityId       String?            @db.Uuid
+  actorId        String?            @db.Uuid
+  organizationId String?            @db.Uuid
+  titleKey       String             @db.VarChar(120)
+  payload        Json               @default("{}")
+  readAt         DateTime?
+  createdAt      DateTime           @default(now())
+
+  user  User  @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor User? @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([userId, readAt, createdAt(sort: Desc)])
+  @@index([entity, entityId])
+  @@map("notifications")
+}
+
+// ------------------------------------------------------------- platform ----
+
+/// Public API credentials. Only the 8-char prefix is stored in
+/// clear; the secret is Argon2id-hashed and shown to the user exactly once.
+model ApiKey {
+  id                 String    @id @default(uuid(7)) @db.Uuid
+  organizationId     String    @db.Uuid
+  createdById        String    @db.Uuid
+  name               String    @db.VarChar(60)
+  prefix             String    @unique @db.VarChar(16)
+  keyHash            String
+  scopes             String[]
+  rateLimitPerMinute Int       @default(60)
+  lastUsedAt         DateTime?
+  expiresAt          DateTime?
+  revokedAt          DateTime?
+  createdAt          DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User         @relation(fields: [createdById], references: [id])
+
+  @@index([organizationId, revokedAt])
+  @@map("api_keys")
+}
+
+model GdprRequest {
+  id                    String            @id @default(uuid(7)) @db.Uuid
+  userId                String            @db.Uuid
+  type                  GdprRequestType
+  status                GdprRequestStatus @default(AWAITING_CONFIRMATION)
+  confirmationTokenHash String?           @unique
+  requestedAt           DateTime          @default(now())
+  confirmedAt           DateTime?
+  completedAt           DateTime?
+  artifactPath          String?
+  expiresAt             DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@map("gdpr_requests")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  actorId   String?  @db.Uuid
+  apiKeyId  String?  @db.Uuid
+  action    String   @db.VarChar(60)
+  entity    String   @db.VarChar(40)
+  entityId  String?  @db.Uuid
+  before    Json?
+  after     Json?
+  ip        String?  @db.VarChar(64)
+  userAgent String?  @db.VarChar(400)
+  createdAt DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entity, entityId, createdAt(sort: Desc)])
+  @@index([actorId, createdAt(sort: Desc)])
+  @@map("audit_logs")
 }
