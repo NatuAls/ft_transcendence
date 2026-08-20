@@ -2,7 +2,9 @@ import express, { type Express, type Request, type Response } from 'express';
 
 // Prueba de importación: verifica que la instancia singleton se puede cargar.
 // Todavía no hacemos consultas ni usamos Prisma contra la base de datos.
-import { prisma } from './config/prisma.js';
+// Usamos la extensión .ts porque Docker ejecuta este archivo directamente con
+// `node --watch`; al compilar con TypeScript se transforma automáticamente a .js.
+import { prisma } from './config/prisma.ts';
 
 // Evitamos que esta prueba de importación sea considerada una variable sin uso
 // hasta que los servicios empiecen a utilizar el cliente de Prisma.
@@ -11,7 +13,7 @@ void prisma;
 const app: Express = express();
 
 app.get('/', (req: Request, res: Response) => {
-  res.send('Hello World!');
+  res.send('Hello World! LOS PUTOS AMOS DE EL BACKEND, Y NO ESTAN LLORANDO CON EL BACK EL QUE DIGA ESO MIENTE XD');
 });
 
 // Backend fix: Docker publica el puerto 5000; usamos PORT y escuchamos en todas las interfaces del contenedor.
