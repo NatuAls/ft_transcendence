@@ -1,12 +1,9 @@
-import { Button } from 'ui';
+import LoginPage from './LoginPage';
 
 function App() {
   return (
-    <div>
-      <h1>Transcendence-base</h1>
-      <Button label="First shared Button" />
-    </div>
+    // Cambio: LoginPage contiene la estructura y la importación de sus estilos.
+    <LoginPage />
   );
 }
-
 export default App;
