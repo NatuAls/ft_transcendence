@@ -22,10 +22,11 @@ COPY apps/api apps/api
 
 WORKDIR /app/apps/api
 
-RUN npx prisma generate
+#RUN npx prisma generate
 
 RUN mkdir -p /var/lib/helpdesk/uploads
 
-EXPOSE 5000
+#EXPOSE 5000
 
-CMD ["npm", "run", "dev"]
+#CMD ["npm", "run", "dev"]
+CMD ["sh", "-c", "npx prisma generate && npm run dev"]

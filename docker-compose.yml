@@ -11,7 +11,7 @@ services:
       - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./apps/database/conf:/docker-entrypoint-initdb.d:ro
+      #- ./apps/database/conf:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
@@ -66,8 +66,13 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - SEED_ON_BOOT=${SEED_ON_BOOT:-true}
     volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/apps/api/node_modules
+      - /app/apps/web/node_modules
+      - /app/packages/contracts/node_modules
+      - /app/packages/ui/node_modules
       - uploads:/var/lib/helpdesk/uploads
-        #- .:/app
     depends_on:
       - db
       - redis
@@ -81,8 +86,13 @@ services:
     restart: always
     ports:
       - '5173:5173'
-        # volumes:
-        #- .:/app
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/apps/api/node_modules
+      - /app/apps/web/node_modules
+      - /app/packages/contracts/node_modules
+      - /app/packages/ui/node_modules
     depends_on:
       backend:
         condition: service_started
