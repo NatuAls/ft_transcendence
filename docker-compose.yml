@@ -67,6 +67,7 @@ services:
       - SEED_ON_BOOT=${SEED_ON_BOOT:-true}
     volumes:
       - uploads:/var/lib/helpdesk/uploads
+        #- .:/app
     depends_on:
       - db
       - redis
@@ -80,6 +81,8 @@ services:
     restart: always
     ports:
       - '5173:5173'
+        # volumes:
+        #- .:/app
     depends_on:
       backend:
         condition: service_started
