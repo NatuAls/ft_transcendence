@@ -1,6 +1,39 @@
 import './LoginPage.css';
+// Añadido: conexión del formulario con el cliente de autenticación del backend.
+import { login, saveAccessToken } from './api/auth';
+import { useState } from 'react';
 
 export default function LoginPage() {
+  // Añadido: estado controlado para enviar los valores reales escritos por el usuario.
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [keepSignedIn, setKeepSignedIn] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  // Añadido: envía las credenciales al endpoint existente y guarda el access token.
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError('');
+    setSuccess('');
+    setIsLoading(true);
+
+    try {
+      const result = await login({ email, password });
+      saveAccessToken(result.accessToken, keepSignedIn);
+      setSuccess(`Bienvenido/a, ${result.user.username}.`);
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : 'No se pudo iniciar sesión.',
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   return (
     <div className="login-container">
       {/* Cambio: se sustituyen las clases Tailwind por las clases definidas en LoginPage.css. */}
@@ -72,14 +105,18 @@ export default function LoginPage() {
           </div>
 
           {/* Formulario */}
-          <form onSubmit={(e) => e.preventDefault()}>
+          {/* Añadido: el submit ahora ejecuta la llamada real al backend. */}
+          <form onSubmit={handleSubmit}>
             
             {/* Campo Email */}
             <div className="input-group">
               <label>Email address</label>
-              <input 
+              <input
                 type="email" 
-                defaultValue="name@company.com"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="name@company.com"
+                required
                 className="input-field"
               />
             </div>
@@ -87,16 +124,23 @@ export default function LoginPage() {
             {/* Campo Password */}
             <div className="input-group">
               <label>Password</label>
-              <input 
+              <input
                 type="password" 
-                defaultValue="••••••••••"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                required
                 className="input-field"
               />
             </div>
 
             {/* Checkbox "Keep me signed in" */}
             <label className="checkbox-container">
-                <input type="checkbox" defaultChecked />
+                {/* Añadido: controla si el token se conserva en localStorage o sessionStorage. */}
+                <input
+                  type="checkbox"
+                  checked={keepSignedIn}
+                  onChange={(event) => setKeepSignedIn(event.target.checked)}
+                />
                 <span>Keep me signed in on this device</span>
               </label>
 
@@ -105,9 +149,13 @@ export default function LoginPage() {
               type="submit"
               className="submit-btn"
             >
-              Sign in
+              {isLoading ? 'Signing in...' : 'Sign in'}
             </button>
           </form>
+
+          {/* Añadido: mensajes de respuesta del backend para el usuario. */}
+          {error && <p role="alert">{error}</p>}
+          {success && <p role="status">{success}</p>}
 
           {/* Enlace de Registro / Cambio */}
           <div className="form-footer-links">
