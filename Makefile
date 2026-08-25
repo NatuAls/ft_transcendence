@@ -15,6 +15,7 @@ NC=\033[0m # NO COLOR
 all: up
 
 up:
+	@bash scripts/gen-secrets.sh
 	@$(COMPOSE) $(COMPOSE_FILE) up --build --detach
 	@printf "$(GREEN)Contenedores iniciados correctamente.$(NC)\n"
 
@@ -34,6 +35,9 @@ fclean:
 	@$(COMPOSE) $(COMPOSE_FILE) down --volumes --remove-orphans
 	@printf "$(GREEN)Contenedores y volumen de PostgreSQL eliminados.$(NC)\n"
 	docker system prune -af
+
+secrets: ## Create .env with fresh random secrets if missing
+	@bash scripts/gen-secrets.sh
 
 logs:
 	@$(COMPOSE) $(COMPOSE_FILE) logs --follow $(ID) || true
