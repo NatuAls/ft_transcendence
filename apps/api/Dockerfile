@@ -22,7 +22,7 @@ COPY apps/api apps/api
 
 WORKDIR /app/apps/api
 
-#RUN npx prisma generate
+RUN npx prisma generate
 
 RUN mkdir -p /var/lib/helpdesk/uploads
 
