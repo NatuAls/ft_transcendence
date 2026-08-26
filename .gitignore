@@ -4,6 +4,7 @@ node_modules
 !.env.example
 dist
 apps/api/src/generated
+guias
 
 .agents/
 .claude/
