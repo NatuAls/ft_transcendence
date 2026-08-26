@@ -1,5 +1,6 @@
 // Añadido: cliente mínimo del frontend para consumir los endpoints de autenticación.
-// El backend no se modifica; la URL puede cambiarse con VITE_API_URL.
+// La URL puede cambiarse con VITE_API_URL; por defecto se usa el mismo origen
+// para que el navegador pase por el proxy de Vite tanto en Docker como local.
 
 // Añadido: contrato de entrada que coincide con packages/contracts/src/auth.ts.
 export interface LoginInput {
@@ -18,8 +19,8 @@ export interface LoginResponse {
   };
 }
 
-// Añadido: en desarrollo usa la API publicada por Docker en localhost:5000.
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api/v1';
+// La ruta relativa evita acoplar el navegador al puerto interno del backend.
+const API_URL = import.meta.env.VITE_API_URL ?? '/api/v1';
 
 // Añadido: almacena el access token para que las siguientes peticiones puedan
 // autenticarse. Se usa sessionStorage cuando el usuario no quiere persistencia.

@@ -13,6 +13,7 @@ import { rateLimitDefault } from '../../common/middleware/rate-limit.ts';
 import { validate } from '../../common/middleware/validate.ts';
 import { Errors } from '../../common/errors/domain-error.ts';
 import { param } from '../../common/utils/http.ts';
+import { loadConfiguration } from '../../config/env.ts';
 
 const REFRESH_COOKIE = 'hd_refresh';
 const SESSION_HINT_COOKIE = 'hd_session';
@@ -37,9 +38,12 @@ function contextOf(req: Request): auth.RequestContext {
  * refresh endpoint is what removes the need for a CSRF token here.
  */
 function setRefreshCookie(res: Response, token: string, expiresAt: Date): void {
+  // HTTPS is mandatory in production, while disabling Secure in local HTTP
+  // development lets browsers actually persist the refresh cookie.
+  const secure = loadConfiguration().NODE_ENV === 'production';
   res.cookie(REFRESH_COOKIE, token, {
     httpOnly: true,
-    secure: true,
+    secure,
     sameSite: 'strict',
     path: '/api/v1/auth',
     expires: expiresAt,
@@ -50,7 +54,7 @@ function setRefreshCookie(res: Response, token: string, expiresAt: Date): void {
   // that can only ever 401 for lack of the real, HttpOnly cookie.
   res.cookie(SESSION_HINT_COOKIE, '1', {
     httpOnly: false,
-    secure: true,
+    secure,
     sameSite: 'strict',
     path: '/',
     expires: expiresAt,
