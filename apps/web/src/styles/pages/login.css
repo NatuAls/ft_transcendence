@@ -1,49 +1,5 @@
-/*desde aqui el code que genero su misma app */
-/* Cambio: estos estilos se conectan con las clases semánticas usadas por LoginPage.tsx. */
-
-/*CSS INICIO DE SESION*/
-
-/* =========================================
-   1. IMPORTACIÓN DE FUENTES (Inter)
-   ========================================= */
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url(https://design.penpot.app/internal/gfonts/font/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfAZJhiI2B.woff2) format('woff2');
-}
-
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url(https://design.penpot.app/internal/gfonts/font/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuI6fAZ9hiA.woff2) format('woff2');
-}
-
-/* =========================================
-   2. ESTILOS BASE Y RESET
-   ========================================= */
-*, *::before, *::after {
-  box-sizing: border-box;
-}
-
-html, body, #root {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  min-height: 100vh;
-  font-family: 'Inter', sans-serif;
-  background-color: #f6f7f3;
-  color: #183039;
-  text-align: left;
-  color-scheme: light;
-}
-
-/* =========================================
-   3. LAYOUT PRINCIPAL (Contenedor de 2 columnas)
-   ========================================= */
+/* Estilos exclusivos de LoginPage. */
+/* Estilos exclusivos de LoginPage, agrupados fuera de index/main. */
 .login-container {
   display: flex;
   min-height: 100vh;

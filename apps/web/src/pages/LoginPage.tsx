@@ -1,9 +1,13 @@
-import './LoginPage.css';
+import '../styles/pages/login.css';
 // Añadido: conexión del formulario con el cliente de autenticación del backend.
-import { login, saveAccessToken } from './api/auth';
+import { login, saveAccessToken } from '../api/auth';
 import { useState } from 'react';
 
-export default function LoginPage() {
+interface LoginPageProps {
+  onCreateAccount: () => void;
+}
+
+export default function LoginPage({ onCreateAccount }: LoginPageProps) {
   // Añadido: estado controlado para enviar los valores reales escritos por el usuario.
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -36,7 +40,7 @@ export default function LoginPage() {
 
   return (
     <div className="login-container">
-      {/* Cambio: se sustituyen las clases Tailwind por las clases definidas en LoginPage.css. */}
+      {/* La página usa sus estilos propios en styles/pages/login.css. */}
       
       {/* ── PANEL IZQUIERDO (Brand & Insights) ── */}
       <aside className="brand-panel">
@@ -89,17 +93,17 @@ export default function LoginPage() {
 
       {/* ── PANEL DERECHO (Formulario de Acceso) ── */}
       <main className="form-wrapper">
-        <div className="form-card">
+        <div className="form-card desktop-7d6ddbfbab56">
           
           {/* Encabezado del Formulario */}
           <div className="form-header">
-            <span className="form-eyebrow">
+            <span className="form-eyebrow desktop-7d6ddc04ff70">
               Welcome back
             </span>
-            <h2>
+            <h2 className="desktop-7d6ddc10ecf4">
               Sign in to your workspace
             </h2>
-            <p>
+            <p className="desktop-7d6ddc1ce710">
               Use the credentials provided by your organization.
             </p>
           </div>
@@ -110,31 +114,31 @@ export default function LoginPage() {
             
             {/* Campo Email */}
             <div className="input-group">
-              <label>Email address</label>
+              <label className="desktop-7d6ddc28da24">Email address</label>
               <input
                 type="email" 
+                className="input-field desktop-7d6ddc33afc6"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="name@company.com"
                 required
-                className="input-field"
               />
             </div>
 
             {/* Campo Password */}
             <div className="input-group">
-              <label>Password</label>
+              <label className="desktop-7d6ddc4c5d91">Password</label>
               <input
                 type="password" 
+                className="input-field desktop-7d6ddc5c36e6"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 required
-                className="input-field"
               />
             </div>
 
             {/* Checkbox "Keep me signed in" */}
-            <label className="checkbox-container">
+            <label className="checkbox-container desktop-7d6ddc9f9590">
                 {/* Añadido: controla si el token se conserva en localStorage o sessionStorage. */}
                 <input
                   type="checkbox"
@@ -145,9 +149,9 @@ export default function LoginPage() {
               </label>
 
             {/* Botón Submit */}
-            <button 
+            <button
               type="submit"
-              className="submit-btn"
+              className="submit-btn desktop-7d6ddcab14fd"
             >
               {isLoading ? 'Signing in...' : 'Sign in'}
             </button>
@@ -160,7 +164,13 @@ export default function LoginPage() {
           {/* Enlace de Registro / Cambio */}
           <div className="form-footer-links">
             <span>New to HelpDesk Lite?</span>
-            <a href="#register">
+            <a
+              href="#register"
+              onClick={(event) => {
+                event.preventDefault();
+                onCreateAccount();
+              }}
+            >
               Create an account
             </a>
           </div>
@@ -168,7 +178,7 @@ export default function LoginPage() {
           {/* Términos y Privacidad */}
           <div className="legal-footer">
             <p>
-              {/* Cambio: los enlaces legales ahora usan el selector .legal-footer de LoginPage.css. */}
+              {/* Los enlaces legales usan el selector .legal-footer de esta página. */}
               <a href="#terms">Terms of Service</a> · <a href="#privacy">Privacy Policy</a>
             </p>
           </div>

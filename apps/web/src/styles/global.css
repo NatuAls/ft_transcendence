@@ -1,0 +1,23 @@
+/* Estilos globales compartidos por todas las páginas de la aplicación. */
+@import './fonts.css';
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100vh;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: #f6f7f3;
+  color: #183039;
+  text-align: left;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
