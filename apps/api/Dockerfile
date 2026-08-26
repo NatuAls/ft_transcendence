@@ -29,4 +29,6 @@ RUN mkdir -p /var/lib/helpdesk/uploads
 #EXPOSE 5000
 
 #CMD ["npm", "run", "dev"]
-CMD ["sh", "-c", "npx prisma generate && npm run dev"]
+# Generate the client and apply committed migrations before serving traffic so
+# a fresh named volume is usable without a manual database intervention.
+CMD ["sh", "-c", "npx prisma generate && npx prisma migrate deploy && npm run dev"]

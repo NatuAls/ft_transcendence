@@ -14,6 +14,17 @@ const envSchema = z.object({
 
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   REDIS_URL: z.string().default('redis://redis:6379'),
+  // Comma-separated origins keep CORS explicit while supporting local and
+  // production deployments without embedding a domain in application code.
+  CORS_ORIGINS: z
+    .string()
+    .default('http://localhost:5173,http://127.0.0.1:5173')
+    .transform((value) =>
+      value
+        .split(',')
+        .map((origin) => origin.trim())
+        .filter(Boolean),
+    ),
 
   JWT_ACCESS_SECRET: z
     .string()

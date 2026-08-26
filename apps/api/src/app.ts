@@ -41,7 +41,9 @@ export function createApp(): Express {
   app.use(express.urlencoded({ limit: '1mb', extended: true }));
   app.use(
     cors({
-      origin: config.NODE_ENV === 'production' ? false : true,
+      // The allowlist comes from deployment configuration so credentials are
+      // accepted only by known frontend origins in every environment.
+      origin: config.CORS_ORIGINS,
       credentials: true,
       exposedHeaders: [
         'X-Request-Id',
