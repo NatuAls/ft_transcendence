@@ -29,7 +29,7 @@ PY
 }
 
 replace POSTGRES_PASSWORD "$PG_PASS"
-replace DATABASE_URL "postgresql://helpdesk:${PG_PASS}@postgres:5432/helpdesk?schema=public"
+replace DATABASE_URL "postgresql://mi_usuario:${PG_PASS}@db:5432/mi_base_datos?schema=public"
 replace JWT_ACCESS_SECRET  "$(rand 48)"
 replace JWT_REFRESH_SECRET "$(rand 48)"
 replace PASSWORD_PEPPER    "$(rand 32)"
