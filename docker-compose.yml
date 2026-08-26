@@ -1,6 +1,8 @@
 services:
   db:
-    image: postgres:15-alpine
+    build:
+      context: ./apps/database
+      dockerfile: Dockerfile
     container_name: database
     restart: always
     environment:
@@ -11,7 +13,6 @@ services:
       - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./apps/database/conf:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
@@ -23,7 +24,7 @@ services:
     container_name: redis
     restart: always
     ports:
-      - '6379:6379'
+      - '6380:6379'
     volumes:
       - redis_data:/data
 
@@ -45,6 +46,9 @@ services:
       - '5000:5000'
     environment:
       - DATABASE_URL=postgres://${POSTGRES_USER:-mi_usuario}:${POSTGRES_PASSWORD:-mi_password}@db:5432/${POSTGRES_DB:-mi_base_datos}
+      # CORS se configura como lista para que produccion no dependa de una
+      # URL escrita literalmente en el codigo ni permita origenes arbitrarios.
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
       - PORT=5000
       - NODE_ENV=${NODE_ENV:-development}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
@@ -74,9 +78,12 @@ services:
       - /app/packages/ui/node_modules
       - uploads:/var/lib/helpdesk/uploads
     depends_on:
-      - db
-      - redis
-      - mailpit
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      mailpit:
+        condition: service_started
 
   frontend:
     build:
@@ -86,6 +93,10 @@ services:
     restart: always
     ports:
       - '5173:5173'
+    environment:
+      # El proxy se ejecuta dentro del contenedor web; por eso usa el nombre
+      # DNS del servicio y no localhost, que apuntaria al propio contenedor.
+      - VITE_PROXY_TARGET=http://backend:5000
     volumes:
       - .:/app
       - /app/node_modules

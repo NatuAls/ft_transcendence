@@ -1,4 +1,6 @@
 FROM postgres:15-alpine
 
-# Los scripts de esta ruta se ejecutan una sola vez al crear el volumen de datos.
-COPY conf/init.sql /docker-entrypoint-initdb.d/init.sql
+# La imagen contiene los scripts para que la inicializacion no dependa de un
+# bind mount sobre el sistema de archivos compartido, que puede producir
+# errores "Stale file handle" antes de que PostgreSQL llegue a arrancar.
+COPY conf/01-extensions.sql /docker-entrypoint-initdb.d/01-extensions.sql
