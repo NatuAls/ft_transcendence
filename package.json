@@ -35,5 +35,9 @@
       "onFail": "error"
     }
   },
-  "name": "ft_transcendence"
+  "name": "ft_transcendence",
+  "allowScripts": {
+    "prisma@7.9.1": true,
+    "@prisma/engines@7.9.1": true
+  }
 }

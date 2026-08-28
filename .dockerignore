@@ -1,0 +1,13 @@
+# Dependencias y artefactos de compilación
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+
+# Basura de Git y sistema
+.git
+.gitignore
+.dockerignore
+*.md
+*.log
+.env*

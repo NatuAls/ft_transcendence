@@ -1,0 +1,48 @@
+# FROM node:24-alpine
+
+# WORKDIR /app
+
+# COPY package*.json ./
+
+# COPY tsconfig.base.json ./
+
+# COPY apps/web/package*.json ./
+
+# # ui es un paquete local del monorepo y debe existir antes de npm install.
+# #COPY ../../packages/ ./packages
+# COPY /packages/ ./packages/
+# RUN npm install
+
+# COPY apps/web/ ./
+
+# #EXPOSE 5173
+
+# CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]  
+# #CMD ["npm", "run", "dev", "--workspace=apps/web", "--", "--host", "0.0.0.0"]
+
+
+FROM node:24-alpine
+
+WORKDIR /app
+
+# 1. Copiamos el manifest raíz (igual que hiciste en la API)
+COPY package.json package-lock.json ./
+
+# 2. Copiamos los package.json de los workspaces respetando sus rutas
+COPY apps/web/package.json apps/web/package.json
+COPY packages/ui/package.json packages/ui/package.json
+COPY packages/contracts/package.json packages/contracts/package.json
+
+# 3. Instalamos todo (NPM enlazará los workspaces correctamente)
+RUN npm install
+
+# 4. Copiamos el resto del código respetando las rutas
+COPY packages/ packages/
+COPY apps/web/ apps/web/
+COPY tsconfig.base.json ./
+
+# 5. IMPORTANTE: Nos movemos a la carpeta de la web antes de ejecutar
+WORKDIR /app/apps/web
+
+# Arrancar Vite
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
