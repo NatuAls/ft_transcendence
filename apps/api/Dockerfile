@@ -1,5 +1,5 @@
-FROM node:24-alpine
-
+#FROM node:24-alpine antiguo
+FROM node:24.19.0-alpine
 # Native build deps for argon2 (Argon2id hashing) and sharp (avatar/attachment
 # thumbnails) - both compile a native addon on install.
 RUN apk add --no-cache python3 make g++

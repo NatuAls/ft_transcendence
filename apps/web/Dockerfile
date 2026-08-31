@@ -21,8 +21,8 @@
 # #CMD ["npm", "run", "dev", "--workspace=apps/web", "--", "--host", "0.0.0.0"]
 
 
-FROM node:24-alpine
-
+#FROM node:24-alpine
+FROM node:24.19.0-alpine
 WORKDIR /app
 
 # 1. Copiamos el manifest raíz (igual que hiciste en la API)
