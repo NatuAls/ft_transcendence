@@ -61,6 +61,53 @@ export async function isRevoked(jti: string): Promise<boolean> {
   }
 }
 
+/**
+ * Revokes EVERY access token issued to a user before this instant.
+ *
+ * A per-`jti` deny list can only revoke tokens whose id we happen to know -
+ * that covers "log this device out", but not logout-all, a password change or
+ * a password reset, where the other devices' `jti` values were never handed to
+ * this request. One cutoff timestamp per user solves that: any token whose
+ * `iat` is older than the cutoff is refused.
+ *
+ * The key only has to outlive the longest access token still in circulation,
+ * so the caller passes the access-token lifetime plus some clock slack. After
+ * that, every token issued before the cutoff has expired on its own anyway.
+ */
+export async function revokeTokensIssuedBefore(
+  userId: string,
+  ttlSeconds: number,
+): Promise<void> {
+  const key = `revoked-before:${userId}`;
+  const now = Math.floor(Date.now() / 1000);
+
+  // The cutoff must never move backwards. `issueTokens()` stamps a token minted
+  // inside the cutoff second with `iat = cutoff + 1` so that a login right
+  // after a logout-all is not killed by its own cutoff - which means a token
+  // can legitimately carry an `iat` one second in the future. A second
+  // revocation within that same wall-clock second would otherwise write a
+  // cutoff BELOW those tokens and leave them alive. Taking `max(now,
+  // previous + 1)` keeps the ordering intact; the cutoff can only run ahead of
+  // real time by as many seconds as there were revocations inside one second,
+  // and it catches up by itself.
+  const previous = Number((await redis.get(key).catch(() => null)) ?? 0);
+  const cutoff = Math.max(now, previous + 1);
+
+  await redis.set(key, cutoff.toString(), 'EX', Math.max(ttlSeconds, 1));
+}
+
+/** Unix seconds before which this user's access tokens are no longer valid. */
+export async function tokensRevokedBefore(userId: string): Promise<number> {
+  try {
+    const value = await redis.get(`revoked-before:${userId}`);
+    return value ? Number(value) : 0;
+  } catch {
+    // Same fail-open reasoning as isRevoked(): Postgres stays the source of
+    // truth for the refresh chain and the access token expires by itself.
+    return 0;
+  }
+}
+
 // ---- presence -----------------------------------------------------------------
 export async function touchPresence(
   userId: string,

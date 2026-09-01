@@ -1,7 +1,11 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { GlobalRole } from '../../generated/prisma/client.ts';
 import { prisma } from '../../database/prisma.ts';
-import { revokeJti } from '../../database/redis.ts';
+import {
+  revokeJti,
+  revokeTokensIssuedBefore,
+  tokensRevokedBefore,
+} from '../../database/redis.ts';
 import { loadConfiguration } from '../../config/env.ts';
 import { uuidv7 } from '../../common/utils/uuid.ts';
 import { signAccessToken } from '../../common/jwt.ts';
@@ -17,14 +21,27 @@ function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');
 }
 
-function refreshTtlMs(): number {
-  const raw = loadConfiguration().REFRESH_TOKEN_TTL;
+/** Parses the `15m` / `7d` style durations used by the token TTL settings. */
+function durationMs(raw: string, fallbackMs: number): number {
   const match = /^(\d+)([smhd])$/.exec(raw);
-  if (!match) return 7 * 24 * 3600 * 1000;
+  if (!match) return fallbackMs;
   const amount = Number(match[1]);
   const unit = match[2] as 's' | 'm' | 'h' | 'd';
   const factor = { s: 1000, m: 60_000, h: 3_600_000, d: 86_400_000 }[unit];
   return amount * factor;
+}
+
+function refreshTtlMs(): number {
+  return durationMs(
+    loadConfiguration().REFRESH_TOKEN_TTL,
+    7 * 24 * 3600 * 1000,
+  );
+}
+
+function accessTtlSeconds(): number {
+  return Math.ceil(
+    durationMs(loadConfiguration().ACCESS_TOKEN_TTL, 15 * 60_000) / 1000,
+  );
 }
 
 /**
@@ -43,6 +60,19 @@ export async function issueTokens(
 ): Promise<IssuedTokens> {
   const config = loadConfiguration();
   const jti = uuidv7();
+
+  // `iat` only has one-second resolution, and requireAuth() has to treat a
+  // token minted in the same second as a revocation cutoff as revoked (it
+  // cannot tell whether it came before or after). Without this line, logging
+  // in during that same second - which is exactly what happens right after a
+  // password change or a logout-all - would hand out a token that the very
+  // next request rejects. Stamping it one second ahead removes the ambiguity;
+  // `jsonwebtoken` derives `exp` from the `iat` we pass, so the lifetime is
+  // unchanged.
+  const cutoff = await tokensRevokedBefore(user.id);
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const iat = cutoff && nowSeconds <= cutoff ? cutoff + 1 : nowSeconds;
+
   const accessToken = signAccessToken(
     {
       sub: user.id,
@@ -50,6 +80,7 @@ export async function issueTokens(
       email: user.email,
       role: user.globalRole,
       jti,
+      iat,
     },
     config.ACCESS_TOKEN_TTL,
   );
@@ -143,19 +174,40 @@ export async function revokeFamily(familyId: string): Promise<void> {
   });
 }
 
+/**
+ * Ends every session of a user: the refresh chain in Postgres AND the access
+ * tokens already handed out.
+ *
+ * Revoking only the refresh rows used to leave the JWTs already in browsers
+ * valid for up to a full access-token lifetime, so "log out everywhere" and
+ * "change my password because it may be compromised" did not actually cut off
+ * a device that was already holding a token.
+ */
 export async function revokeAllForUser(userId: string): Promise<void> {
   await prisma.userSession.updateMany({
     where: { userId, revokedAt: null },
     data: { revokedAt: new Date() },
   });
+  await revokeAllAccessTokens(userId);
+}
+
+/**
+ * Invalidates every access token issued to this user up to now. The cutoff
+ * only needs to outlive the tokens themselves, hence the access TTL plus a
+ * minute of slack for clock skew between the API and Redis.
+ */
+export async function revokeAllAccessTokens(userId: string): Promise<void> {
+  await revokeTokensIssuedBefore(userId, accessTtlSeconds() + 60);
 }
 
 /** Adds the current access token's jti to the revocation list until it expires. */
 export async function revokeAccessToken(
   jti: string,
-  expUnixSeconds: number,
+  expUnixSeconds?: number,
 ): Promise<void> {
-  const ttl = Math.max(1, expUnixSeconds - Math.floor(Date.now() / 1000));
+  const ttl = expUnixSeconds
+    ? Math.max(1, expUnixSeconds - Math.floor(Date.now() / 1000))
+    : accessTtlSeconds();
   await revokeJti(jti, ttl);
 }
 
