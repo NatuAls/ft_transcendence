@@ -11,6 +11,7 @@ import {
   updateProfileSchema,
 } from 'contracts';
 import * as users from './users.service.ts';
+import * as audit from '../audit/audit.service.ts';
 import { authed } from '../../common/middleware/chains.ts';
 import { requireGlobalAdmin } from '../../common/middleware/policy.ts';
 import { validate } from '../../common/middleware/validate.ts';
@@ -55,6 +56,17 @@ usersRouter.patch(
     res.json(await users.updateProfile(req.actor!.id, req.body));
   },
 );
+
+/**
+ * Reads back the preferences the PATCH below writes.
+ *
+ * Without it the five `notifyOn*` switches and the theme were write-only:
+ * `/auth/me` carries locale and timezone and nothing else, so a settings
+ * screen could not render its own controls in the state the user left them.
+ */
+usersRouter.get('/me/preferences', ...authed, async (req, res) => {
+  res.json(await users.preferences(req.actor!.id));
+});
 
 usersRouter.patch(
   '/me/preferences',
@@ -113,13 +125,15 @@ usersRouter.patch(
   requireGlobalAdmin(),
   validate(setUserStatusSchema),
   async (req, res) => {
-    res.json(
-      await users.setStatus(
-        req.actor!,
-        param(req.params.id),
-        req.body.isActive,
-      ),
+    const result = await users.setStatus(
+      req.actor!,
+      param(req.params.id),
+      req.body.isActive,
     );
+    audit.from(req)('user.status.changed', 'User', param(req.params.id), {
+      after: { isActive: req.body.isActive },
+    });
+    res.json(result);
   },
 );
 
@@ -129,13 +143,15 @@ usersRouter.patch(
   requireGlobalAdmin(),
   validate(setGlobalRoleSchema),
   async (req, res) => {
-    res.json(
-      await users.setGlobalRole(
-        req.actor!,
-        param(req.params.id),
-        req.body.globalRole,
-      ),
+    const result = await users.setGlobalRole(
+      req.actor!,
+      param(req.params.id),
+      req.body.globalRole,
     );
+    audit.from(req)('user.role.changed', 'User', param(req.params.id), {
+      after: { globalRole: req.body.globalRole },
+    });
+    res.json(result);
   },
 );
 
@@ -145,6 +161,7 @@ usersRouter.delete(
   requireGlobalAdmin(),
   async (req, res) => {
     await users.softDelete(req.actor!, param(req.params.id));
+    audit.from(req)('user.deleted', 'User', param(req.params.id));
     res.status(204).end();
   },
 );
