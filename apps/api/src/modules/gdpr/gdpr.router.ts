@@ -2,6 +2,7 @@ import { Router, type Request } from 'express';
 import { existsSync } from 'node:fs';
 import { gdprConfirmSchema } from 'contracts';
 import * as gdpr from './gdpr.service.ts';
+import * as audit from '../audit/audit.service.ts';
 import { authed } from '../../common/middleware/chains.ts';
 import { validate } from '../../common/middleware/validate.ts';
 import { Errors } from '../../common/errors/domain-error.ts';
@@ -34,7 +35,9 @@ gdprRouter.post(
   ...authed,
   validate(gdprConfirmSchema),
   async (req, res) => {
-    res.json(await gdpr.confirm(req.actor!.id, 'EXPORT', req.body.token));
+    const result = await gdpr.confirm(req.actor!.id, 'EXPORT', req.body.token);
+    audit.from(req)('gdpr.export.confirmed', 'GdprRequest', result.id);
+    res.json(result);
   },
 );
 
@@ -58,13 +61,17 @@ gdprRouter.post(
   ...authed,
   validate(gdprConfirmSchema),
   async (req, res) => {
-    res.json(
-      await gdpr.confirm(
-        req.actor!.id,
-        'DELETE',
-        req.body.token,
-        req.body.confirmUsername,
-      ),
+    // Captured before the call: the account is soft-deleted by the time it
+    // returns, and an irreversible action is exactly what an audit trail is
+    // for. The token itself is never recorded.
+    const trail = audit.from(req);
+    const result = await gdpr.confirm(
+      req.actor!.id,
+      'DELETE',
+      req.body.token,
+      req.body.confirmUsername,
     );
+    trail('gdpr.delete.confirmed', 'GdprRequest', result.id);
+    res.json(result);
   },
 );
