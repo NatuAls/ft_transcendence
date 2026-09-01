@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import {
+  markReadSchema,
   openConversationSchema,
   respondFriendRequestSchema,
   sendFriendRequestSchema,
@@ -85,7 +86,29 @@ socialRouter.post(
   },
 );
 
-socialRouter.patch('/conversations/:id/read', ...authed, async (req, res) => {
-  await social.markRead(req.actor!.id, param(req.params.id));
-  res.status(204).end();
-});
+/**
+ * Marks the conversation read. An optional `{ messageId }` body moves the
+ * marker only as far as that message - the shape `markReadSchema` already
+ * described in `packages/contracts` and that no route consumed.
+ *
+ * The body stays optional so callers that send nothing keep the previous
+ * "mark everything read" behaviour, and the response now carries the
+ * resulting `lastReadAt` instead of an empty 204 the client has to guess at.
+ */
+socialRouter.patch(
+  '/conversations/:id/read',
+  ...authed,
+  // `.default({})` matters: Express 5 leaves `req.body` undefined when the
+  // request carries no JSON body at all, which is exactly how the existing
+  // callers of this route send it.
+  validate(markReadSchema.partial().default({})),
+  async (req, res) => {
+    res.json(
+      await social.markRead(
+        req.actor!.id,
+        param(req.params.id),
+        (req.body as { messageId?: string }).messageId,
+      ),
+    );
+  },
+);
