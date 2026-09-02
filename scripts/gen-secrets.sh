@@ -12,7 +12,6 @@ fi
 
 rand() { openssl rand -hex "${1:-32}"; }
 
-PG_PASS="$(rand 24)"
 cp "$ROOT/.env.example" "$ENV_FILE"
 
 replace() { # key value
@@ -28,8 +27,17 @@ with open(path, 'w', encoding='utf-8') as fh:
 PY
 }
 
+PG_USER="helpdesk_admin"
+PG_DB="helpdesk_prod"
+PG_PASS="$(rand 24)"
+
+replace POSTGRES_USER "$PG_USER"
+replace POSTGRES_DB "$PG_DB"
 replace POSTGRES_PASSWORD "$PG_PASS"
-replace DATABASE_URL "postgresql://mi_usuario:${PG_PASS}@db:5432/mi_base_datos?schema=public"
+
+# Ahora la URL se construye usando las variables reales, sin incoherencias
+replace DATABASE_URL "postgresql://${PG_USER}:${PG_PASS}@db:5432/${PG_DB}?schema=public"
+
 replace JWT_ACCESS_SECRET  "$(rand 48)"
 replace JWT_REFRESH_SECRET "$(rand 48)"
 replace PASSWORD_PEPPER    "$(rand 32)"
