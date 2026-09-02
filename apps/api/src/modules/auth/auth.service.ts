@@ -24,6 +24,7 @@ import {
   createOneTimeToken,
   hashOneTimeToken,
   issueTokens,
+  revokeAccessToken,
   revokeAllForUser,
   revokeByRefreshToken,
   rotateTokens,
@@ -187,8 +188,21 @@ export async function refresh(
   return { user: await sessionUser(rotated.userId), ...rotated };
 }
 
-export async function logout(refreshToken: string | undefined): Promise<void> {
+/**
+ * Ends the current session: the refresh row in Postgres and - just as
+ * importantly - the access token the caller is holding right now.
+ *
+ * Revoking only the refresh token left the JWT usable until it expired on its
+ * own, so "log out" did not log anybody out for up to a full access-token
+ * lifetime. The `revoked:<jti>` list in Redis exists precisely for this.
+ */
+export async function logout(
+  refreshToken: string | undefined,
+  accessToken?: { jti: string; exp?: number },
+): Promise<void> {
   if (refreshToken) await revokeByRefreshToken(refreshToken);
+  if (accessToken?.jti)
+    await revokeAccessToken(accessToken.jti, accessToken.exp);
 }
 
 export async function logoutAll(userId: string): Promise<void> {
@@ -225,6 +239,58 @@ export async function verifyEmail(token: string): Promise<void> {
       data: { emailVerifiedAt: new Date() },
     }),
   ]);
+}
+
+/**
+ * Issues a fresh email-verification link.
+ *
+ * Registration mints a token that lives 24 hours. Without this endpoint a user
+ * whose token expired - or whose email never arrived - had no way back: the
+ * account stays permanently unverified even though `/auth/me` keeps reporting
+ * `emailVerified: false`.
+ *
+ * Any token still pending for this purpose is burnt first, so only the newest
+ * link works and an old message forwarded to someone else is dead.
+ */
+export async function resendVerification(
+  userId: string,
+  ctx: RequestContext,
+): Promise<void> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      emailVerifiedAt: true,
+      deletedAt: true,
+      profile: { select: { firstName: true } },
+    },
+  });
+  if (!user || user.deletedAt) throw Errors.tokenInvalid();
+  // Already verified: nothing to send, and saying so is not a leak because the
+  // caller is authenticated as this very user.
+  if (user.emailVerifiedAt) return;
+
+  const { token, hash } = createOneTimeToken();
+  await prisma.$transaction([
+    prisma.verificationToken.updateMany({
+      where: { userId: user.id, purpose: 'EMAIL_VERIFY', usedAt: null },
+      data: { usedAt: new Date() },
+    }),
+    prisma.verificationToken.create({
+      data: {
+        userId: user.id,
+        purpose: 'EMAIL_VERIFY',
+        tokenHash: hash,
+        expiresAt: new Date(Date.now() + 24 * 3600 * 1000),
+      },
+    }),
+  ]);
+  await sendEmailVerification(
+    user.email,
+    user.profile?.firstName ?? 'there',
+    `${ctx.origin}/verify-email?token=${token}`,
+  );
 }
 
 /** Always resolves the same way, so nobody can probe which emails exist. */

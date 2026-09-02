@@ -12,6 +12,7 @@ import * as tickets from '../tickets/tickets.service.ts';
 import * as orgs from '../organizations/organizations.service.ts';
 import * as search from '../search/search.service.ts';
 import * as apiKeys from './api-keys.service.ts';
+import * as audit from '../audit/audit.service.ts';
 import { membershipOf } from '../../rbac/rbac.ts';
 import { apiKeyRoute } from '../../common/middleware/chains.ts';
 import { requireScope } from '../../common/middleware/api-key.ts';
@@ -296,16 +297,22 @@ apiKeysRouter.post(
   orgScope({ minRoles: ['ORG_ADMIN'] }),
   validate(createApiKeySchema),
   async (req, res) => {
-    res
-      .status(201)
-      .json(
-        await apiKeys.create(
-          req.actor!,
-          req.membership,
-          param(req.params.organizationId),
-          req.body,
-        ),
-      );
+    const created = await apiKeys.create(
+      req.actor!,
+      req.membership,
+      param(req.params.organizationId),
+      req.body,
+    );
+    // The plaintext key is in `created` and must never reach the audit table:
+    // only the non-secret identity of the key is recorded.
+    audit.from(req)('apiKey.created', 'ApiKey', created.id, {
+      after: {
+        name: req.body.name,
+        scopes: req.body.scopes,
+        organizationId: param(req.params.organizationId),
+      },
+    });
+    res.status(201).json(created);
   },
 );
 
@@ -320,6 +327,9 @@ apiKeysRouter.delete(
       param(req.params.organizationId),
       param(req.params.id),
     );
+    audit.from(req)('apiKey.revoked', 'ApiKey', param(req.params.id), {
+      after: { organizationId: param(req.params.organizationId) },
+    });
     res.status(204).end();
   },
 );

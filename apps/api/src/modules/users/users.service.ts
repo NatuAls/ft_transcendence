@@ -95,12 +95,61 @@ export async function updateProfile(userId: string, input: UpdateProfileInput) {
   return profile;
 }
 
+/**
+ * The account's settings as one object: display settings live on `User`,
+ * the notification switches on `NotificationPreference`. The same PATCH
+ * writes both halves, so they are read back together too.
+ */
+export interface UserPreferences {
+  locale: string;
+  timezone: string;
+  theme: string;
+  notifyOnTicketUpdate: boolean;
+  notifyOnComment: boolean;
+  notifyOnMention: boolean;
+  notifyOnMessage: boolean;
+  notifyOnFriendship: boolean;
+}
+
+const NOTIFY_SELECT = {
+  notifyOnTicketUpdate: true,
+  notifyOnComment: true,
+  notifyOnMention: true,
+  notifyOnMessage: true,
+  notifyOnFriendship: true,
+} as const;
+
+/**
+ * Reads the preferences back.
+ *
+ * `PATCH /users/me/preferences` could write the five `notifyOn*` switches but
+ * nothing could ever read them: `/auth/me` returns only locale and timezone,
+ * so a settings screen had no way to render the checkboxes in their real
+ * state. Registration creates the row; the upsert here covers any account
+ * that predates it, returning the schema defaults instead of a 404.
+ */
+export async function preferences(userId: string): Promise<UserPreferences> {
+  const [user, notify] = await Promise.all([
+    prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { locale: true, timezone: true, theme: true },
+    }),
+    prisma.notificationPreference.upsert({
+      where: { userId },
+      create: { userId },
+      update: {},
+      select: NOTIFY_SELECT,
+    }),
+  ]);
+  return { ...user, ...notify };
+}
+
 export async function updatePreferences(
   userId: string,
   input: UpdatePreferencesInput,
-) {
+): Promise<UserPreferences> {
   const { locale, timezone, theme, ...notify } = input;
-  const [user] = await prisma.$transaction([
+  const [user, saved] = await prisma.$transaction([
     prisma.user.update({
       where: { id: userId },
       data: {
@@ -114,9 +163,12 @@ export async function updatePreferences(
       where: { userId },
       create: { userId, ...notify },
       update: notify,
+      select: NOTIFY_SELECT,
     }),
   ]);
-  return user;
+  // The notification switches used to be written and then discarded, so even
+  // the caller that had just set them got no confirmation of the new state.
+  return { ...user, ...saved };
 }
 
 /**

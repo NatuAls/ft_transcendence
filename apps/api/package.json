@@ -8,6 +8,8 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "node --test 'test/unit/*.test.ts'",
+    "test:integration": "node --test 'test/integration/*.test.ts'",
+    "test:all": "npm run test && npm run test:integration",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

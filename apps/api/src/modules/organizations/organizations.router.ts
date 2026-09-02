@@ -8,6 +8,7 @@ import {
   updateOrganizationSchema,
 } from 'contracts';
 import * as orgs from './organizations.service.ts';
+import * as audit from '../audit/audit.service.ts';
 import { authed } from '../../common/middleware/chains.ts';
 import { orgScope } from '../../common/middleware/org-scope.ts';
 import { validate } from '../../common/middleware/validate.ts';
@@ -35,7 +36,11 @@ organizationsRouter.post(
   ...authed,
   validate(createOrganizationSchema),
   async (req, res) => {
-    res.status(201).json(await orgs.create(req.actor!, req.body));
+    const created = await orgs.create(req.actor!, req.body);
+    audit.from(req)('organization.created', 'Organization', created.id, {
+      after: { name: created.name, slug: created.slug },
+    });
+    res.status(201).json(created);
   },
 );
 
@@ -60,14 +65,19 @@ organizationsRouter.patch(
   orgScope({ minRoles: ['ORG_ADMIN'] }),
   validate(updateOrganizationSchema),
   async (req, res) => {
-    res.json(
-      await orgs.update(
-        req.actor!,
-        req.membership,
-        param(req.params.organizationId),
-        req.body,
-      ),
+    const updated = await orgs.update(
+      req.actor!,
+      req.membership,
+      param(req.params.organizationId),
+      req.body,
     );
+    audit.from(req)(
+      'organization.updated',
+      'Organization',
+      param(req.params.organizationId),
+      { after: req.body },
+    );
+    res.json(updated);
   },
 );
 
@@ -79,6 +89,11 @@ organizationsRouter.delete(
     await orgs.remove(
       req.actor!,
       req.membership,
+      param(req.params.organizationId),
+    );
+    audit.from(req)(
+      'organization.deleted',
+      'Organization',
       param(req.params.organizationId),
     );
     res.status(204).end();
@@ -106,17 +121,20 @@ organizationsRouter.post(
   orgScope({ minRoles: ['ORG_ADMIN'] }),
   validate(inviteMemberSchema),
   async (req, res) => {
-    res
-      .status(201)
-      .json(
-        await orgs.invite(
-          req.actor!,
-          req.membership,
-          param(req.params.organizationId),
-          req.body,
-          originOf(req),
-        ),
-      );
+    const member = await orgs.invite(
+      req.actor!,
+      req.membership,
+      param(req.params.organizationId),
+      req.body,
+      originOf(req),
+    );
+    audit.from(req)(
+      'member.invited',
+      'OrganizationMember',
+      param(req.params.organizationId),
+      { after: { identifier: req.body.identifier, role: req.body.role } },
+    );
+    res.status(201).json(member);
   },
 );
 
@@ -126,15 +144,20 @@ organizationsRouter.patch(
   orgScope({ minRoles: ['ORG_ADMIN'] }),
   validate(updateMemberRoleSchema),
   async (req, res) => {
-    res.json(
-      await orgs.changeRole(
-        req.actor!,
-        req.membership,
-        param(req.params.organizationId),
-        param(req.params.userId),
-        req.body.role,
-      ),
+    const changed = await orgs.changeRole(
+      req.actor!,
+      req.membership,
+      param(req.params.organizationId),
+      param(req.params.userId),
+      req.body.role,
     );
+    audit.from(req)(
+      'member.role.changed',
+      'OrganizationMember',
+      param(req.params.organizationId),
+      { after: { userId: param(req.params.userId), role: req.body.role } },
+    );
+    res.json(changed);
   },
 );
 
@@ -148,6 +171,12 @@ organizationsRouter.delete(
       req.membership,
       param(req.params.organizationId),
       param(req.params.userId),
+    );
+    audit.from(req)(
+      'member.removed',
+      'OrganizationMember',
+      param(req.params.organizationId),
+      { after: { userId: param(req.params.userId) } },
     );
     res.status(204).end();
   },

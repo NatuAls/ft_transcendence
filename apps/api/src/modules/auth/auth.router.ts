@@ -9,7 +9,11 @@ import {
 } from 'contracts';
 import * as auth from './auth.service.ts';
 import { authed } from '../../common/middleware/chains.ts';
-import { rateLimitDefault } from '../../common/middleware/rate-limit.ts';
+import { requireAuth } from '../../common/middleware/auth.ts';
+import {
+  rateLimitAuth,
+  rateLimitDefault,
+} from '../../common/middleware/rate-limit.ts';
 import { validate } from '../../common/middleware/validate.ts';
 import { Errors } from '../../common/errors/domain-error.ts';
 import { param } from '../../common/utils/http.ts';
@@ -70,7 +74,7 @@ export const authRouter: Router = Router();
 
 authRouter.post(
   '/register',
-  rateLimitDefault,
+  rateLimitAuth,
   validate(registerSchema),
   async (req, res) => {
     const result = await auth.register(req.body, contextOf(req));
@@ -83,7 +87,7 @@ authRouter.post(
 
 authRouter.post(
   '/login',
-  rateLimitDefault,
+  rateLimitAuth,
   validate(loginSchema),
   async (req, res) => {
     const result = await auth.login(req.body, contextOf(req));
@@ -108,7 +112,9 @@ authRouter.post('/logout', ...authed, async (req, res) => {
   const token = (req.cookies as Record<string, string> | undefined)?.[
     REFRESH_COOKIE
   ];
-  await auth.logout(token);
+  // The access token travels too: revoking only the refresh row would leave
+  // the JWT this very request authenticated with valid until it expired.
+  await auth.logout(token, req.accessToken);
   clearAuthCookies(res);
   res.status(204).end();
 });
@@ -133,9 +139,29 @@ authRouter.post(
   },
 );
 
+/**
+ * Re-sends the account verification email.
+ *
+ * Registration's token lives 24 hours; without this route a user whose token
+ * expired, or whose message never arrived, could never verify the account -
+ * `/auth/me` would keep reporting `emailVerified: false` for ever. Requires a
+ * session (so it can only ever mail the address of the account you are logged
+ * into) and shares the tight credential rate-limit bucket, because it sends
+ * mail on demand.
+ */
+authRouter.post(
+  '/resend-verification',
+  rateLimitAuth,
+  requireAuth(),
+  async (req, res) => {
+    await auth.resendVerification(req.actor!.id, contextOf(req));
+    res.status(202).json({ accepted: true });
+  },
+);
+
 authRouter.post(
   '/forgot-password',
-  rateLimitDefault,
+  rateLimitAuth,
   validate(forgotPasswordSchema),
   async (req, res) => {
     await auth.forgotPassword(req.body.email, contextOf(req));
@@ -145,7 +171,7 @@ authRouter.post(
 
 authRouter.post(
   '/reset-password',
-  rateLimitDefault,
+  rateLimitAuth,
   validate(resetPasswordSchema),
   async (req, res) => {
     await auth.resetPassword(req.body);

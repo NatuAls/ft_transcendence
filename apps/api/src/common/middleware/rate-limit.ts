@@ -18,25 +18,56 @@ function enforce(verdict: RateVerdict, res: Response): void {
 }
 
 /**
+ * The credential-guessing surface: login, register, forgot-password and
+ * reset-password. These get the tight per-IP bucket (10/min by default)
+ * instead of the coarse 300/min one.
+ *
+ * NOTE: this pattern is matched against `req.originalUrl`, never `req.path`.
+ * Inside a mounted router (`v1.use('/auth', authRouter)`) `req.path` is
+ * relative to the mount point - it reads `/login`, not
+ * `/api/v1/auth/login` - so a pattern anchored on `/auth/` never matched and
+ * every credential route silently fell back to the 300/min bucket. The `i`
+ * flag is deliberate too: Express routing is case-insensitive by default, so
+ * `/API/V1/AUTH/LOGIN` reaches the same handler.
+ */
+const CREDENTIAL_ROUTES =
+  /\/auth\/(login|register|forgot-password|reset-password|resend-verification)(\/|\?|$)/i;
+
+/**
+ * Tight per-IP limit for the credential routes. Applied explicitly by
+ * `auth.router.ts` so the protection does not depend on a path pattern
+ * staying in sync with the routing table.
+ */
+export async function rateLimitAuth(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  const config = loadConfiguration();
+  const ip = req.ip ?? 'unknown';
+  enforce(await hit(`auth:${ip}`, config.RATE_LIMIT_AUTH_PER_MIN, 60), res);
+  next();
+}
+
+/**
  * Coarse per-IP limit applied to every route (300/min by default), or the
- * tighter 10/min auth-route limit for login/register/forgot-password/
- * reset-password. Runs before `requireAuth()` so floods are rejected before
- * paying for a JWT verify + DB lookup.
+ * tighter auth-route limit when the URL is one of the credential routes.
+ * Runs before `requireAuth()` so floods are rejected before paying for a JWT
+ * verify + DB lookup.
  */
 export async function rateLimitDefault(
   req: Request,
   res: Response,
-  _next: NextFunction,
+  next: NextFunction,
 ) {
   const config = loadConfiguration();
   const ip = req.ip ?? 'unknown';
-  const isAuthRoute =
-    /\/auth\/(login|register|forgot-password|reset-password)/.test(req.path);
-  const verdict = isAuthRoute
+  const isCredentialRoute = CREDENTIAL_ROUTES.test(req.originalUrl ?? req.url);
+  const verdict = isCredentialRoute
     ? await hit(`auth:${ip}`, config.RATE_LIMIT_AUTH_PER_MIN, 60)
     : await hit(`req:${ip}`, config.RATE_LIMIT_GLOBAL_PER_MIN, 60);
   enforce(verdict, res);
-  _next();
+  next();
 }
 
 /**

@@ -75,7 +75,10 @@ export async function upload(
       where: { id: ticketId },
       select: {
         organizationId: true,
-        _count: { select: { attachments: true } },
+        // The `where` matters: deletion is soft, so counting every row meant
+        // five uploads followed by five deletions left the ticket permanently
+        // unable to accept another attachment.
+        _count: { select: { attachments: { where: { deletedAt: null } } } },
       },
     });
     if (!ticket) throw Errors.resourceNotFound('ticket');
@@ -139,6 +142,72 @@ export async function upload(
       downloadUrl: `/api/v1/attachments/${attachment.id}`,
     };
   });
+}
+
+/**
+ * Attachments hanging directly from a ticket.
+ *
+ * `TICKET_SELECT` only ever exposed `_count.attachments`, and comment
+ * attachments come back inside `GET /tickets/:id/comments` - so a file
+ * uploaded through `POST /tickets/:ticketId/attachments` had its id returned
+ * exactly once, in the upload response, and was unreachable from then on. The
+ * UI could say "3 attachments" and offer no way to open any of them.
+ *
+ * Visibility is the ticket's own: the caller has to pass the same
+ * `ticket:read` check as for the ticket detail, and then `attachment:read`.
+ */
+export async function listForTicket(
+  actor: RequestActor,
+  membership: RequestMembership | undefined,
+  ticketId: string,
+) {
+  const ticket = await prisma.ticket.findUnique({
+    where: { id: ticketId },
+    select: { id: true, organizationId: true, createdById: true },
+  });
+  if (!ticket) throw Errors.resourceNotFound('ticket');
+
+  const effectiveMembership =
+    membership?.organizationId === ticket.organizationId
+      ? membership
+      : await membershipOf(actor.id, ticket.organizationId);
+  if (!effectiveMembership && actor.globalRole !== 'GLOBAL_ADMIN')
+    throw Errors.notAMember();
+
+  assertPolicy('ticket:read', subject(actor, effectiveMembership), {
+    ownerId: ticket.createdById,
+  });
+  assertPolicy('attachment:read', subject(actor, effectiveMembership), {
+    ownerId: ticket.createdById,
+  });
+
+  const attachments = await prisma.attachment.findMany({
+    where: { ticketId, deletedAt: null },
+    orderBy: { createdAt: 'asc' },
+    select: {
+      id: true,
+      originalName: true,
+      mimeType: true,
+      sizeBytes: true,
+      checksumSha256: true,
+      createdAt: true,
+      uploadedBy: {
+        select: {
+          id: true,
+          username: true,
+          profile: { select: { displayName: true, avatarUrl: true } },
+        },
+      },
+    },
+  });
+
+  return attachments.map((attachment) => ({
+    ...attachment,
+    downloadUrl: `/api/v1/attachments/${attachment.id}`,
+    thumbnailUrl: attachment.mimeType.startsWith('image/')
+      ? `/api/v1/attachments/${attachment.id}/thumbnail`
+      : null,
+  }));
 }
 
 export async function metadata(actor: RequestActor, id: string) {

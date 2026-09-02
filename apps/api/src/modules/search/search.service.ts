@@ -2,6 +2,7 @@ import { Prisma } from '../../generated/prisma/client.ts';
 import type { SearchTicketsQuery } from 'contracts';
 import { prisma } from '../../database/prisma.ts';
 import { paginate, type Paginated } from '../../common/utils/pagination.ts';
+import { Errors } from '../../common/errors/domain-error.ts';
 import type { RequestActor } from '../../common/types.ts';
 
 interface FacetRow {
@@ -48,9 +49,25 @@ export async function searchTickets(
 
   // Multi-tenant isolation lives here, not in the caller. A GLOBAL_ADMIN with
   // no organization filter is the only case that sees across tenants.
+  //
+  // `organizationId` is a FILTER, never a grant: it has to be intersected with
+  // the caller's memberships. Treating it as an ALTERNATIVE to the membership
+  // clause let any authenticated user read another organization's tickets -
+  // titles, references, authors, assignees - just by putting that
+  // organization's id in the query string. `GET /tickets` carries no
+  // `orgScope()` guard precisely because the isolation is supposed to be here.
+  const isGlobalAdmin = actor.globalRole === 'GLOBAL_ADMIN';
   if (query.organizationId) {
+    if (
+      !isGlobalAdmin &&
+      !allowedOrganizationIds.includes(query.organizationId)
+    ) {
+      // 404, the same answer `orgScope()` gives a non-member, so the response
+      // never confirms that the organization exists.
+      throw Errors.notAMember();
+    }
     where.push(Prisma.sql`t."organizationId" = ${query.organizationId}::uuid`);
-  } else if (actor.globalRole !== 'GLOBAL_ADMIN') {
+  } else if (!isGlobalAdmin) {
     if (allowedOrganizationIds.length === 0) {
       return {
         data: [],
@@ -166,27 +183,32 @@ export async function searchTickets(
     LIMIT ${query.take} OFFSET ${offset}
   `);
 
-  const [{ count }] = await prisma.$queryRaw<[{ count: bigint }]>(Prisma.sql`
-    SELECT count(*)::bigint AS count FROM tickets t ${whereSql}
-  `);
-
-  // Facets computed in ONE extra query with FILTER, not seven round trips.
+  // Facets AND the total in ONE extra query. The empty grouping set `()` is
+  // the plain `count(*)` over the same predicate, so the dedicated count query
+  // that used to live here was a second full evaluation of the WHERE clause
+  // for no new information. That matters on the full-text path: when the query
+  // term matches most of the table the planner falls back to a sequential
+  // scan and re-computes `to_tsvector` per row, so dropping one pass takes a
+  // measurable third off the request.
   const facetRows = await prisma.$queryRaw<FacetRow[]>(Prisma.sql`
     SELECT t."status"::text AS status, t."priority"::text AS priority, count(*)::bigint AS count
     FROM tickets t ${whereSql}
-    GROUP BY GROUPING SETS ((t."status"), (t."priority"))
+    GROUP BY GROUPING SETS ((t."status"), (t."priority"), ())
   `);
 
   const facets = {
     status: {} as Record<string, number>,
     priority: {} as Record<string, number>,
   };
+  let total = 0;
   for (const row of facetRows) {
     if (row.status) facets.status[row.status] = Number(row.count);
     else if (row.priority) facets.priority[row.priority] = Number(row.count);
+    // Both grouping columns NULL: the grand total row.
+    else total = Number(row.count);
   }
 
-  return paginate(rows, Number(count), query.page, query.take, {
+  return paginate(rows, total, query.page, query.take, {
     tookMs: Date.now() - started,
     ...({ facets } as object),
   });

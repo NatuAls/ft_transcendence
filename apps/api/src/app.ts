@@ -8,6 +8,7 @@ import cors from 'cors';
 import { loadConfiguration } from './config/env.ts';
 import { GLOBAL_PREFIX } from './routing.ts';
 import { requestContext } from './common/middleware/request-context.ts';
+import { notFoundHandler } from './common/middleware/not-found.ts';
 import { errorHandler } from './common/middleware/error-handler.ts';
 import { healthRouter, versionRouter } from './modules/health/health.router.ts';
 import { authRouter } from './modules/auth/auth.router.ts';
@@ -36,6 +37,11 @@ export function createApp(): Express {
     }),
   );
   app.use(compression());
+  // Before the body parsers on purpose: a request that dies inside
+  // express.json() (malformed JSON, body over the 1 MB limit) still needs a
+  // correlation id, otherwise its error response comes back with
+  // `"requestId": "unknown"` and cannot be matched against any log line.
+  app.use(requestContext);
   app.use(cookieParser());
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ limit: '1mb', extended: true }));
@@ -54,7 +60,6 @@ export function createApp(): Express {
       ],
     }),
   );
-  app.use(requestContext);
 
   // Compatibilidad añadida durante la integración en
   // /home/elerazo-/ft_transcendence: algunos navegadores y comprobaciones
@@ -89,6 +94,10 @@ export function createApp(): Express {
   v1.use('/public', publicApiRouter);
   v1.use('/admin', adminRouter);
   app.use(GLOBAL_PREFIX, v1);
+
+  // After every router: turns an unmatched URL into the same JSON error
+  // envelope as everything else, instead of Express's default HTML page.
+  app.use(notFoundHandler);
 
   // Must be mounted LAST: the only place an error becomes an HTTP response.
   app.use(errorHandler);
