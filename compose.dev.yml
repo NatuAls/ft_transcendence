@@ -1,8 +1,6 @@
 services:
   db:
-    build:
-      context: ./apps/database
-      dockerfile: Dockerfile
+    image: postgres:15-alpine
     container_name: database
     restart: always
     environment:
@@ -39,7 +37,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: ./apps/api/Dockerfile
+      dockerfile: ./apps/api/Dockerfile.dev
     container_name: api
     restart: always
     ports:
@@ -88,7 +86,7 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: ./apps/web/Dockerfile
+      dockerfile: ./apps/web/Dockerfile.dev
     container_name: web
     restart: always
     ports:
