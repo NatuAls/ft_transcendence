@@ -26,6 +26,12 @@ export interface AccessTokenPayload {
   email: string;
   role: GlobalRole;
   jti: string;
+  /**
+   * Issued-at, stamped by `jsonwebtoken`. Compared against the per-user
+   * revocation cutoff in Redis so logout-all, a password change or a reset can
+   * invalidate tokens whose `jti` the current request never saw.
+   */
+  iat?: number;
   exp?: number;
 }
 
@@ -35,6 +41,9 @@ declare module 'express-serve-static-core' {
     membership?: RequestMembership;
     requestId?: string;
     startedAt?: number;
+    /** Access-token claims of the current session, when one was presented.
+     *  `auth.router.ts` needs them to revoke this exact token on logout. */
+    accessToken?: AccessTokenPayload;
   }
 }
 

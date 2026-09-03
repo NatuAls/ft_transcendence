@@ -34,6 +34,29 @@ filesRouter.get('/attachments/limits', ...authed, (_req, res) => {
   });
 });
 
+/**
+ * Lists the files attached to a ticket.
+ *
+ * The ticket detail only reports `_count.attachments`, and comment
+ * attachments travel with the comments - so without this route a file
+ * uploaded straight to a ticket was reachable only from the response of its
+ * own upload, and the UI could say "3 attachments" while offering no way to
+ * open any of them.
+ */
+filesRouter.get(
+  '/tickets/:ticketId/attachments',
+  ...authed,
+  async (req, res) => {
+    res.json(
+      await files.listForTicket(
+        req.actor!,
+        req.membership,
+        param(req.params.ticketId),
+      ),
+    );
+  },
+);
+
 filesRouter.post(
   '/tickets/:ticketId/attachments',
   ...authed,

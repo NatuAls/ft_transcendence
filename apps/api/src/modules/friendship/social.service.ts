@@ -312,15 +312,50 @@ export async function sendMessage(
   });
 }
 
+/**
+ * Moves the caller's read marker in a conversation.
+ *
+ * With no `messageId` the whole conversation is marked read - the previous
+ * behaviour, and still the default. With one, the marker moves to that
+ * message's timestamp: the case `markReadSchema` in `packages/contracts`
+ * describes and that nothing implemented, so a client that had scrolled
+ * through only part of the backlog could pick between "everything read" and
+ * "nothing read" and nothing in between.
+ *
+ * The marker never moves backwards, so a late acknowledgement from a second
+ * tab cannot resurrect messages the user has already seen.
+ */
 export async function markRead(
   userId: string,
   conversationId: string,
-): Promise<void> {
+  messageId?: string,
+): Promise<{ lastReadAt: Date }> {
   await assertMember(conversationId, userId);
-  const lastReadAt = new Date();
+
+  let lastReadAt = new Date();
+  if (messageId) {
+    const message = await prisma.message.findFirst({
+      // Scoped to the conversation on purpose: an id borrowed from another
+      // conversation must not be usable to probe or to move anything here.
+      where: { id: messageId, conversationId },
+      select: { createdAt: true },
+    });
+    if (!message) throw Errors.resourceNotFound('message');
+    lastReadAt = message.createdAt;
+  }
+
+  const current = await prisma.conversationMember.findUnique({
+    where: { conversationId_userId: { conversationId, userId } },
+    select: { lastReadAt: true },
+  });
+  if (current?.lastReadAt && current.lastReadAt >= lastReadAt) {
+    return { lastReadAt: current.lastReadAt };
+  }
+
   await prisma.conversationMember.update({
     where: { conversationId_userId: { conversationId, userId } },
     data: { lastReadAt },
   });
   events.emit(DomainEvents.messageRead, { conversationId, userId, lastReadAt });
+  return { lastReadAt };
 }

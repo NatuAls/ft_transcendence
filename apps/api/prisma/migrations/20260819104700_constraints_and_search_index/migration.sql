@@ -29,6 +29,14 @@ CREATE OR REPLACE FUNCTION helpdesk_unaccent(text)
   IMMUTABLE PARALLEL SAFE STRICT
 AS $$ SELECT public.unaccent('public.unaccent'::regdictionary, $1) $$;
 
+--    Text search configuration for Spanish that strips accents before
+--    stemming, so "sesión" and "sesion" match the same lexemes.
+CREATE TEXT SEARCH CONFIGURATION helpdesk_es ( COPY = spanish );
+
+ALTER TEXT SEARCH CONFIGURATION helpdesk_es
+  ALTER MAPPING FOR hword, hword_part, word
+  WITH unaccent, spanish_stem;
+
 --    The index expression must match the one in search.service.ts character
 --    for character, otherwise the planner cannot use it and you get a Seq Scan.
 CREATE INDEX tickets_search_idx ON tickets USING GIN (
