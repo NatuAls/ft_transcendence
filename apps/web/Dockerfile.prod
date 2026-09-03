@@ -1,0 +1,44 @@
+# ==========================================
+# ETAPA 1: BUILDER (El Cocinero)
+# ==========================================
+FROM node:24-alpine@sha256:d32cdf619f63fe0471182d08996dd516c6275bb5fd31ae06e55a570bd9e1ad43 AS builder
+
+WORKDIR /app
+
+# 1. Copiamos los manifiestos
+COPY package.json package-lock.json ./
+COPY apps/web/package.json apps/web/package.json
+COPY packages/ui/package.json packages/ui/package.json
+COPY packages/contracts/package.json packages/contracts/package.json
+
+# 2. Instalamos TODAS las dependencias (necesitamos Vite para compilar)
+RUN npm ci
+
+# 3. Copiamos el código fuente
+COPY packages/ packages/
+COPY apps/web/ apps/web/
+COPY tsconfig.base.json ./
+
+WORKDIR /app/apps/web
+
+# 4. Vite compila el código y genera la carpeta 'dist'
+RUN npm run build
+
+# Nota: ¡Aquí NO hacemos npm prune! La Etapa 2 no necesita node_modules.
+
+# ==========================================
+# ETAPA 2: PRODUCCIÓN (El Camarero - Nginx)
+# ==========================================
+FROM nginx:alpine AS production
+
+# 1. Limpiamos la página por defecto de Nginx
+RUN rm -rf /usr/share/nginx/html/*
+
+# 2. Robamos SOLO la carpeta compilada de la Etapa 1
+COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
+
+# 3. Exponemos el puerto estándar de web
+EXPOSE 80
+
+# 4. Arrancamos Nginx
+CMD ["nginx", "-g", "daemon off;"]

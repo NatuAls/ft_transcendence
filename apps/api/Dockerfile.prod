@@ -1,0 +1,64 @@
+# ==========================================
+# ETAPA 1: BUILDER (El Cocinero)
+# ==========================================
+FROM node:24-alpine@sha256:d32cdf619f63fe0471182d08996dd516c6275bb5fd31ae06e55a570bd9e1ad43 AS builder
+
+# 1. Dependencias nativas necesarias para compilar argon2 y sharp
+RUN apk add --no-cache python3 make g++
+
+WORKDIR /app
+
+# 2. Copiamos los archivos de configuración (aprovechando la caché de Docker)
+COPY package.json package-lock.json ./
+COPY apps/api/package.json apps/api/package.json
+COPY packages/contracts/package.json packages/contracts/package.json
+
+# 3. Instalamos TODAS las dependencias (necesitamos las de desarrollo para compilar)
+RUN npm ci
+
+# 4. Copiamos el código fuente
+COPY packages/contracts packages/contracts
+COPY apps/api apps/api
+
+WORKDIR /app/apps/api
+
+# 5. Generamos Prisma y compilamos TypeScript a JavaScript
+RUN npx prisma generate
+RUN npm run build
+
+# 6. Truco DevOps: Eliminamos las dependencias de desarrollo para aligerar la imagen
+WORKDIR /app
+RUN npm prune --omit=dev
+
+
+# ==========================================
+# ETAPA 2: PRODUCCIÓN (El Plato Final)
+# ==========================================
+FROM node:24-alpine@sha256:d32cdf619f63fe0471182d08996dd516c6275bb5fd31ae06e55a570bd9e1ad43 AS production
+
+# 1. Le decimos a Node y a los frameworks que estamos en producción
+ENV NODE_ENV=production
+
+WORKDIR /app
+
+# 2. Copiamos SOLO lo que necesitamos desde la etapa 'builder'
+COPY --from=builder /app/package.json /app/package-lock.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/packages/contracts ./packages/contracts
+
+# De la API, copiamos el package, la carpeta compilada (dist) y prisma (para migraciones)
+COPY --from=builder /app/apps/api/package.json ./apps/api/
+COPY --from=builder /app/apps/api/prisma.config.ts ./apps/api/
+COPY --from=builder /app/apps/api/dist ./apps/api/dist
+COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
+
+# 3. Preparamos la carpeta de subidas y le damos permisos al usuario 'node'
+RUN mkdir -p /var/lib/helpdesk/uploads && chown -R node:node /var/lib/helpdesk/uploads
+
+# 4. Seguridad: Bajamos los privilegios. A partir de aquí, dejamos de ser 'root'
+USER node
+
+WORKDIR /app/apps/api
+
+# 5. Arrancamos directo con Node (nada de npm run dev ni nodemon)
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
