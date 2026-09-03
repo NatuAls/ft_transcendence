@@ -10,3 +10,8 @@ guias
 .claude/
 .windsurf/
 skills-lock*
+
+# Nginx SSL Certificates
+config/nginx/certs/
+*.key
+*.crt
