@@ -71,7 +71,7 @@ logs:
 	@$(DOCKER) compose ls -q | xargs -I {} $(DOCKER) compose -p {} logs --follow $(ID) || true
 
 ps:
-	@$(COMPOSE) ps
+	@$(DOCKER) ps
 
 images:
 	@$(DOCKER) images
