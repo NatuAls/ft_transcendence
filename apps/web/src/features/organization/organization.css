@@ -1,0 +1,296 @@
+.organization-page {
+  position: relative;
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 40px;
+}
+.organization-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+}
+.organization-heading > div:first-child > span {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+.organization-heading h1 {
+  margin: 8px 0;
+  font-size: 30px;
+  font-weight: 500;
+}
+.organization-heading p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+.organization-heading > div:last-child {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.organization-heading > div:last-child > span {
+  color: var(--color-success);
+  font-size: 11px;
+}
+.organization-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin: 28px 0 20px;
+}
+.organization-stats article {
+  display: grid;
+  gap: 5px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  padding: 18px;
+}
+.organization-stats strong {
+  font-size: 22px;
+  font-weight: 500;
+}
+.organization-stats span {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+.organization-feedback {
+  margin: -6px 0 18px;
+  border-left: 3px solid var(--color-success);
+  background: #e1ece5;
+  color: var(--color-text-secondary);
+  padding: 10px 12px;
+  font-size: 11px;
+}
+.organization-panel {
+  width: calc(100% - 270px);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+.organization-panel > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px;
+}
+.organization-panel h2,
+.organization-overview h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+}
+.organization-panel p,
+.organization-overview p {
+  margin: 6px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+.organization-panel > nav {
+  display: flex;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  padding: 0 15px;
+}
+.organization-panel > nav button {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--color-text-secondary);
+  padding: 13px 16px;
+}
+.organization-panel > nav button[aria-current='page'] {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+.organization-table__head,
+.organization-table__primary {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 18px;
+}
+.organization-table__head {
+  background: var(--color-surface-secondary);
+  color: var(--color-text-secondary);
+  font-size: 9px;
+}
+.organization-table__row {
+  display: grid;
+  grid-template-columns: 1fr 44px;
+  border-top: 1px solid var(--color-border);
+}
+.organization-table__primary {
+  width: 100%;
+  min-height: 68px;
+  border: 0;
+  background: none;
+  text-align: left;
+}
+.organization-table__primary:hover,
+.organization-table__actions:hover {
+  background: var(--color-surface-secondary);
+}
+.organization-table__actions {
+  border: 0;
+  background: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+.organization-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.organization-identity > b {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 50%;
+  background: #d8e5df;
+  color: var(--color-primary);
+  font-size: 9px;
+}
+.organization-identity > span {
+  display: grid;
+  gap: 4px;
+}
+.organization-identity strong {
+  font-size: 12px;
+}
+.organization-identity small,
+.organization-table__primary > span {
+  color: var(--color-text-secondary);
+  font-size: 10px;
+}
+.organization-state {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.organization-state i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-success);
+}
+.organization-overview {
+  position: absolute;
+  top: 258px;
+  right: 40px;
+  width: 250px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  padding: 20px;
+}
+.organization-overview > div {
+  display: grid;
+  grid-template-columns: 12px 1fr auto;
+  gap: 7px;
+  margin-top: 18px;
+}
+.organization-overview > div > span {
+  color: var(--color-brand-mint);
+  font-size: 9px;
+}
+.organization-overview strong,
+.organization-overview small {
+  font-size: 10px;
+}
+.organization-overview small {
+  color: var(--color-text-secondary);
+}
+.organization-dialog fieldset {
+  display: grid;
+  gap: 9px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+}
+.organization-dialog__delete {
+  margin-right: auto;
+}
+.organization-dialog__warning {
+  margin: 0;
+  border-left: 3px solid var(--color-danger);
+  background: #f1e3e3;
+  color: var(--color-text-secondary);
+  padding: 12px;
+  font-size: 12px;
+}
+@media (max-width: 900px) {
+  .organization-panel {
+    width: 100%;
+  }
+  .organization-overview {
+    position: static;
+    width: 100%;
+    margin-top: 16px;
+  }
+}
+@media (max-width: 767px) {
+  .organization-page {
+    padding: 24px 16px;
+  }
+  .organization-heading {
+    align-items: start;
+  }
+  .organization-heading h1 {
+    font-size: 22px;
+  }
+  .organization-heading p,
+  .organization-heading > div:first-child > span,
+  .organization-heading > div:last-child > span {
+    display: none;
+  }
+  .organization-heading > div:last-child .ui-button {
+    min-height: 36px;
+    padding: 0 10px;
+  }
+  .organization-stats {
+    grid-template-columns: repeat(2, 1fr);
+    margin: 18px 0;
+  }
+  .organization-panel > header {
+    padding: 16px;
+  }
+  .organization-panel > header p {
+    display: none;
+  }
+  .organization-panel > header .ui-button {
+    min-height: 36px;
+    padding: 0 10px;
+  }
+  .organization-panel > nav {
+    overflow: auto;
+    padding: 0 5px;
+  }
+  .organization-table__head {
+    display: none;
+  }
+  .organization-table__primary {
+    grid-template-columns: 1fr auto;
+    padding: 12px;
+  }
+  .organization-table__primary > span:nth-child(2) {
+    display: none;
+  }
+  .organization-identity small {
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .organization-overview {
+    display: none;
+  }
+  .organization-dialog__delete {
+    width: 100%;
+    margin-right: 0;
+  }
+}

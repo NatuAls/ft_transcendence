@@ -1,0 +1,422 @@
+.account-page,
+.account-flow {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 40px;
+}
+.account-heading > span {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+.account-heading h1 {
+  margin: 8px 0;
+  font-size: 30px;
+  font-weight: 500;
+}
+.account-heading p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+.account-back {
+  display: none;
+  border: 0;
+  background: none;
+  color: var(--color-primary);
+}
+.account-home > section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 28px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  padding: 22px;
+}
+.account-avatar {
+  width: 58px;
+  height: 58px;
+  flex-basis: 58px;
+}
+.account-home section > div {
+  flex: 1;
+}
+.account-home h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+.account-home p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+.account-home small {
+  color: var(--color-text-secondary);
+  font-size: 10px;
+}
+.account-home nav {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+.account-home nav button {
+  display: grid;
+  grid-template-columns: 36px 1fr 20px;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  padding: 16px;
+  text-align: left;
+}
+.account-home nav button:hover,
+.account-home nav button:focus-visible {
+  border-color: var(--color-focus);
+  background: var(--color-surface-secondary);
+}
+.account-home nav div {
+  display: grid;
+  gap: 4px;
+}
+.account-home nav small {
+  font-size: 10px;
+}
+.account-tabs {
+  display: flex;
+  gap: 24px;
+  margin-top: 26px;
+  border-bottom: 1px solid var(--color-border);
+}
+.account-tabs > * {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  padding: 12px;
+  color: var(--color-text-secondary);
+}
+.account-tabs span {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+.profile-form {
+  display: grid;
+  max-width: 700px;
+  gap: 20px;
+  margin-top: 20px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  padding: 26px;
+}
+.profile-form h2,
+.privacy-card h2,
+.legal-card h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+}
+.profile-form header p,
+.privacy-card p,
+.legal-card p {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+.profile-avatar-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.profile-avatar-row small {
+  color: var(--color-text-secondary);
+  font-size: 10px;
+}
+.profile-form__split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.account-textarea {
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+.account-textarea textarea {
+  min-height: 90px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  line-height: 1.5;
+  resize: vertical;
+}
+.account-textarea textarea:focus-visible {
+  border-color: var(--color-focus);
+  outline: 3px solid color-mix(in srgb, var(--color-focus) 20%, transparent);
+}
+.account-feedback {
+  margin: 0;
+  border-left: 3px solid var(--color-info);
+  background: #e5eef0;
+  color: var(--color-text-secondary);
+  padding: 12px;
+  font-size: 11px;
+}
+.preferences-card {
+  display: grid;
+  max-width: 620px;
+  gap: 18px;
+  margin-top: 24px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  padding: 24px;
+}
+.preferences-card p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.preferences-card .ui-button {
+  justify-self: end;
+}
+.profile-form footer,
+.account-flow footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  border-top: 1px solid var(--color-border);
+  padding-top: 18px;
+}
+.privacy-grid {
+  display: grid;
+  grid-template-columns: 1fr 270px;
+  gap: 18px;
+  margin-top: 22px;
+}
+.privacy-grid main {
+  display: grid;
+  gap: 14px;
+}
+.privacy-card {
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  gap: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  padding: 22px;
+}
+.privacy-card > i {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 9px;
+  background: #e1ece5;
+  color: var(--color-success);
+  font-style: normal;
+}
+.privacy-card--danger > i {
+  background: #f1e3e3;
+  color: var(--color-danger);
+}
+.privacy-card small {
+  color: var(--color-text-secondary);
+  font-size: 9px;
+}
+.legal-card,
+.privacy-grid > aside {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  padding: 22px;
+}
+.legal-card button {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 1fr auto;
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  background: none;
+  padding: 14px 0;
+  text-align: left;
+}
+.legal-card button strong,
+.legal-card button small {
+  display: block;
+}
+.legal-card button small {
+  color: var(--color-text-secondary);
+  font-size: 10px;
+}
+.legal-card button span {
+  grid-row: 1/3;
+  grid-column: 2;
+}
+.privacy-grid > aside h2 {
+  font-size: 15px;
+}
+.privacy-grid > aside > div {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+.privacy-grid > aside i {
+  color: var(--color-success);
+}
+.privacy-grid > aside p {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+}
+.privacy-grid > aside strong {
+  font-size: 11px;
+}
+.privacy-grid > aside small {
+  color: var(--color-text-secondary);
+  font-size: 9px;
+}
+.account-flow {
+  max-width: 660px;
+}
+.account-flow > .account-back {
+  display: block;
+  margin-bottom: 24px;
+}
+.account-flow > section {
+  display: grid;
+  gap: 18px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  padding: 30px;
+}
+.account-flow h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 500;
+}
+.account-flow section > p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+.flow-notice,
+.archive-card {
+  display: grid;
+  gap: 6px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-secondary);
+  padding: 16px;
+  font-size: 12px;
+}
+.flow-notice span,
+.archive-card span {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+.account-flow dl {
+  display: grid;
+  gap: 8px;
+  font-size: 11px;
+}
+.account-flow dt {
+  font-weight: 500;
+}
+.account-flow dd {
+  margin: 0 0 8px;
+  color: var(--color-text-secondary);
+}
+@media (max-width: 767px) {
+  .account-page,
+  .account-flow {
+    padding: 24px 16px;
+  }
+  .account-heading > span {
+    display: none;
+  }
+  .account-heading h1 {
+    font-size: 22px;
+  }
+  .account-heading p {
+    font-size: 12px;
+  }
+  .account-back {
+    display: block;
+    margin-bottom: 18px;
+  }
+  .account-home .account-back {
+    display: none;
+  }
+  .account-home > section {
+    padding: 16px;
+  }
+  .account-home > section .ui-button {
+    min-height: 36px;
+    padding: 0 10px;
+  }
+  .account-tabs {
+    display: none;
+  }
+  .profile-form {
+    margin-top: 12px;
+    border: 0;
+    padding: 0;
+  }
+  .profile-form header {
+    display: none;
+  }
+  .profile-avatar-row {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .profile-avatar-row small {
+    width: 100%;
+    text-align: center;
+  }
+  .profile-form__split {
+    grid-template-columns: 1fr;
+  }
+  .profile-form footer .ui-button:first-child {
+    display: none;
+  }
+  .profile-form footer .ui-button {
+    width: 100%;
+  }
+  .privacy-grid {
+    display: block;
+  }
+  .privacy-card {
+    grid-template-columns: 34px 1fr;
+    padding: 16px;
+  }
+  .privacy-card .ui-button {
+    grid-column: 1/-1;
+  }
+  .privacy-grid > aside {
+    display: none;
+  }
+  .legal-card {
+    margin-top: 14px;
+  }
+  .preferences-card {
+    border: 0;
+    padding: 0;
+  }
+  .preferences-card .ui-button {
+    width: 100%;
+  }
+  .account-flow > section {
+    padding: 22px 18px;
+  }
+  .account-flow footer {
+    flex-direction: column-reverse;
+  }
+  .account-flow footer .ui-button {
+    width: 100%;
+  }
+}

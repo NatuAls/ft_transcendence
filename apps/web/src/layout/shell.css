@@ -1,0 +1,429 @@
+.app-shell {
+  min-height: 100dvh;
+  background: var(--color-canvas);
+}
+
+.app-shell__sidebar {
+  position: fixed;
+  z-index: 20;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  width: 260px;
+  flex-direction: column;
+  padding: 28px 20px 20px;
+  background: #183039;
+  color: #f6f7f3;
+}
+
+.app-shell__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 8px 40px;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.app-shell__brand .ui-brand-mark {
+  width: 36px;
+  height: 36px;
+  flex-basis: 36px;
+  border-radius: 10px;
+}
+
+.app-shell__desktop-nav {
+  display: grid;
+  gap: 6px;
+}
+
+.app-shell__nav-item {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  gap: 14px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0 14px;
+  text-align: left;
+}
+
+.app-shell__nav-item--active {
+  background: rgb(255 255 255 / 12%);
+  color: #fff;
+}
+
+.app-shell__nav-icon {
+  width: 20px;
+  font-size: 20px;
+  line-height: 1;
+  text-align: center;
+}
+
+.app-shell__profile-area {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-top: auto;
+  border-radius: var(--radius-sm);
+}
+
+.app-shell__profile {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 12px 8px;
+  text-align: left;
+}
+
+.app-shell__avatar {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  font-size: 12px;
+}
+
+.app-shell__profile-copy {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 2px;
+}
+
+.app-shell__profile-copy strong {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.app-shell__profile-copy small {
+  overflow: hidden;
+  color: #a9b9ba;
+  font-size: 12px;
+  text-overflow: ellipsis;
+}
+
+.app-shell__workspace {
+  min-height: 100dvh;
+  padding-left: 260px;
+}
+
+.app-shell__topbar {
+  display: flex;
+  height: 80px;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+  padding: 0 40px;
+}
+
+.app-shell__topbar strong {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.app-shell__workspace-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-shell__workspace-identity span {
+  border-radius: 999px;
+  background: var(--color-surface-secondary);
+  color: var(--color-text-secondary);
+  padding: 5px 9px;
+  font-size: 10px;
+}
+
+.app-shell__topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.app-shell__icon-button {
+  width: 40px;
+  height: 40px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  font-size: 25px;
+}
+
+.app-shell button:focus-visible,
+.profile-menu__popover button:focus-visible,
+.global-search button:focus-visible,
+.global-search input:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-focus) 45%, transparent);
+  outline-offset: 2px;
+}
+
+.profile-menu {
+  position: relative;
+}
+
+.profile-menu__trigger {
+  display: grid;
+  min-width: 0;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+.profile-menu--sidebar .profile-menu__trigger {
+  width: 36px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+}
+
+.profile-menu__popover {
+  position: absolute;
+  z-index: 60;
+  display: grid;
+  width: 220px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: 0 14px 35px rgb(20 32 35 / 18%);
+  color: var(--color-text-primary);
+  padding: 6px;
+}
+
+.profile-menu--sidebar .profile-menu__popover {
+  bottom: calc(100% + 8px);
+  left: 0;
+}
+
+.profile-menu--topbar .profile-menu__popover,
+.profile-menu--mobile .profile-menu__popover {
+  top: calc(100% + 10px);
+  right: 0;
+}
+
+.profile-menu__popover button {
+  display: grid;
+  min-height: 42px;
+  grid-template-columns: 24px 1fr auto;
+  align-items: center;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 0 10px;
+  text-align: left;
+}
+
+.profile-menu__popover button:hover,
+.profile-menu__popover button:focus-visible {
+  background: var(--color-surface-secondary);
+}
+
+.profile-menu__popover hr {
+  width: 100%;
+  margin: 5px 0;
+  border: 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.global-search {
+  width: min(640px, 100%);
+}
+
+.global-search__field {
+  display: grid;
+  height: 50px;
+  grid-template-columns: 24px 1fr;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: #f7faf8;
+  padding: 0 14px;
+}
+
+.global-search__field:focus-within {
+  border-color: var(--color-focus);
+  outline: 3px solid color-mix(in srgb, var(--color-focus) 20%, transparent);
+}
+
+.global-search__field input {
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+}
+
+.global-search__clear {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 18px;
+}
+
+.global-search__clear:hover {
+  background: var(--color-surface-secondary);
+}
+
+.global-search__results {
+  display: grid;
+  gap: 4px;
+}
+
+.global-search__results button {
+  display: grid;
+  min-height: 60px;
+  grid-template-columns: 1fr 28px;
+  gap: 4px 12px;
+  align-items: center;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.global-search__results button:hover {
+  background: var(--color-surface-secondary);
+}
+
+.global-search__results strong,
+.global-search__results span {
+  grid-column: 1;
+}
+
+.global-search__results strong {
+  font-size: 13px;
+}
+
+.global-search__results span,
+.global-search__results p {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+
+.global-search__results i {
+  grid-row: 1 / 3;
+  grid-column: 2;
+  font-style: normal;
+}
+
+.app-shell__content {
+  min-width: 0;
+}
+
+.app-shell__mobile-topbar,
+.app-shell__mobile-nav {
+  display: none;
+}
+
+@media (max-width: 1100px) {
+  .app-shell {
+    background: var(--color-surface);
+  }
+
+  .app-shell__sidebar,
+  .app-shell__topbar {
+    display: none;
+  }
+
+  .app-shell__workspace {
+    padding: 0 0 74px;
+  }
+
+  .app-shell__mobile-topbar {
+    position: sticky;
+    z-index: 10;
+    top: 0;
+    display: grid;
+    height: 68px;
+    grid-template-columns: 40px 1fr 40px;
+    align-items: center;
+    border-bottom: 1px solid var(--color-border);
+    background: rgb(246 247 243 / 94%);
+    padding: 0 18px;
+  }
+
+  .app-shell__mobile-topbar .ui-brand-mark {
+    width: 36px;
+    height: 36px;
+    flex-basis: 36px;
+    border-radius: 10px;
+  }
+
+  .app-shell__mobile-topbar strong {
+    font-size: 18px;
+    text-align: center;
+  }
+
+  .app-shell__mobile-topbar .app-shell__avatar {
+    width: 36px;
+    height: 36px;
+  }
+
+  .profile-menu--mobile {
+    justify-self: end;
+  }
+
+  .app-shell__mobile-nav {
+    position: fixed;
+    z-index: 20;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: grid;
+    height: 74px;
+    grid-template-columns: repeat(4, 1fr);
+    border-top: 1px solid var(--color-border);
+    background: var(--color-surface);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .app-shell__mobile-nav .app-shell__nav-item {
+    min-height: 0;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    border-radius: 0;
+    color: var(--color-text-secondary);
+    font-size: 11px;
+    padding: 5px;
+    text-align: center;
+  }
+
+  .app-shell__mobile-nav .app-shell__nav-item--active {
+    background: transparent;
+    color: var(--color-primary);
+  }
+
+  .app-shell__mobile-nav .app-shell__nav-icon {
+    font-size: 20px;
+  }
+}

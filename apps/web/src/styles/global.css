@@ -1,23 +1,136 @@
-/* Estilos globales compartidos por todas las páginas de la aplicación. */
-@import './fonts.css';
+@import 'ui/styles.css';
 
 html,
 body,
 #root {
   margin: 0;
-  padding: 0;
-  width: 100%;
   min-height: 100vh;
 }
 
-body {
-  font-family: 'Inter', sans-serif;
-  background: #f6f7f3;
-  color: #183039;
-  text-align: left;
-  color-scheme: light;
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
-* {
-  box-sizing: border-box;
+body {
+  min-width: 320px;
+  background: var(--color-canvas);
+  color: var(--color-text-primary);
+  font-family: var(--font-family);
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  touch-action: manipulation;
+}
+
+button:not(:disabled) {
+  cursor: pointer;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-focus) 42%, transparent);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.app-error {
+  display: grid;
+  width: min(560px, calc(100% - 32px));
+  min-height: 100dvh;
+  align-content: center;
+  justify-items: start;
+  gap: 14px;
+  margin: auto;
+}
+
+.app-error > span {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.app-error h1,
+.app-error p {
+  margin: 0;
+}
+
+.access-denied {
+  display: grid;
+  width: min(620px, calc(100% - 32px));
+  min-height: 100dvh;
+  align-content: center;
+  justify-items: start;
+  gap: 14px;
+  margin: auto;
+}
+
+.access-denied > span {
+  color: var(--color-text-secondary);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+
+.access-denied h1,
+.access-denied p {
+  margin: 0;
+}
+
+.access-denied p {
+  max-width: 560px;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+.app-error p {
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+.not-found {
+  display: grid;
+  min-height: calc(100dvh - 72px);
+  place-content: center;
+  justify-items: center;
+  padding: 32px;
+  text-align: center;
+}
+
+.not-found > span {
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+}
+
+.not-found h1 {
+  margin: 10px 0 8px;
+  font-size: clamp(28px, 5vw, 46px);
+  font-weight: 500;
+}
+
+.not-found p {
+  margin: 0 0 24px;
+  color: var(--color-text-secondary);
 }

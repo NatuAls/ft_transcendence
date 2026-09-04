@@ -1,0 +1,184 @@
+.related-tickets-page {
+  max-width: 1160px;
+  margin: auto;
+  padding: 40px;
+}
+.related-tickets-back {
+  border: 0;
+  background: none;
+  color: var(--color-primary);
+  padding: 0;
+}
+.related-tickets-page > header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  margin-top: 22px;
+}
+.related-tickets-page > header span {
+  color: var(--color-text-secondary);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+.related-tickets-page h1 {
+  margin: 8px 0;
+  font-size: 30px;
+  font-weight: 500;
+}
+.related-tickets-page > header p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+.related-ticket-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin: 26px 0;
+}
+.related-ticket-stats button {
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: inherit;
+  cursor: pointer;
+  padding: 17px;
+  text-align: left;
+}
+.related-ticket-stats button:hover {
+  border-color: var(--color-focus);
+}
+.related-ticket-stats strong {
+  font-size: 22px;
+}
+.related-ticket-stats span {
+  font-size: 11px;
+}
+.related-ticket-stats small {
+  color: var(--color-primary);
+  font-size: 9px;
+}
+.related-ticket-panel {
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+.related-ticket-panel > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px;
+}
+.related-ticket-panel h2 {
+  display: inline;
+  margin: 0 8px 0 0;
+  font-size: 16px;
+}
+.related-ticket-panel header span {
+  color: var(--color-text-secondary);
+  font-size: 10px;
+}
+.related-ticket-panel label {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+}
+.related-ticket-panel input {
+  border: 0;
+  outline: 0;
+  background: none;
+}
+.related-ticket-panel label:focus-within {
+  border-color: var(--color-focus);
+  outline: 3px solid color-mix(in srgb, var(--color-focus) 20%, transparent);
+}
+.related-ticket-filters {
+  display: flex;
+  gap: 8px;
+  border-top: 1px solid var(--color-border);
+  padding: 10px 18px;
+}
+.related-ticket-row {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 90px 2fr 1fr 1fr 1fr 70px;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  background: none;
+  padding: 14px 18px;
+  text-align: left;
+  font-size: 10px;
+}
+.related-ticket-row--head {
+  background: var(--color-surface-secondary);
+  color: var(--color-text-secondary);
+  font-size: 9px;
+}
+.related-ticket-row strong,
+.related-ticket-row small {
+  display: block;
+}
+.related-ticket-row small {
+  margin-top: 4px;
+  color: var(--color-text-secondary);
+}
+.related-ticket-panel > footer {
+  padding: 15px;
+  color: var(--color-text-secondary);
+  font-size: 10px;
+}
+.related-ticket-empty {
+  margin: 0;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  padding: 30px;
+  text-align: center;
+}
+@media (max-width: 900px) {
+  .related-tickets-page {
+    padding: 24px 16px;
+  }
+  .related-tickets-page > header {
+    align-items: start;
+  }
+  .related-tickets-page h1 {
+    font-size: 22px;
+  }
+  .related-tickets-page > header p {
+    display: none;
+  }
+  .related-tickets-page > header .ui-button {
+    min-height: 36px;
+    padding: 0 10px;
+  }
+  .related-ticket-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .related-ticket-panel > header {
+    display: block;
+  }
+  .related-ticket-panel label {
+    display: flex;
+    margin-top: 14px;
+  }
+  .related-ticket-panel input {
+    flex: 1;
+  }
+  .related-ticket-filters {
+    overflow: auto;
+  }
+  .related-ticket-row {
+    grid-template-columns: 1fr auto;
+  }
+  .related-ticket-row > *:not(:nth-child(2)):not(:nth-child(4)) {
+    display: none;
+  }
+  .related-ticket-row--head {
+    display: none;
+  }
+}

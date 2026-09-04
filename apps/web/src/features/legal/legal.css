@@ -1,0 +1,105 @@
+.legal-page {
+  min-height: 100dvh;
+  background: var(--color-surface);
+}
+.legal-page > header {
+  display: flex;
+  height: 72px;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--color-border);
+  padding: 0 6vw;
+}
+.legal-page > header > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.legal-page .ui-brand-mark {
+  width: 36px;
+  height: 36px;
+}
+.legal-page nav {
+  display: flex;
+  gap: 10px;
+}
+.legal-page button {
+  border: 0;
+  background: none;
+  color: var(--color-primary);
+  padding: 10px;
+}
+.legal-page > div {
+  display: grid;
+  max-width: 1100px;
+  grid-template-columns: 240px 1fr;
+  gap: 70px;
+  margin: auto;
+  padding: 48px 30px;
+}
+.legal-page aside {
+  display: grid;
+  align-content: start;
+  gap: 13px;
+}
+.legal-page aside > span,
+.legal-page main > span {
+  margin-top: 24px;
+  color: var(--color-text-secondary);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+}
+.legal-page aside > button:not(:first-child) {
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0;
+  text-align: left;
+}
+.legal-page main {
+  max-width: 720px;
+}
+.legal-page main h1 {
+  margin: 12px 0;
+  font-size: 36px;
+  font-weight: 500;
+}
+.legal-page main > p {
+  color: var(--color-text-secondary);
+  font-size: 15px;
+  line-height: 1.7;
+}
+.legal-page main section {
+  margin-top: 36px;
+}
+.legal-page main h2 {
+  font-size: 18px;
+  font-weight: 500;
+}
+.legal-page main section p {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.8;
+}
+@media (max-width: 767px) {
+  .legal-page > header {
+    padding: 0 16px;
+  }
+  .legal-page nav button:not(:last-child) {
+    display: none;
+  }
+  .legal-page > div {
+    display: block;
+    padding: 28px 20px;
+  }
+  .legal-page aside > button:not(:first-child),
+  .legal-page aside > span {
+    display: none;
+  }
+  .legal-page main h1 {
+    font-size: 28px;
+  }
+  .legal-page main section {
+    margin-top: 26px;
+  }
+}
