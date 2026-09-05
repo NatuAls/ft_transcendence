@@ -15,3 +15,5 @@ skills-lock*
 config/nginx/certs/
 *.key
 *.crt
+
+backups/

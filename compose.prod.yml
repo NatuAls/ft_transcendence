@@ -1,12 +1,19 @@
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   db:
     image: postgres:15-alpine
     container_name: prod_database
     restart: always
+    logging: *default-logging
     env_file:
       - .env
     networks:
-     - backend_network
+      - backend_network
     volumes:
       - postgres_prod_data:/var/lib/postgresql/data
     healthcheck:
@@ -19,6 +26,7 @@ services:
     image: redis:7-alpine
     container_name: prod_redis
     restart: always
+    logging: *default-logging
     networks:
       - backend_network
     volumes:
@@ -35,6 +43,7 @@ services:
       dockerfile: ./apps/api/Dockerfile.prod
     container_name: prod_api
     restart: always
+    logging: *default-logging
     env_file:
       - .env
     environment:
@@ -65,6 +74,7 @@ services:
       dockerfile: ./apps/web/Dockerfile.prod
     container_name: prod_web
     restart: always
+    logging: *default-logging
     networks:
       - backend_network
     healthcheck:
@@ -76,10 +86,29 @@ services:
       api:
         condition: service_healthy
 
+  backup:
+    image: postgres:15-alpine
+    container_name: prod_backup
+    restart: always
+    logging: *default-logging
+    env_file:
+      - .env
+    networks:
+      - backend_network
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backups:/backups
+      - ./scripts/backup.sh:/backup.sh
+      - uploads_prod:/uploads:ro
+    entrypoint: ["sh", "-c", "chmod +x /backup.sh && echo '0 0 * * * /backup.sh' > /etc/crontabs/root && crond -f -d 8"]
+
   nginx:
     image: nginx:alpine
     container_name: prod_nginx
     restart: always
+    logging: *default-logging
     ports:
       - "8080:80"
       - "8443:443"
