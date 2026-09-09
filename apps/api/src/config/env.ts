@@ -16,13 +16,21 @@ const envSchema = z.object({
   REDIS_URL: z.string().default('redis://redis:6379'),
   // Comma-separated origins keep CORS explicit while supporting local and
   // production deployments without embedding a domain in application code.
+  // La cabecera `Origin` que manda el navegador NUNCA lleva barra final ni
+  // ruta: es siempre `esquema://host[:puerto]`. El paquete `cors` compara la
+  // lista por igualdad exacta, así que configurar
+  // `https://midominio.com/` — con la barra que copia y pega cualquiera desde
+  // la barra del navegador — hace que NINGUNA petición case, y el fallo se
+  // manifiesta como un CORS roto en producción sin ningún mensaje que lo
+  // explique. Se normaliza aquí para que ese error de configuración,
+  // que es facilísimo de cometer, deje de ser posible.
   CORS_ORIGINS: z
     .string()
     .default('http://localhost:5173,http://127.0.0.1:5173')
     .transform((value) =>
       value
         .split(',')
-        .map((origin) => origin.trim())
+        .map((origin) => origin.trim().replace(/\/+$/, ''))
         .filter(Boolean),
     ),
 

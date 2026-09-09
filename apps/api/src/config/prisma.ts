@@ -17,8 +17,7 @@ const globalForPrisma = globalThis as unknown as {
 
 // Creamos el cliente una sola vez y lo exportamos para que el resto de la API
 // pueda reutilizar esta misma instancia cuando empiece a hacer consultas.
-export const prisma =
-  globalForPrisma.prisma ?? new PrismaClient({ adapter });
+export const prisma = globalForPrisma.prisma ?? new PrismaClient({ adapter });
 
 // En producción no guardamos referencias globales innecesarias; en desarrollo
 // sí conservamos la instancia para sobrevivir a las recargas del servidor.
