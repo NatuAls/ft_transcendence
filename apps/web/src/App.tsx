@@ -47,7 +47,10 @@ function App() {
 
   async function handleSignIn(values: SignInValues) {
     try {
-      const response = await login({ email: values.email, password: values.password });
+      const response = await login({
+        email: values.email,
+        password: values.password,
+      });
       saveAccessToken(response.accessToken, values.keepSignedIn);
       navigate('tickets');
     } catch (err) {
