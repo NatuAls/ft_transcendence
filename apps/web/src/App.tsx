@@ -21,6 +21,7 @@ import { LegalPage } from './features/legal/LegalPage';
 import type { NewTicketValues } from './features/tickets/CreateTicketPage';
 import { initialTickets, type Ticket } from './features/tickets/ticketData';
 import { AppShell } from './layout/AppShell';
+import { login, saveAccessToken } from './api/auth';
 
 function App() {
   const [location, setLocation] = useState<AppLocation>(readLocation);
@@ -44,10 +45,15 @@ function App() {
     window.location.hash = hash;
   };
 
-  function handleSignIn(values: SignInValues) {
-    // The future auth service call belongs here; the page only owns form state.
-    void values;
-    navigate('tickets');
+  async function handleSignIn(values: SignInValues) {
+    try {
+      const response = await login({ email: values.email, password: values.password });
+      saveAccessToken(response.accessToken, values.keepSignedIn);
+      navigate('tickets');
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error ? err.message : 'Login failed');
+    }
   }
 
   function handleRegister(values: RegisterValues) {
