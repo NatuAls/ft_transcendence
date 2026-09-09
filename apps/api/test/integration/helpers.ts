@@ -37,6 +37,8 @@
  * ============================================================================
  */
 
+import { randomBytes } from 'node:crypto';
+
 export const BASE_URL = process.env['API_BASE_URL'] ?? 'http://localhost:5000';
 export const V1 = `${BASE_URL}/api/v1`;
 
@@ -113,11 +115,34 @@ export const SKIP_MESSAGE =
   'levanta la pila (docker compose up -d db redis mailpit backend) ' +
   'o exporta API_BASE_URL antes de ejecutar estas pruebas';
 
-/** Sufijo único por proceso para que dos ejecuciones no colisionen en la base. */
+/**
+ * Sufijo único para que dos ejecuciones no colisionen en la base.
+ *
+ * Ojo con el detalle que hace falta aquí: `node --test` ejecuta CADA fichero de
+ * pruebas en SU PROPIO PROCESO y varios a la vez. `counter` es de módulo, así
+ * que arranca en 0 en los seis procesos, y lo único que los diferenciaba era
+ * `Date.now()` en milisegundos. Seis procesos que arrancan a la vez caen en el
+ * mismo milisegundo con bastante frecuencia: los dos generan el mismo nombre de
+ * organización, el segundo choca con el índice único de `slug` y recibe un 409.
+ * Como eso pasa dentro de un hook `before`, la suite entera se va al traste con
+ * once pruebas en estado `cancelled`.
+ *
+ * Es una carrera, no un fallo determinista: pasa una de cada cinco o seis
+ * ejecuciones, lo que la hace especialmente desagradable de diagnosticar
+ * ("ayer funcionaba").
+ *
+ * `RUN_ID` lo arregla: el PID distingue procesos concurrentes por definición, y
+ * los cuatro caracteres aleatorios cubren la reutilización de PID entre
+ * ejecuciones seguidas.
+ *
+ * Longitudes: el usuario admite 32 caracteres y `^[a-zA-Z0-9_-]+$`. El prefijo
+ * más largo en uso es `routeFriend` (11) y el sufijo se queda en 19 como mucho.
+ */
+const RUN_ID = `${process.pid.toString(36)}${randomBytes(2).toString('hex')}`;
 let counter = 0;
 export function unique(prefix: string): string {
   counter += 1;
-  return `${prefix}${Date.now().toString(36)}${counter}`;
+  return `${prefix}${Date.now().toString(36)}${RUN_ID}${counter}`;
 }
 
 export interface TestUser {

@@ -11,6 +11,10 @@
 #    · un informe vacío o ilegible,
 #    · 0 pruebas ejecutadas,
 #    · cualquier prueba fallida,
+#    · cualquier prueba CANCELADA (típicamente un hook `before` que revienta y
+#      se lleva por delante toda su suite: node lo cuenta como `cancelled`, NO
+#      como `fail`, así que sin esta comprobación un informe con una suite
+#      entera caída puede leerse como "0 fallos"),
 #    · cualquier prueba SALTADA o marcada como TODO.
 #
 #  Uso:  scripts/ci/check-test-report.sh <fichero.tap> "<etiqueta>"
@@ -35,6 +39,7 @@ tests=$(summary_value tests)
 passed=$(summary_value pass)
 failed=$(summary_value fail)
 skipped=$(summary_value skipped)
+cancelled=$(summary_value cancelled)
 todo=$(summary_value todo)
 
 if [ -z "$tests" ]; then
@@ -44,7 +49,7 @@ if [ -z "$tests" ]; then
   exit 1
 fi
 
-echo "[$LABEL] ejecutadas=$tests  ok=$passed  fallidas=${failed:-0}  saltadas=${skipped:-0}  todo=${todo:-0}"
+echo "[$LABEL] ejecutadas=$tests  ok=$passed  fallidas=${failed:-0}  canceladas=${cancelled:-0}  saltadas=${skipped:-0}  todo=${todo:-0}"
 
 status=0
 
@@ -57,6 +62,17 @@ if [ "${failed:-0}" -ne 0 ]; then
   echo "::error::[$LABEL] ${failed} prueba(s) han fallado."
   echo "----- pruebas fallidas -----"
   grep -E '^not ok ' "$LOG" || true
+  status=1
+fi
+
+# Una suite cuyo hook `before` falla deja a sus hijas en `cancelled`, no en
+# `fail`. El resumen puede decir "# fail 0" y estar la suite entera caída.
+if [ "${cancelled:-0}" -ne 0 ]; then
+  echo "::error::[$LABEL] ${cancelled} prueba(s) CANCELADAS. Suele ser un hook (before/beforeEach) que ha fallado y se ha llevado la suite entera."
+  echo "----- causa del hook -----"
+  grep -E "failureType: 'hookFailed'" -A 2 "$LOG" | grep -E "error:|failureType" || true
+  echo "----- pruebas canceladas -----"
+  grep -E "^ *not ok " "$LOG" | head -20 || true
   status=1
 fi
 
