@@ -29,11 +29,15 @@ RUN npm run build
 # ==========================================
 # ETAPA 2: PRODUCCIÓN (El Camarero - Nginx)
 # ==========================================
-FROM nginx:alpine AS production
+FROM nginx:1.28-alpine AS production
 
 # 1. Limpiamos la página por defecto de Nginx
 RUN rm -rf /usr/share/nginx/html/*
 
+# Copiar la configuración del proxy interno y SPA
+COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
+
+# Copiar los archivos compilados de Vite
 # 2. Robamos SOLO la carpeta compilada de la Etapa 1
 COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
 
