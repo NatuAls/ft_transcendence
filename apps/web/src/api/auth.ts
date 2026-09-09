@@ -52,8 +52,7 @@ export async function login(input: LoginInput): Promise<LoginResponse> {
   });
 
   const body = (await response.json().catch(() => null)) as
-    | LoginResponse
-    | { message?: string };
+    LoginResponse | { message?: string };
 
   if (!response.ok) {
     throw new Error(

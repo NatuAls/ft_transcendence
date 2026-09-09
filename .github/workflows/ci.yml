@@ -1,0 +1,539 @@
+name: CI
+
+# =============================================================================
+#  Integración continua — HelpDesk Lite
+#
+#  Este workflow es la ÚNICA puerta de calidad del proyecto. Se dispara:
+#
+#    · pull_request  -> valida el cambio ANTES de que pueda fusionarse. Es el
+#                       run que mira la protección de rama.
+#    · workflow_call -> lo invocan deploy-staging.yml y deploy-prod.yml como
+#                       primer job, de modo que NINGÚN despliegue puede ocurrir
+#                       sin haber pasado exactamente la misma batería.
+#
+#  No hay disparador `push` a propósito: en develop y main el despliegue ya
+#  llama a este workflow, y duplicarlo significaría pagar dos veces el CI
+#  completo por cada commit fusionado.
+#
+#  El job `ci-success` del final agrega el resultado de todos los demás. Es el
+#  único nombre que hay que marcar como "required status check" en la
+#  protección de rama (ver doc/DEVOPS_CICD.md).
+# =============================================================================
+
+on:
+  pull_request:
+    branches: [develop, main]
+  workflow_call:
+  workflow_dispatch:
+
+# Una PR que recibe tres pushes seguidos no necesita tres CI completos. El
+# run_id entra en el grupo cuando lo invoca un despliegue, para que un push a
+# main nunca cancele el CI del que depende su propio despliegue.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'pull_request' && 'pr' || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Credenciales EFÍMERAS, sólo para los contenedores de prueba del runner.
+  # No son secretos: la base de datos se crea y se destruye con el job.
+  CI_DB_USER: helpdesk_ci
+  CI_DB_PASSWORD: helpdesk_ci_password
+  CI_DB_NAME: helpdesk_ci
+  # >= 32 y >= 16 caracteres, que es lo que exige el validador Zod de env.ts.
+  CI_JWT_ACCESS_SECRET: ci_access_secret_not_a_real_secret_0123456789
+  CI_JWT_REFRESH_SECRET: ci_refresh_secret_not_a_real_secret_0123456789
+  CI_PASSWORD_PEPPER: ci_pepper_not_a_real_secret_0123456789
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. Calidad estática: formato, lint, tipos y compilación de TODOS los
+  #    workspaces (api, web, contracts, ui).
+  # ---------------------------------------------------------------------------
+  quality:
+    name: Calidad (formato · lint · tipos · build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # package.json declara devEngines.packageManager = npm@11.17.0 con
+      # onFail: error. Si el npm que trae Node no coincide, `npm ci` aborta.
+      - name: Fijar la versión de npm declarada en package.json
+        run: npm install -g npm@11.17.0
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      # El cliente de Prisma se genera en apps/api/src/generated/prisma, que
+      # está en .gitignore. Sin este paso el typecheck, el build y los tests
+      # unitarios fallan con "cannot find module".
+      - name: Generar cliente Prisma
+        run: npx prisma generate
+        working-directory: apps/api
+        env:
+          # prisma.config.ts lee DATABASE_URL; `generate` no se conecta, pero
+          # la variable tiene que existir.
+          DATABASE_URL: postgresql://user:pass@localhost:5432/db?schema=public
+
+      - name: Formato (prettier)
+        run: npm run format:check
+
+      - name: Lint (eslint)
+        run: npm run lint
+
+      - name: Tipos (tsc --noEmit)
+        run: npm run typecheck
+
+      - name: Build de todos los workspaces
+        run: npm run build
+
+  # ---------------------------------------------------------------------------
+  # 2. Pruebas unitarias.
+  # ---------------------------------------------------------------------------
+  unit-tests:
+    name: Tests unitarios
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm install -g npm@11.17.0
+      - run: npm ci
+
+      - name: Generar cliente Prisma
+        run: npx prisma generate
+        working-directory: apps/api
+        env:
+          DATABASE_URL: postgresql://user:pass@localhost:5432/db?schema=public
+
+      - name: Ejecutar tests unitarios
+        run: |
+          set -o pipefail
+          mkdir -p test-results
+          npm run test:ci --workspace=apps/api | tee test-results/unit.tap
+
+      # Un `node --test` que no encuentra ficheros termina en 0. El guardián
+      # convierte "0 pruebas" y "N saltadas" en un fallo de CI.
+      - name: Verificar el informe (0 fallos, 0 saltadas, >0 ejecutadas)
+        run: bash scripts/ci/check-test-report.sh test-results/unit.tap "tests unitarios"
+
+      - name: Publicar informe
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tap-unit
+          path: test-results/unit.tap
+          if-no-files-found: warn
+
+  # ---------------------------------------------------------------------------
+  # 3. Pruebas de integración contra PostgreSQL y Redis EFÍMEROS reales.
+  #
+  #    Las suites de test/integration se saltan solas si la API no responde
+  #    (apiIsUp() -> t.skip). Eso está bien en local, pero en CI produciría un
+  #    verde falso: build en verde, cero cobertura. Por eso este job:
+  #
+  #      a) espera a la API con un guardián que FALLA si no arranca, y
+  #      b) exige después que el informe TAP tenga 0 pruebas saltadas.
+  # ---------------------------------------------------------------------------
+  integration-tests:
+    name: Tests de integración (Postgres + Redis reales)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: helpdesk_ci
+          POSTGRES_PASSWORD: helpdesk_ci_password
+          POSTGRES_DB: helpdesk_ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U helpdesk_ci -d helpdesk_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      NODE_ENV: test
+      PORT: 5000
+      DATABASE_URL: postgresql://helpdesk_ci:helpdesk_ci_password@localhost:5432/helpdesk_ci?schema=public
+      REDIS_URL: redis://localhost:6379
+      JWT_ACCESS_SECRET: ci_access_secret_not_a_real_secret_0123456789
+      JWT_REFRESH_SECRET: ci_refresh_secret_not_a_real_secret_0123456789
+      PASSWORD_PEPPER: ci_pepper_not_a_real_secret_0123456789
+      UPLOAD_DIR: /tmp/helpdesk-uploads
+      SEED_ON_BOOT: 'false'
+      LOG_LEVEL: warn
+      CORS_ORIGINS: http://localhost:5173
+      API_BASE_URL: http://localhost:5000
+      # test/integration/helpers.ts documenta que la suite hace muchas más
+      # peticiones que el límite por defecto (10 logins/min). API y pruebas
+      # tienen que ver EL MISMO valor, por eso está a nivel de job.
+      RATE_LIMIT_AUTH_PER_MIN: '100000'
+      RATE_LIMIT_GLOBAL_PER_MIN: '200000'
+      API_KEY_RATE_PER_MIN: '100000'
+      API_KEY_RATE_PER_HOUR: '1000000'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm install -g npm@11.17.0
+      - run: npm ci
+
+      - name: Generar cliente Prisma
+        run: npx prisma generate
+        working-directory: apps/api
+
+      # Exactamente el mismo comando que corre el contenedor de producción.
+      # Si una migración está rota, se descubre aquí y no en el despliegue.
+      - name: Aplicar migraciones (prisma migrate deploy)
+        run: npx prisma migrate deploy
+        working-directory: apps/api
+
+      - name: Compilar la API
+        run: npm run build --workspace=apps/api
+
+      # Se arranca dist/index.js, no `node --watch src`: es el artefacto que se
+      # publica en la imagen, así que las pruebas verifican lo que se despliega.
+      - name: Arrancar la API compilada
+        working-directory: apps/api
+        run: |
+          mkdir -p /tmp/helpdesk-uploads
+          node dist/index.js > /tmp/api.log 2>&1 &
+          echo $! > /tmp/api.pid
+
+      - name: Esperar a que la API esté lista (falla si no arranca)
+        run: bash scripts/ci/wait-for-http.sh http://localhost:5000/api/health 90
+
+      # /api/health/ready responde 200 aunque una dependencia esté caída: el
+      # estado real va en el cuerpo. Aquí se comprueba el cuerpo, que es lo que
+      # de verdad dice si la API puede servir.
+      - name: Comprobar readiness real (base de datos arriba)
+        run: |
+          body=$(curl -fsS http://localhost:5000/api/health/ready)
+          echo "$body"
+          node -e '
+            const r = JSON.parse(process.argv[1]);
+            const db = (r.services ?? []).find((s) => s.name === "database");
+            if (r.status !== "ok" || !db || db.status !== "up") {
+              console.error("::error::La API no está lista: " + JSON.stringify(r));
+              process.exit(1);
+            }
+          ' "$body"
+
+      - name: Ejecutar tests de integración
+        run: |
+          set -o pipefail
+          mkdir -p test-results
+          npm run test:integration:ci --workspace=apps/api | tee test-results/integration.tap
+
+      - name: Verificar el informe (0 fallos, 0 saltadas, >0 ejecutadas)
+        run: bash scripts/ci/check-test-report.sh test-results/integration.tap "tests de integración"
+
+      - name: Log de la API si algo ha fallado
+        if: failure()
+        run: tail -n 200 /tmp/api.log || true
+
+      - name: Parar la API
+        if: always()
+        run: kill "$(cat /tmp/api.pid)" 2>/dev/null || true
+
+      - name: Publicar informe
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tap-integration
+          path: test-results/integration.tap
+          if-no-files-found: warn
+
+  # ---------------------------------------------------------------------------
+  # 4. Validación de los ficheros Compose (dev y prod).
+  # ---------------------------------------------------------------------------
+  compose-validation:
+    name: Validación de Compose
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      # compose.prod.yml declara `env_file: .env`; sin el fichero, `config`
+      # aborta. Se crea uno de mentira sólo para validar la sintaxis.
+      - name: Preparar un .env de validación
+        run: |
+          cat > .env <<'EOF'
+          ENV_NAME=ci
+          GITHUB_ACTOR=ci
+          GITHUB_SHA=0000000000000000000000000000000000000000
+          DB_USER=ci
+          DB_PASSWORD=ci
+          DB_NAME=ci
+          JWT_ACCESS_SECRET=ci_access_secret_not_a_real_secret_0123456789
+          JWT_REFRESH_SECRET=ci_refresh_secret_not_a_real_secret_0123456789
+          PASSWORD_PEPPER=ci_pepper_not_a_real_secret_0123456789
+          CORS_ORIGINS=https://example.invalid
+          APP_VERSION=0.0.0-ci
+          SMTP_HOST=smtp.example.invalid
+          SMTP_PORT=25
+          MAIL_FROM=HelpDesk Lite <no-reply@example.invalid>
+          EOF
+
+      - name: compose.dev.yml
+        run: docker compose -f compose.dev.yml config --quiet
+
+      - name: compose.prod.yml
+        run: docker compose -f compose.prod.yml config --quiet
+
+      # Cazar `image: algo:latest` antes de que llegue a un servidor.
+      - name: Prohibir imágenes sin fijar (:latest)
+        run: bash scripts/ci/check-pinned-images.sh compose.dev.yml compose.prod.yml
+
+  # ---------------------------------------------------------------------------
+  # 5. Construcción de las imágenes de producción.
+  #
+  #    Se construyen para amd64 (nativo del runner, rápido) sólo para verificar
+  #    que los Dockerfile siguen siendo válidos.
+  #
+  #    SÓLO EN PULL REQUEST. Cuando este workflow lo llama un despliegue, ese
+  #    mismo run construye a continuación las imágenes arm64 de verdad y las
+  #    sube a GHCR: repetir aquí el build amd64 sería construir lo mismo dos
+  #    veces en la misma ejecución, unos diez minutos tirados por despliegue.
+  #    En la PR, en cambio, es la única verificación de que los Dockerfile
+  #    siguen compilando.
+  # ---------------------------------------------------------------------------
+  docker-build:
+    name: Build de imágenes de producción
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Imagen de la API
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/api/Dockerfile.prod
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: helpdesk-api:ci
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+          build-args: |
+            GIT_COMMIT=${{ github.sha }}
+
+      - name: Imagen de la web
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/web/Dockerfile.prod
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: helpdesk-web:ci
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+
+      # Comprobaciones que sólo se pueden hacer sobre la imagen ya construida.
+      - name: La imagen de la API no corre como root
+        run: |
+          user=$(docker run --rm --entrypoint sh helpdesk-api:ci -c 'id -un')
+          echo "usuario del contenedor: $user"
+          [ "$user" = "node" ] || { echo "::error::La imagen de la API corre como $user"; exit 1; }
+
+      # El CMD de producción ejecuta /app/node_modules/.bin/prisma migrate
+      # deploy. Si un cambio de dependencias deja la CLI fuera de la imagen, el
+      # contenedor arrancaría y moriría en el servidor; mejor saberlo aquí.
+      - name: La CLI de Prisma está en la imagen final
+        run: |
+          docker run --rm --entrypoint sh helpdesk-api:ci \
+            -c 'test -x /app/node_modules/.bin/prisma' \
+            || { echo "::error::falta /app/node_modules/.bin/prisma; el CMD de producción no podría migrar"; exit 1; }
+
+      # El Dockerfile borra npm de la imagen final (arrastra CVE-2026-59873 en
+      # su copia de `tar`). Estas dos comprobaciones son las dos caras de esa
+      # decisión: que npm ya no esté, y que lo que de verdad se ejecuta en el
+      # arranque —la CLI de Prisma— siga funcionando sin él.
+      - name: La imagen de producción no lleva gestor de paquetes
+        run: |
+          if docker run --rm --entrypoint sh helpdesk-api:ci -c 'command -v npm'; then
+            echo "::error::npm sigue en la imagen final; volverá a aparecer la CVE de su copia de tar"
+            exit 1
+          fi
+          echo "npm no está en la imagen final."
+
+      - name: La CLI de Prisma arranca sin npm
+        run: |
+          docker run --rm --entrypoint sh helpdesk-api:ci \
+            -c '/app/node_modules/.bin/prisma --help > /dev/null' \
+            || { echo "::error::la CLI de Prisma no arranca en la imagen; el CMD fallaría al migrar"; exit 1; }
+          echo "prisma se ejecuta correctamente sin npm."
+
+      - name: Tamaño de las imágenes (informativo)
+        # `docker images` admite UN repositorio como mucho, no una lista: con
+        # dos argumentos sale por error y tumbaba el job entero por una línea
+        # meramente informativa.
+        run: |
+          docker images --format '{{.Repository}}:{{.Tag}}  {{.Size}}' helpdesk-api:ci
+          docker images --format '{{.Repository}}:{{.Tag}}  {{.Size}}' helpdesk-web:ci
+
+      - name: Escaneo de vulnerabilidades de la imagen (CRÍTICAS bloquean)
+        # v0.36.0: las etiquetas SIN prefijo `v` (0.0.1 – 0.34.2) fueron
+        # forzadas a commits maliciosos en el incidente de cadena de
+        # suministro de marzo de 2026. Sólo son seguras las `vX.Y.Z` a
+        # partir de v0.35.0, que ya están protegidas como inmutables.
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: helpdesk-api:ci
+          format: table
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+
+  # ---------------------------------------------------------------------------
+  # 6. Seguridad de la cadena de suministro.
+  # ---------------------------------------------------------------------------
+  security:
+    name: Seguridad (secretos · dependencias · SBOM)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Sobre un evento `pull_request`, gitleaks pregunta a la API qué commits
+    # trae la PR (GET /repos/…/pulls/N/commits) para acotar el escaneo. Con
+    # sólo `contents: read` eso devuelve 403 "Resource not accessible by
+    # integration" y el job muere antes de escanear nada.
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # gitleaks necesita el historial completo
+
+      # Gratuito en repositorios públicos y personales. En un repo de
+      # organización hace falta GITLEAKS_LICENSE.
+      - name: Escaneo de secretos (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm install -g npm@11.17.0
+      - run: npm ci
+
+      - name: Dependencias vulnerables — CRÍTICAS (bloquea)
+        run: npm audit --audit-level=critical
+
+      - name: Dependencias vulnerables — informe completo (informativo)
+        continue-on-error: true
+        run: npm audit --audit-level=low
+
+      - name: Escaneo del sistema de ficheros (Trivy)
+        # v0.36.0: las etiquetas SIN prefijo `v` (0.0.1 – 0.34.2) fueron
+        # forzadas a commits maliciosos en el incidente de cadena de
+        # suministro de marzo de 2026. Sólo son seguras las `vX.Y.Z` a
+        # partir de v0.35.0, que ya están protegidas como inmutables.
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: table
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+
+      - name: Generar SBOM (CycloneDX)
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: cyclonedx-json
+          artifact-name: sbom-helpdesklite.cdx.json
+
+  # ---------------------------------------------------------------------------
+  # 7. Puerta única.
+  #
+  #    `needs` con `if: always()` para que este job se ejecute aunque algo falle
+  #    y pueda reportar QUÉ falló. Es el ÚNICO check que hay que exigir en la
+  #    protección de rama: al añadir jobs nuevos basta con listarlos aquí.
+  # ---------------------------------------------------------------------------
+  ci-success:
+    name: ci-success
+    if: always()
+    needs:
+      - quality
+      - unit-tests
+      - integration-tests
+      - compose-validation
+      - docker-build
+      - security
+    runs-on: ubuntu-latest
+    steps:
+      - name: Exigir que todos los jobs hayan pasado
+        run: |
+          echo '${{ toJSON(needs) }}' > needs.json
+          cat needs.json
+          # `skipped` sólo lo puede producir docker-build, que no corre cuando
+          # este workflow lo llama un despliegue (el propio despliegue construye
+          # las imágenes justo después). Cualquier otro estado que no sea
+          # success — failure, cancelled — rompe la puerta.
+          #
+          # ATENCIÓN al añadir jobs condicionales nuevos: un `if:` mal escrito
+          # los deja en `skipped` y pasarían de largo. Los jobs que deben correr
+          # SIEMPRE se listan en REQUIRED y se comprueban aparte.
+          failed=$(node -e '
+            const REQUIRED = ["quality", "unit-tests", "integration-tests", "compose-validation", "security"];
+            const needs = require("./needs.json");
+            const bad = Object.entries(needs)
+              .filter(([k, v]) => v.result !== "success" && !(v.result === "skipped" && !REQUIRED.includes(k)))
+              .map(([k, v]) => `${k}=${v.result}`);
+            const missing = REQUIRED.filter((k) => !(k in needs));
+            process.stdout.write([...bad, ...missing.map((k) => `${k}=ausente`)].join(" "));
+          ')
+          skipped=$(node -e '
+            const needs = require("./needs.json");
+            process.stdout.write(Object.entries(needs)
+              .filter(([, v]) => v.result === "skipped").map(([k]) => k).join(" "));
+          ')
+          # Sin `|| true` esta línea tumbaría el paso cuando NO hay jobs
+          # omitidos: el shell corre con `bash -e` y `[ -n "" ] && echo` acaba
+          # devolviendo 1.
+          if [ -n "$skipped" ]; then
+            echo "Jobs omitidos a propósito en este contexto: $skipped"
+          fi
+          if [ -n "$failed" ]; then
+            echo "::error::CI no ha pasado: $failed"
+            exit 1
+          fi
+          echo "Todos los jobs de CI han pasado."

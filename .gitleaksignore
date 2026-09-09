@@ -1,0 +1,38 @@
+# =============================================================================
+#  Hallazgos de gitleaks aceptados — HelpDesk Lite
+#
+#  Cada línea es una "huella" (fingerprint) con la forma
+#      <commit>:<fichero>:<regla>:<línea>
+#  Sólo silencia ESE hallazgo concreto en ESE commit. Un secreto nuevo, o el
+#  mismo secreto en otro sitio, sigue rompiendo el CI. No es un interruptor
+#  general.
+#
+#  -----------------------------------------------------------------------
+#  INCIDENTE: secretos JWT de desarrollo en transcripciones de sesión
+#  -----------------------------------------------------------------------
+#  Qué pasó: el contenido de un `.env` local se pegó dentro de una
+#  transcripción de sesión con un asistente, y esa transcripción se commiteó
+#  dos veces — primero como `fix/claude_code_1.md` (31 ago 2026) y después
+#  copiada a `mod/fix-api/claude_code_1.md` (8 sep 2026). El repositorio es
+#  público.
+#
+#  Qué se hizo:
+#    1. Los valores se ROTARON (`scripts/ci/rotate-secrets.sh`). Los que
+#       quedan en el histórico ya no abren nada: son cadenas muertas.
+#    2. `mod/` y `fix/` están en `.gitignore` para que no vuelva a pasar.
+#    3. NO se reescribió el histórico. Los commits siguen ahí, así que
+#       cualquier escaneo de histórico completo los encontraría para siempre.
+#       Estas cuatro líneas son ese reconocimiento explícito.
+#
+#  Si algún día se purga el histórico con `git filter-repo`, estas líneas
+#  sobran y hay que borrarlas.
+#
+#  ⚠️  Añadir una huella aquí SIN haber rotado antes el secreto es esconder
+#      una credencial viva. La rotación es lo que cierra el agujero; este
+#      fichero sólo evita que el CI vuelva a avisar de algo ya resuelto.
+# =============================================================================
+
+de5685c3893b519700fd4157b497238906a406b6:mod/fix-api/claude_code_1.md:generic-api-key:1115
+de5685c3893b519700fd4157b497238906a406b6:mod/fix-api/claude_code_1.md:generic-api-key:1116
+ef0633a7a63669e98859df3b8893f6c5095aa2ef:fix/claude_code_1.md:generic-api-key:1115
+ef0633a7a63669e98859df3b8893f6c5095aa2ef:fix/claude_code_1.md:generic-api-key:1116

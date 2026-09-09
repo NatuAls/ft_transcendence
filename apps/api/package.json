@@ -10,6 +10,8 @@
     "test": "node --test 'test/unit/*.test.ts'",
     "test:integration": "node --test 'test/integration/*.test.ts'",
     "test:all": "npm run test && npm run test:integration",
+    "test:ci": "node --test --test-reporter=tap 'test/unit/*.test.ts'",
+    "test:integration:ci": "node --test --test-reporter=tap 'test/integration/*.test.ts'",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

@@ -1,0 +1,27 @@
+# =============================================================================
+#  Vulnerabilidades aceptadas — HelpDesk Lite
+#
+#  El CI bloquea con las CRÍTICAS (`severity: CRITICAL`, `exit-code: 1`) tanto
+#  en la imagen como en el árbol de ficheros. Este fichero es la válvula de
+#  escape para el único caso legítimo: una CVE crítica que NO se puede corregir
+#  desde este repositorio y que no es explotable como usamos el componente.
+#
+#  Reglas de la casa:
+#    · Primero se intenta ARREGLAR. Silenciar es el último recurso.
+#      Ejemplo real: CVE-2026-59873 (tar dentro de npm, en la imagen base) se
+#      resolvió BORRANDO npm de la imagen de producción, no añadiéndolo aquí.
+#    · Cada entrada lleva: quién, cuándo, por qué no es explotable y una fecha
+#      de caducidad para volver a mirarlo.
+#    · Sin fecha de caducidad, una entrada se queda para siempre y el escaneo
+#      deja de servir para nada.
+#
+#  Formato: un identificador de CVE por línea. Trivy admite `exp:AAAA-MM-DD`
+#  al final para que la excepción deje de aplicarse sola.
+#
+#  Ejemplo (comentado, no activo):
+#      # CVE-0000-00000 — <componente>. No explotable: <razón concreta>.
+#      # Sin parche upstream a día de hoy. Revisar antes de la fecha.
+#      # CVE-0000-00000 exp:2026-12-31
+# =============================================================================
+
+# (sin excepciones activas)

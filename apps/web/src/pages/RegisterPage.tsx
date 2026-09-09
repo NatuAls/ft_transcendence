@@ -22,12 +22,21 @@ export default function RegisterPage({ onSignIn }: RegisterPageProps) {
     <div className="register-page">
       <aside className="register-brand-panel">
         <div className="brand-header">
-          <div className="brand-logo"><div className="logo-mark" /></div>
+          <div className="brand-logo">
+            <div className="logo-mark" />
+          </div>
           <span className="brand-title">HelpDesk Lite</span>
         </div>
         <div className="register-brand-hero">
-          <h1>A calmer way to<br />ask for help.</h1>
-          <p>Create an account to report issues, follow progress and stay connected with your organization.</p>
+          <h1>
+            A calmer way to
+            <br />
+            ask for help.
+          </h1>
+          <p>
+            Create an account to report issues, follow progress and stay
+            connected with your organization.
+          </p>
           <div className="register-insight-card">
             <span className="insight-eyebrow">Built for clarity</span>
             <ul>
@@ -51,29 +60,61 @@ export default function RegisterPage({ onSignIn }: RegisterPageProps) {
           <form onSubmit={handleSubmit}>
             <div className="input-group">
               <label htmlFor="register-name">Full name</label>
-              <input id="register-name" className="input-field" type="text" placeholder="Ana Ruiz" required />
+              <input
+                id="register-name"
+                className="input-field"
+                type="text"
+                placeholder="Ana Ruiz"
+                required
+              />
             </div>
             <div className="input-group">
               <label htmlFor="register-email">Email address</label>
-              <input id="register-email" className="input-field" type="email" placeholder="ana@company.com" required />
+              <input
+                id="register-email"
+                className="input-field"
+                type="email"
+                placeholder="ana@company.com"
+                required
+              />
             </div>
             <div className="input-group register-password-group">
               <label htmlFor="register-password">Password</label>
-              <input id="register-password" className="input-field" type="password" minLength={10} required />
+              <input
+                id="register-password"
+                className="input-field"
+                type="password"
+                minLength={10}
+                required
+              />
               <small>At least 10 characters</small>
             </div>
             <label className="checkbox-container">
               <input type="checkbox" required />
               <span>I accept the Terms of Service and Privacy Policy</span>
             </label>
-            <button className="submit-btn" type="submit">Create account</button>
+            <button className="submit-btn" type="submit">
+              Create account
+            </button>
           </form>
 
-          {submitted && <p className="register-message" role="status">Account creation is ready to connect to the API.</p>}
+          {submitted && (
+            <p className="register-message" role="status">
+              Account creation is ready to connect to the API.
+            </p>
+          )}
 
           <div className="form-footer-links">
             <span>Already have an account?</span>
-            <a href="#login" onClick={(event) => { event.preventDefault(); onSignIn(); }}>Sign in</a>
+            <a
+              href="#login"
+              onClick={(event) => {
+                event.preventDefault();
+                onSignIn();
+              }}
+            >
+              Sign in
+            </a>
           </div>
         </section>
       </main>

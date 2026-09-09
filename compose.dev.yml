@@ -1,51 +1,64 @@
 services:
   db:
     image: postgres:15-alpine
-    container_name: database
-    restart: always
+    container_name: dev_database
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-mi_usuario}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mi_password}
       POSTGRES_DB: ${POSTGRES_DB:-mi_base_datos}
     ports:
       - '5432:5432'
+    networks:
+      - dev_network
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_dev_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
       interval: 5s
       timeout: 5s
       retries: 10
 
   redis:
     image: redis:7-alpine
-    container_name: redis
-    restart: always
+    container_name: dev_redis
+    restart: unless-stopped
     ports:
       - '6380:6379'
+    networks:
+      - dev_network
     volumes:
-      - redis_data:/data
+      - redis_dev_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   mailpit:
-    image: axllent/mailpit:latest
-    container_name: mailpit
-    restart: always
+    # Fijada por versión: `:latest` haría que dos desarrolladores levantasen
+    # servidores de correo distintos sin enterarse (tarea DevOps 2).
+    image: axllent/mailpit:v1.28.3
+    container_name: dev_mailpit
+    restart: unless-stopped
+    networks:
+      - dev_network
     ports:
-      - '1025:1025' # SMTP
-      - '8025:8025' # web UI
+      - '1025:1025' # Servidor SMTP
+      - '8025:8025' # Interfaz web de correos
 
-  backend:
+  api:
     build:
       context: .
       dockerfile: ./apps/api/Dockerfile.dev
-    container_name: api
-    restart: always
+    container_name: dev_api
+    restart: unless-stopped
     ports:
       - '5000:5000'
+    networks:
+      - dev_network
     environment:
-      - DATABASE_URL=postgres://${POSTGRES_USER:-mi_usuario}:${POSTGRES_PASSWORD:-mi_password}@db:5432/${POSTGRES_DB:-mi_base_datos}
-      # CORS se configura como lista para que produccion no dependa de una
-      # URL escrita literalmente en el codigo ni permita origenes arbitrarios.
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-mi_usuario}:${POSTGRES_PASSWORD:-mi_password}@db:5432/${POSTGRES_DB:-mi_base_datos}?schema=public
       - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
       - PORT=5000
       - NODE_ENV=${NODE_ENV:-development}
@@ -74,27 +87,27 @@ services:
       - /app/apps/web/node_modules
       - /app/packages/contracts/node_modules
       - /app/packages/ui/node_modules
-      - uploads:/var/lib/helpdesk/uploads
+      - uploads_dev:/var/lib/helpdesk/uploads
     depends_on:
       db:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
       mailpit:
         condition: service_started
 
-  frontend:
+  web:
     build:
       context: .
       dockerfile: ./apps/web/Dockerfile.dev
-    container_name: web
-    restart: always
+    container_name: dev_web
+    restart: unless-stopped
     ports:
       - '5173:5173'
+    networks:
+      - dev_network
     environment:
-      # El proxy se ejecuta dentro del contenedor web; por eso usa el nombre
-      # DNS del servicio y no localhost, que apuntaria al propio contenedor.
-      - VITE_PROXY_TARGET=http://backend:5000
+      - VITE_PROXY_TARGET=http://api:5000
     volumes:
       - .:/app
       - /app/node_modules
@@ -103,10 +116,14 @@ services:
       - /app/packages/contracts/node_modules
       - /app/packages/ui/node_modules
     depends_on:
-      backend:
+      api:
         condition: service_started
 
+networks:
+  dev_network:
+    driver: bridge
+
 volumes:
-  postgres_data:
-  redis_data:
-  uploads:
+  postgres_dev_data:
+  redis_dev_data:
+  uploads_dev:
