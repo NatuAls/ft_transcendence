@@ -9,7 +9,20 @@ guias
 .agents/
 .claude/
 .windsurf/
+.omen_ctx/
 skills-lock*
+
+# -----------------------------------------------------------------------------
+#  Notas de trabajo y transcripciones de sesiones con asistentes.
+#
+#  Estas carpetas guardan volcados de conversación en los que es habitual pegar
+#  el contenido de un .env para pedir ayuda. Así fue como JWT_ACCESS_SECRET y
+#  JWT_REFRESH_SECRET acabaron publicados en mod/fix-api/claude_code_1.md, en un
+#  repositorio público. Si algo de aquí hace falta en el repo, se sube revisado
+#  fichero a fichero, nunca la carpeta entera.
+# -----------------------------------------------------------------------------
+mod/
+fix/
 
 # Nginx SSL Certificates
 config/nginx/certs/

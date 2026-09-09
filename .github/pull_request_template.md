@@ -20,12 +20,17 @@
 
 ## Tests / checks
 
-<!-- Mark only the checks that were executed successfully. -->
+<!--
+CI runs all of these automatically and blocks the merge if any of them fails
+(check `ci-success`). Tick what you also ran locally before pushing.
+-->
 
 - [ ] `npm run format:check`
 - [ ] `npm run lint`
 - [ ] `npm run typecheck`
 - [ ] `npm run build`
+- [ ] `npm run test --workspace=apps/api` (unit)
+- [ ] `npm run test:integration --workspace=apps/api` (needs `make up-dev`)
 
 ## Documentation
 
