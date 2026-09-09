@@ -1,0 +1,178 @@
+name: Deploy Production
+
+# =============================================================================
+#  Despliegue del entorno de producción.
+#
+#  Orden deliberado de las tres barreras:
+#
+#    1. La PROTECCIÓN DE RAMA impide fusionar en main sin `ci-success` en verde
+#       (se configura en Settings -> Rules -> Rulesets; ver doc/DEVOPS_CICD.md).
+#    2. El job `ci` vuelve a ejecutar la batería completa sobre el commit de
+#       merge real, por si alguien empujó directamente o la rama estaba
+#       desactualizada respecto a main.
+#    3. El job `build-and-deploy` está atado al entorno PROD, con Required
+#       Reviewers: GitHub pausa aquí y espera un "Approve and deploy".
+#
+#  El orden importa: la aprobación manual se pide DESPUÉS del CI, así que quien
+#  aprueba ya está viendo la suite completa en verde, no un pipeline a medias.
+# =============================================================================
+
+on:
+  push:
+    branches: ['main']
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  ENVIRONMENT: prod
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # PUERTA DE CALIDAD. Se ejecuta ANTES de pedir la aprobación manual.
+  # ---------------------------------------------------------------------------
+  ci:
+    name: CI
+    uses: ./.github/workflows/ci.yml
+    # Un workflow llamado no puede tener MÁS permisos que quien lo llama, así
+    # que `pull-requests: read` tiene que concederse también aquí; si no,
+    # gitleaks se queda sin él dentro del despliegue.
+    permissions:
+      contents: read
+      pull-requests: read
+
+  # ---------------------------------------------------------------------------
+  # CONSTRUCCIÓN Y DESPLIEGUE, tras aprobación humana en el entorno PROD.
+  # ---------------------------------------------------------------------------
+  build-and-deploy:
+    name: Construir y desplegar (requiere aprobación)
+    needs: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment:
+      name: PROD
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Calcular metadatos de la release
+        id: meta
+        run: |
+          echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+          echo "build_time=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/api/Dockerfile.prod
+          platforms: linux/arm64
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ steps.meta.outputs.owner }}/helpdesk-api-prod:${{ github.sha }}
+          cache-from: type=gha,scope=api-prod
+          cache-to: type=gha,mode=max,scope=api-prod
+          build-args: |
+            GIT_COMMIT=${{ github.sha }}
+            BUILD_TIME=${{ steps.meta.outputs.build_time }}
+            APP_VERSION=${{ github.ref_name }}-${{ github.run_number }}
+
+      - name: Build and push Web image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/web/Dockerfile.prod
+          platforms: linux/arm64
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ steps.meta.outputs.owner }}/helpdesk-web-prod:${{ github.sha }}
+          cache-from: type=gha,scope=web-prod
+          cache-to: type=gha,mode=max,scope=web-prod
+
+      # El script remoto hace: copia previa -> .env -> pull -> up -> espera al
+      # healthcheck -> smoke test -> ROLLBACK automático si algo de eso falla.
+      - name: Deploy to Oracle Cloud
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          ENV_NAME: prod
+          DEPLOY_DIR: /opt/helpdesk/prod
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_ACTOR: ${{ github.actor }}
+          GHCR_OWNER: ${{ steps.meta.outputs.owner }}
+          GIT_SHA: ${{ github.sha }}
+          DB_USER: ${{ secrets.PROD_DB_USER }}
+          DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
+          DB_NAME: ${{ secrets.PROD_DB_NAME }}
+          JWT_ACCESS_SECRET: ${{ secrets.PROD_JWT_SECRET }}
+          JWT_REFRESH_SECRET: ${{ secrets.PROD_JWT_REFRESH_SECRET || secrets.PROD_JWT_SECRET }}
+          PASSWORD_PEPPER: ${{ secrets.PROD_PEPPER }}
+          # Estos cuatro valores NO son sensibles y su sitio es la pestaña
+          # "Variables". Pero se acepta también la pestaña "Secrets" como
+          # respaldo: es una confusión fácil de cometer y el despliegue no
+          # debería caerse por en qué pestaña se guardó un nombre de dominio.
+          CORS_ORIGINS: ${{ vars.PROD_CORS_ORIGINS || secrets.PROD_CORS_ORIGINS }}
+          SMTP_HOST: ${{ vars.PROD_SMTP_HOST || secrets.PROD_SMTP_HOST }}
+          SMTP_PORT: ${{ vars.PROD_SMTP_PORT || secrets.PROD_SMTP_PORT }}
+          MAIL_FROM: ${{ vars.PROD_MAIL_FROM || secrets.PROD_MAIL_FROM }}
+          APP_VERSION: ${{ github.ref_name }}-${{ github.run_number }}
+          LOG_LEVEL: info
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: deployer
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          command_timeout: 20m
+          envs: ENV_NAME,DEPLOY_DIR,GH_REPO,GH_TOKEN,GH_ACTOR,GHCR_OWNER,GIT_SHA,DB_USER,DB_PASSWORD,DB_NAME,JWT_ACCESS_SECRET,JWT_REFRESH_SECRET,PASSWORD_PEPPER,CORS_ORIGINS,SMTP_HOST,SMTP_PORT,MAIL_FROM,APP_VERSION,LOG_LEVEL
+          script: |
+            set -euo pipefail
+            # /opt pertenece a root. `deployer` no tiene sudo, así que el
+            # directorio se prepara UNA vez en el servidor:
+            #   sudo mkdir -p /opt/helpdesk/staging /opt/helpdesk/prod
+            #   sudo chown -R deployer:deployer /opt/helpdesk
+            if ! mkdir -p "$DEPLOY_DIR/scripts/deploy" 2>/dev/null; then
+              echo "ERROR: $(id -un) no puede crear $DEPLOY_DIR. Ver doc/DEVOPS_CICD.md, apartado 'Usuario de despliegue'." >&2
+              exit 1
+            fi
+            cd "$DEPLOY_DIR"
+            curl -sS -f -L \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github.v3.raw" \
+              -o scripts/deploy/remote-deploy.sh \
+              "https://api.github.com/repos/${GH_REPO}/contents/scripts/deploy/remote-deploy.sh?ref=${GIT_SHA}"
+            bash scripts/deploy/remote-deploy.sh
+
+      - name: Resumen del despliegue
+        if: always()
+        run: |
+          {
+            echo "## Despliegue de producción"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Commit | \`${{ github.sha }}\` |"
+            echo "| Imagen API | \`helpdesk-api-prod:${{ github.sha }}\` |"
+            echo "| Imagen Web | \`helpdesk-web-prod:${{ github.sha }}\` |"
+            echo "| Construida | ${{ steps.meta.outputs.build_time }} |"
+            echo "| Aprobado por | ${{ github.actor }} |"
+            echo "| Resultado | ${{ job.status }} |"
+            echo ""
+            echo "Rollback: Actions -> este workflow -> un run anterior correcto -> **Re-run all jobs**."
+          } >> "$GITHUB_STEP_SUMMARY"
