@@ -225,7 +225,7 @@
   cursor: pointer;
 }
 
-.checkbox-container input[type="checkbox"] {
+.checkbox-container input[type='checkbox'] {
   width: 20px;
   height: 20px;
   accent-color: #356a70;

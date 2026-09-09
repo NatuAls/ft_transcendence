@@ -41,10 +41,9 @@ export default function LoginPage({ onCreateAccount }: LoginPageProps) {
   return (
     <div className="login-container">
       {/* La página usa sus estilos propios en styles/pages/login.css. */}
-      
+
       {/* ── PANEL IZQUIERDO (Brand & Insights) ── */}
       <aside className="brand-panel">
-        
         {/* Cabecera / Marca */}
         <div className="brand-header">
           <div className="brand-logo">
@@ -60,17 +59,18 @@ export default function LoginPage({ onCreateAccount }: LoginPageProps) {
         {/* Sección Hero / Textos principales */}
         <div className="brand-hero">
           <h1>
-            Support work,<br />without the noise.
+            Support work,
+            <br />
+            without the noise.
           </h1>
           <p>
-            Track requests, collaborate clearly and keep every resolution in one dependable place.
+            Track requests, collaborate clearly and keep every resolution in one
+            dependable place.
           </p>
 
           {/* Tarjeta de Métricas */}
           <div className="insight-card">
-            <span className="insight-eyebrow">
-              Today at a glance
-            </span>
+            <span className="insight-eyebrow">Today at a glance</span>
             <div className="metrics-row">
               <div>
                 <div className="metric-value">92%</div>
@@ -94,15 +94,12 @@ export default function LoginPage({ onCreateAccount }: LoginPageProps) {
       {/* ── PANEL DERECHO (Formulario de Acceso) ── */}
       <main className="form-wrapper">
         <div className="form-card desktop-7d6ddbfbab56">
-          
           {/* Encabezado del Formulario */}
           <div className="form-header">
             <span className="form-eyebrow desktop-7d6ddc04ff70">
               Welcome back
             </span>
-            <h2 className="desktop-7d6ddc10ecf4">
-              Sign in to your workspace
-            </h2>
+            <h2 className="desktop-7d6ddc10ecf4">Sign in to your workspace</h2>
             <p className="desktop-7d6ddc1ce710">
               Use the credentials provided by your organization.
             </p>
@@ -111,12 +108,11 @@ export default function LoginPage({ onCreateAccount }: LoginPageProps) {
           {/* Formulario */}
           {/* Añadido: el submit ahora ejecuta la llamada real al backend. */}
           <form onSubmit={handleSubmit}>
-            
             {/* Campo Email */}
             <div className="input-group">
               <label className="desktop-7d6ddc28da24">Email address</label>
               <input
-                type="email" 
+                type="email"
                 className="input-field desktop-7d6ddc33afc6"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
@@ -129,7 +125,7 @@ export default function LoginPage({ onCreateAccount }: LoginPageProps) {
             <div className="input-group">
               <label className="desktop-7d6ddc4c5d91">Password</label>
               <input
-                type="password" 
+                type="password"
                 className="input-field desktop-7d6ddc5c36e6"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
@@ -139,20 +135,17 @@ export default function LoginPage({ onCreateAccount }: LoginPageProps) {
 
             {/* Checkbox "Keep me signed in" */}
             <label className="checkbox-container desktop-7d6ddc9f9590">
-                {/* Añadido: controla si el token se conserva en localStorage o sessionStorage. */}
-                <input
-                  type="checkbox"
-                  checked={keepSignedIn}
-                  onChange={(event) => setKeepSignedIn(event.target.checked)}
-                />
-                <span>Keep me signed in on this device</span>
-              </label>
+              {/* Añadido: controla si el token se conserva en localStorage o sessionStorage. */}
+              <input
+                type="checkbox"
+                checked={keepSignedIn}
+                onChange={(event) => setKeepSignedIn(event.target.checked)}
+              />
+              <span>Keep me signed in on this device</span>
+            </label>
 
             {/* Botón Submit */}
-            <button
-              type="submit"
-              className="submit-btn desktop-7d6ddcab14fd"
-            >
+            <button type="submit" className="submit-btn desktop-7d6ddcab14fd">
               {isLoading ? 'Signing in...' : 'Sign in'}
             </button>
           </form>
@@ -179,13 +172,12 @@ export default function LoginPage({ onCreateAccount }: LoginPageProps) {
           <div className="legal-footer">
             <p>
               {/* Los enlaces legales usan el selector .legal-footer de esta página. */}
-              <a href="#terms">Terms of Service</a> · <a href="#privacy">Privacy Policy</a>
+              <a href="#terms">Terms of Service</a> ·{' '}
+              <a href="#privacy">Privacy Policy</a>
             </p>
           </div>
-
         </div>
       </main>
-
     </div>
   );
 }
