@@ -36,6 +36,25 @@ RUN npm prune --omit=dev
 # ==========================================
 FROM node:24-alpine@sha256:d32cdf619f63fe0471182d08996dd516c6275bb5fd31ae06e55a570bd9e1ad43 AS production
 
+# 0. Trazabilidad de la release (tarea DevOps 7).
+#    El pipeline pasa el SHA del commit y la fecha de construcción como
+#    build-args; se hornean en la imagen para que GET /api/version diga
+#    EXACTAMENTE qué commit está sirviendo el contenedor. Sin esto,
+#    health.router.ts devuelve commit: "local" y no hay forma de saber si un
+#    despliegue se aplicó de verdad.
+ARG GIT_COMMIT=local
+ARG BUILD_TIME
+ARG APP_VERSION=1.0.0
+ENV GIT_COMMIT=${GIT_COMMIT} \
+    BUILD_TIME=${BUILD_TIME} \
+    APP_VERSION=${APP_VERSION}
+
+# Etiquetas OCI estándar: `docker inspect` de la imagen ya dice de dónde viene.
+LABEL org.opencontainers.image.revision=${GIT_COMMIT} \
+      org.opencontainers.image.created=${BUILD_TIME} \
+      org.opencontainers.image.version=${APP_VERSION} \
+      org.opencontainers.image.title="HelpDesk Lite API"
+
 # 1. Le decimos a Node y a los frameworks que estamos en producción
 ENV NODE_ENV=production
 
@@ -55,10 +74,48 @@ COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
 # 3. Preparamos la carpeta de subidas y le damos permisos al usuario 'node'
 RUN mkdir -p /var/lib/helpdesk/uploads && chown -R node:node /var/lib/helpdesk/uploads
 
+# 3b. Fuera los gestores de paquetes.
+#
+#     La imagen base node:24-alpine trae npm, y npm trae su propia copia de
+#     `tar`, que arrastra CVE-2026-59873 (CRITICAL). No es una dependencia de
+#     este proyecto —no aparece en package-lock.json— así que no hay forma de
+#     arreglarla actualizando nada nuestro: viene dentro de la imagen base.
+#
+#     Y no hace ninguna falta en producción: el CMD arranca
+#     /app/node_modules/.bin/prisma y node dist/index.js, ni uno ni otro pasan
+#     por npm. Un contenedor de producción con gestor de paquetes es además un
+#     regalo para quien consiga ejecución remota: le deja instalar herramientas.
+#
+#     Así que se borra. Eso elimina la vulnerabilidad de verdad, en vez de
+#     silenciarla en un fichero de excepciones, y reduce la imagen de paso.
+#     Los `|| true` están para que la receta no dependa de qué gestores
+#     concretos empaquete la versión de la imagen base.
+RUN rm -rf /usr/local/lib/node_modules/npm \
+           /usr/local/lib/node_modules/corepack \
+           /usr/local/bin/npm /usr/local/bin/npx \
+           /usr/local/bin/corepack /usr/local/bin/yarn /usr/local/bin/yarnpkg \
+           /opt/yarn-* || true
+
 # 4. Seguridad: Bajamos los privilegios. A partir de aquí, dejamos de ser 'root'
 USER node
 
 WORKDIR /app/apps/api
 
-# 5. Arrancamos directo con Node (nada de npm run dev ni nodemon)
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
+# 5. Puerto y sonda de vida declarados en la propia imagen, para que quien la
+#    ejecute (Compose, un orquestador, o a mano) herede el contrato sin tener
+#    que repetirlo. Compose lo sobreescribe con su propio healthcheck.
+EXPOSE 5000
+HEALTHCHECK --interval=15s --timeout=10s --start-period=90s --retries=5 \
+  CMD wget --spider -q http://127.0.0.1:5000/api/health || exit 1
+
+# 6. Arrancamos directo con Node (nada de npm run dev ni nodemon).
+#
+#    Se invoca el binario LOCAL de Prisma en vez de `npx prisma`: npx, si no
+#    encuentra el paquete, se lo descarga de la red en el arranque del
+#    contenedor de producción. Con la ruta explícita, si la CLI no está en la
+#    imagen el contenedor falla de inmediato y de forma visible, que es lo que
+#    pide el criterio de aceptación de la tarea 3.
+#
+#    `&&` es intencionado: si la migración falla, la API NO arranca y el
+#    healthcheck deja el despliegue marcado como no sano.
+CMD ["sh", "-c", "/app/node_modules/.bin/prisma migrate deploy && exec node dist/index.js"]

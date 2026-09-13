@@ -1,0 +1,156 @@
+.organizations-page {
+  max-width: 1000px;
+  margin: auto;
+  padding: 40px;
+}
+.organizations-page > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+}
+.organizations-page header span {
+  color: var(--color-text-secondary);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+.organizations-page h1 {
+  margin: 8px 0;
+  font-size: 30px;
+  font-weight: 500;
+}
+.organizations-page header p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+.organizations-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin: 28px 0 16px;
+}
+.organizations-toolbar label {
+  height: 42px;
+  flex: 1;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  padding: 10px 13px;
+}
+.organizations-toolbar input {
+  width: 90%;
+  border: 0;
+  outline: 0;
+  background: none;
+}
+.organizations-toolbar label:focus-within {
+  border-color: var(--color-focus);
+  outline: 3px solid color-mix(in srgb, var(--color-focus) 20%, transparent);
+}
+.organizations-toolbar > span {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+.organizations-page > section {
+  display: grid;
+  gap: 12px;
+}
+.organizations-page article {
+  display: grid;
+  grid-template-columns: 56px 1fr auto;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  padding: 20px;
+}
+.organizations-page article > span {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 12px;
+  background: #d8e5df;
+  color: var(--color-primary);
+}
+.organizations-page article h2 {
+  margin: 0 0 5px;
+  font-size: 16px;
+}
+.organizations-page article strong {
+  font-size: 10px;
+  color: var(--color-primary);
+}
+.organizations-page article p {
+  margin: 5px 0;
+  color: var(--color-text-secondary);
+  font-size: 10px;
+}
+.organizations-page article > div:last-child {
+  text-align: right;
+}
+.organizations-page article small {
+  color: var(--color-text-secondary);
+  font-size: 9px;
+}
+.organizations-empty {
+  margin: 0;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  padding: 40px;
+  text-align: center;
+}
+.organizations-url-preview {
+  margin-top: -8px;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+.organizations-url-help,
+.organizations-feedback,
+.organizations-create-error {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.organizations-feedback {
+  margin: -4px 0 16px;
+  color: var(--color-success);
+}
+.organizations-create-error {
+  color: var(--color-danger);
+}
+@media (max-width: 767px) {
+  .organizations-page {
+    padding: 24px 16px;
+  }
+  .organizations-page > header {
+    align-items: start;
+  }
+  .organizations-page h1 {
+    font-size: 22px;
+  }
+  .organizations-page header p {
+    display: none;
+  }
+  .organizations-page > header .ui-button {
+    min-height: 36px;
+    padding: 0 10px;
+  }
+  .organizations-page article {
+    grid-template-columns: 48px 1fr;
+  }
+  .organizations-page article > div:last-child {
+    grid-column: 1/-1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+  .organizations-page article > div:last-child small,
+  .organizations-page article > div:last-child p {
+    display: none;
+  }
+}

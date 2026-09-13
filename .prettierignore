@@ -2,3 +2,28 @@ node_modules
 dist
 coverage
 package-lock.json
+
+# -----------------------------------------------------------------------------
+#  Documentación y notas de trabajo.
+#
+#  Prettier reformatea Markdown (saltos de línea, viñetas, tablas) y eso no
+#  aporta nada en documentos que nadie compila. Más importante: doc/ contiene
+#  el enunciado oficial de 42 y el proceso de evaluación — reformatearlos sería
+#  alterar la fuente que hay que cumplir.
+#
+#  El criterio es: se formatea lo que se ejecuta; no se formatea lo que se lee.
+# -----------------------------------------------------------------------------
+# Todo el Markdown: documentación, notas, informes y READMEs.
+*.md
+doc/
+fix/
+mod/
+guias/
+logs/
+
+# Cliente generado por Prisma: se regenera en cada build.
+apps/api/src/generated/
+
+# Salidas de compilación del frontend.
+apps/web/dist/
+apps/api/dist/

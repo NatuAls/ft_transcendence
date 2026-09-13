@@ -1,0 +1,174 @@
+name: Deploy Staging
+
+# =============================================================================
+#  Despliegue del entorno de staging / test.
+#
+#  Cambio respecto a la versión anterior: el primer job es el CI COMPLETO. Si
+#  algo del pipeline de calidad falla —formato, lint, tipos, build, tests
+#  unitarios, tests de integración contra Postgres y Redis reales, validación
+#  de Compose, construcción de imágenes o escaneo de seguridad— el job de
+#  despliegue ni siquiera empieza. No hay forma de llegar al servidor con la
+#  suite en rojo, ni siquiera empujando directamente a develop.
+# =============================================================================
+
+on:
+  push:
+    branches: ['develop']
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  ENVIRONMENT: staging
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # PUERTA DE CALIDAD. Mismo workflow que valida las pull requests.
+  # ---------------------------------------------------------------------------
+  ci:
+    name: CI
+    uses: ./.github/workflows/ci.yml
+    # Un workflow llamado no puede tener MÁS permisos que quien lo llama, así
+    # que `pull-requests: read` tiene que concederse también aquí; si no,
+    # gitleaks se queda sin él dentro del despliegue.
+    permissions:
+      contents: read
+      pull-requests: read
+
+  # ---------------------------------------------------------------------------
+  # CONSTRUCCIÓN Y DESPLIEGUE. `needs: ci` es la única razón por la que este
+  # job existe después y no en paralelo.
+  # ---------------------------------------------------------------------------
+  build-and-deploy:
+    name: Construir y desplegar
+    needs: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # GHCR exige el nombre del propietario en minúsculas, y el propietario
+      # del repositorio no siempre coincide con quien empuja el commit.
+      - name: Calcular metadatos de la release
+        id: meta
+        run: |
+          echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+          echo "build_time=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # GIT_COMMIT y BUILD_TIME se hornean en la imagen para que
+      # GET /api/version identifique la release servida (tarea DevOps 7) y el
+      # smoke test pueda verificar que el contenedor nuevo es realmente el
+      # nuevo.
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/api/Dockerfile.prod
+          platforms: linux/arm64
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ steps.meta.outputs.owner }}/helpdesk-api-staging:${{ github.sha }}
+          cache-from: type=gha,scope=api-staging
+          cache-to: type=gha,mode=max,scope=api-staging
+          build-args: |
+            GIT_COMMIT=${{ github.sha }}
+            BUILD_TIME=${{ steps.meta.outputs.build_time }}
+            APP_VERSION=${{ github.ref_name }}-${{ github.run_number }}
+
+      - name: Build and push Web image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/web/Dockerfile.prod
+          platforms: linux/arm64
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ steps.meta.outputs.owner }}/helpdesk-web-staging:${{ github.sha }}
+          cache-from: type=gha,scope=web-staging
+          cache-to: type=gha,mode=max,scope=web-staging
+
+      # Los secretos viajan por `envs:`, no interpolados dentro del texto del
+      # script: así no acaban escritos en el historial de comandos del servidor.
+      - name: Deploy to Oracle Cloud
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          ENV_NAME: staging
+          DEPLOY_DIR: /opt/helpdesk/staging
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_ACTOR: ${{ github.actor }}
+          GHCR_OWNER: ${{ steps.meta.outputs.owner }}
+          GIT_SHA: ${{ github.sha }}
+          DB_USER: ${{ secrets.STAGING_DB_USER }}
+          DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+          DB_NAME: ${{ secrets.STAGING_DB_NAME }}
+          JWT_ACCESS_SECRET: ${{ secrets.STAGING_JWT_SECRET }}
+          JWT_REFRESH_SECRET: ${{ secrets.STAGING_JWT_REFRESH_SECRET || secrets.STAGING_JWT_SECRET }}
+          PASSWORD_PEPPER: ${{ secrets.STAGING_PEPPER }}
+          # Estos cuatro valores NO son sensibles y su sitio es la pestaña
+          # "Variables". Pero se acepta también la pestaña "Secrets" como
+          # respaldo: es una confusión fácil de cometer y el despliegue no
+          # debería caerse por en qué pestaña se guardó un nombre de dominio.
+          CORS_ORIGINS: ${{ vars.STAGING_CORS_ORIGINS || secrets.STAGING_CORS_ORIGINS }}
+          SMTP_HOST: ${{ vars.STAGING_SMTP_HOST || secrets.STAGING_SMTP_HOST }}
+          SMTP_PORT: ${{ vars.STAGING_SMTP_PORT || secrets.STAGING_SMTP_PORT }}
+          MAIL_FROM: ${{ vars.STAGING_MAIL_FROM || secrets.STAGING_MAIL_FROM }}
+          APP_VERSION: ${{ github.ref_name }}-${{ github.run_number }}
+          LOG_LEVEL: debug
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: deployer
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          command_timeout: 20m
+          envs: ENV_NAME,DEPLOY_DIR,GH_REPO,GH_TOKEN,GH_ACTOR,GHCR_OWNER,GIT_SHA,DB_USER,DB_PASSWORD,DB_NAME,JWT_ACCESS_SECRET,JWT_REFRESH_SECRET,PASSWORD_PEPPER,CORS_ORIGINS,SMTP_HOST,SMTP_PORT,MAIL_FROM,APP_VERSION,LOG_LEVEL
+          script: |
+            set -euo pipefail
+            # /opt pertenece a root. `deployer` no tiene sudo, así que el
+            # directorio se prepara UNA vez en el servidor:
+            #   sudo mkdir -p /opt/helpdesk/staging /opt/helpdesk/prod
+            #   sudo chown -R deployer:deployer /opt/helpdesk
+            if ! mkdir -p "$DEPLOY_DIR/scripts/deploy" 2>/dev/null; then
+              echo "ERROR: $(id -un) no puede crear $DEPLOY_DIR. Ver doc/DEVOPS_CICD.md, apartado 'Usuario de despliegue'." >&2
+              exit 1
+            fi
+            cd "$DEPLOY_DIR"
+            curl -sS -f -L \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github.v3.raw" \
+              -o scripts/deploy/remote-deploy.sh \
+              "https://api.github.com/repos/${GH_REPO}/contents/scripts/deploy/remote-deploy.sh?ref=${GIT_SHA}"
+            bash scripts/deploy/remote-deploy.sh
+
+      - name: Resumen del despliegue
+        if: always()
+        run: |
+          {
+            echo "## Despliegue de staging"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Commit | \`${{ github.sha }}\` |"
+            echo "| Imagen API | \`helpdesk-api-staging:${{ github.sha }}\` |"
+            echo "| Imagen Web | \`helpdesk-web-staging:${{ github.sha }}\` |"
+            echo "| Construida | ${{ steps.meta.outputs.build_time }} |"
+            echo "| Resultado | ${{ job.status }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
