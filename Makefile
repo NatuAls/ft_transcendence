@@ -76,7 +76,7 @@ ps:
 images:
 	@$(DOCKER) images
 
-re: fclean up
+re: fclean up-dev
 
 
 .PHONY: all up-dev down-dev up-prod down-prod build it clean fclean prune-global logs ps images re
