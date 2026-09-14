@@ -117,14 +117,19 @@
   margin-top: 1px;
   min-height: 48px;
 }
-.auth-preview-note {
+.auth-error-msg {
   margin: 0;
-  border-left: 3px solid var(--color-info);
-  background: #e5eef0;
-  color: var(--color-text-secondary);
+  border-left: 3px solid var(--color-danger);
+  background: #f1e3e3;
+  color: var(--color-danger);
   padding: 9px 10px;
   font-size: 10px;
   line-height: 1.45;
+}
+
+p.auth-password-match-error {
+  color: var(--color-danger);
+  font-size: 11px;
 }
 
 .auth-remember__desktop {
@@ -430,4 +435,62 @@
   .auth-content {
     min-width: 0;
   }
+}
+
+.auth-password-wrapper {
+  position: relative;
+}
+
+.auth-password-toggle {
+  position: absolute;
+  right: 12px;
+  bottom: 0;
+  
+  height: 48px; 
+  
+  display: flex;
+  align-items: center;
+  
+  background: transparent;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.auth-password-toggle:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+@media (min-width: 768px) {
+  .auth-password-toggle {
+    height: 52px; 
+    font-size: 12px;
+  }
+}
+
+.auth-password-rules {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11px;
+  display: grid;
+  gap: 4px;
+}
+
+.auth-password-rules li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-secondary);
+  transition: color 0.2s ease;
+}
+
+/* Cuando la condición es verdadera, aplica el verde de tu UI */
+.auth-password-rules li.valid {
+  color: var(--color-success);
+  font-weight: bold;
 }
