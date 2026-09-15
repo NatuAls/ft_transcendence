@@ -12,16 +12,12 @@ import { WorkspacePage } from './app/WorkspacePage';
 import { initialAccountProfile } from './features/account/accountData';
 import { AdminAccessDenied } from './features/admin/AdminAccessDenied';
 import { GlobalAdminPage } from './features/admin/GlobalAdminPage';
-import {
-  RegisterPage,
-  type RegisterValues,
-} from './features/auth/RegisterPage';
-import { SignInPage, type SignInValues } from './features/auth/SignInPage';
+import { RegisterPage } from './features/auth/RegisterPage';
+import { SignInPage } from './features/auth/SignInPage';
 import { LegalPage } from './features/legal/LegalPage';
 import type { NewTicketValues } from './features/tickets/CreateTicketPage';
 import { initialTickets, type Ticket } from './features/tickets/ticketData';
 import { AppShell } from './layout/AppShell';
-import { login, saveAccessToken } from './api/auth';
 
 function App() {
   const [location, setLocation] = useState<AppLocation>(readLocation);
@@ -45,23 +41,14 @@ function App() {
     window.location.hash = hash;
   };
 
-  async function handleSignIn(values: SignInValues) {
-    try {
-      const response = await login({
-        email: values.email,
-        password: values.password,
-      });
-      saveAccessToken(response.accessToken, values.keepSignedIn);
-      navigate('tickets');
-    } catch (err) {
-      console.error(err);
-      alert(err instanceof Error ? err.message : 'Login failed');
-    }
+  async function handleSignIn(user: any) {
+    void user;
+    navigate('tickets');
   }
 
-  function handleRegister(values: RegisterValues) {
+  function handleRegister(user: any) {
     // The future auth service call belongs here; the page only owns form state.
-    void values;
+    void user;
     navigate('tickets');
   }
 
