@@ -106,27 +106,27 @@ export async function register(input: RegisterInput): Promise<AuthResponse> {
 
 // Añadido: almacena el access token para que las siguientes peticiones puedan
 // autenticarse. Se usa sessionStorage cuando el usuario no quiere persistencia.
-/*export function saveAccessToken(token: string, keepSignedIn: boolean): void {
+export function saveAccessToken(token: string, keepSignedIn: boolean): void {
   sessionStorage.removeItem('helpdesk_access_token');
   localStorage.removeItem('helpdesk_access_token');
   (keepSignedIn ? localStorage : sessionStorage).setItem(
     'helpdesk_access_token',
     token,
   );
-}*/
+}
 
 
 
 // Añadido: función reutilizable para llamadas autenticadas posteriores al login.
-/*export function getAccessToken(): string | null {
+export function getAccessToken(): string | null {
   return (
     localStorage.getItem('helpdesk_access_token') ??
     sessionStorage.getItem('helpdesk_access_token')
   );
-}*/
+}
 
 // Añadido: conexión con POST /api/v1/auth/login.
-/*export async function login(input: LoginInput): Promise<LoginResponse> {
+export async function login(input: LoginInput): Promise<LoginResponse> {
   const response = await fetch(`${API_URL}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -147,4 +147,4 @@ export async function register(input: RegisterInput): Promise<AuthResponse> {
   }
 
   return body as LoginResponse;
-}*/
+}
