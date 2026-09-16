@@ -20,7 +20,7 @@ export const respondFriendRequestSchema = z.object({
 export const openConversationSchema = z.object({ userId: uuidSchema });
 
 export const sendMessageSchema = z.object({
-  body: z.string().trim().min(1, { message: 'errors.message.empty' }).max(200000),
+  body: z.string().trim().min(1, { message: 'errors.message.empty' }).max(2000),
 });
 
 export const markReadSchema = z.object({ messageId: uuidSchema });
