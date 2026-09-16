@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button, Checkbox, TextField } from 'ui';
 import { AuthBrandPanel, BrandHeader } from './AuthBrand';
-import { register } from '../../api/auth';
+import { register, type AuthResponse } from '../../api/auth';
 import './auth.css';
 
 export interface RegisterValues {
@@ -18,7 +18,7 @@ export interface RegisterValues {
 
 interface RegisterPageProps {
   onSignIn: () => void;
-  onSubmit: (user: any) => void | Promise<void>;
+  onSubmit: (user: AuthResponse['user']) => void | Promise<void>;
 }
 
 export function RegisterPage({ onSignIn, onSubmit }: RegisterPageProps) {
@@ -40,11 +40,13 @@ export function RegisterPage({ onSignIn, onSubmit }: RegisterPageProps) {
   const hasNumber = /\d/.test(password);
   const hasSymbol = /[\W_]/.test(password);
 
-  const isPasswordValid = hasMinLength && hasUpperCase && hasLowerCase && hasNumber && hasSymbol;
+  const isPasswordValid =
+    hasMinLength && hasUpperCase && hasLowerCase && hasNumber && hasSymbol;
 
-  const matchError = confirmPassword.length > 0 && password !== confirmPassword 
-    ? "The passwords don't match." 
-    : null;
+  const matchError =
+    confirmPassword.length > 0 && password !== confirmPassword
+      ? "The passwords don't match."
+      : null;
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -56,8 +58,14 @@ export function RegisterPage({ onSignIn, onSubmit }: RegisterPageProps) {
     }
 
     // Detectamos el idioma del navegador para el campo locale
-    let browserLocale = navigator.language ? navigator.language.split('-')[0].toUpperCase() : 'EN';
-    if (browserLocale !== 'EN' && browserLocale !== 'SP' && browserLocale !== 'AR') {
+    let browserLocale = navigator.language
+      ? navigator.language.split('-')[0].toUpperCase()
+      : 'EN';
+    if (
+      browserLocale !== 'EN' &&
+      browserLocale !== 'SP' &&
+      browserLocale !== 'AR'
+    ) {
       browserLocale = 'EN';
     }
 
@@ -77,14 +85,20 @@ export function RegisterPage({ onSignIn, onSubmit }: RegisterPageProps) {
 
       // El token ya se guardó en auth.ts. Pasamos el usuario al componente padre (ej. para redirigir)
       void onSubmit(authData.user);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('An unexpected error occurred.');
+      }
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  const handleChange = (setter: React.Dispatch<React.SetStateAction<any>>) => {
+  const handleChange = (
+    setter: React.Dispatch<React.SetStateAction<string>>,
+  ) => {
     return (event: React.ChangeEvent<HTMLInputElement>) => {
       setter(event.target.value);
       if (error) setError(null);
@@ -183,7 +197,7 @@ export function RegisterPage({ onSignIn, onSubmit }: RegisterPageProps) {
                 <TextField
                   label="Password"
                   name="password"
-                  type={showPassword ? "text" : "password"}
+                  type={showPassword ? 'text' : 'password'}
                   autoComplete="new-password"
                   placeholder="••••••••••"
                   value={password}
@@ -197,7 +211,7 @@ export function RegisterPage({ onSignIn, onSubmit }: RegisterPageProps) {
                   onClick={() => setShowPassword(!showPassword)}
                   tabIndex={-1} // Evita que el usuario caiga aquí accidentalmente al usar la tecla Tab
                 >
-                  {showPassword ? "Hide" : "Show"}
+                  {showPassword ? 'Hide' : 'Show'}
                 </button>
               </div>
               <ul className="auth-password-rules">
@@ -223,7 +237,7 @@ export function RegisterPage({ onSignIn, onSubmit }: RegisterPageProps) {
                 <TextField
                   label="Confirm Password"
                   name="confirmPassword"
-                  type={showConfirmPassword ? "text" : "password"}
+                  type={showConfirmPassword ? 'text' : 'password'}
                   autoComplete="new-password"
                   placeholder="••••••••••"
                   value={confirmPassword}
@@ -236,10 +250,12 @@ export function RegisterPage({ onSignIn, onSubmit }: RegisterPageProps) {
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   tabIndex={-1} // Evita que el usuario caiga aquí accidentalmente al usar la tecla Tab
                 >
-                  {showConfirmPassword ? "Hide" : "Show"}
+                  {showConfirmPassword ? 'Hide' : 'Show'}
                 </button>
               </div>
-              {matchError && <p className='auth-password-match-error'>✗ {matchError}</p>}
+              {matchError && (
+                <p className="auth-password-match-error">✗ {matchError}</p>
+              )}
             </div>
             <Checkbox
               className="auth-terms"
@@ -254,7 +270,17 @@ export function RegisterPage({ onSignIn, onSubmit }: RegisterPageProps) {
               required
             />
             {error && <p className="auth-error-msg">{error}</p>}
-            <Button fullWidth type="submit" disabled={!!error || !isPasswordValid || !!matchError || !confirmPassword.length || isSubmitting}>
+            <Button
+              fullWidth
+              type="submit"
+              disabled={
+                !!error ||
+                !isPasswordValid ||
+                !!matchError ||
+                !confirmPassword.length ||
+                isSubmitting
+              }
+            >
               {isSubmitting ? 'Creating account...' : 'Create account'}
             </Button>
           </form>

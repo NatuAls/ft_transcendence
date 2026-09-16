@@ -445,12 +445,12 @@ p.auth-password-match-error {
   position: absolute;
   right: 12px;
   bottom: 0;
-  
-  height: 48px; 
-  
+
+  height: 48px;
+
   display: flex;
   align-items: center;
-  
+
   background: transparent;
   border: none;
   color: var(--color-text-secondary);
@@ -467,7 +467,7 @@ p.auth-password-match-error {
 
 @media (min-width: 768px) {
   .auth-password-toggle {
-    height: 52px; 
+    height: 52px;
     font-size: 12px;
   }
 }

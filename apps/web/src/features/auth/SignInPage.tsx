@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button, Checkbox, TextField } from 'ui';
 import { AuthBrandPanel, BrandHeader } from './AuthBrand';
-import { login } from '../../api/auth';
+import { login, type AuthResponse } from '../../api/auth';
 import './auth.css';
 
 export interface SignInValues {
@@ -12,7 +12,7 @@ export interface SignInValues {
 
 interface SignInPageProps {
   onCreateAccount: () => void;
-  onSubmit: (user: any) => void | Promise<void>;
+  onSubmit: (user: AuthResponse['user']) => void | Promise<void>;
 }
 
 export function SignInPage({ onCreateAccount, onSubmit }: SignInPageProps) {
@@ -23,7 +23,9 @@ export function SignInPage({ onCreateAccount, onSubmit }: SignInPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleChange = (setter: React.Dispatch<React.SetStateAction<any>>) => {
+  const handleChange = (
+    setter: React.Dispatch<React.SetStateAction<string>>,
+  ) => {
     return (event: React.ChangeEvent<HTMLInputElement>) => {
       setter(event.target.value);
       if (error) setError(null);
@@ -40,8 +42,12 @@ export function SignInPage({ onCreateAccount, onSubmit }: SignInPageProps) {
 
       // Si fue exitoso, pasamos el usuario al router/padre
       void onSubmit(authData.user);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('An unexpected error occurred.');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -108,7 +114,7 @@ export function SignInPage({ onCreateAccount, onSubmit }: SignInPageProps) {
                 <TextField
                   label="Password"
                   name="password"
-                  type={showPassword ? "text" : "password"}
+                  type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
                   placeholder="••••••••••"
                   value={password}
@@ -121,7 +127,7 @@ export function SignInPage({ onCreateAccount, onSubmit }: SignInPageProps) {
                   onClick={() => setShowPassword(!showPassword)}
                   tabIndex={-1} // Evita que el usuario caiga aquí accidentalmente al usar la tecla Tab
                 >
-                  {showPassword ? "Hide" : "Show"}
+                  {showPassword ? 'Hide' : 'Show'}
                 </button>
               </div>
             </div>

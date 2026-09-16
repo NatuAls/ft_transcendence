@@ -18,6 +18,7 @@ import { LegalPage } from './features/legal/LegalPage';
 import type { NewTicketValues } from './features/tickets/CreateTicketPage';
 import { initialTickets, type Ticket } from './features/tickets/ticketData';
 import { AppShell } from './layout/AppShell';
+import type { AuthResponse } from './api/auth';
 
 function App() {
   const [location, setLocation] = useState<AppLocation>(readLocation);
@@ -41,12 +42,12 @@ function App() {
     window.location.hash = hash;
   };
 
-  async function handleSignIn(user: any) {
+  async function handleSignIn(user: AuthResponse['user']) {
     void user;
     navigate('tickets');
   }
 
-  function handleRegister(user: any) {
+  function handleRegister(user: AuthResponse['user']) {
     // The future auth service call belongs here; the page only owns form state.
     void user;
     navigate('tickets');
