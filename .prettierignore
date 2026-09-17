@@ -27,3 +27,7 @@ apps/api/src/generated/
 # Salidas de compilación del frontend.
 apps/web/dist/
 apps/api/dist/
+
+# Configuraciones de Nginx
+*.inc
+*.conf

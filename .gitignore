@@ -1,7 +1,9 @@
 node_modules
 .env
+.env-observabilidad
 .env.*
 !.env.example
+!.env-observabilidad.example
 dist
 apps/api/src/generated
 guias
@@ -23,6 +25,13 @@ skills-lock*
 # -----------------------------------------------------------------------------
 mod/
 fix/
+docs/
+Audit/
+
+# Tokens de /api/metrics que lee Prometheus (uno por entorno). Se crean a mano
+# en el servidor; sólo se versiona la plantilla .example con un valor ficticio.
+config/prometheus/metrics_token*
+!config/prometheus/metrics_token.example
 
 # Nginx SSL Certificates
 config/nginx/certs/
@@ -30,3 +39,8 @@ config/nginx/certs/
 *.crt
 
 backups/
+.env-*
+
+# La plantilla de la pila de observabilidad se versiona (sin valores). Va
+# DESPUÉS de .env-* porque una negación sólo cuenta si aparece más tarde.
+!.env-observabilidad.example
