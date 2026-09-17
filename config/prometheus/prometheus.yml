@@ -1,0 +1,105 @@
+# =============================================================================
+#  Prometheus — HelpDesk Lite
+#  Recoge métricas de host, contenedores, PostgreSQL, Redis y la propia API,
+#  en los dos entornos, y evalúa las reglas de rules/alerts.yml.
+# =============================================================================
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+  external_labels:
+    host: oracle-arm64
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Host: CPU, memoria, DISCO, y los ficheros .prom que dejan backup.sh y
+  # restore.sh (helpdesk_backup_*, helpdesk_restore_drill_*).
+  - job_name: node
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  - job_name: containers
+    static_configs:
+      - targets: ['cadvisor:8080']
+
+  - job_name: postgres
+    static_configs:
+      - targets: ['postgres-exporter-prod:9187']
+        labels: { env: prod }
+      - targets: ['postgres-exporter-staging:9187']
+        labels: { env: staging }
+
+  - job_name: redis
+    static_configs:
+      - targets: ['redis-exporter-prod:9121']
+        labels: { env: prod }
+      - targets: ['redis-exporter-staging:9121']
+        labels: { env: staging }
+
+  # La API expone /api/metrics (apps/api/src/modules/observability/metrics.router.ts).
+  # Protegido por METRICS_TOKEN: el bearer va en un fichero, no en la URL, para
+  # que no acabe en los logs de acceso de nadie. Un job sólo admite UNA
+  # credencial y cada entorno tiene su propio token, así que son dos jobs.
+  - job_name: helpdesk-api-prod
+    metrics_path: /api/metrics
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/metrics_token_prod
+    static_configs:
+      - targets: ['helpdesk-api-prod:5000']
+        labels: { env: prod }
+
+  - job_name: helpdesk-api-staging
+    metrics_path: /api/metrics
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/metrics_token_staging
+    static_configs:
+      - targets: ['helpdesk-api-staging:5000']
+        labels: { env: staging }
+
+  # Sondas HTTPS desde fuera, por el dominio real: es lo único que mide lo que
+  # ve el usuario (Cloudflare + NPM + contenedor), no sólo el contenedor.
+  - job_name: blackbox-http
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+          - https://helpdesklite.me/
+          - https://helpdesklite.me/api/health
+          - https://staging.helpdesklite.me/api/health
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  # Caducidad del certificado TLS — alerta explícita de la tarea 9.
+  - job_name: blackbox-tls
+    metrics_path: /probe
+    params:
+      module: [tls_connect]
+    static_configs:
+      - targets:
+          - helpdesklite.me:443
+          - staging.helpdesklite.me:443
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115

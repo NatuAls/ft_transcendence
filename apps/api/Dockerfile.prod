@@ -118,4 +118,11 @@ HEALTHCHECK --interval=15s --timeout=10s --start-period=90s --retries=5 \
 #
 #    `&&` es intencionado: si la migración falla, la API NO arranca y el
 #    healthcheck deja el despliegue marcado como no sano.
-CMD ["sh", "-c", "/app/node_modules/.bin/prisma migrate deploy && exec node dist/index.js"]
+#
+#    Mínimo privilegio (auditoría B4): las migraciones necesitan DDL y las
+#    hace el PROPIETARIO de la base (MIGRATE_DATABASE_URL); la aplicación
+#    arranca después con DATABASE_URL, que en producción es un rol sólo con
+#    DML (helpdesk_app, ver scripts/ops/create-app-role.sql). Si
+#    MIGRATE_DATABASE_URL no está definida, ambas cosas usan DATABASE_URL
+#    (comportamiento anterior, y el de desarrollo y CI).
+CMD ["sh", "-c", "DATABASE_URL=\"${MIGRATE_DATABASE_URL:-$DATABASE_URL}\" /app/node_modules/.bin/prisma migrate deploy && exec node dist/index.js"]

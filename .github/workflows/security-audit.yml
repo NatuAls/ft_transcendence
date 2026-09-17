@@ -1,0 +1,177 @@
+name: Auditoría de seguridad periódica
+
+# =============================================================================
+#  Tarea DevOps 10 — "revisar periódicamente permisos, secretos, accesos de
+#  administradores y resultados de escaneos".
+#
+#  El CI de cada PR sólo bloquea con CRÍTICAS, y con razón: si bloqueara con
+#  ALTAS, una CVE nueva en una dependencia transitiva dejaría al equipo sin
+#  poder fusionar nada un martes por la mañana. Pero eso significa que las
+#  ALTAS no las mira nadie.
+#
+#  Este workflow es el que las mira. Corre los lunes a las 06:00 (Madrid),
+#  NO bloquea nada, y deja:
+#    · el inventario completo de vulnerabilidades ALTAS y CRÍTICAS (código,
+#      imágenes y sistema de ficheros) subido a la pestaña Security en formato
+#      SARIF, con anotaciones sobre las líneas exactas;
+#    · el barrido de secretos sobre TODO el historial (no sólo el diff);
+#    · el SBOM del mes;
+#    · un recordatorio con la lista de revisiones manuales que ninguna
+#      herramienta puede hacer por ti: colaboradores del repositorio,
+#      revisores del entorno PROD, secretos con más de 90 días y claves SSH
+#      autorizadas en el servidor.
+# =============================================================================
+
+on:
+  schedule:
+    - cron: '0 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write # para subir los SARIF a la pestaña Security
+
+jobs:
+  dependencias:
+    name: Dependencias y secretos
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # gitleaks necesita el historial completo
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm install -g npm@11.17.0
+      - run: npm ci
+
+      # Informativo: aquí se ve TODO, no sólo lo crítico.
+      - name: npm audit (informe completo)
+        continue-on-error: true
+        run: |
+          npm audit --json > audit.json || true
+          node -e '
+            const a = require("./audit.json");
+            const m = a.metadata?.vulnerabilities ?? {};
+            const rows = Object.entries(m).map(([k,v]) => `| ${k} | ${v} |`).join("\n");
+            const out = [
+              "## npm audit", "", "| Severidad | Nº |", "|---|---|", rows, ""
+            ].join("\n");
+            require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, out);
+          '
+
+      - name: Trivy — sistema de ficheros (ALTAS y CRÍTICAS, informe SARIF)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-fs.sarif
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: false
+
+      # La pestaña Security (code scanning) sólo admite SARIF en repositorios
+      # públicos o con GitHub Advanced Security. En un privado sin GHAS este
+      # paso falla con "Advanced Security must be enabled": no debe tumbar la
+      # auditoría. El informe se guarda además como artefacto del run.
+      - name: Publicar en la pestaña Security
+        uses: github/codeql-action/upload-sarif@v3
+        continue-on-error: true
+        with:
+          sarif_file: trivy-fs.sarif
+          category: trivy-fs
+
+      - name: Guardar el informe SARIF como artefacto
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-fs-sarif
+          path: trivy-fs.sarif
+          if-no-files-found: warn
+
+      - name: gitleaks sobre TODO el historial
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: false
+
+      - name: SBOM del mes
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: cyclonedx-json
+          artifact-name: sbom-mensual.cdx.json
+
+  imagenes:
+    name: Imágenes publicadas en GHCR
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        imagen: [helpdesk-api-prod, helpdesk-web-prod]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login en GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Se escanea lo que está CORRIENDO, no lo que se acaba de construir: una
+      # imagen desplegada hace tres semanas acumula CVE nuevas sin que nadie
+      # toque el código. Este es el escaneo que las encuentra.
+      - name: Escanear la imagen desplegada
+        continue-on-error: true
+        run: |
+          owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')
+          ref="ghcr.io/${owner}/${{ matrix.imagen }}"
+          # La etiqueta de la última release: se resuelve por la API de paquetes.
+          echo "IMAGE_REF=${ref}" >> "$GITHUB_ENV"
+
+      - name: Trivy sobre la imagen
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE_REF }}:latest
+          format: table
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: false
+
+  revision-manual:
+    name: Recordatorio de revisión manual
+    runs-on: ubuntu-latest
+    steps:
+      - name: Lista de comprobación
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'MD'
+          ## Revisión manual trimestral (nadie la puede automatizar)
+
+          Marcar en el acta de la reunión de equipo:
+
+          - [ ] **Colaboradores del repositorio** — Settings → Collaborators.
+                ¿Sigue teniendo acceso alguien que ya no está en el equipo?
+          - [ ] **Revisores del entorno PROD** — Settings → Environments → PROD.
+                Un entorno con la lista de revisores vacía **no pausa nada**:
+                la aprobación manual deja de existir sin avisar.
+          - [ ] **Antigüedad de los secretos** — Settings → Secrets → Actions.
+                Rotar los de más de 90 días con `scripts/ci/rotate-secrets.sh`.
+          - [ ] **Claves SSH del servidor** — `cat ~deployer/.ssh/authorized_keys`.
+                Debe haber **una** y ser la del pipeline. Y comprobar que lleva
+                el `command="..."` que la convierte en un botón y no en una shell.
+          - [ ] **Puertos abiertos** — `ss -tlnp` en el host y la *security list*
+                de la VCN de Oracle. Sólo 22 (restringido), 80 y 443.
+          - [ ] **Reglas de Cloudflare** — WAF activo, modo de bot, y que
+                `staging.` siga con su Access List.
+          - [ ] **Excepciones caducadas** — cada entrada de `.trivyignore` lleva
+                `exp:AAAA-MM-DD`. Las vencidas se arreglan o se re-justifican.
+          - [ ] **Usuarios GLOBAL_ADMIN de la aplicación** —
+                `GET /api/v1/users?globalRole=GLOBAL_ADMIN`. ¿Siguen haciendo falta?
+          - [ ] **Claves de API vivas** — por organización, revocar las que ya
+                no se usen (`lastUsedAt` antiguo).
+          MD

@@ -23,10 +23,12 @@ up-dev:
 down-dev:
 	@$(COMPOSE) $(COMPOSE_DEV) down
 
+# compose.prod.yml usa imágenes de GHCR etiquetadas por SHA (no construye) y
+# recibe TLS de Nginx Proxy Manager/Cloudflare, no de certificados locales:
+# gen-certs.sh y config/nginx/ eran restos de una arquitectura anterior.
 up-prod:
 	@bash scripts/gen-secrets.sh
-	@bash scripts/gen-certs.sh
-	@$(COMPOSE) $(COMPOSE_PROD) up --build --detach
+	@$(COMPOSE) $(COMPOSE_PROD) up --detach
 	@printf "$(GREEN)Containers started successfully.$(NC)\n"
 
 down-prod:

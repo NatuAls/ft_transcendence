@@ -13,6 +13,7 @@ import { startMaintenanceJobs } from './modules/tickets/maintenance.ts';
 import { createSocketServer } from './modules/realtime/socket-server.ts';
 import { attachEventBridge } from './modules/realtime/event-bridge.ts';
 import { registerNotificationListeners } from './modules/notifications/notifications.service.ts';
+import { bootstrapFirstAdmin } from './modules/admin/bootstrap-admin.ts';
 
 const logger = createLogger('bootstrap');
 
@@ -26,6 +27,8 @@ async function bootstrap(): Promise<void> {
 
   await connectDatabase();
   await connectRedis();
+  // Sólo actúa si BOOTSTRAP_ADMIN_EMAIL está definido y no hay ningún admin.
+  await bootstrapFirstAdmin();
 
   const app = createApp();
   const server = createServer(app);

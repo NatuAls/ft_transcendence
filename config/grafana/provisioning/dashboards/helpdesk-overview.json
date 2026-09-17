@@ -1,0 +1,268 @@
+{
+  "uid": "helpdesk-overview",
+  "title": "HelpDesk Lite — Visión general",
+  "description": "Panel operativo: disponibilidad, errores, latencia, recursos, copias de seguridad y TLS. Uno de los dos entregables de 'paneles de observabilidad' de la tarea DevOps 9.",
+  "tags": ["helpdesklite", "devops"],
+  "timezone": "browser",
+  "editable": true,
+  "schemaVersion": 39,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "env",
+        "label": "Entorno",
+        "type": "custom",
+        "query": "prod,staging",
+        "current": { "text": "prod", "value": "prod" },
+        "options": [
+          { "text": "prod", "value": "prod", "selected": true },
+          { "text": "staging", "value": "staging", "selected": false }
+        ]
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Disponibilidad externa (sonda HTTPS)",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "avg_over_time(probe_success{job=\"blackbox-http\", instance=~\".*helpdesklite.*\"}[1h])",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 0.95 },
+              { "color": "green", "value": 0.99 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Días hasta la caducidad del certificado",
+      "description": "La alerta CertificadoCaducaPronto salta por debajo de 21 días.",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "targets": [
+        {
+          "expr": "(probe_ssl_earliest_cert_expiry - time()) / 86400",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "d",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 21 },
+              { "color": "green", "value": 30 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Antigüedad de la última copia correcta",
+      "description": "RPO acordado: 24 h. Rojo por encima de 36 h.",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "(time() - helpdesk_backup_last_success_timestamp_seconds)",
+          "legendFormat": "última copia"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 86400 },
+              { "color": "red", "value": 129600 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Último ensayo de restauración (RTO medido)",
+      "description": "Objetivo: por debajo de 3600 s. Lo escribe scripts/restore.sh --drill.",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "targets": [
+        {
+          "expr": "helpdesk_restore_drill_duration_seconds",
+          "legendFormat": "RTO"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1800 },
+              { "color": "red", "value": 3600 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Peticiones por segundo y código",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "targets": [
+        {
+          "expr": "sum by (status) (rate(helpdesk_http_requests_total{env=\"$env\"}[5m]))",
+          "legendFormat": "{{status}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" } }
+    },
+    {
+      "type": "timeseries",
+      "title": "Tasa de 5xx",
+      "description": "La alerta Tasa5xxSostenida salta por encima del 5% durante 10 min.",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "targets": [
+        {
+          "expr": "sum(rate(helpdesk_http_requests_total{env=\"$env\", status=~\"5..\"}[5m])) / clamp_min(sum(rate(helpdesk_http_requests_total{env=\"$env\"}[5m])), 0.001)",
+          "legendFormat": "5xx"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "max": 0.2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 0.05 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Latencia p50 / p95 / p99",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(helpdesk_http_request_duration_seconds_bucket{env=\"$env\"}[5m])))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(helpdesk_http_request_duration_seconds_bucket{env=\"$env\"}[5m])))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(helpdesk_http_request_duration_seconds_bucket{env=\"$env\"}[5m])))",
+          "legendFormat": "p99"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "type": "timeseries",
+      "title": "Estado de las dependencias (1 = arriba)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "targets": [
+        {
+          "expr": "helpdesk_dependency_up{env=\"$env\"}",
+          "legendFormat": "{{name}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "min": 0, "max": 1, "decimals": 0 } }
+    },
+    {
+      "type": "timeseries",
+      "title": "Disco libre del host",
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 20 },
+      "targets": [
+        {
+          "expr": "node_filesystem_avail_bytes{mountpoint=\"/\", fstype!~\"tmpfs|overlay\"} / node_filesystem_size_bytes{mountpoint=\"/\", fstype!~\"tmpfs|overlay\"}",
+          "legendFormat": "{{device}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 0.15 },
+              { "color": "green", "value": 0.3 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "CPU y memoria por contenedor",
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 20 },
+      "targets": [
+        {
+          "expr": "sum by (name) (rate(container_cpu_usage_seconds_total{name=~\"helpdesk-.*$env.*\"}[5m]))",
+          "legendFormat": "cpu {{name}}"
+        },
+        {
+          "expr": "sum by (name) (container_memory_working_set_bytes{name=~\"helpdesk-.*$env.*\"}) / 1e9",
+          "legendFormat": "mem GB {{name}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "PostgreSQL: conexiones y tamaño",
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 20 },
+      "targets": [
+        {
+          "expr": "sum(pg_stat_activity_count{env=\"$env\"})",
+          "legendFormat": "conexiones"
+        },
+        {
+          "expr": "sum(pg_database_size_bytes{env=\"$env\"}) / 1e6",
+          "legendFormat": "tamaño MB"
+        }
+      ]
+    },
+    {
+      "type": "logs",
+      "title": "Errores recientes de la API (Loki, ya enmascarados)",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 27 },
+      "datasource": { "type": "loki" },
+      "targets": [
+        {
+          "expr": "{service=\"api\", env=\"$env\"} |= \"ERROR\"",
+          "queryType": "range"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending"
+      }
+    }
+  ]
+}

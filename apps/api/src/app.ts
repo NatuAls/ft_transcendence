@@ -8,9 +8,11 @@ import cors from 'cors';
 import { loadConfiguration } from './config/env.ts';
 import { GLOBAL_PREFIX } from './routing.ts';
 import { requestContext } from './common/middleware/request-context.ts';
+import { httpMetrics } from './common/middleware/http-metrics.ts';
 import { notFoundHandler } from './common/middleware/not-found.ts';
 import { errorHandler } from './common/middleware/error-handler.ts';
 import { healthRouter, versionRouter } from './modules/health/health.router.ts';
+import { metricsRouter } from './modules/observability/metrics.router.ts';
 import { authRouter } from './modules/auth/auth.router.ts';
 import { usersRouter } from './modules/users/users.router.ts';
 import { organizationsRouter } from './modules/organizations/organizations.router.ts';
@@ -42,6 +44,11 @@ export function createApp(): Express {
   // correlation id, otherwise its error response comes back with
   // `"requestId": "unknown"` and cannot be matched against any log line.
   app.use(requestContext);
+  // Justo después del requestId y ANTES de los parsers: así se miden también
+  // las peticiones que mueren en express.json() o en el rate limit, que son
+  // las que interesan cuando algo va mal. La etiqueta `route` es el patrón de
+  // Express, nunca la URL (cardinalidad acotada).
+  app.use(httpMetrics);
   app.use(cookieParser());
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ limit: '1mb', extended: true }));
@@ -78,6 +85,10 @@ export function createApp(): Express {
   // checking liveness should never have to know which API version is deployed.
   app.use('/api/health', healthRouter);
   app.use('/api/version', versionRouter);
+  // Prometheus la lee por la red interna de Docker con un Bearer
+  // (METRICS_TOKEN). Sin token configurado responde 404; el Nginx del
+  // contenedor `web` la devuelve 404 desde internet en cualquier caso.
+  app.use('/api/metrics', metricsRouter);
   //app.use('/login', authRouter);
 
   const v1 = express.Router();
