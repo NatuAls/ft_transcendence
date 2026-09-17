@@ -1,6 +1,7 @@
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import { Button, Checkbox, TextField } from 'ui';
 import { AuthBrandPanel, BrandHeader } from './AuthBrand';
+import { login, type AuthResponse } from '../../api/auth';
 import './auth.css';
 
 export interface SignInValues {
@@ -11,17 +12,45 @@ export interface SignInValues {
 
 interface SignInPageProps {
   onCreateAccount: () => void;
-  onSubmit: (values: SignInValues) => void | Promise<void>;
+  onSubmit: (user: AuthResponse['user']) => void | Promise<void>;
 }
 
 export function SignInPage({ onCreateAccount, onSubmit }: SignInPageProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [keepSignedIn, setKeepSignedIn] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  const handleChange = (
+    setter: React.Dispatch<React.SetStateAction<string>>,
+  ) => {
+    return (event: React.ChangeEvent<HTMLInputElement>) => {
+      setter(event.target.value);
+      if (error) setError(null);
+    };
+  };
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    void onSubmit({ email, password, keepSignedIn });
+    setError(null);
+    setIsSubmitting(true);
+
+    try {
+      const authData = await login({ email, password });
+
+      // Si fue exitoso, pasamos el usuario al router/padre
+      void onSubmit(authData.user);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('An unexpected error occurred.');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -77,19 +106,31 @@ export function SignInPage({ onCreateAccount, onSubmit }: SignInPageProps) {
               autoComplete="email"
               placeholder="name@company.com"
               value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              onChange={handleChange(setEmail)}
               required
             />
-            <TextField
-              label="Password"
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              placeholder="••••••••••"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-            />
+            <div className="auth-password-field">
+              <div className="auth-password-wrapper">
+                <TextField
+                  label="Password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  placeholder="••••••••••"
+                  value={password}
+                  onChange={handleChange(setPassword)}
+                  required
+                />
+                <button
+                  type="button"
+                  className="auth-password-toggle"
+                  onClick={() => setShowPassword(!showPassword)}
+                  tabIndex={-1} // Evita que el usuario caiga aquí accidentalmente al usar la tecla Tab
+                >
+                  {showPassword ? 'Hide' : 'Show'}
+                </button>
+              </div>
+            </div>
             <Checkbox
               label={
                 <>
@@ -104,12 +145,9 @@ export function SignInPage({ onCreateAccount, onSubmit }: SignInPageProps) {
               checked={keepSignedIn}
               onChange={(event) => setKeepSignedIn(event.target.checked)}
             />
-            <p className="auth-preview-note">
-              Frontend preview: credentials are not sent or stored. Submitting
-              opens the local sample workspace.
-            </p>
-            <Button fullWidth type="submit">
-              Sign in
+            {error && <p className="auth-error-msg">{error}</p>}
+            <Button fullWidth type="submit" disabled={isSubmitting || !!error}>
+              {isSubmitting ? 'Signing in...' : 'Sign in'}
             </Button>
           </form>
 
