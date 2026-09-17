@@ -1,0 +1,313 @@
+# =============================================================================
+#  Pila de observabilidad — HelpDesk Lite   (tarea DevOps 9)
+#
+#  Se levanta COMO SUPERPOSICIÓN del entorno, una sola vez en el host, y vigila
+#  a la vez staging y producción:
+#
+#      cd /opt/helpdesk/observability
+#      docker compose -f compose.observability.yml up -d
+#
+#  Piezas y por qué cada una:
+#
+#    prometheus        métricas (host, contenedores, PostgreSQL, Redis, API)
+#    alertmanager      convierte una regla en un aviso por correo/Telegram
+#    node-exporter     CPU, memoria, DISCO del host  + métricas de los backups
+#                      (textfile collector leyendo /backups/*/metrics)
+#    cadvisor          CPU/memoria/red POR CONTENEDOR
+#    postgres-exporter conexiones, tamaño, transacciones, bloqueos  (x2)
+#    redis-exporter    memoria, claves, evictions                   (x2)
+#    blackbox-exporter sondas HTTPS externas + CADUCIDAD DEL CERTIFICADO TLS
+#    loki + promtail   logs centralizados de TODOS los contenedores, con
+#                      retención y filtrado de secretos
+#    grafana           paneles y acceso protegido
+#
+#  NINGÚN servicio publica puertos en la interfaz pública: todos escuchan en
+#  127.0.0.1. Se llega a Grafana por túnel SSH:
+#      ssh -L 3000:127.0.0.1:3000 deployer@<host>
+#  o publicándolo en Nginx Proxy Manager con Access List + HTTPS (ver §9.4 del
+#  informe). Exponer Grafana a internet sin autenticación fuerte es
+#  exactamente el fallo que esta pila existe para detectar.
+# =============================================================================
+
+x-logging: &default-logging
+  driver: 'json-file'
+  options:
+    max-size: '10m'
+    max-file: '3'
+
+services:
+  # ---------------------------------------------------------------- métricas --
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    container_name: helpdesk-prometheus
+    restart: always
+    logging: *default-logging
+    user: '65534:65534'
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      # 15 días es suficiente para un proyecto de 42 y acota el disco, que en
+      # una instancia ARM gratuita de Oracle es el recurso escaso.
+      - '--storage.tsdb.retention.time=15d'
+      - '--storage.tsdb.retention.size=4GB'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./config/prometheus/rules:/etc/prometheus/rules:ro
+      # Tokens de /api/metrics, uno por entorno (mismo valor que los secretos
+      # PROD_METRICS_TOKEN / STAGING_METRICS_TOKEN). NO se versionan; se crean
+      # con `printf '%s' "$TOKEN" > metrics_token_prod` (sin salto de línea).
+      # Sin estos montajes Prometheus no puede leer la API: "unable to read
+      # authorization credentials file" y el target queda caído.
+      - ./config/prometheus/metrics_token_prod:/etc/prometheus/metrics_token_prod:ro
+      - ./config/prometheus/metrics_token_staging:/etc/prometheus/metrics_token_staging:ro
+      - prometheus_data:/prometheus
+    ports:
+      - '127.0.0.1:9090:9090'
+    networks: [observability, proxy-tier]
+    depends_on: [alertmanager]
+
+  # Renderiza la configuración de Alertmanager antes de que arranque.
+  #
+  # Alertmanager NO expande variables de entorno dentro de su fichero de
+  # configuración: un `smtp_smarthost: '${ALERT_SMTP_HOST}'` se toma como esa
+  # cadena literal y el proceso muere al cargar. Por eso el fichero versionado
+  # es una plantilla con @@TOKENS@@ y este contenedor efímero la sustituye.
+  #
+  # La contraseña NO pasa por `sed` —un `&` o una `|` dentro del valor
+  # romperían la sustitución—: se escribe tal cual en un fichero y Alertmanager
+  # la lee con `smtp_auth_password_file`.
+  alertmanager-config:
+    image: alpine:3.20
+    container_name: helpdesk-alertmanager-config
+    restart: 'no'
+    logging: *default-logging
+    volumes:
+      - ./config/alertmanager/alertmanager.yml.tmpl:/tmpl/alertmanager.yml.tmpl:ro
+      - alertmanager_config:/render
+    environment:
+      - ALERT_TELEGRAM_TOKEN=${ALERT_TELEGRAM_TOKEN:-}
+      - ALERT_TELEGRAM_CHAT_ID=${ALERT_TELEGRAM_CHAT_ID:-}
+      - ALERT_EMAIL_TO=${ALERT_EMAIL_TO:-}
+      - ALERT_SMTP_HOST=${ALERT_SMTP_HOST:-}
+      - ALERT_SMTP_USER=${ALERT_SMTP_USER:-}
+      - ALERT_SMTP_PASS=${ALERT_SMTP_PASS:-}
+    command:
+      - /bin/sh
+      - -euc
+      - |
+        falta() {
+          echo "FALTA $$1 en /opt/helpdesk/observability/.env." >&2
+          echo "Alertmanager no arranca sin buzón de destino ni credenciales SMTP:" >&2
+          echo "una alerta que no llega a nadie es peor que no tener alertas." >&2
+          exit 1
+        }
+        [ -n "$$ALERT_EMAIL_TO"  ] || falta ALERT_EMAIL_TO
+        [ -n "$$ALERT_SMTP_HOST" ] || falta ALERT_SMTP_HOST
+        [ -n "$$ALERT_SMTP_USER" ] || falta ALERT_SMTP_USER
+        [ -n "$$ALERT_SMTP_PASS" ] || falta ALERT_SMTP_PASS
+        # Si el fichero no existe en el host, Docker crea un DIRECTORIO con su
+        # nombre y `sed` (BusyBox) sale con 0 sin escribir nada: el resultado
+        # era un alertmanager.yml de 0 bytes y Alertmanager en bucle de
+        # reinicio con "no route provided in config" (16-17/09/2026).
+        if [ ! -f /tmpl/alertmanager.yml.tmpl ]; then
+          echo "FALTA config/alertmanager/alertmanager.yml.tmpl (¿es un directorio?)." >&2
+          exit 1
+        fi
+        sed -e "s|@@ALERT_SMTP_HOST@@|$$ALERT_SMTP_HOST|g" \
+            -e "s|@@ALERT_SMTP_USER@@|$$ALERT_SMTP_USER|g" \
+            -e "s|@@ALERT_EMAIL_TO@@|$$ALERT_EMAIL_TO|g" \
+            -e "s|@@ALERT_TELEGRAM_TOKEN@@|$$ALERT_TELEGRAM_TOKEN|g" \
+            -e "s|@@ALERT_TELEGRAM_CHAT_ID@@|$$ALERT_TELEGRAM_CHAT_ID|g" \
+            /tmpl/alertmanager.yml.tmpl > /render/alertmanager.yml.tmp
+        grep -q '^route:' /render/alertmanager.yml.tmp \
+          || { echo "el alertmanager.yml renderizado no tiene 'route:'; no se instala." >&2; exit 1; }
+        mv /render/alertmanager.yml.tmp /render/alertmanager.yml
+        printf '%s' "$$ALERT_SMTP_PASS" > /render/smtp_password
+        # Alertmanager corre como `nobody` (65534) y este contenedor como
+        # root: un 600 de root lo dejaba sin poder leer la contraseña SMTP
+        # ("smtp_password: permission denied", 47 correos fallidos el 17/09)
+        # mientras Telegram sí salía. El fichero es de nobody, sólo lectura.
+        chown 65534:65534 /render/alertmanager.yml /render/smtp_password
+        chmod 400 /render/smtp_password
+        echo "alertmanager.yml renderizado ($$(wc -c < /render/alertmanager.yml) bytes)."
+
+  alertmanager:
+    image: prom/alertmanager:v0.28.0
+    container_name: helpdesk-alertmanager
+    restart: always
+    logging: *default-logging
+    depends_on:
+      alertmanager-config:
+        condition: service_completed_successfully
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    volumes:
+      - alertmanager_config:/etc/alertmanager:ro
+      - alertmanager_data:/alertmanager
+    ports:
+      - '127.0.0.1:9093:9093'
+    networks: [observability]
+
+  # ------------------------------------------------------------- exportadores --
+  node-exporter:
+    image: prom/node-exporter:v1.9.0
+    container_name: helpdesk-node-exporter
+    restart: always
+    logging: *default-logging
+    command:
+      - '--path.rootfs=/host'
+      # Aquí es donde backup.sh y restore.sh dejan sus métricas. Es lo que
+      # convierte "el backup falló" en una alerta y no en un descubrimiento.
+      # Con glob: el recolector NO es recursivo, y los ficheros están en
+      # /textfile/prod/ y /textfile/staging/ (v1 apuntaba a /textfile y no leía
+      # ninguno). Cada script etiqueta sus series con env="…" para que no
+      # colisionen.
+      - '--collector.textfile.directory=/textfile/*'
+      - '--web.listen-address=:9100'
+    pid: host
+    volumes:
+      - '/:/host:ro,rslave'
+      - /opt/helpdesk/prod/backups/metrics:/textfile/prod:ro
+      - /opt/helpdesk/staging/backups/metrics:/textfile/staging:ro
+    networks: [observability]
+
+  # v0.55.1: Docker 29 usa el image store de containerd (overlayfs
+  # snapshotter) y v0.52 fallaba con "failed to identify the read-write layer
+  # ID", dejando todas las series sin la etiqueta `name`. Probado en el host
+  # el 17/09: con v0.55.1 aparecen 1.164 series name="helpdesk-…".
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.55.1
+    container_name: helpdesk-cadvisor
+    restart: always
+    logging: *default-logging
+    privileged: true
+    devices: ['/dev/kmsg:/dev/kmsg']
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    networks: [observability]
+
+  postgres-exporter-prod:
+    image: prometheuscommunity/postgres-exporter:v0.17.1
+    container_name: helpdesk-pgexporter-prod
+    restart: always
+    logging: *default-logging
+    environment:
+      DATA_SOURCE_NAME: 'postgresql://${PROD_DB_USER}:${PROD_DB_PASSWORD}@helpdesk-db-prod:5432/${PROD_DB_NAME}?sslmode=disable'
+    networks: [observability, backend_prod]
+
+  postgres-exporter-staging:
+    image: prometheuscommunity/postgres-exporter:v0.17.1
+    container_name: helpdesk-pgexporter-staging
+    restart: always
+    logging: *default-logging
+    environment:
+      DATA_SOURCE_NAME: 'postgresql://${STAGING_DB_USER}:${STAGING_DB_PASSWORD}@helpdesk-db-staging:5432/${STAGING_DB_NAME}?sslmode=disable'
+    networks: [observability, backend_staging]
+
+  redis-exporter-prod:
+    image: oliver006/redis_exporter:v1.69.0
+    container_name: helpdesk-redisexporter-prod
+    restart: always
+    logging: *default-logging
+    command: ['--redis.addr=redis://helpdesk-redis-prod:6379']
+    networks: [observability, backend_prod]
+
+  redis-exporter-staging:
+    image: oliver006/redis_exporter:v1.69.0
+    container_name: helpdesk-redisexporter-staging
+    restart: always
+    logging: *default-logging
+    command: ['--redis.addr=redis://helpdesk-redis-staging:6379']
+    networks: [observability, backend_staging]
+
+  # Sondas HTTPS desde fuera + caducidad del certificado, que es una de las
+  # alertas que pide explícitamente la tarea 9.
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.26.0
+    container_name: helpdesk-blackbox
+    restart: always
+    logging: *default-logging
+    volumes:
+      - ./config/blackbox/blackbox.yml:/etc/blackbox_exporter/config.yml:ro
+    networks: [observability]
+
+  # ------------------------------------------------------------------- logs --
+  loki:
+    image: grafana/loki:3.4.2
+    container_name: helpdesk-loki
+    restart: always
+    logging: *default-logging
+    user: '10001:10001'
+    command: ['-config.file=/etc/loki/loki-config.yml']
+    volumes:
+      - ./config/loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+      - loki_data:/loki
+    networks: [observability]
+
+  promtail:
+    image: grafana/promtail:3.4.2
+    container_name: helpdesk-promtail
+    restart: always
+    logging: *default-logging
+    command: ['-config.file=/etc/promtail/promtail-config.yml']
+    volumes:
+      - ./config/promtail/promtail-config.yml:/etc/promtail/promtail-config.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - promtail_positions:/tmp
+    networks: [observability]
+    depends_on: [loki]
+
+  # --------------------------------------------------------------- paneles --
+  grafana:
+    image: grafana/grafana:11.5.2
+    container_name: helpdesk-grafana
+    restart: always
+    logging: *default-logging
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?define GRAFANA_ADMIN_PASSWORD}
+      # Sin registro abierto y sin usuario anónimo: un panel de métricas dice
+      # mucho de la infraestructura a quien sabe leerlo.
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+      - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-http://localhost:3000}
+    volumes:
+      - ./config/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - '127.0.0.1:3000:3000'
+    networks: [observability]
+    depends_on: [prometheus, loki]
+
+networks:
+  observability:
+    driver: bridge
+  # Redes ya existentes de cada entorno. `external: true` porque las crea
+  # compose.prod.yml; aquí sólo nos enchufamos para poder hablar con las bases
+  # de datos SIN publicar ni un puerto más.
+  backend_prod:
+    external: true
+    name: prod_backend_network
+  backend_staging:
+    external: true
+    name: staging_backend_network
+  proxy-tier:
+    external: true
+
+volumes:
+  prometheus_data:
+  alertmanager_data:
+  # Configuración de Alertmanager ya renderizada + fichero de contraseña SMTP.
+  # La escribe el contenedor efímero `alertmanager-config` en cada `up`.
+  alertmanager_config:
+  grafana_data:
+  loki_data:
+  promtail_positions:
