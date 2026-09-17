@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { hit, type RateVerdict } from '../throttle/sliding-window.ts';
 import { loadConfiguration } from '../../config/env.ts';
 import { Errors } from '../errors/domain-error.ts';
+import { rateLimitBlocked } from '../../modules/observability/metrics.ts';
 
 function applyHeaders(res: Response, verdict: RateVerdict): void {
   res.setHeader('RateLimit-Limit', verdict.limit);
@@ -9,10 +10,18 @@ function applyHeaders(res: Response, verdict: RateVerdict): void {
   res.setHeader('RateLimit-Reset', verdict.resetSeconds);
 }
 
-function enforce(verdict: RateVerdict, res: Response): void {
+function enforce(
+  verdict: RateVerdict,
+  res: Response,
+  bucket: 'auth' | 'global' | 'api_key',
+): void {
   applyHeaders(res, verdict);
   if (!verdict.allowed) {
     res.setHeader('Retry-After', verdict.resetSeconds);
+    // Alimenta la alerta RateLimitDisparado (config/prometheus/rules). La
+    // etiqueta es el CUBO, no la IP ni la clave: una serie por cubo, no una
+    // por atacante.
+    rateLimitBlocked.inc({ bucket });
     throw Errors.rateLimited(verdict.resetSeconds);
   }
 }
@@ -45,7 +54,11 @@ export async function rateLimitAuth(
 ) {
   const config = loadConfiguration();
   const ip = req.ip ?? 'unknown';
-  enforce(await hit(`auth:${ip}`, config.RATE_LIMIT_AUTH_PER_MIN, 60), res);
+  enforce(
+    await hit(`auth:${ip}`, config.RATE_LIMIT_AUTH_PER_MIN, 60),
+    res,
+    'auth',
+  );
   next();
 }
 
@@ -66,7 +79,7 @@ export async function rateLimitDefault(
   const verdict = isCredentialRoute
     ? await hit(`auth:${ip}`, config.RATE_LIMIT_AUTH_PER_MIN, 60)
     : await hit(`req:${ip}`, config.RATE_LIMIT_GLOBAL_PER_MIN, 60);
-  enforce(verdict, res);
+  enforce(verdict, res, isCredentialRoute ? 'auth' : 'global');
   next();
 }
 
@@ -93,6 +106,6 @@ export async function rateLimitApiKey(
     config.API_KEY_RATE_PER_HOUR,
     3600,
   );
-  enforce(!perMinute.allowed ? perMinute : perHour, res);
+  enforce(!perMinute.allowed ? perMinute : perHour, res, 'api_key');
   next();
 }

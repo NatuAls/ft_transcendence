@@ -1,6 +1,21 @@
 import { z } from 'zod';
 
 /**
+ * Variable opcional que puede llegar como cadena VACÍA. Compose y el pipeline
+ * escriben `NOMBRE=` cuando el secreto/variable no existe (`${X:-}`), y para
+ * Zod `""` no es `undefined`: `z.string().email().optional()` rechazaba
+ * `BOOTSTRAP_ADMIN_EMAIL=""` y la API no arrancaba (despliegue #30 de
+ * staging, 17/09/2026). Vacío se trata como "no definida".
+ */
+function optionalEnv<T extends z.ZodTypeAny>(schema: T) {
+  return z.preprocess(
+    (value) =>
+      typeof value === 'string' && value.trim() === '' ? undefined : value,
+    schema.optional(),
+  );
+}
+
+/**
  * Environment validation. The process refuses to boot with a bad or missing
  * variable rather than failing at 3am on some request.
  */
@@ -68,6 +83,20 @@ const envSchema = z.object({
     .string()
     .default('false')
     .transform((v) => v === 'true' || v === '1'),
+
+  // Token de operación (tarea DevOps 9): habilita GET /api/metrics para
+  // Prometheus y la vista detallada de /api/health/status y /api/version.
+  // Opcional a propósito: sin él, /api/metrics responde 404 y la página de
+  // estado sólo sirve el semáforo público. Generar con: openssl rand -hex 32.
+  METRICS_TOKEN: optionalEnv(
+    z.string().min(24, 'METRICS_TOKEN must be at least 24 chars'),
+  ),
+
+  // Primer administrador (auditoría §6.3). Si se define y todavía no existe
+  // ningún GLOBAL_ADMIN, el arranque promociona al usuario con este correo.
+  // Sólo actúa una vez: en cuanto hay un administrador, no vuelve a tocar
+  // nada. Así se puede crear el primer admin sin entrar por psql.
+  BOOTSTRAP_ADMIN_EMAIL: optionalEnv(z.string().email()),
 });
 
 export type AppConfig = z.infer<typeof envSchema>;
