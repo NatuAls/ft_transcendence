@@ -1,0 +1,8 @@
+# HelpDesk Lite
+# La aplicación es una SPA privada: no hay nada que indexar detrás del login,
+# y la API no es contenido. Staging debería además quedar tras una Access List
+# de Cloudflare (no depende de este fichero).
+User-agent: *
+Allow: /$
+Disallow: /api/
+Disallow: /socket.io/
