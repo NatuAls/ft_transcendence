@@ -3,18 +3,31 @@ name: Deploy Production
 # =============================================================================
 #  Despliegue del entorno de producción.
 #
-#  Orden deliberado de las tres barreras:
+#  Barreras, en orden:
 #
-#    1. La PROTECCIÓN DE RAMA impide fusionar en main sin `ci-success` en verde
-#       (se configura en Settings -> Rules -> Rulesets; ver doc/DEVOPS_CICD.md).
-#    2. El job `ci` vuelve a ejecutar la batería completa sobre el commit de
+#    1. El job `ci` vuelve a ejecutar la batería completa sobre el commit de
 #       merge real, por si alguien empujó directamente o la rama estaba
-#       desactualizada respecto a main.
-#    3. El job `build-and-deploy` está atado al entorno PROD, con Required
-#       Reviewers: GitHub pausa aquí y espera un "Approve and deploy".
+#       desactualizada respecto a main. Esto vive en el repositorio y no
+#       depende de ningún ajuste.
+#    2. El job `gate` (scripts/ci/prod-gate.mjs) exige que el commit venga de
+#       una PR fusionada con al menos una aprobación de OTRA persona sobre su
+#       último commit —y, en una liberación manual, que quien la lanza esté en
+#       la variable PROD_APPROVERS—. Es el equivalente EN FICHERO de la
+#       aprobación del entorno PROD y del ruleset «PR aprobada»: esos son
+#       ajustes del repositorio que sólo un administrador puede poner, y este
+#       job garantiza lo mismo aunque no estén. También vive en el repositorio.
+#    3. Si además el entorno PROD tiene Required Reviewers (Settings ->
+#       Environments, requiere administrador), GitHub pausa en
+#       `build-and-deploy` y espera un "Approve and deploy". Es un extra, no
+#       un requisito: sin él, 1 y 2 ya impiden desplegar algo sin revisar.
 #
-#  El orden importa: la aprobación manual se pide DESPUÉS del CI, así que quien
-#  aprueba ya está viendo la suite completa en verde, no un pipeline a medias.
+#  Variables de repositorio (Settings -> Secrets and variables -> Actions ->
+#  Variables; con permiso de escritura basta):
+#    PROD_APPROVERS   logins separados por comas que pueden liberar a mano y
+#                     cuya aprobación cuenta en la PR (opcional para la PR,
+#                     obligatoria para la liberación manual).
+#    PROD_GATE=off    desactiva la exigencia de PR aprobada. SÓLO para un
+#                     repositorio personal de pruebas con una única persona.
 # =============================================================================
 
 on:
@@ -45,11 +58,40 @@ jobs:
       pull-requests: read
 
   # ---------------------------------------------------------------------------
-  # CONSTRUCCIÓN Y DESPLIEGUE, tras aprobación humana en el entorno PROD.
+  # PUERTA DE PRODUCCIÓN (en fichero). Ver scripts/ci/prod-gate.mjs.
+  # Va después del CI y antes de construir: si no hay aprobación, no se gasta
+  # ni un minuto de QEMU. Lee PR y revisiones con el GITHUB_TOKEN del run.
+  # ---------------------------------------------------------------------------
+  gate:
+    name: Puerta de producción (PR aprobada o liberación autorizada)
+    needs: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts/ci/prod-gate.mjs
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Comprobar PR aprobada / liberación autorizada
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PROD_APPROVERS: ${{ vars.PROD_APPROVERS }}
+          PROD_GATE: ${{ vars.PROD_GATE }}
+        run: node scripts/ci/prod-gate.mjs
+
+  # ---------------------------------------------------------------------------
+  # CONSTRUCCIÓN Y DESPLIEGUE, tras el CI y la puerta (y la aprobación del
+  # entorno PROD si está configurada).
   # ---------------------------------------------------------------------------
   build-and-deploy:
     name: Construir y desplegar (requiere aprobación)
-    needs: ci
+    needs: [ci, gate]
     runs-on: ubuntu-latest
     timeout-minutes: 60
     environment:
@@ -122,6 +164,12 @@ jobs:
           DB_USER: ${{ secrets.PROD_DB_USER }}
           DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
           DB_NAME: ${{ secrets.PROD_DB_NAME }}
+          # Opcional (auditoría B4): contraseña del rol helpdesk_app. Vacío = la
+          # aplicación sigue conectando como el propietario de la base.
+          DB_APP_PASSWORD: ${{ secrets.PROD_DB_APP_PASSWORD }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.PROD_BACKUP_KEY }}
+          RCLONE_REMOTE: ${{ vars.PROD_RCLONE_REMOTE }}
+          METRICS_TOKEN: ${{ secrets.PROD_METRICS_TOKEN }}
           JWT_ACCESS_SECRET: ${{ secrets.PROD_JWT_SECRET }}
           JWT_REFRESH_SECRET: ${{ secrets.PROD_JWT_REFRESH_SECRET || secrets.PROD_JWT_SECRET }}
           PASSWORD_PEPPER: ${{ secrets.PROD_PEPPER }}
@@ -133,6 +181,8 @@ jobs:
           SMTP_HOST: ${{ vars.PROD_SMTP_HOST || secrets.PROD_SMTP_HOST }}
           SMTP_PORT: ${{ vars.PROD_SMTP_PORT || secrets.PROD_SMTP_PORT }}
           MAIL_FROM: ${{ vars.PROD_MAIL_FROM || secrets.PROD_MAIL_FROM }}
+          # Opcional: correo del primer GLOBAL_ADMIN (ver compose.prod.yml).
+          BOOTSTRAP_ADMIN_EMAIL: ${{ vars.PROD_BOOTSTRAP_ADMIN_EMAIL }}
           APP_VERSION: ${{ github.ref_name }}-${{ github.run_number }}
           LOG_LEVEL: info
         with:
@@ -140,7 +190,7 @@ jobs:
           username: deployer
           key: ${{ secrets.ORACLE_SSH_KEY }}
           command_timeout: 20m
-          envs: ENV_NAME,DEPLOY_DIR,GH_REPO,GH_TOKEN,GH_ACTOR,GHCR_OWNER,GIT_SHA,DB_USER,DB_PASSWORD,DB_NAME,JWT_ACCESS_SECRET,JWT_REFRESH_SECRET,PASSWORD_PEPPER,CORS_ORIGINS,SMTP_HOST,SMTP_PORT,MAIL_FROM,APP_VERSION,LOG_LEVEL
+          envs: ENV_NAME,DEPLOY_DIR,GH_REPO,GH_TOKEN,GH_ACTOR,GHCR_OWNER,GIT_SHA,DB_USER,DB_PASSWORD,DB_NAME,JWT_ACCESS_SECRET,JWT_REFRESH_SECRET,PASSWORD_PEPPER,CORS_ORIGINS,SMTP_HOST,SMTP_PORT,MAIL_FROM,APP_VERSION,LOG_LEVEL,BACKUP_ENCRYPTION_KEY,RCLONE_REMOTE,METRICS_TOKEN,BOOTSTRAP_ADMIN_EMAIL,DB_APP_PASSWORD
           script: |
             set -euo pipefail
             # /opt pertenece a root. `deployer` no tiene sudo, así que el

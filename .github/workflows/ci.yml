@@ -303,6 +303,9 @@ jobs:
           SMTP_HOST=smtp.example.invalid
           SMTP_PORT=25
           MAIL_FROM=HelpDesk Lite <no-reply@example.invalid>
+          BACKUP_ENCRYPTION_KEY=ci_backup_key_0123456789
+          METRICS_TOKEN=ci_metrics_token_0123456789
+          RCLONE_REMOTE=objectstorage:helpdesk-backups/ci
           EOF
 
       - name: compose.dev.yml
@@ -311,9 +314,32 @@ jobs:
       - name: compose.prod.yml
         run: docker compose -f compose.prod.yml config --quiet
 
+      # La pila de observabilidad se levanta a mano en el servidor, pero su
+      # sintaxis se valida aquí igual: el 16/09 un fichero mal ubicado dejó
+      # Alertmanager en bucle de reinicio durante un día sin que nadie lo viera.
+      - name: compose.observability.yml
+        run: |
+          cat > .env.observability-ci <<'EOF'
+          GRAFANA_ADMIN_PASSWORD=ci_not_a_real_password
+          ALERT_EMAIL_TO=ci@example.invalid
+          ALERT_SMTP_HOST=smtp.example.invalid:587
+          ALERT_SMTP_USER=ci
+          ALERT_SMTP_PASS=ci
+          PROD_DB_USER=ci
+          PROD_DB_PASSWORD=ci
+          PROD_DB_NAME=ci
+          STAGING_DB_USER=ci
+          STAGING_DB_PASSWORD=ci
+          STAGING_DB_NAME=ci
+          EOF
+          docker compose --env-file .env.observability-ci -f compose.observability.yml config --quiet
+          # El renderizador exige que la plantilla exista y tenga `route:`.
+          test -f config/alertmanager/alertmanager.yml.tmpl
+          grep -q '^route:' config/alertmanager/alertmanager.yml.tmpl
+
       # Cazar `image: algo:latest` antes de que llegue a un servidor.
       - name: Prohibir imágenes sin fijar (:latest)
-        run: bash scripts/ci/check-pinned-images.sh compose.dev.yml compose.prod.yml
+        run: bash scripts/ci/check-pinned-images.sh compose.dev.yml compose.prod.yml compose.observability.yml
 
   # ---------------------------------------------------------------------------
   # 5. Construcción de las imágenes de producción.

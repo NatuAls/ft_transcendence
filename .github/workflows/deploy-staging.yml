@@ -121,6 +121,12 @@ jobs:
           DB_USER: ${{ secrets.STAGING_DB_USER }}
           DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
           DB_NAME: ${{ secrets.STAGING_DB_NAME }}
+          # Opcional (auditoría B4): contraseña del rol helpdesk_app. Vacío = la
+          # aplicación sigue conectando como el propietario de la base.
+          DB_APP_PASSWORD: ${{ secrets.STAGING_DB_APP_PASSWORD }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.STAGING_BACKUP_KEY }}
+          RCLONE_REMOTE: ${{ vars.STAGING_RCLONE_REMOTE }}
+          METRICS_TOKEN: ${{ secrets.STAGING_METRICS_TOKEN }}
           JWT_ACCESS_SECRET: ${{ secrets.STAGING_JWT_SECRET }}
           JWT_REFRESH_SECRET: ${{ secrets.STAGING_JWT_REFRESH_SECRET || secrets.STAGING_JWT_SECRET }}
           PASSWORD_PEPPER: ${{ secrets.STAGING_PEPPER }}
@@ -132,6 +138,8 @@ jobs:
           SMTP_HOST: ${{ vars.STAGING_SMTP_HOST || secrets.STAGING_SMTP_HOST }}
           SMTP_PORT: ${{ vars.STAGING_SMTP_PORT || secrets.STAGING_SMTP_PORT }}
           MAIL_FROM: ${{ vars.STAGING_MAIL_FROM || secrets.STAGING_MAIL_FROM }}
+          # Opcional: correo del primer GLOBAL_ADMIN (ver compose.prod.yml).
+          BOOTSTRAP_ADMIN_EMAIL: ${{ vars.STAGING_BOOTSTRAP_ADMIN_EMAIL }}
           APP_VERSION: ${{ github.ref_name }}-${{ github.run_number }}
           LOG_LEVEL: debug
         with:
@@ -139,7 +147,7 @@ jobs:
           username: deployer
           key: ${{ secrets.ORACLE_SSH_KEY }}
           command_timeout: 20m
-          envs: ENV_NAME,DEPLOY_DIR,GH_REPO,GH_TOKEN,GH_ACTOR,GHCR_OWNER,GIT_SHA,DB_USER,DB_PASSWORD,DB_NAME,JWT_ACCESS_SECRET,JWT_REFRESH_SECRET,PASSWORD_PEPPER,CORS_ORIGINS,SMTP_HOST,SMTP_PORT,MAIL_FROM,APP_VERSION,LOG_LEVEL
+          envs: ENV_NAME,DEPLOY_DIR,GH_REPO,GH_TOKEN,GH_ACTOR,GHCR_OWNER,GIT_SHA,DB_USER,DB_PASSWORD,DB_NAME,JWT_ACCESS_SECRET,JWT_REFRESH_SECRET,PASSWORD_PEPPER,CORS_ORIGINS,SMTP_HOST,SMTP_PORT,MAIL_FROM,APP_VERSION,LOG_LEVEL,BACKUP_ENCRYPTION_KEY,RCLONE_REMOTE,METRICS_TOKEN,BOOTSTRAP_ADMIN_EMAIL,DB_APP_PASSWORD
           script: |
             set -euo pipefail
             # /opt pertenece a root. `deployer` no tiene sudo, así que el
