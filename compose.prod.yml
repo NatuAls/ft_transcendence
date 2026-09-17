@@ -29,6 +29,19 @@ services:
     container_name: helpdesk-redis-${ENV_NAME:-prod}
     restart: always
     logging: *default-logging
+    # Techo de memoria explícito. Sin `maxmemory`, redis_memory_max_bytes=0 y
+    # la alerta RedisSinMemoria divide por cero. `volatile-lru` sólo expulsa
+    # claves CON caducidad (ventanas de rate limit, presencia, tokens revocados
+    # que caducan solos): nunca una clave permanente. Para este proyecto
+    # 256 MB sobran (uso real: ~1,4 MB).
+    command:
+      [
+        'redis-server',
+        '--maxmemory',
+        '256mb',
+        '--maxmemory-policy',
+        'volatile-lru',
+      ]
     networks:
       - backend_network
     volumes:
@@ -52,7 +65,13 @@ services:
       - SEED_ON_BOOT=false
       - PORT=5000
       - UPLOAD_DIR=/var/lib/helpdesk/uploads
-      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}?schema=public
+      # Mínimo privilegio (auditoría B4). La APLICACIÓN se conecta con
+      # DB_APP_USER/DB_APP_PASSWORD (rol helpdesk_app: sólo DML) y las
+      # MIGRACIONES con el propietario (DB_USER). Si DB_APP_PASSWORD no está
+      # definida, la app sigue usando el propietario (comportamiento anterior).
+      # Activación: scripts/ops/create-app-role.sql + secreto *_DB_APP_PASSWORD.
+      - DATABASE_URL=postgresql://${DB_APP_USER:-${DB_USER}}:${DB_APP_PASSWORD:-${DB_PASSWORD}}@db:5432/${DB_NAME}?schema=public
+      - MIGRATE_DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}?schema=public
       # Lista EXACTA de orígenes que pueden mandar peticiones con credenciales.
       # Sin esta variable, env.ts cae en su valor por defecto
       # (http://localhost:5173) y la política CORS del entorno queda descrita
@@ -61,9 +80,20 @@ services:
       - CORS_ORIGINS=${CORS_ORIGINS}
       - APP_VERSION=${APP_VERSION:-1.0.0}
       - LOG_LEVEL=${LOG_LEVEL:-info}
-      # Correo real del entorno. Mailpit sólo existe en compose.dev.yml, así
-      # que sin esto SMTP_HOST cae por defecto a "mailpit", un host que no
-      # existe aquí, y /api/health/ready reporta el correo como degradado.
+      # NUEVO (tarea 9): habilita GET /api/metrics para Prometheus y la vista
+      # de operador de /api/health/status. Si no se define, el endpoint de
+      # métricas responde 404 y la página de estado sólo sirve el semáforo
+      # público. Generar con: openssl rand -hex 32
+      - METRICS_TOKEN=${METRICS_TOKEN:-}
+      # Primer administrador (auditoría §6.3): si no hay ningún GLOBAL_ADMIN,
+      # el arranque promociona al usuario registrado con este correo. Vacío =
+      # no hace nada. La inyecta el pipeline desde la variable de repositorio
+      # STAGING_BOOTSTRAP_ADMIN_EMAIL / PROD_BOOTSTRAP_ADMIN_EMAIL.
+      - BOOTSTRAP_ADMIN_EMAIL=${BOOTSTRAP_ADMIN_EMAIL:-}
+      # Correo del entorno. El servicio `mailpit` de abajo existe en la red
+      # interna: con SMTP_HOST=mailpit (el valor por defecto) los correos de
+      # verificación, recuperación, invitación y RGPD salen de verdad y se
+      # pueden ver en su interfaz por túnel SSH.
       - SMTP_HOST=${SMTP_HOST:-mailpit}
       - SMTP_PORT=${SMTP_PORT:-1025}
       - MAIL_FROM=${MAIL_FROM:-HelpDesk Lite <no-reply@helpdesk.local>}
@@ -97,6 +127,31 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      mailpit:
+        condition: service_started
+
+  # Buzón de pruebas (tarea 9 / hallazgo B8 de la auditoría). Hasta ahora
+  # SMTP_HOST apuntaba a un host que no existía en el servidor: verificación
+  # de cuenta, recuperación de contraseña, invitaciones y confirmaciones RGPD
+  # no salían a ninguna parte y /api/health/status marcaba el correo como
+  # degradado. Mailpit recibe todo y lo muestra en una interfaz web que sólo
+  # escucha en 127.0.0.1 del host: se llega por túnel SSH
+  # (ssh -L 8025:127.0.0.1:8025 ...). Nada se entrega a internet.
+  mailpit:
+    image: axllent/mailpit:v1.31.1
+    container_name: helpdesk-mailpit-${ENV_NAME:-prod}
+    restart: always
+    logging: *default-logging
+    environment:
+      MP_MAX_MESSAGES: 500
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    networks:
+      - backend_network
+    ports:
+      # Dos entornos en el mismo host: cada uno con su puerto de UI
+      # (8025 prod, 8026 staging; lo fija remote-deploy.sh).
+      - '127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025'
 
   web:
     image: ghcr.io/${GHCR_OWNER}/helpdesk-web-${ENV_NAME:-prod}:${GITHUB_SHA:-latest}
@@ -134,6 +189,20 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
       BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+      # Etiqueta `env` de las métricas que deja backup.sh. Sin ella, prod y
+      # staging escribirían series idénticas y node-exporter no podría
+      # distinguirlas.
+      BACKUP_ENV: ${ENV_NAME:-prod}
+      # ---- NUEVO (tarea 8) --------------------------------------------------
+      # Frase de cifrado del dump y de los adjuntos. SIN ella backup.sh v2
+      # aborta: se prefiere no tener copia a tener una copia en claro con
+      # datos personales de los usuarios en el disco de la instancia.
+      # Generar con: openssl rand -base64 48
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:?define BACKUP_ENCRYPTION_KEY en el .env del servidor}
+      # Destino FUERA del host. Vacío = sólo copia local (y backup.sh avisa).
+      RCLONE_REMOTE: ${RCLONE_REMOTE:-}
+      RCLONE_CONFIG: /rclone/rclone.conf
+      BACKUP_METRICS_FILE: /backups/metrics/backup.prom
     depends_on:
       db:
         condition: service_healthy
@@ -144,18 +213,31 @@ services:
       # script de despliegue lo descarga antes de levantar la pila.
       - ./scripts/backup.sh:/backup.sh:ro
       - uploads:/uploads:ro
+      # Configuración de rclone en SÓLO LECTURA: contiene las credenciales del
+      # bucket y el contenedor no tiene por qué poder reescribirlas.
+      - ./rclone:/rclone:ro
     # El script se monta en sólo lectura, así que se invoca con `sh /backup.sh`
     # en vez de hacerle chmod +x (que fallaría sobre un montaje :ro).
+    #
+    # 00:00 copia completa. La segunda línea NO es una copia: comprueba a
+    # media mañana que la de la noche existe y no es antigua, y refresca la
+    # métrica que lee Prometheus aunque el contenedor se haya reiniciado.
     entrypoint:
       [
         'sh',
         '-c',
-        "echo '0 0 * * * sh /backup.sh >> /backups/cron.log 2>&1' > /etc/crontabs/root && crond -f -d 8",
+        "mkdir -p /backups/metrics && printf '0 0 * * * sh /backup.sh >> /backups/cron.log 2>&1\\n30 9 * * * find /backups -maxdepth 1 -type d -name \"20*\" -mtime -2 | grep -q . || echo \"[aviso] sin copias en las ultimas 48h\" >> /backups/cron.log\\n' > /etc/crontabs/root && crond -f -d 8",
       ]
 
 networks:
   backend_network:
     driver: bridge
+    # NUEVO: nombre explícito y estable. compose.observability.yml se enchufa a
+    # esta red como `external` para que los exportadores de PostgreSQL y Redis
+    # puedan consultarlos SIN publicar un solo puerto nuevo. Sin `name:`,
+    # Compose la llamaría `<carpeta>_backend_network`, que depende de cómo se
+    # haya clonado el proyecto en el servidor.
+    name: ${ENV_NAME:-prod}_backend_network
   proxy-tier:
     external: true
 
