@@ -183,8 +183,14 @@ jobs:
                 el `command="..."` que la convierte en un botón y no en una shell.
           - [ ] **Puertos abiertos** — `ss -tlnp` en el host y la *security list*
                 de la VCN de Oracle. Sólo 22 (restringido), 80 y 443.
-          - [ ] **Reglas de Cloudflare** — WAF activo, modo de bot, y que
-                `staging.` siga con su Access List.
+          - [ ] **Rangos de Cloudflare en el origen** — la VCN y `DOCKER-USER`
+                deben tener exactamente los 15 rangos IPv4 de
+                https://www.cloudflare.com/ips-v4 (cambian muy de tarde en tarde):
+                `sudo bash scripts/ops/origin-cloudflare-only.sh --apply` los
+                refresca en el host; la VCN se compara a mano.
+          - [ ] **Reglas de Cloudflare** — WAF activo, modo de bot, `staging.`
+                sigue desafiado salvo para la IP del servidor (regla *Skip* de la
+                sonda), y SSL/TLS en **Full (strict)**.
           - [ ] **Excepciones caducadas** — cada entrada de `.trivyignore` lleva
                 `exp:AAAA-MM-DD`. Las vencidas se arreglan o se re-justifican.
           - [ ] **Usuarios GLOBAL_ADMIN de la aplicación** —
