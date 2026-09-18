@@ -1,5 +1,6 @@
 // --- 1. GESTIÓN DEL TOKEN EN MEMORIA ---
 let inMemoryAccessToken: string | null = null;
+let refreshPromise: Promise<AuthResponse | null> | null = null;
 
 export function saveAccessToken(token: string): void {
   inMemoryAccessToken = token;
@@ -51,6 +52,47 @@ export interface AuthResponse {
     memberships: unknown[];
     permissions: unknown[];
   };
+}
+
+export async function logout(): Promise<void> {
+  const accessToken = getAccessToken();
+
+  try {
+    if (accessToken) {
+      await fetch(`${API_URL}/auth/logout`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}` },
+        credentials: 'include',
+      });
+    }
+  } finally {
+    clearAccessToken();
+  }
+}
+
+export function refreshSession(): Promise<AuthResponse | null> {
+  if (refreshPromise) return refreshPromise;
+
+  const hasSessionHint = document.cookie
+    .split('; ')
+    .some((cookie) => cookie.startsWith('hd_session='));
+  if (!hasSessionHint) return Promise.resolve(null);
+
+  refreshPromise = fetch(`${API_URL}/auth/refresh`, {
+    method: 'POST',
+    credentials: 'include',
+  })
+    .then(async (response) => {
+      if (!response.ok) return null;
+      const body = (await response.json()) as AuthResponse;
+      saveAccessToken(body.accessToken);
+      return body;
+    })
+    .finally(() => {
+      refreshPromise = null;
+    });
+
+  return refreshPromise;
 }
 
 export interface ApiErrorResponse {

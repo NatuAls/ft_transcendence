@@ -18,7 +18,17 @@ import { LegalPage } from './features/legal/LegalPage';
 import type { NewTicketValues } from './features/tickets/CreateTicketPage';
 import { initialTickets, type Ticket } from './features/tickets/ticketData';
 import { AppShell } from './layout/AppShell';
-import type { AuthResponse } from './api/auth';
+import { logout, refreshSession, type AuthResponse } from './api/auth';
+
+function accountProfileFromUser(user: AuthResponse['user']) {
+  return {
+    bio: user.bio ?? '',
+    email: user.email,
+    fullName: user.displayName,
+    jobTitle: user.jobTitle ?? '',
+    location: user.timezone,
+  };
+}
 
 function App() {
   const [location, setLocation] = useState<AppLocation>(readLocation);
@@ -26,6 +36,16 @@ function App() {
   const [accountProfile, setAccountProfile] = useState(initialAccountProfile);
   const [tickets, setTickets] = useState<Ticket[]>(initialTickets);
   const [organizationName, setOrganizationName] = useState('Northstar Studio');
+
+  useEffect(() => {
+    void refreshSession().then((authData) => {
+      if (!authData) return;
+      setAccountProfile(accountProfileFromUser(authData.user));
+      if (location.route === 'login' || location.route === 'register') {
+        window.location.hash = buildHash('tickets');
+      }
+    });
+  }, [location.route]);
 
   useEffect(() => {
     const handleHashChange = () => setLocation(readLocation());
@@ -51,6 +71,14 @@ function App() {
     // The future auth service call belongs here; the page only owns form state.
     void user;
     navigate('tickets');
+  }
+
+  async function handleSignOut() {
+    try {
+      await logout();
+    } finally {
+      navigate('login');
+    }
   }
 
   function handleCreateTicket(values: NewTicketValues) {
@@ -128,6 +156,7 @@ function App() {
       activeSection={getActiveSection(location.route)}
       avatarUrl={avatarUrl}
       onNavigate={navigate}
+      onSignOut={handleSignOut}
       organizationName={organizationName}
       userEmail={accountProfile.email}
       userName={accountProfile.fullName}

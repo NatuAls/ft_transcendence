@@ -14,6 +14,7 @@ interface AppShellProps {
   avatarUrl?: string;
   children: ReactNode;
   onNavigate: Navigate;
+  onSignOut: () => void | Promise<void>;
   organizationName: string;
   userEmail: string;
   userName: string;
@@ -73,6 +74,7 @@ export function AppShell({
   avatarUrl,
   children,
   onNavigate,
+  onSignOut,
   organizationName,
   userEmail,
   userName,
@@ -118,6 +120,7 @@ export function AppShell({
             className="profile-menu--sidebar"
             label="Open account menu"
             onNavigate={onNavigate}
+            onSignOut={onSignOut}
             showAdministration={sessionCapabilities.managePlatform}
           >
             <span aria-hidden="true">•••</span>
@@ -144,6 +147,7 @@ export function AppShell({
               className="profile-menu--topbar"
               label="Open account menu"
               onNavigate={onNavigate}
+              onSignOut={onSignOut}
               showAdministration={sessionCapabilities.managePlatform}
             >
               <Avatar
@@ -161,6 +165,7 @@ export function AppShell({
             className="profile-menu--mobile"
             label="Open account menu"
             onNavigate={onNavigate}
+            onSignOut={onSignOut}
             showAdministration={sessionCapabilities.managePlatform}
           >
             <Avatar
