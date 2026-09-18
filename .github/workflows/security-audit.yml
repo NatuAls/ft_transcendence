@@ -29,6 +29,8 @@ on:
 
 permissions:
   contents: read
+  actions: read # para resolver el SHA del último despliegue a producción en verde
+  packages: read
   security-events: write # para subir los SARIF a la pestaña Security
 
 jobs:
@@ -126,19 +128,34 @@ jobs:
       # Se escanea lo que está CORRIENDO, no lo que se acaba de construir: una
       # imagen desplegada hace tres semanas acumula CVE nuevas sin que nadie
       # toque el código. Este es el escaneo que las encuentra.
-      - name: Escanear la imagen desplegada
-        continue-on-error: true
+      #
+      # Las imágenes sólo se etiquetan con el SHA del commit (no hay :latest):
+      # el SHA desplegado es el del último «Deploy Production» que terminó en
+      # verde. Si no hay ninguno, no hay nada que escanear y se dice.
+      - name: Resolver la imagen desplegada
+        id: ref
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')
-          ref="ghcr.io/${owner}/${{ matrix.imagen }}"
-          # La etiqueta de la última release: se resuelve por la API de paquetes.
-          echo "IMAGE_REF=${ref}" >> "$GITHUB_ENV"
+          sha=$(gh api "repos/${{ github.repository }}/actions/workflows/deploy-prod.yml/runs?branch=main&status=success&per_page=1" \
+                  --jq '.workflow_runs[0].head_sha // empty')
+          if [ -z "$sha" ]; then
+            echo "::warning::sin ningún despliegue a producción en verde: no hay imagen que escanear."
+            echo "ref=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          ref="ghcr.io/${owner}/${{ matrix.imagen }}:${sha}"
+          docker manifest inspect "$ref" > /dev/null 2>&1 \
+            || { echo "::error::la imagen desplegada $ref no está en GHCR"; exit 1; }
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+          echo "Imagen desplegada: $ref"
 
       - name: Trivy sobre la imagen
-        continue-on-error: true
+        if: steps.ref.outputs.ref != ''
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ${{ env.IMAGE_REF }}:latest
+          image-ref: ${{ steps.ref.outputs.ref }}
           format: table
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: false

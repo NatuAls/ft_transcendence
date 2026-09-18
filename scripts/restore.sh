@@ -95,6 +95,12 @@ else
   bad "sin MANIFEST: no se puede verificar la integridad"
   FAILURES=$((FAILURES + 1))
 fi
+# En una recuperación real no se sigue con una copia que no supera la
+# integridad: lo que viene después es destructivo. (En el ensayo se continúa
+# para que el informe recoja todos los fallos.)
+if [ "$MODE" = "--production" ] && [ "$FAILURES" -gt 0 ]; then
+  die "la copia no supera la verificación de integridad: no se restaura sobre producción."
+fi
 
 decrypt() { # decrypt <fichero.enc>  -> stdout
   openssl enc -d -aes-256-cbc -md sha512 -pbkdf2 -iter 250000 \
@@ -279,10 +285,28 @@ log "Parando API y web (la base sigue en pie)"
 $COMPOSE stop api web
 
 log "Restaurando la base de datos"
-decrypt "$BACKUP_PATH/database.dump.enc" \
+# pg_restore devuelve 1 tanto por un error real como por avisos que ignora
+# («errors ignored on restore»). Aquí no se distingue: si hay errores la pila
+# NO se levanta, y decide una persona con la salida delante. Para continuar
+# a sabiendas: RESTORE_IGNORE_ERRORS=1.
+if ! decrypt "$BACKUP_PATH/database.dump.enc" \
   | $COMPOSE exec -T -e PGPASSWORD="$DB_PASSWORD" db \
-      pg_restore -U "$DB_USER" -d "$DB_NAME" --clean --if-exists --no-owner \
-  || echo "  (pg_restore ha devuelto avisos; revísalos arriba)"
+      pg_restore -U "$DB_USER" -d "$DB_NAME" --clean --if-exists --no-owner; then
+  bad "pg_restore ha devuelto errores (ver arriba)"
+  if [ "${RESTORE_IGNORE_ERRORS:-0}" != "1" ]; then
+    cat <<MSG
+
+  La pila queda PARADA (api/web): la base puede haber quedado a medias.
+    · Si los errores son benignos (p. ej. GRANT a un rol que no existe),
+      repite con RESTORE_IGNORE_ERRORS=1 o levanta a mano:
+        $COMPOSE up -d
+    · Para volver al estado anterior, restaura la copia de emergencia
+      pre-restore que se acaba de crear en backups/.
+MSG
+    exit 1
+  fi
+  echo "  RESTORE_IGNORE_ERRORS=1: se continúa."
+fi
 
 if [ -f "$BACKUP_PATH/uploads.tar.gz.enc" ]; then
   log "Restaurando los adjuntos"

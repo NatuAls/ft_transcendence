@@ -114,7 +114,18 @@ services:
           echo "FALTA config/alertmanager/alertmanager.yml.tmpl (¿es un directorio?)." >&2
           exit 1
         fi
-        sed -e "s|@@ALERT_SMTP_HOST@@|$$ALERT_SMTP_HOST|g" \
+        # Telegram es opcional: sin token o sin chat_id se elimina el bloque
+        # marcado en la plantilla (con el bloque y valores vacíos, Alertmanager
+        # rechazaba la configuración: "missing bot_token").
+        if [ -n "$$ALERT_TELEGRAM_TOKEN" ] && [ -n "$$ALERT_TELEGRAM_CHAT_ID" ]; then
+          telegram='s|^$|&|'
+          echo "Telegram: activado."
+        else
+          telegram='/@@TELEGRAM_BEGIN@@/,/@@TELEGRAM_END@@/d'
+          echo "Telegram: sin ALERT_TELEGRAM_TOKEN/CHAT_ID, sólo correo."
+        fi
+        sed -e "$$telegram" \
+            -e "s|@@ALERT_SMTP_HOST@@|$$ALERT_SMTP_HOST|g" \
             -e "s|@@ALERT_SMTP_USER@@|$$ALERT_SMTP_USER|g" \
             -e "s|@@ALERT_EMAIL_TO@@|$$ALERT_EMAIL_TO|g" \
             -e "s|@@ALERT_TELEGRAM_TOKEN@@|$$ALERT_TELEGRAM_TOKEN|g" \
