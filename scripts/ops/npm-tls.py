@@ -95,7 +95,9 @@ def main():
     if cert:
         log("Certificado existente #%d (%s, caduca %s): se reutiliza." % (cert["id"], cert["provider"], cert["expires_on"]))
     else:
-        meta = {"letsencrypt_email": email, "letsencrypt_agree": True, "dns_challenge": False}
+        # NPM ≥ 2.12 ya no admite letsencrypt_email/agree en meta: usa el
+        # correo del admin y el esquema rechaza propiedades desconocidas.
+        meta = {"dns_challenge": False}
         if cf_token:
             meta.update({"dns_challenge": True, "dns_provider": "cloudflare",
                          "dns_provider_credentials": "dns_cloudflare_api_token = " + cf_token,

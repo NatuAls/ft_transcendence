@@ -22,7 +22,9 @@
 global:
   resolve_timeout: 5m
   smtp_smarthost: '@@ALERT_SMTP_HOST@@'
-  smtp_from: 'HelpDesk Lite Alertas <alertas@helpdesklite.me>'
+  # Debe ser un remitente validado en Brevo (o un dominio autenticado con
+  # SPF/DKIM). Se cambia con ALERT_SMTP_FROM en el .env sin tocar esto.
+  smtp_from: '@@ALERT_SMTP_FROM@@'
   smtp_auth_username: '@@ALERT_SMTP_USER@@'
   smtp_auth_password_file: /etc/alertmanager/smtp_password
   smtp_require_tls: true

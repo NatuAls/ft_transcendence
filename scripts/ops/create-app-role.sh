@@ -22,6 +22,16 @@ DB_NAME="$(grep -m1 '^DB_NAME=' "$ENVFILE" | cut -d= -f2-)"
 APP_PW="$(openssl rand -hex 24)"
 MON_PW="$(openssl rand -hex 24)"
 
+# Si los roles ya existen, el SQL les cambiaría la contraseña y la API (o el
+# exportador) que ya conecta con ellos dejaría de poder reconectar. Se para
+# aquí salvo que se pida explícitamente (FORCE_ROTATE=1).
+existing=$(docker exec "helpdesk-db-$ENV_NAME" sh -c "psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -Atc \"select string_agg(rolname, ', ') from pg_roles where rolname in ('helpdesk_app','helpdesk_monitor')\"")
+if [ -n "$existing" ] && [ "${FORCE_ROTATE:-0}" != "1" ]; then
+  echo "Ya existen en $ENV_NAME: $existing. La contraseña vigente está en /opt/helpdesk/$ENV_NAME/.env (DB_APP_PASSWORD)" >&2
+  echo "y en /opt/helpdesk/observability/.env (${ENV_NAME^^}_DB_PASSWORD). Para rotarlas a propósito: FORCE_ROTATE=1 $0 $ENV_NAME" >&2
+  exit 2
+fi
+
 docker exec -i -e APP_PW="$APP_PW" -e MON_PW="$MON_PW" "helpdesk-db-$ENV_NAME" \
   sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
            -v DBNAME="$POSTGRES_DB" \

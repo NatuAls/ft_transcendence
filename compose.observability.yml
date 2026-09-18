@@ -92,6 +92,7 @@ services:
       - ALERT_SMTP_HOST=${ALERT_SMTP_HOST:-}
       - ALERT_SMTP_USER=${ALERT_SMTP_USER:-}
       - ALERT_SMTP_PASS=${ALERT_SMTP_PASS:-}
+      - ALERT_SMTP_FROM=${ALERT_SMTP_FROM:-HelpDesk Lite Alertas <alertas@helpdesklite.me>}
     command:
       - /bin/sh
       - -euc
@@ -125,6 +126,7 @@ services:
           echo "Telegram: sin ALERT_TELEGRAM_TOKEN/CHAT_ID, sólo correo."
         fi
         sed -e "$$telegram" \
+            -e "s|@@ALERT_SMTP_FROM@@|$$ALERT_SMTP_FROM|g" \
             -e "s|@@ALERT_SMTP_HOST@@|$$ALERT_SMTP_HOST|g" \
             -e "s|@@ALERT_SMTP_USER@@|$$ALERT_SMTP_USER|g" \
             -e "s|@@ALERT_EMAIL_TO@@|$$ALERT_EMAIL_TO|g" \
