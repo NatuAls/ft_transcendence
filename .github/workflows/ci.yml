@@ -17,7 +17,7 @@ name: CI
 #
 #  El job `ci-success` del final agrega el resultado de todos los demás. Es el
 #  único nombre que hay que marcar como "required status check" en la
-#  protección de rama (ver doc/DEVOPS_CICD.md).
+#  protección de rama (ver doc/RUNBOOK.md §2).
 # =============================================================================
 
 on:

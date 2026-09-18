@@ -176,3 +176,38 @@ túnel/PTY, rpcbind fuera), `scripts/ops/origin-cloudflare-only.sh` (DOCKER-USER
 `scripts/ops/create-app-role.sh` (rol `helpdesk_app` sólo DML y
 `helpdesk_monitor`), `scripts/ops/cleanup-host-personal-data.sh`. Todos
 idempotentes; la cabecera de cada uno explica qué toca.
+
+## 11 · Alta del host (sólo una vez por servidor)
+
+Lo que el pipeline da por hecho y no crea (lo comprueba y, si falta, se para
+con un mensaje que apunta aquí):
+
+```bash
+# Usuario de despliegue: sin sudo, en el grupo docker (equivale a root: ver §10)
+sudo adduser --disabled-password --gecos "" deployer
+sudo usermod -aG docker deployer
+sudo install -d -o deployer -g deployer -m 700 /home/deployer/.ssh
+# la PÚBLICA de ORACLE_SSH_KEY, una sola línea:
+sudo tee /home/deployer/.ssh/authorized_keys > /dev/null   # pegar y Ctrl-D
+sudo chown deployer:deployer /home/deployer/.ssh/authorized_keys && sudo chmod 600 /home/deployer/.ssh/authorized_keys
+
+# Directorios de los entornos (el pipeline escribe .env, compose y scripts ahí)
+sudo mkdir -p /opt/helpdesk/staging /opt/helpdesk/prod
+sudo chown -R deployer:deployer /opt/helpdesk
+
+# Proxy (Nginx Proxy Manager) y red compartida
+sudo mkdir -p /opt/helpdesk/proxy && docker network create proxy-tier   # compose del proxy en /opt/helpdesk/proxy
+
+# Observabilidad (a mano, desde un checkout del repo en ~/repo)
+sudo bash scripts/ops/sync-observability.sh          # exige /opt/helpdesk/observability/.env (ver .env-observabilidad.example)
+
+# Endurecimiento, cierre del origen y auto-recuperación
+sudo bash scripts/ops/harden-host.sh
+sudo bash scripts/ops/origin-cloudflare-only.sh --apply
+sudo bash scripts/ops/ensure-stack.sh install prod
+```
+
+Después: secretos y variables en GitHub (`docs/var-secrets-INV.md` en el
+repositorio privado de DevOps lista los nombres), primer despliegue de
+staging, `create-app-role.sh <env>` para los roles de base de datos,
+`npm-tls.py` para el certificado y Cloudflare en *Full (strict)*.

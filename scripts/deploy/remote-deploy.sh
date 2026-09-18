@@ -262,7 +262,7 @@ rollback() {
   fi
   # Aviso importante: esto revierte la APLICACIÓN, no el ESQUEMA. Si el
   # despliegue fallido aplicó una migración destructiva, hay que restaurar el
-  # dump de /opt/helpdesk/<entorno>/backups (ver doc/DEVOPS_CICD.md).
+  # dump de /opt/helpdesk/<entorno>/backups (ver doc/RUNBOOK.md §3).
   echo "AVISO: el rollback revierte la imagen, no las migraciones ya aplicadas." >&2
   return 1
 }

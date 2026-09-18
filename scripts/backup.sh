@@ -41,7 +41,7 @@
 #                              pruebas sin bucket).
 #      RCLONE_CONFIG           por defecto /rclone/rclone.conf (montado :ro)
 #
-#  RPO / RTO acordados (ver doc/DEVOPS_CICD.md §10):
+#  RPO / RTO acordados (ver doc/RUNBOOK.md §3):
 #      RPO 24 h  — copia programada diaria a las 00:00 + copia previa a cada
 #                  despliegue. Pérdida máxima teórica: un día de tickets.
 #      RTO  1 h  — objetivo de restauración completa verificada con

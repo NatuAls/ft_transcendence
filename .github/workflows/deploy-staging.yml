@@ -155,7 +155,7 @@ jobs:
             #   sudo mkdir -p /opt/helpdesk/staging /opt/helpdesk/prod
             #   sudo chown -R deployer:deployer /opt/helpdesk
             if ! mkdir -p "$DEPLOY_DIR/scripts/deploy" 2>/dev/null; then
-              echo "ERROR: $(id -un) no puede crear $DEPLOY_DIR. Ver doc/DEVOPS_CICD.md, apartado 'Usuario de despliegue'." >&2
+              echo "ERROR: $(id -un) no puede crear $DEPLOY_DIR. Ver doc/RUNBOOK.md §11 (Alta del host)." >&2
               exit 1
             fi
             cd "$DEPLOY_DIR"
