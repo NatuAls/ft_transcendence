@@ -209,7 +209,7 @@ services:
     networks: [observability]
 
   postgres-exporter-prod:
-    image: prometheuscommunity/postgres-exporter:v0.17.1
+    image: prometheuscommunity/postgres-exporter:v0.20.1
     container_name: helpdesk-pgexporter-prod
     restart: always
     logging: *default-logging
@@ -218,7 +218,7 @@ services:
     networks: [observability, backend_prod]
 
   postgres-exporter-staging:
-    image: prometheuscommunity/postgres-exporter:v0.17.1
+    image: prometheuscommunity/postgres-exporter:v0.20.1
     container_name: helpdesk-pgexporter-staging
     restart: always
     logging: *default-logging
