@@ -180,15 +180,20 @@ export function RegisterPage({ onSignIn, onSubmit }: RegisterPageProps) {
               onChange={handleChange(setLastName)}
               required
             />
-            <TextField
-              label="Username"
-              name="user"
-              autoComplete="username"
-              placeholder="aruiz"
-              value={username}
-              onChange={handleChange(setUsername)}
-              required
-            />
+            <div className="auth-username-field">
+              <TextField
+                label="Username"
+                name="user"
+                autoComplete="username"
+                placeholder="aruiz"
+                value={username}
+                onChange={handleChange(setUsername)}
+                required
+              />
+              <p className="auth-field-hint">
+                Choose carefully: your username cannot be changed later.
+              </p>
+            </div>
             <TextField
               label="Email address"
               name="email"
