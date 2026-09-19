@@ -267,7 +267,7 @@ services:
     networks: [observability]
 
   promtail:
-    image: grafana/promtail:3.4.2
+    image: grafana/promtail:3.6.8
     container_name: helpdesk-promtail
     restart: always
     logging: *default-logging
