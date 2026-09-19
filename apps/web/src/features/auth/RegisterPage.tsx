@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { registerSchema } from 'contracts';
 import { Button, Checkbox, TextField } from 'ui';
 import { AuthBrandPanel, BrandHeader } from './AuthBrand';
 import { register, type AuthResponse } from '../../api/auth';
@@ -13,7 +14,7 @@ export interface RegisterValues {
   confirmPassword: string;
   acceptedTerms: boolean;
   error: string | null;
-  locale: 'EN' | 'SP' | 'AR';
+  locale: 'EN' | 'ES' | 'AR';
 }
 
 interface RegisterPageProps {
@@ -57,31 +58,37 @@ export function RegisterPage({ onSignIn, onSubmit }: RegisterPageProps) {
       return;
     }
 
-    // Detectamos el idioma del navegador para el campo locale
+    // Detect the browser language, then validate it with the shared contract.
     let browserLocale = navigator.language
       ? navigator.language.split('-')[0].toUpperCase()
       : 'EN';
     if (
       browserLocale !== 'EN' &&
-      browserLocale !== 'SP' &&
+      browserLocale !== 'ES' &&
       browserLocale !== 'AR'
     ) {
       browserLocale = 'EN';
     }
 
+    const parsed = registerSchema.safeParse({
+      email,
+      username,
+      password,
+      confirmPassword,
+      firstName,
+      lastName,
+      acceptTerms: acceptedTerms,
+      locale: browserLocale,
+    });
+    if (!parsed.success) {
+      setError('Please check the form fields.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      const authData = await register({
-        email,
-        username,
-        password,
-        confirmPassword,
-        firstName,
-        lastName,
-        acceptTerms: acceptedTerms,
-        locale: browserLocale as 'EN' | 'SP' | 'AR',
-      });
+      const authData = await register(parsed.data);
 
       // El token ya se guardó en auth.ts. Pasamos el usuario al componente padre (ej. para redirigir)
       void onSubmit(authData.user);

@@ -1,5 +1,6 @@
 import { Avatar, Button, SelectField } from 'ui';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { getPreferences, updatePreferences } from '../../api/users';
 import type { AccountView } from '../../app/routes';
 import { getInitials } from '../../app/text';
 import { AccountHeader } from './AccountHeader';
@@ -170,6 +171,15 @@ function PreferencesPage({
   onChange: (value: string) => void;
   timeZone: string;
 }) {
+  const [isSaving, setIsSaving] = useState(false);
+  const [feedback, setFeedback] = useState('');
+
+  useEffect(() => {
+    void getPreferences()
+      .then((preferences) => onChange(preferences.timezone))
+      .catch(() => setFeedback('Unable to load your preferences.'));
+  }, [onChange]);
+
   const options = Array.from(
     new Set([
       timeZone,
@@ -202,7 +212,28 @@ function PreferencesPage({
           The browser detected <strong>{browserTimeZone()}</strong>. This
           setting controls ticket timestamps and future notification schedules.
         </p>
-        <Button onClick={onBack}>Save preference</Button>
+        {feedback ? <p role="status">{feedback}</p> : null}
+        <Button
+          disabled={isSaving}
+          onClick={async () => {
+            setIsSaving(true);
+            setFeedback('');
+            try {
+              await updatePreferences({ timezone: timeZone });
+              setFeedback('Preference saved successfully.');
+            } catch (error) {
+              setFeedback(
+                error instanceof Error
+                  ? error.message
+                  : 'Unable to save your preference.',
+              );
+            } finally {
+              setIsSaving(false);
+            }
+          }}
+        >
+          {isSaving ? 'Saving...' : 'Save preference'}
+        </Button>
       </section>
     </div>
   );

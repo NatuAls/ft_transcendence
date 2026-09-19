@@ -392,6 +392,8 @@ export async function sessionUser(userId: string): Promise<SessionUser> {
       createdAt: true,
       profile: {
         select: {
+          firstName: true,
+          lastName: true,
           displayName: true,
           avatarUrl: true,
           bio: true,
@@ -415,6 +417,8 @@ export async function sessionUser(userId: string): Promise<SessionUser> {
     id: user.id,
     username: user.username,
     email: user.email,
+    firstName: user.profile?.firstName ?? '',
+    lastName: user.profile?.lastName ?? '',
     displayName: user.profile?.displayName ?? user.username,
     avatarUrl: user.profile?.avatarUrl ?? null,
     bio: user.profile?.bio ?? null,

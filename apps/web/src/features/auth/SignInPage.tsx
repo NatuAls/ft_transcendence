@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { loginSchema } from 'contracts';
 import { Button, Checkbox, TextField } from 'ui';
 import { AuthBrandPanel, BrandHeader } from './AuthBrand';
 import { login, type AuthResponse } from '../../api/auth';
@@ -35,10 +36,17 @@ export function SignInPage({ onCreateAccount, onSubmit }: SignInPageProps) {
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+
+    const parsed = loginSchema.safeParse({ email, password });
+    if (!parsed.success) {
+      setError('Please check the form fields.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      const authData = await login({ email, password });
+      const authData = await login(parsed.data);
 
       // Si fue exitoso, pasamos el usuario al router/padre
       void onSubmit(authData.user);

@@ -1,3 +1,5 @@
+import type { LoginInput, RegisterInput } from 'contracts';
+
 // --- 1. GESTIÓN DEL TOKEN EN MEMORIA ---
 let inMemoryAccessToken: string | null = null;
 let refreshPromise: Promise<AuthResponse | null> | null = null;
@@ -16,28 +18,14 @@ export function clearAccessToken(): void {
 
 const API_URL = import.meta.env.VITE_API_URL ?? '/api/v1';
 
-export interface LoginInput {
-  email: string;
-  password: string;
-}
-
-export interface RegisterInput {
-  email: string;
-  username: string;
-  password: string;
-  confirmPassword: string;
-  firstName: string;
-  lastName: string;
-  acceptTerms: boolean;
-  locale: 'EN' | 'SP' | 'AR';
-}
-
 export interface AuthResponse {
   accessToken: string;
   user: {
     id: string;
     username: string;
     email: string;
+    firstName: string;
+    lastName: string;
     displayName: string;
     avatarUrl: string | null;
     bio: string | null;
@@ -58,13 +46,13 @@ export async function logout(): Promise<void> {
   const accessToken = getAccessToken();
 
   try {
-    if (accessToken) {
-      await fetch(`${API_URL}/auth/logout`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${accessToken}` },
-        credentials: 'include',
-      });
-    }
+    await fetch(`${API_URL}/auth/logout`, {
+      method: 'POST',
+      ...(accessToken
+        ? { headers: { Authorization: `Bearer ${accessToken}` } }
+        : {}),
+      credentials: 'include',
+    });
   } finally {
     clearAccessToken();
   }

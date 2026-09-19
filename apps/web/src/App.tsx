@@ -24,9 +24,12 @@ function accountProfileFromUser(user: AuthResponse['user']) {
   return {
     bio: user.bio ?? '',
     email: user.email,
+    firstName: user.firstName,
     fullName: user.displayName,
     jobTitle: user.jobTitle ?? '',
+    lastName: user.lastName,
     location: user.timezone,
+    username: user.username,
   };
 }
 
@@ -41,6 +44,7 @@ function App() {
     void refreshSession().then((authData) => {
       if (!authData) return;
       setAccountProfile(accountProfileFromUser(authData.user));
+      setAvatarUrl(authData.user.avatarUrl ?? undefined);
       if (location.route === 'login' || location.route === 'register') {
         window.location.hash = buildHash('tickets');
       }
