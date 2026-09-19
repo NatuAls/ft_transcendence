@@ -17,7 +17,7 @@ name: CI
 #
 #  El job `ci-success` del final agrega el resultado de todos los demás. Es el
 #  único nombre que hay que marcar como "required status check" en la
-#  protección de rama (ver doc/RUNBOOK.md §2).
+#  protección de rama (ver la guía DevOps del equipo, apartado «Bloquear el merge»).
 # =============================================================================
 
 on:
@@ -59,7 +59,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -105,7 +105,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -200,7 +200,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -364,7 +364,7 @@ jobs:
       - uses: docker/setup-buildx-action@v3
 
       - name: Imagen de la API
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: apps/api/Dockerfile.prod
@@ -378,7 +378,7 @@ jobs:
             GIT_COMMIT=${{ github.sha }}
 
       - name: Imagen de la web
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: apps/web/Dockerfile.prod
@@ -471,7 +471,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
