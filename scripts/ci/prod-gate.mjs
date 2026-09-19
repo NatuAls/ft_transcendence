@@ -104,12 +104,15 @@ const reviews = await api(
   `/repos/${GITHUB_REPOSITORY}/pulls/${pr.number}/reviews?per_page=100`,
 );
 
-// Último veredicto de cada revisor distinto del autor.
+// Último veredicto de cada revisor distinto del autor. DISMISSED también
+// cuenta como veredicto: al descartar una aprobación GitHub cambia ESA reseña
+// a DISMISSED, y una aprobación anterior del mismo revisor sobre el mismo
+// commit no debe resucitar.
 const last = new Map();
 for (const r of reviews) {
   const who = r.user.login.toLowerCase();
   if (who === author) continue;
-  if (r.state === 'APPROVED' || r.state === 'CHANGES_REQUESTED')
+  if (['APPROVED', 'CHANGES_REQUESTED', 'DISMISSED'].includes(r.state))
     last.set(who, r);
 }
 const blocking = [...last.values()].filter(

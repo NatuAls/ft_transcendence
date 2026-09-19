@@ -88,9 +88,10 @@ fi
 log "5. Clave PRIVADA de deployer en el servidor"
 if ls /home/deployer/.ssh/id_* >/dev/null 2>&1; then
   ls -la /home/deployer/.ssh/id_*
-  if ask "¿Borrar la clave privada de deployer del servidor (sólo hace falta authorized_keys)?"; then
-    shred -u /home/deployer/.ssh/id_ed25519 2>/dev/null || rm -f /home/deployer/.ssh/id_ed25519
-    rm -f /home/deployer/.ssh/id_ed25519.pub
+  if ask "¿Borrar la(s) clave(s) privada(s) de deployer del servidor (sólo hace falta authorized_keys)?"; then
+    for k in /home/deployer/.ssh/id_*; do
+      case "$k" in *.pub) rm -f "$k" ;; *) shred -u "$k" 2>/dev/null || rm -f "$k" ;; esac
+    done
     echo "hecho. authorized_keys intacto: el pipeline sigue entrando."
   fi
 else

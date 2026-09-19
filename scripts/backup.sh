@@ -41,7 +41,7 @@
 #                              pruebas sin bucket).
 #      RCLONE_CONFIG           por defecto /rclone/rclone.conf (montado :ro)
 #
-#  RPO / RTO acordados (ver doc/DEVOPS_CICD.md §10):
+#  RPO / RTO acordados (ver la guía DevOps del equipo, apartado «Copias»):
 #      RPO 24 h  — copia programada diaria a las 00:00 + copia previa a cada
 #                  despliegue. Pérdida máxima teórica: un día de tickets.
 #      RTO  1 h  — objetivo de restauración completa verificada con
@@ -129,11 +129,10 @@ if ! command -v openssl > /dev/null 2>&1; then
   install_pkg openssl || die "no se pudo instalar openssl."
 fi
 
-case "$(printf '%s' "$BACKUP_ENCRYPTION_KEY" | wc -c)" in
-  ''|*[!0-9]*) : ;;
-  *) [ "$(printf '%s' "$BACKUP_ENCRYPTION_KEY" | wc -c)" -ge 32 ] \
-       || die "BACKUP_ENCRYPTION_KEY debe tener al menos 32 caracteres." ;;
-esac
+# ${#var} es POSIX y no depende del formato de salida de wc (BSD lo rellena con
+# espacios; la versión anterior se saltaba la comprobación en ese caso).
+[ "${#BACKUP_ENCRYPTION_KEY}" -ge 32 ] \
+  || die "BACKUP_ENCRYPTION_KEY debe tener al menos 32 caracteres (tiene ${#BACKUP_ENCRYPTION_KEY})."
 
 RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-14}"
 

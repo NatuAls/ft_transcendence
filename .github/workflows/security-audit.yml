@@ -29,6 +29,8 @@ on:
 
 permissions:
   contents: read
+  actions: read # para resolver el SHA del último despliegue a producción en verde
+  packages: read
   security-events: write # para subir los SARIF a la pestaña Security
 
 jobs:
@@ -41,7 +43,7 @@ jobs:
         with:
           fetch-depth: 0 # gitleaks necesita el historial completo
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -78,7 +80,7 @@ jobs:
       # paso falla con "Advanced Security must be enabled": no debe tumbar la
       # auditoría. El informe se guarda además como artefacto del run.
       - name: Publicar en la pestaña Security
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         continue-on-error: true
         with:
           sarif_file: trivy-fs.sarif
@@ -117,7 +119,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Login en GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -126,19 +128,34 @@ jobs:
       # Se escanea lo que está CORRIENDO, no lo que se acaba de construir: una
       # imagen desplegada hace tres semanas acumula CVE nuevas sin que nadie
       # toque el código. Este es el escaneo que las encuentra.
-      - name: Escanear la imagen desplegada
-        continue-on-error: true
+      #
+      # Las imágenes sólo se etiquetan con el SHA del commit (no hay :latest):
+      # el SHA desplegado es el del último «Deploy Production» que terminó en
+      # verde. Si no hay ninguno, no hay nada que escanear y se dice.
+      - name: Resolver la imagen desplegada
+        id: ref
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')
-          ref="ghcr.io/${owner}/${{ matrix.imagen }}"
-          # La etiqueta de la última release: se resuelve por la API de paquetes.
-          echo "IMAGE_REF=${ref}" >> "$GITHUB_ENV"
+          sha=$(gh api "repos/${{ github.repository }}/actions/workflows/deploy-prod.yml/runs?branch=main&status=success&per_page=1" \
+                  --jq '.workflow_runs[0].head_sha // empty')
+          if [ -z "$sha" ]; then
+            echo "::warning::sin ningún despliegue a producción en verde: no hay imagen que escanear."
+            echo "ref=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          ref="ghcr.io/${owner}/${{ matrix.imagen }}:${sha}"
+          docker manifest inspect "$ref" > /dev/null 2>&1 \
+            || { echo "::error::la imagen desplegada $ref no está en GHCR"; exit 1; }
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+          echo "Imagen desplegada: $ref"
 
       - name: Trivy sobre la imagen
-        continue-on-error: true
+        if: steps.ref.outputs.ref != ''
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ${{ env.IMAGE_REF }}:latest
+          image-ref: ${{ steps.ref.outputs.ref }}
           format: table
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: false
@@ -166,8 +183,14 @@ jobs:
                 el `command="..."` que la convierte en un botón y no en una shell.
           - [ ] **Puertos abiertos** — `ss -tlnp` en el host y la *security list*
                 de la VCN de Oracle. Sólo 22 (restringido), 80 y 443.
-          - [ ] **Reglas de Cloudflare** — WAF activo, modo de bot, y que
-                `staging.` siga con su Access List.
+          - [ ] **Rangos de Cloudflare en el origen** — la VCN y `DOCKER-USER`
+                deben tener exactamente los 15 rangos IPv4 de
+                https://www.cloudflare.com/ips-v4 (cambian muy de tarde en tarde):
+                `sudo bash scripts/ops/origin-cloudflare-only.sh --apply` los
+                refresca en el host; la VCN se compara a mano.
+          - [ ] **Reglas de Cloudflare** — WAF activo, modo de bot, `staging.`
+                sigue desafiado salvo para la IP del servidor (regla *Skip* de la
+                sonda), y SSL/TLS en **Full (strict)**.
           - [ ] **Excepciones caducadas** — cada entrada de `.trivyignore` lleva
                 `exp:AAAA-MM-DD`. Las vencidas se arreglan o se re-justifican.
           - [ ] **Usuarios GLOBAL_ADMIN de la aplicación** —

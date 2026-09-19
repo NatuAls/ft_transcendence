@@ -44,3 +44,7 @@ backups/
 # La plantilla de la pila de observabilidad se versiona (sin valores). Va
 # DESPUÉS de .env-* porque una negación sólo cuenta si aparece más tarde.
 !.env-observabilidad.example
+
+# Python (scripts/ops/*.py)
+__pycache__/
+*.pyc

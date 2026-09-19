@@ -65,6 +65,15 @@ fi
 HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-240}"
 COMPOSE="docker compose -f compose.prod.yml"
 
+# Cerrojo compartido con el temporizador de auto-recuperación
+# (scripts/ops/ensure-stack.sh): mientras dure el despliegue, el temporizador
+# no toca la pila. /run/lock es escribible por todos; el fichero lo crea el
+# primero que llega (0666) y los demás sólo lo abren para bloquearlo.
+DEPLOY_LOCK="/run/lock/helpdesk-deploy-${ENV_NAME}.lock"
+[ -e "$DEPLOY_LOCK" ] || ( umask 000 && : > "$DEPLOY_LOCK" ) 2>/dev/null || true
+exec 9<"$DEPLOY_LOCK"
+flock -w 900 9 || { echo "ERROR: otro despliegue o el temporizador tienen la pila bloqueada desde hace 15 min." >&2; exit 1; }
+
 log()  { printf '\n\033[0;36m==> %s\033[0m\n' "$*"; }
 warn() { printf '\033[0;33m[aviso] %s\033[0m\n' "$*"; }
 
@@ -262,7 +271,7 @@ rollback() {
   fi
   # Aviso importante: esto revierte la APLICACIÓN, no el ESQUEMA. Si el
   # despliegue fallido aplicó una migración destructiva, hay que restaurar el
-  # dump de /opt/helpdesk/<entorno>/backups (ver doc/DEVOPS_CICD.md).
+  # dump de /opt/helpdesk/<entorno>/backups (ver la guía DevOps del equipo, apartado «Rollback»).
   echo "AVISO: el rollback revierte la imagen, no las migraciones ya aplicadas." >&2
   return 1
 }
