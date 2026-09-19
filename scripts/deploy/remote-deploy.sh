@@ -262,7 +262,7 @@ rollback() {
   fi
   # Aviso importante: esto revierte la APLICACIÓN, no el ESQUEMA. Si el
   # despliegue fallido aplicó una migración destructiva, hay que restaurar el
-  # dump de /opt/helpdesk/<entorno>/backups (ver doc/RUNBOOK.md §3).
+  # dump de /opt/helpdesk/<entorno>/backups (ver la guía DevOps del equipo, apartado «Rollback»).
   echo "AVISO: el rollback revierte la imagen, no las migraciones ya aplicadas." >&2
   return 1
 }

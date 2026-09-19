@@ -84,7 +84,8 @@ them to GHCR tagged with the commit SHA, takes a pre-deploy backup, runs the
 Prisma migrations, starts the stack and rolls back automatically if the API
 does not become healthy. Everything an operator needs — diagnosis, manual
 redeploy, restore, planned stops, alerts, the fallback plan when Cloudflare
-is blocked — is in [`doc/RUNBOOK.md`](doc/RUNBOOK.md).
+is blocked — is in the team's DevOps guide and runbook, kept outside this
+repository (ask the DevOps member).
 
 ```
 Browser ─HTTPS─▶ Cloudflare (WAF, cache, TLS) ─▶ Oracle Cloud VM (ARM, Ubuntu)
@@ -242,7 +243,7 @@ assignee and category references are set to `NULL`.
 | Hosting & security hardening | fcela-ga | Oracle VM, Cloudflare, origin closed to Cloudflare ranges (VCN + iptables), fail2ban, least-privilege DB roles, security headers, rate limits |
 | Backups & recovery | fcela-ga | Encrypted daily backups off-site, weekly restore drills with measured RTO, production restore with integrity checks |
 | Observability & alerting | fcela-ga | Prometheus/Grafana/Loki, 21 alert rules, Telegram + e-mail, self-healing timer |
-| Operations documentation | fcela-ga | `doc/RUNBOOK.md`, audit reports, secrets inventory |
+| Operations documentation | fcela-ga | DevOps guide, runbook, audit reports and secrets inventory (kept outside the repository) |
 
 ## Modules
 
