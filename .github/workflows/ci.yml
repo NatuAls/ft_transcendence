@@ -17,7 +17,7 @@ name: CI
 #
 #  El job `ci-success` del final agrega el resultado de todos los demás. Es el
 #  único nombre que hay que marcar como "required status check" en la
-#  protección de rama (ver doc/DEVOPS_CICD.md).
+#  protección de rama (ver la guía DevOps del equipo, apartado «Bloquear el merge»).
 # =============================================================================
 
 on:
@@ -59,7 +59,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -105,7 +105,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -200,7 +200,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -303,6 +303,9 @@ jobs:
           SMTP_HOST=smtp.example.invalid
           SMTP_PORT=25
           MAIL_FROM=HelpDesk Lite <no-reply@example.invalid>
+          BACKUP_ENCRYPTION_KEY=ci_backup_key_0123456789
+          METRICS_TOKEN=ci_metrics_token_0123456789
+          RCLONE_REMOTE=objectstorage:helpdesk-backups/ci
           EOF
 
       - name: compose.dev.yml
@@ -311,9 +314,32 @@ jobs:
       - name: compose.prod.yml
         run: docker compose -f compose.prod.yml config --quiet
 
+      # La pila de observabilidad se levanta a mano en el servidor, pero su
+      # sintaxis se valida aquí igual: el 16/09 un fichero mal ubicado dejó
+      # Alertmanager en bucle de reinicio durante un día sin que nadie lo viera.
+      - name: compose.observability.yml
+        run: |
+          cat > .env.observability-ci <<'EOF'
+          GRAFANA_ADMIN_PASSWORD=ci_not_a_real_password
+          ALERT_EMAIL_TO=ci@example.invalid
+          ALERT_SMTP_HOST=smtp.example.invalid:587
+          ALERT_SMTP_USER=ci
+          ALERT_SMTP_PASS=ci
+          PROD_DB_USER=ci
+          PROD_DB_PASSWORD=ci
+          PROD_DB_NAME=ci
+          STAGING_DB_USER=ci
+          STAGING_DB_PASSWORD=ci
+          STAGING_DB_NAME=ci
+          EOF
+          docker compose --env-file .env.observability-ci -f compose.observability.yml config --quiet
+          # El renderizador exige que la plantilla exista y tenga `route:`.
+          test -f config/alertmanager/alertmanager.yml.tmpl
+          grep -q '^route:' config/alertmanager/alertmanager.yml.tmpl
+
       # Cazar `image: algo:latest` antes de que llegue a un servidor.
       - name: Prohibir imágenes sin fijar (:latest)
-        run: bash scripts/ci/check-pinned-images.sh compose.dev.yml compose.prod.yml
+        run: bash scripts/ci/check-pinned-images.sh compose.dev.yml compose.prod.yml compose.observability.yml
 
   # ---------------------------------------------------------------------------
   # 5. Construcción de las imágenes de producción.
@@ -338,7 +364,7 @@ jobs:
       - uses: docker/setup-buildx-action@v3
 
       - name: Imagen de la API
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: apps/api/Dockerfile.prod
@@ -352,7 +378,7 @@ jobs:
             GIT_COMMIT=${{ github.sha }}
 
       - name: Imagen de la web
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: apps/web/Dockerfile.prod
@@ -445,7 +471,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm

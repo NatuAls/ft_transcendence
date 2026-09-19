@@ -1,0 +1,108 @@
+name: Ensayo de restauración
+
+# =============================================================================
+#  Tarea DevOps 8 — "probar periódicamente una restauración completa en un
+#  entorno aislado y registrar RPO/RTO".
+#
+#  Esto es lo que separa "tenemos copias" de "sabemos recuperarnos". El ensayo
+#  levanta un PostgreSQL efímero en una red interna del servidor, restaura ahí
+#  la última copia CIFRADA, cuenta filas, comprueba que el historial de
+#  migraciones de Prisma está completo y que todos los adjuntos vivos de la
+#  base están dentro del archivo. No toca ni staging ni producción.
+#
+#  Se ejecuta los lunes a las 05:30 (Europe/Madrid = 03:30 UTC), antes de que
+#  nadie use el sistema, y se puede lanzar a mano desde la pestaña Actions.
+#
+#  Si falla, falla ruidosamente: el job termina en rojo y Prometheus además
+#  levanta EnsayoDeRestauracionFallido a partir del fichero de métricas que
+#  deja el propio script.
+# =============================================================================
+
+on:
+  schedule:
+    - cron: '30 3 * * 1'
+  workflow_dispatch:
+    inputs:
+      entorno:
+        description: Entorno cuya copia se ensaya
+        type: choice
+        options: [prod, staging]
+        default: prod
+      copia:
+        description: 'Ruta de la copia (vacío = la última)'
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup-drill-${{ inputs.entorno || 'prod' }}
+  cancel-in-progress: false
+
+jobs:
+  ensayo:
+    name: Restaurar la última copia en un entorno aislado
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ejecutar el ensayo en el servidor
+        uses: appleboy/ssh-action@v1.2.5
+        env:
+          ENTORNO: ${{ inputs.entorno || 'prod' }}
+          COPIA: ${{ inputs.copia }}
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GIT_SHA: ${{ github.sha }}
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: deployer
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          command_timeout: 25m
+          envs: ENTORNO,COPIA,GH_REPO,GH_TOKEN,GIT_SHA
+          script: |
+            set -euo pipefail
+            cd "/opt/helpdesk/${ENTORNO}"
+
+            # El script se trae del commit exacto, igual que hace el
+            # despliegue: así el ensayo prueba la versión del repositorio y no
+            # una copia vieja que quedó en el servidor.
+            mkdir -p scripts
+            curl -sS -f -L \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github.v3.raw" \
+              -o scripts/restore.sh \
+              "https://api.github.com/repos/${GH_REPO}/contents/scripts/restore.sh?ref=${GIT_SHA}"
+
+            bash scripts/restore.sh --drill ${COPIA:+"$COPIA"}
+
+      - name: Recoger el informe del ensayo
+        if: always()
+        uses: appleboy/ssh-action@v1.2.5
+        env:
+          ENTORNO: ${{ inputs.entorno || 'prod' }}
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: deployer
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          envs: ENTORNO
+          script: |
+            set -euo pipefail
+            latest="$(find "/opt/helpdesk/${ENTORNO}/backups" -name 'RESTORE-DRILL-*.txt' | sort | tail -1 || true)"
+            if [ -n "$latest" ]; then cat "$latest"; else echo "sin informe"; fi
+
+      - name: Resumen
+        if: always()
+        run: |
+          {
+            echo "## Ensayo de restauración — ${{ inputs.entorno || 'prod' }}"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Resultado | ${{ job.status }} |"
+            echo "| Fecha | $(date -u +'%Y-%m-%d %H:%M UTC') |"
+            echo ""
+            echo "El detalle (RTO medido, filas por tabla, coherencia de adjuntos) está en el log del paso anterior y en \`backups/RESTORE-DRILL-*.txt\` del servidor."
+          } >> "$GITHUB_STEP_SUMMARY"

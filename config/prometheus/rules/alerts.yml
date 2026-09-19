@@ -1,0 +1,221 @@
+# =============================================================================
+#  Reglas de alerta — HelpDesk Lite
+#
+#  Cubren, una por una, las cinco condiciones que enumera la tarea DevOps 9:
+#      indisponibilidad · errores sostenidos · disco bajo · fallos de backup ·
+#      expiración TLS
+#  …más las que hacen falta para operar de verdad (base de datos, memoria,
+#  contenedores reiniciándose, latencia).
+#
+#  Criterio de diseño: cada alerta dice QUÉ hacer, no sólo qué pasa. Una alerta
+#  sin acción asociada se ignora a la tercera vez que suena.
+# =============================================================================
+groups:
+  # ------------------------------------------------------- indisponibilidad --
+  - name: disponibilidad
+    rules:
+      - alert: SitioCaido
+        expr: probe_success{job="blackbox-http"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: '{{ $labels.instance }} no responde'
+          description: 'La sonda externa falla desde hace 2 minutos.'
+          runbook: 'docker compose -f compose.prod.yml ps && logs -f api. Si la API está healthy, mirar Nginx Proxy Manager y Cloudflare.'
+
+      - alert: ApiNoLista
+        expr: helpdesk_dependency_up{name="database"} == 0
+        for: 3m
+        labels: { severity: critical }
+        annotations:
+          summary: 'La API de {{ $labels.env }} no puede hablar con PostgreSQL'
+          runbook: 'docker compose -f compose.prod.yml logs db; comprobar disco y conexiones.'
+
+      - alert: ContenedorReiniciandose
+        # container_start_time_seconds es un gauge con la hora de arranque:
+        # changes() cuenta reinicios; increase() medía segundos entre ellos y
+        # saltaba con un solo reinicio (revisión de Copilot, PR #13 del equipo).
+        expr: changes(container_start_time_seconds{name=~"helpdesk-.*"}[15m]) > 2
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: '{{ $labels.name }} se ha reiniciado más de dos veces en 15 min'
+          runbook: 'Bucle de arranque: revisar logs del contenedor y el healthcheck.'
+
+      - alert: SondaTargetCaido
+        expr: up == 0
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: 'Prometheus no puede recolectar {{ $labels.job }} ({{ $labels.instance }})'
+
+  # -------------------------------------------------------- errores y carga --
+  - name: errores
+    rules:
+      - alert: Tasa5xxSostenida
+        expr: |
+          sum by (env) (rate(helpdesk_http_requests_total{status=~"5.."}[5m]))
+            /
+          sum by (env) (rate(helpdesk_http_requests_total[5m])) > 0.05
+        for: 10m
+        labels: { severity: critical }
+        annotations:
+          summary: 'Más del 5% de 5xx en {{ $labels.env }} durante 10 minutos'
+          runbook: 'Buscar en Loki: {container="helpdesk-api-prod"} |= "ERROR". Cada respuesta lleva X-Request-Id.'
+
+      - alert: LatenciaAlta
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le, env) (rate(helpdesk_http_request_duration_seconds_bucket[5m]))
+          ) > 1.5
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: 'p95 por encima de 1,5 s en {{ $labels.env }}'
+
+      - alert: RateLimitDisparado
+        expr: sum by (env) (rate(helpdesk_rate_limit_blocked_total[5m])) > 5
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: 'Muchas peticiones bloqueadas por rate limit en {{ $labels.env }}'
+          description: 'Puede ser un ataque de fuerza bruta o un cliente mal configurado.'
+          runbook: 'Mirar las IP en Loki y, si procede, bloquearlas en Cloudflare.'
+
+  # ---------------------------------------------------------------- recursos --
+  - name: recursos
+    rules:
+      # `mountpoint="/"`: node-exporter corre con --path.rootfs=/host y RECORTA
+      # ese prefijo al informar, así que la raíz del host aparece como "/".
+      # Con "/host" (v1) estas dos reglas no casaban con ninguna serie y no
+      # podían dispararse nunca.
+      - alert: DiscoBajo
+        expr: |
+          (node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}
+            / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}) < 0.15
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: 'Menos del 15% de disco libre en el host'
+          runbook: 'docker image prune -f; revisar /opt/helpdesk/*/backups y la retención.'
+
+      - alert: DiscoCritico
+        expr: |
+          (node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}
+            / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}) < 0.07
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: 'Menos del 7% de disco libre: PostgreSQL dejará de aceptar escrituras'
+
+      - alert: MemoriaAlta
+        expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 0.90
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: 'Memoria del host por encima del 90%'
+
+      - alert: PostgresConexionesAlLimite
+        expr: |
+          sum by (env) (pg_stat_activity_count)
+            / on (env) group_left max by (env) (pg_settings_max_connections) > 0.8
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: 'PostgreSQL de {{ $labels.env }} al 80% de conexiones'
+
+      # Guarda `redis_memory_max_bytes > 0`: sin `maxmemory` configurado el
+      # exportador informa 0 y la división daba +Inf (falso positivo permanente
+      # en los dos entornos hasta el 17/09).
+      - alert: RedisSinMemoria
+        expr: |
+          redis_memory_max_bytes > 0
+            and (redis_memory_used_bytes / redis_memory_max_bytes) > 0.9
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: 'Redis de {{ $labels.env }} por encima del 90% de su límite'
+          description: 'Redis aquí es caché, presencia y ventanas de rate limit: si empieza a expulsar claves, el rate limit se vuelve inexacto.'
+
+  # ----------------------------------------------------------------- copias --
+  - name: copias_de_seguridad
+    rules:
+      - alert: BackupFallido
+        expr: helpdesk_backup_last_exit_code != 0
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: 'La última copia de seguridad de {{ $labels.env }} ha fallado'
+          runbook: 'cat /opt/helpdesk/{{ $labels.env }}/backups/cron.log'
+
+      - alert: BackupAntiguo
+        expr: time() - helpdesk_backup_last_success_timestamp_seconds > 36 * 3600
+        for: 30m
+        labels: { severity: critical }
+        annotations:
+          summary: 'Hace más de 36 h que no hay una copia correcta de {{ $labels.env }}'
+          description: 'El RPO acordado es de 24 h. Este es el fallo silencioso clásico: el cron dejó de correr y nadie se entera hasta el desastre.'
+
+      - alert: SinMetricaDeBackup
+        # BackupAntiguo/BackupFallido necesitan que la serie exista: si el cron
+        # nunca ha terminado bien (host nuevo, primer backup roto) o
+        # node-exporter no lee backups/metrics, no dirían nada. Esta es la
+        # alerta de «la alerta está ciega». Un absent() por entorno.
+        expr: >
+          absent(helpdesk_backup_last_success_timestamp_seconds{env="prod"})
+          or absent(helpdesk_backup_last_success_timestamp_seconds{env="staging"})
+        for: 6h
+        labels: { severity: warning }
+        annotations:
+          summary: 'Sin ninguna métrica de backup de {{ $labels.env }}: BackupAntiguo no puede saltar'
+          runbook: 'ls /opt/helpdesk/{{ $labels.env }}/backups/metrics; cat /opt/helpdesk/{{ $labels.env }}/backups/cron.log; docker compose -f compose.prod.yml run --rm --entrypoint "sh /backup.sh" backup'
+
+      - alert: BackupSospechosamentePequeno
+        expr: helpdesk_backup_database_bytes < 0.5 * avg_over_time(helpdesk_backup_database_bytes[7d])
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: 'El último dump de {{ $labels.env }} pesa menos de la mitad de la media de la semana'
+          description: 'O han borrado muchos datos, o el volcado se ha hecho contra una base equivocada.'
+
+      - alert: EnsayoDeRestauracionAntiguo
+        expr: time() - helpdesk_restore_drill_last_timestamp_seconds > 10 * 24 * 3600
+        labels: { severity: warning }
+        annotations:
+          summary: 'Hace más de 10 días que no se ensaya una restauración ({{ $labels.env }})'
+          runbook: 'bash scripts/restore.sh --drill'
+
+      - alert: SinMetricaDeEnsayo
+        expr: >
+          absent(helpdesk_restore_drill_last_timestamp_seconds{env="prod"})
+          or absent(helpdesk_restore_drill_last_timestamp_seconds{env="staging"})
+        for: 24h
+        labels: { severity: warning }
+        annotations:
+          summary: 'Nunca se ha ensayado una restauración de {{ $labels.env }} (o la métrica no llega)'
+          runbook: 'bash scripts/restore.sh --drill   (escribe backups/metrics/restore.prom)'
+
+      - alert: EnsayoDeRestauracionFallido
+        expr: helpdesk_restore_drill_failures > 0
+        labels: { severity: critical }
+        annotations:
+          summary: 'El último ensayo de restauración de {{ $labels.env }} ha fallado {{ $value }} comprobaciones'
+          description: 'Hay copias, pero NO son restaurables. Es peor que no tener copias, porque da falsa seguridad.'
+
+  # -------------------------------------------------------------------- TLS --
+  - name: certificados
+    rules:
+      - alert: CertificadoCaducaPronto
+        expr: (probe_ssl_earliest_cert_expiry - time()) / 86400 < 21
+        for: 1h
+        labels: { severity: warning }
+        annotations:
+          summary: 'El certificado de {{ $labels.instance }} caduca en {{ $value | printf "%.0f" }} días'
+          runbook: "Nginx Proxy Manager -> SSL Certificates -> Renew. Comprobar que la renovación automática de Let's Encrypt sigue funcionando."
+
+      - alert: CertificadoCaducaYa
+        expr: (probe_ssl_earliest_cert_expiry - time()) / 86400 < 7
+        for: 30m
+        labels: { severity: critical }
+        annotations:
+          summary: 'El certificado de {{ $labels.instance }} caduca en menos de una semana'

@@ -22,7 +22,8 @@
 #      JWT_ACCESS_SECRET JWT_REFRESH_SECRET PASSWORD_PEPPER
 #  Opcionales:
 #      CORS_ORIGINS SMTP_HOST SMTP_PORT MAIL_FROM APP_VERSION LOG_LEVEL
-#      BACKUP_RETENTION_DAYS HEALTH_TIMEOUT
+#      BACKUP_RETENTION_DAYS HEALTH_TIMEOUT BACKUP_ENCRYPTION_KEY RCLONE_REMOTE METRICS_TOKEN
+#      BOOTSTRAP_ADMIN_EMAIL DB_APP_USER DB_APP_PASSWORD (rol sin privilegios; ver B4)
 # =============================================================================
 set -euo pipefail
 
@@ -37,6 +38,7 @@ require() {
 
 require ENV_NAME DEPLOY_DIR GH_REPO GH_TOKEN GH_ACTOR GHCR_OWNER GIT_SHA \
         DB_USER DB_PASSWORD DB_NAME \
+        BACKUP_ENCRYPTION_KEY METRICS_TOKEN \
         JWT_ACCESS_SECRET JWT_REFRESH_SECRET PASSWORD_PEPPER
 
 # CORS_ORIGINS se exige aparte y con mensaje propio. Si llega vacía, la lista
@@ -62,6 +64,15 @@ fi
 
 HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-240}"
 COMPOSE="docker compose -f compose.prod.yml"
+
+# Cerrojo compartido con el temporizador de auto-recuperación
+# (scripts/ops/ensure-stack.sh): mientras dure el despliegue, el temporizador
+# no toca la pila. /run/lock es escribible por todos; el fichero lo crea el
+# primero que llega (0666) y los demás sólo lo abren para bloquearlo.
+DEPLOY_LOCK="/run/lock/helpdesk-deploy-${ENV_NAME}.lock"
+[ -e "$DEPLOY_LOCK" ] || ( umask 000 && : > "$DEPLOY_LOCK" ) 2>/dev/null || true
+exec 9<"$DEPLOY_LOCK"
+flock -w 900 9 || { echo "ERROR: otro despliegue o el temporizador tienen la pila bloqueada desde hace 15 min." >&2; exit 1; }
 
 log()  { printf '\n\033[0;36m==> %s\033[0m\n' "$*"; }
 warn() { printf '\033[0;33m[aviso] %s\033[0m\n' "$*"; }
@@ -183,6 +194,11 @@ GITHUB_SHA=${GIT_SHA}
 DB_USER=${DB_USER}
 DB_PASSWORD=${DB_PASSWORD}
 DB_NAME=${DB_NAME}
+# Rol sin privilegios para la aplicación. Sólo se activa si llega su
+# contraseña (secreto *_DB_APP_PASSWORD); si no, las dos quedan vacías y
+# compose.prod.yml cae a DB_USER/DB_PASSWORD, como antes.
+DB_APP_USER=${DB_APP_PASSWORD:+${DB_APP_USER:-helpdesk_app}}
+DB_APP_PASSWORD=${DB_APP_PASSWORD:-}
 JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
 JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
 PASSWORD_PEPPER=${PASSWORD_PEPPER}
@@ -197,6 +213,12 @@ SMTP_HOST=${SMTP_HOST:-mailpit}
 SMTP_PORT=${SMTP_PORT:-1025}
 MAIL_FROM=${MAIL_FROM:-HelpDesk Lite <no-reply@helpdesk.local>}
 APP_VERSION=${APP_VERSION:-1.0.0}
+BACKUP_ENCRYPTION_KEY=${BACKUP_ENCRYPTION_KEY}
+RCLONE_REMOTE=${RCLONE_REMOTE:-}
+METRICS_TOKEN=${METRICS_TOKEN}
+BOOTSTRAP_ADMIN_EMAIL=${BOOTSTRAP_ADMIN_EMAIL:-}
+# Interfaz de Mailpit: 8025 en prod, 8026 en staging (mismo host).
+MAILPIT_UI_PORT=$([ "$ENV_NAME" = "prod" ] && echo 8025 || echo 8026)
 LOG_LEVEL=${LOG_LEVEL:-info}
 BACKUP_RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-14}
 EOF
@@ -210,9 +232,6 @@ echo "$GH_TOKEN" | docker login ghcr.io -u "$GH_ACTOR" --password-stdin
 
 log "Descargando imágenes ${GIT_SHA:0:7}"
 $COMPOSE pull
-
-log "Levantando la pila"
-$COMPOSE up -d --remove-orphans
 
 # -----------------------------------------------------------------------------
 # 6. Esperar a que la API esté sana (el healthcheck de Compose manda).
@@ -252,7 +271,7 @@ rollback() {
   fi
   # Aviso importante: esto revierte la APLICACIÓN, no el ESQUEMA. Si el
   # despliegue fallido aplicó una migración destructiva, hay que restaurar el
-  # dump de /opt/helpdesk/<entorno>/backups (ver doc/DEVOPS_CICD.md).
+  # dump de /opt/helpdesk/<entorno>/backups (ver la guía DevOps del equipo, apartado «Rollback»).
   echo "AVISO: el rollback revierte la imagen, no las migraciones ya aplicadas." >&2
   return 1
 }
@@ -264,6 +283,15 @@ deploy_failed() {
   rollback || true
   exit 1
 }
+
+# `up -d` sale con error si un servicio con `depends_on: service_healthy`
+# (la web) no llega a arrancar porque su dependencia (la API) está unhealthy.
+# Con `set -e` eso abortaba el script AQUÍ, antes del rollback y sin volcar
+# el log de la API: en el despliegue #30 de staging (17/09) la API murió al
+# arrancar por una variable de entorno y staging se quedó caído sin volver a
+# la versión anterior. Ahora un `up` fallido pasa por deploy_failed.
+log "Levantando la pila"
+$COMPOSE up -d --remove-orphans || deploy_failed "docker compose up ha fallado (¿la API no arranca?)"
 
 log "Esperando a que los contenedores estén sanos"
 wait_healthy "helpdesk-api-${ENV_NAME}" "$HEALTH_TIMEOUT" || deploy_failed "la API no llegó a estar sana"

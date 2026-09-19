@@ -1,0 +1,140 @@
+# =============================================================================
+#  Promtail — recolección de logs de TODOS los contenedores
+#
+#  Aquí está la mitad de la tarea 9 que suele olvidarse: "aplicando retención y
+#  EVITANDO SECRETOS, TOKENS, CORREOS COMPLETOS O ADJUNTOS".
+#
+#  La retención la aplica Loki (720 h). El filtrado se hace AQUÍ, antes de
+#  enviar: una vez un token entra en el almacén de logs, ya está filtrado y
+#  hay que rotarlo. El orden correcto es enmascarar en origen.
+#
+#  Qué se enmascara y por qué:
+#    · Authorization / X-API-Key / cookie hd_refresh  -> credenciales vivas
+#    · JWT (eyJ...)                                   -> sesión secuestrable
+#    · correos                                        -> dato personal (RGPD);
+#                                                        se deja el dominio,
+#                                                        que sí sirve para
+#                                                        depurar
+#    · password / secret / pepper / token en JSON     -> por si un log de
+#                                                        depuración vuelca un
+#                                                        cuerpo entero
+#    · nombres de fichero adjunto                     -> pueden contener datos
+#                                                        del cliente
+#    · IPv4                                           -> se recorta el último
+#                                                        octeto (dato personal
+#                                                        bajo el RGPD)
+# =============================================================================
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+  log_level: warn
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 15s
+        filters:
+          - name: name
+            values: ['helpdesk-']
+
+    relabel_configs:
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container'
+      - source_labels: ['__meta_docker_container_log_stream']
+        target_label: 'stream'
+      # Etiqueta de entorno derivada del nombre: helpdesk-api-prod -> prod.
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/helpdesk-[a-z]+-(prod|staging).*'
+        target_label: 'env'
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/helpdesk-([a-z]+)-.*'
+        target_label: 'service'
+
+    pipeline_stages:
+      # ---- 1. ENMASCARADO, sobre la línea CRUDA y antes de parsear nada ---
+      #
+      # Semántica de la etapa `replace` de Promtail (es distinta de sed):
+      #   · se sustituye CADA GRUPO DE CAPTURA por el valor de `replace`, no la
+      #     coincidencia completa;
+      #   · `replace` es una plantilla Go: `${1}` NO se expande, se escribe
+      #     literal.
+      # La v1 ponía la etiqueta en el grupo y el secreto fuera: el resultado
+      # era `addr=${1}x11` (etiqueta destrozada, secreto intacto). Ahora el
+      # grupo de captura es EXACTAMENTE lo que hay que ocultar y `replace` es
+      # el texto fijo que lo sustituye. Va antes del `json` para que se
+      # enmascare la línea entera (todos los campos), y `output` sale después
+      # de aquí ya enmascarado.
+      #
+      # Cabeceras de autenticación.
+      - replace:
+          expression: '(?i)authorization"?\s*[:=]\s*"?(?:bearer\s+)?([A-Za-z0-9._~+/=-]{8,})'
+          replace: '[REDACTADO]'
+      - replace:
+          expression: '(?i)x-api-key"?\s*[:=]\s*"?([A-Za-z0-9._-]{8,})'
+          replace: '[REDACTADO]'
+      - replace:
+          expression: 'hd_refresh=([A-Za-z0-9._%-]+)'
+          replace: '[REDACTADO]'
+      # Claves de la API con el prefijo propio del proyecto: se deja el prefijo
+      # y los 4 primeros caracteres (sirven para identificar la clave).
+      - replace:
+          expression: 'hdl_live_[A-Za-z0-9]{4}([A-Za-z0-9._-]+)'
+          replace: '[REDACTADO]'
+      # Cualquier JWT suelto: se conservan 9 caracteres de cabecera.
+      - replace:
+          expression: 'eyJ[A-Za-z0-9_-]{6}([A-Za-z0-9_-]*\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)'
+          replace: '[JWT-REDACTADO]'
+      # Campos sensibles en cuerpos JSON.
+      - replace:
+          expression: '(?i)"(?:password|newPassword|confirmPassword|secret|pepper|token|refreshToken|accessToken|keyHash|passwordHash)"\s*:\s*"([^"]*)"'
+          replace: '[REDACTADO]'
+      # Correos: se conserva la inicial y el dominio, que es lo que sirve para
+      # depurar; el identificador de la persona desaparece.
+      - replace:
+          expression: '\b[A-Za-z0-9]([A-Za-z0-9._%+-]*)@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b'
+          replace: '***'
+      # Nombres originales de adjuntos.
+      - replace:
+          expression: '(?i)"originalName"\s*:\s*"([^"]*)"'
+          replace: '[NOMBRE-FICHERO]'
+      # IPv4: se recorta el último octeto.
+      - replace:
+          expression: '\b(?:\d{1,3}\.){3}(\d{1,3})\b'
+          replace: 'x'
+
+      # ---- 2. La API emite JSON (ver apps/api/src/common/logger.ts v2) ------
+      - json:
+          expressions:
+            level: level
+            scope: scope
+            msg: msg
+            requestId: requestId
+            ts: ts
+      - labels:
+          level:
+          scope:
+      - timestamp:
+          source: ts
+          format: RFC3339Nano
+          action_on_failure: skip
+
+      # ---- 3. Ruido fuera --------------------------------------------------
+      # Las sondas de salud generan una línea cada 15 s por contenedor: son
+      # ~5.700 líneas al día que no aportan nada y sí gastan retención.
+      - drop:
+          expression: '(GET /api/health(\s|")|kube-probe|wget --spider)'
+          drop_counter_reason: sondas_de_salud
+
+      # `msg` se extrajo de la línea YA enmascarada (paso 1), así que lo que se
+      # guarda está limpio. Para contenedores que no emiten JSON no existe
+      # `msg` y la línea se conserva tal cual (también enmascarada).
+      - output:
+          source: msg

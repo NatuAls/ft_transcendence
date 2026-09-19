@@ -1,0 +1,86 @@
+# =============================================================================
+#  Dependabot — actualizaciones automáticas   (tarea DevOps 10)
+#
+#  Cubre las CUATRO superficies que se actualizan en este repositorio, que es
+#  el punto que faltaba: hasta ahora el CI DETECTABA vulnerabilidades (npm
+#  audit, Trivy) pero nadie ABRÍA las PR que las arreglan, así que el arreglo
+#  dependía de que alguien se acordara.
+#
+#  Alternativa: Renovate (renovate.json en la raíz) da agrupación por
+#  monorepo y "merge automático si el CI pasa" con más control. Dependabot es
+#  nativo de GitHub, no necesita instalar una app y para este tamaño de
+#  proyecto sobra. Ver el informe §8.3 si se prefiere Renovate.
+#
+#  Las PR van contra `develop`, nunca contra `main`: entran por el mismo
+#  camino que cualquier otro cambio y pasan por staging.
+# =============================================================================
+version: 2
+updates:
+  # ---- 1. npm, monorepo completo (workspaces) ------------------------------
+  - package-ecosystem: npm
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Europe/Madrid
+    open-pull-requests-limit: 5
+    versioning-strategy: increase
+    labels: ['dependencias', 'devops']
+    commit-message:
+      prefix: 'chore(deps)'
+      prefix-development: 'chore(deps-dev)'
+    groups:
+      # Un solo PR para todo lo de tipos y linters: son ruido puro por
+      # separado y su riesgo es idéntico.
+      tipos-y-linters:
+        patterns: ['@types/*', 'eslint*', 'typescript-eslint', 'prettier']
+        update-types: ['minor', 'patch']
+      # React y su ecosistema se mueven juntos o rompen.
+      react:
+        patterns: ['react', 'react-dom', '@vitejs/*', 'vite']
+      # Prisma: cliente, CLI y adaptador SIEMPRE en el mismo PR; si se
+      # desincronizan, `prisma generate` falla en el arranque del contenedor.
+      prisma:
+        patterns: ['prisma', '@prisma/*']
+      # El resto de dependencias de producción, agrupadas por tipo de salto.
+      produccion-menores:
+        dependency-type: production
+        update-types: ['minor', 'patch']
+    ignore:
+      # Node se fija en .nvmrc y en el Dockerfile; subirlo es una decisión
+      # deliberada, no una PR automática de los lunes.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
+
+  # ---- 2. Imágenes base de los Dockerfile ---------------------------------
+  # Es lo que de verdad cierra CVE como la de `tar` dentro de node:24-alpine:
+  # no venía de package-lock.json, sino de la imagen base.
+  - package-ecosystem: docker
+    directories:
+      - /apps/api
+      - /apps/web
+    target-branch: develop
+    schedule: { interval: weekly, day: monday, timezone: Europe/Madrid }
+    labels: ['dependencias', 'docker', 'seguridad']
+    commit-message: { prefix: 'chore(docker)' }
+
+  # ---- 3. Imágenes de los ficheros Compose --------------------------------
+  - package-ecosystem: docker-compose
+    directory: /
+    target-branch: develop
+    schedule: { interval: weekly, day: monday, timezone: Europe/Madrid }
+    labels: ['dependencias', 'docker']
+    commit-message: { prefix: 'chore(compose)' }
+
+  # ---- 4. Acciones de GitHub ----------------------------------------------
+  # El incidente de trivy-action de marzo de 2026 (etiquetas sin prefijo `v`
+  # reescritas a commits maliciosos) es exactamente el riesgo que hay aquí:
+  # conviene enterarse pronto de que una acción ha publicado versión nueva.
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: develop
+    schedule: { interval: weekly, day: monday, timezone: Europe/Madrid }
+    labels: ['dependencias', 'ci', 'seguridad']
+    commit-message: { prefix: 'chore(actions)' }

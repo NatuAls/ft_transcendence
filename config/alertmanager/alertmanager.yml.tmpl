@@ -1,0 +1,94 @@
+# =============================================================================
+#  Alertmanager — HelpDesk Lite  ·  PLANTILLA, no es el fichero final
+#
+#  Decide QUIÉN se entera y CADA CUÁNTO. Sin esto Prometheus evalúa reglas que
+#  nadie lee, que es la forma más común de "tener monitorización".
+#
+#  POR QUÉ ES UNA PLANTILLA Y NO EL CONFIG DIRECTO
+#  ------------------------------------------------------------------------
+#  Alertmanager **no expande variables de entorno** dentro de su fichero de
+#  configuración. Un `smtp_smarthost: '${ALERT_SMTP_HOST}'` se toma como esa
+#  cadena literal y el arranque falla. Por eso los valores se marcan aquí con
+#  @@TOKENS@@ y el servicio `alertmanager-config` de compose.observability.yml
+#  los sustituye con `sed` antes de que arranque Alertmanager.
+#
+#  La contraseña SMTP no se sustituye: se escribe aparte en
+#  /etc/alertmanager/smtp_password y se lee con `smtp_auth_password_file`, que
+#  es el mecanismo propio de Alertmanager. Así un carácter raro en la
+#  contraseña (`&`, `|`, `/`) no puede romper la sustitución.
+#
+#  Este fichero SÍ se versiona. El renderizado y la contraseña, no.
+# =============================================================================
+global:
+  resolve_timeout: 5m
+  smtp_smarthost: '@@ALERT_SMTP_HOST@@'
+  # Debe ser un remitente validado en Brevo (o un dominio autenticado con
+  # SPF/DKIM). Se cambia con ALERT_SMTP_FROM en el .env sin tocar esto.
+  smtp_from: '@@ALERT_SMTP_FROM@@'
+  smtp_auth_username: '@@ALERT_SMTP_USER@@'
+  smtp_auth_password_file: /etc/alertmanager/smtp_password
+  smtp_require_tls: true
+
+route:
+  receiver: equipo-email
+  # Agrupar por alerta y entorno: si se cae producción no queremos 12 correos.
+  group_by: ['alertname', 'env']
+  group_wait: 45s
+  group_interval: 5m
+  # Repetir sólo cada 4 h. Repetir cada 5 minutos es cómo se entrena a un
+  # equipo para ignorar las alertas.
+  repeat_interval: 4h
+
+  routes:
+    # Las críticas van también a Telegram, que sí se mira fuera del horario.
+    - matchers: [severity="critical"]
+      receiver: equipo-critico
+      group_wait: 10s
+      repeat_interval: 1h
+    # Staging avisa, pero no despierta a nadie.
+    - matchers: [env="staging"]
+      receiver: equipo-email
+      repeat_interval: 12h
+
+inhibit_rules:
+  # Si el sitio entero está caído, no hace falta además el correo de latencia.
+  - source_matchers: [alertname="SitioCaido"]
+    target_matchers: [severity="warning"]
+    equal: ['env']
+  # Disco crítico silencia disco bajo.
+  - source_matchers: [alertname="DiscoCritico"]
+    target_matchers: [alertname="DiscoBajo"]
+
+receivers:
+  - name: equipo-email
+    email_configs:
+      - to: '@@ALERT_EMAIL_TO@@'
+        send_resolved: true
+        headers:
+          Subject: '[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }} · {{ .CommonLabels.env }}'
+
+  - name: equipo-critico
+    email_configs:
+      - to: '@@ALERT_EMAIL_TO@@'
+        send_resolved: true
+    # Telegram para las críticas. Opcional: el renderizador (servicio
+    # `alertmanager-config`) QUITA el bloque entre las dos marcas si falta
+    # ALERT_TELEGRAM_TOKEN o ALERT_TELEGRAM_CHAT_ID en el .env; con las dos
+    # presentes lo deja. Para activarlo:
+    #   1. crear el bot con @BotFather y quedarse con el token,
+    #   2. escribirle al bot y sacar el chat_id de
+    #      https://api.telegram.org/bot<TOKEN>/getUpdates
+    #   3. poner los dos valores en /opt/helpdesk/observability/.env y
+    #      relanzar: docker compose -f compose.observability.yml up -d alertmanager
+    # @@TELEGRAM_BEGIN@@
+    telegram_configs:
+      - bot_token: '@@ALERT_TELEGRAM_TOKEN@@'
+        chat_id: @@ALERT_TELEGRAM_CHAT_ID@@
+        api_url: https://api.telegram.org
+        send_resolved: true
+        message: |
+          *{{ .Status | toUpper }}* · {{ .CommonLabels.alertname }}
+          {{ range .Alerts }}{{ .Annotations.summary }}
+          {{ if .Annotations.runbook }}➜ {{ .Annotations.runbook }}{{ end }}
+          {{ end }}
+    # @@TELEGRAM_END@@

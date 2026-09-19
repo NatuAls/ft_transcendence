@@ -1,0 +1,23 @@
+# Orígenes de datos provisionados: Grafana arranca ya conectado, sin que nadie
+# tenga que pinchar en la interfaz (y sin credenciales guardadas a mano).
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    jsonData:
+      timeInterval: 30s
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    jsonData:
+      maxLines: 1000
+      # Enlaza el requestId de un log con la traza de la petición: se pincha
+      # en la línea de error y se ven las métricas del mismo momento.
+      derivedFields:
+        - name: requestId
+          matcherRegex: '"requestId"\s*:\s*"([^"]+)"'
+          url: '/explore?left={"queries":[{"expr":"{env=\"$${__field.labels.env}\"} |= \"$${__value.raw}\""}]}'

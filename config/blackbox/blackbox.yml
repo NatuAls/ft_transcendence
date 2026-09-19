@@ -1,0 +1,27 @@
+# =============================================================================
+#  Blackbox exporter — sondas externas de HelpDesk Lite
+#  Mide lo que ve el usuario: Cloudflare + Nginx Proxy Manager + contenedor.
+# =============================================================================
+modules:
+  http_2xx:
+    prober: http
+    timeout: 10s
+    http:
+      valid_http_versions: [HTTP/1.1, HTTP/2.0]
+      valid_status_codes: [200]
+      method: GET
+      follow_redirects: true
+      fail_if_ssl: false
+      fail_if_not_ssl: true
+      preferred_ip_protocol: ip4
+      # Cloudflare bloquea agentes desconocidos: identificarse evita que la
+      # propia sonda dispare la alerta que debería vigilar.
+      headers:
+        User-Agent: 'helpdesklite-blackbox/1.0 (monitorizacion interna)'
+
+  tls_connect:
+    prober: tcp
+    timeout: 10s
+    tcp:
+      tls: true
+      preferred_ip_protocol: ip4

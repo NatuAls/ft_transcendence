@@ -45,8 +45,12 @@ jobs:
   build-and-deploy:
     name: Construir y desplegar
     needs: ci
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # Runner ARM64 nativo: las imágenes son linux/arm64 (Ampere) y construirlas
+    # emuladas con QEMU en amd64 tardaba de 10 a 30 min cuando cambiaban las
+    # dependencias (y Node bajo QEMU puede quedarse colgado). Gratuito en
+    # repositorios públicos. 30 min: si algo se atasca, que falle, no que espere.
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write
@@ -63,14 +67,11 @@ jobs:
           echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
           echo "build_time=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to the Container registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -81,7 +82,7 @@ jobs:
       # smoke test pueda verificar que el contenedor nuevo es realmente el
       # nuevo.
       - name: Build and push API image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: apps/api/Dockerfile.prod
@@ -96,7 +97,7 @@ jobs:
             APP_VERSION=${{ github.ref_name }}-${{ github.run_number }}
 
       - name: Build and push Web image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: apps/web/Dockerfile.prod
@@ -109,7 +110,7 @@ jobs:
       # Los secretos viajan por `envs:`, no interpolados dentro del texto del
       # script: así no acaban escritos en el historial de comandos del servidor.
       - name: Deploy to Oracle Cloud
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.5
         env:
           ENV_NAME: staging
           DEPLOY_DIR: /opt/helpdesk/staging
@@ -121,6 +122,12 @@ jobs:
           DB_USER: ${{ secrets.STAGING_DB_USER }}
           DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
           DB_NAME: ${{ secrets.STAGING_DB_NAME }}
+          # Opcional (auditoría B4): contraseña del rol helpdesk_app. Vacío = la
+          # aplicación sigue conectando como el propietario de la base.
+          DB_APP_PASSWORD: ${{ secrets.STAGING_DB_APP_PASSWORD }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.STAGING_BACKUP_KEY }}
+          RCLONE_REMOTE: ${{ vars.STAGING_RCLONE_REMOTE }}
+          METRICS_TOKEN: ${{ secrets.STAGING_METRICS_TOKEN }}
           JWT_ACCESS_SECRET: ${{ secrets.STAGING_JWT_SECRET }}
           JWT_REFRESH_SECRET: ${{ secrets.STAGING_JWT_REFRESH_SECRET || secrets.STAGING_JWT_SECRET }}
           PASSWORD_PEPPER: ${{ secrets.STAGING_PEPPER }}
@@ -132,6 +139,8 @@ jobs:
           SMTP_HOST: ${{ vars.STAGING_SMTP_HOST || secrets.STAGING_SMTP_HOST }}
           SMTP_PORT: ${{ vars.STAGING_SMTP_PORT || secrets.STAGING_SMTP_PORT }}
           MAIL_FROM: ${{ vars.STAGING_MAIL_FROM || secrets.STAGING_MAIL_FROM }}
+          # Opcional: correo del primer GLOBAL_ADMIN (ver compose.prod.yml).
+          BOOTSTRAP_ADMIN_EMAIL: ${{ vars.STAGING_BOOTSTRAP_ADMIN_EMAIL }}
           APP_VERSION: ${{ github.ref_name }}-${{ github.run_number }}
           LOG_LEVEL: debug
         with:
@@ -139,7 +148,7 @@ jobs:
           username: deployer
           key: ${{ secrets.ORACLE_SSH_KEY }}
           command_timeout: 20m
-          envs: ENV_NAME,DEPLOY_DIR,GH_REPO,GH_TOKEN,GH_ACTOR,GHCR_OWNER,GIT_SHA,DB_USER,DB_PASSWORD,DB_NAME,JWT_ACCESS_SECRET,JWT_REFRESH_SECRET,PASSWORD_PEPPER,CORS_ORIGINS,SMTP_HOST,SMTP_PORT,MAIL_FROM,APP_VERSION,LOG_LEVEL
+          envs: ENV_NAME,DEPLOY_DIR,GH_REPO,GH_TOKEN,GH_ACTOR,GHCR_OWNER,GIT_SHA,DB_USER,DB_PASSWORD,DB_NAME,JWT_ACCESS_SECRET,JWT_REFRESH_SECRET,PASSWORD_PEPPER,CORS_ORIGINS,SMTP_HOST,SMTP_PORT,MAIL_FROM,APP_VERSION,LOG_LEVEL,BACKUP_ENCRYPTION_KEY,RCLONE_REMOTE,METRICS_TOKEN,BOOTSTRAP_ADMIN_EMAIL,DB_APP_PASSWORD
           script: |
             set -euo pipefail
             # /opt pertenece a root. `deployer` no tiene sudo, así que el
@@ -147,7 +156,7 @@ jobs:
             #   sudo mkdir -p /opt/helpdesk/staging /opt/helpdesk/prod
             #   sudo chown -R deployer:deployer /opt/helpdesk
             if ! mkdir -p "$DEPLOY_DIR/scripts/deploy" 2>/dev/null; then
-              echo "ERROR: $(id -un) no puede crear $DEPLOY_DIR. Ver doc/DEVOPS_CICD.md, apartado 'Usuario de despliegue'." >&2
+              echo "ERROR: $(id -un) no puede crear $DEPLOY_DIR. Ver la guía DevOps del equipo, apartado 'Usuario de despliegue'." >&2
               exit 1
             fi
             cd "$DEPLOY_DIR"

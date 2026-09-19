@@ -1,0 +1,39 @@
+# .github/CODEOWNERS — HelpDesk Lite
+#
+# Con "Require review from Code Owners" activado en el ruleset de develop/main,
+# cualquier PR que toque estas rutas exige la aprobación de su dueño. No
+# impide colaborar: impide que un merge sobrescriba estas piezas sin que su
+# responsable lo vea. Ajustar los logins del frontend/backend al equipo.
+
+# --- DevOps / infraestructura / seguridad (Felipe) ---------------------------
+/.github/                          @felipecela
+/compose.dev.yml                   @felipecela
+/compose.prod.yml                  @felipecela
+/compose.observability.yml         @felipecela
+/config/                           @felipecela
+/scripts/                          @felipecela
+/Makefile                          @felipecela
+/.env.example                      @felipecela
+/.env-observabilidad.example       @felipecela
+/.gitignore                        @felipecela
+/.gitleaksignore                   @felipecela
+/.trivyignore                      @felipecela
+/apps/api/Dockerfile.prod          @felipecela
+/apps/api/Dockerfile.dev           @felipecela
+/apps/web/Dockerfile.prod          @felipecela
+/apps/web/Dockerfile.dev           @felipecela
+/apps/web/nginx.conf               @felipecela
+/apps/web/proxy-common.inc         @felipecela
+/apps/web/security-headers.inc     @felipecela
+/apps/web/public/robots.txt        @felipecela
+/apps/api/src/config/env.ts        @felipecela
+/apps/api/src/modules/observability/   @felipecela
+/apps/api/src/modules/health/      @felipecela
+/apps/api/src/common/middleware/http-metrics.ts   @felipecela
+/apps/api/src/common/middleware/rate-limit.ts     @felipecela
+/apps/api/src/common/logger.ts     @felipecela
+/apps/api/src/modules/admin/bootstrap-admin.ts    @felipecela
+
+# --- Backend (autores del módulo; sustituir por los logins reales) ----------
+
+# --- Frontend ----------------------------------------------------------------

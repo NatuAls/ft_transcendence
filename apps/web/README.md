@@ -1,73 +1,46 @@
-# React + TypeScript + Vite
+# HelpDesk Lite — front end (`apps/web`)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Aplicación React 19 + TypeScript servida por Vite en desarrollo y por nginx
+(imagen `apps/web/Dockerfile.prod`) en staging y producción. Habla con la API
+por `/api/v1` (mismo origen en producción; en desarrollo Vite lo reenvía a
+`VITE_PROXY_TARGET`, por defecto `http://localhost:5000`).
 
-Currently, two official plugins are available:
+## Arrancar
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
+```bash
+npm install                      # desde la raíz del monorepo (workspaces)
+npm run dev:web                  # http://localhost:5173  (o: npm run dev --workspace=apps/web)
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Con `make up-dev` la web también corre en contenedor. Variables: `VITE_API_URL`
+(opcional; por defecto `/api/v1`) y `VITE_PROXY_TARGET` (sólo desarrollo).
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x';
-import reactDom from 'eslint-plugin-react-dom';
+## Comprobaciones (las mismas que el CI)
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
+```bash
+npm run lint --workspace=apps/web
+npm run typecheck --workspace=apps/web
+npm run build --workspace=apps/web
 ```
+
+## Estructura
+
+| Ruta | Qué hay |
+|---|---|
+| `src/app/` | arranque, rutas (`routes.ts`), sesión (`session.ts`), error boundary, 404, página de trabajo |
+| `src/features/<área>/` | una carpeta por área funcional: `auth`, `organizations`, `organization`, `tickets`, `messages`, `people`, `account`, `admin`, `legal` (cada una con sus vistas, su `*Data.ts` de acceso a la API y su CSS) |
+| `src/layout/` | armazón de la aplicación (`AppShell`), menú de perfil, búsqueda global |
+| `src/api/` | cliente HTTP y autenticación (access token en memoria, refresh por cookie `HttpOnly`) |
+| `src/styles/` | estilos globales |
+| `../../packages/ui` | componentes compartidos (botones, campos, diálogos, avatares…) |
+| `../../packages/contracts` | esquemas Zod compartidos con la API: la validación del formulario es la misma que la del servidor |
+
+## Producción
+
+`Dockerfile.prod` construye los estáticos y los sirve con `nginx.conf`
+(cabeceras de seguridad en `security-headers.inc`, reenvío de `/api` y
+Socket.IO a la API en `proxy-common.inc`, límites de peticiones en las rutas de
+credenciales). No hay que tocar nada para desplegar: lo hace el pipeline.
+
+Más detalle de la integración con la API: [`INTEGRATION.md`](INTEGRATION.md).
+Referencia de endpoints: [`../api/ENDPOINTS.md`](../api/ENDPOINTS.md).
