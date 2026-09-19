@@ -17,25 +17,25 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
-    "@prisma/adapter-pg": "^7.9.1",
-    "@prisma/client": "^7.9.1",
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
     "archiver": "^7.0.1",
     "argon2": "^0.45.1",
-    "compression": "^1.8.1",
+    "compression": "^1.8.2",
     "contracts": "*",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "express": "^5.2.1",
-    "file-type": "^22.0.2",
+    "file-type": "^22.1.0",
     "helmet": "^8.1.0",
     "ioredis": "^5.9.0",
     "jsonwebtoken": "^9.0.2",
-    "multer": "^2.0.0",
-    "nodemailer": "^7.0.10",
+    "multer": "^2.3.0",
+    "nodemailer": "^9.1.1",
     "pg": "^8.16.0",
-    "sharp": "^0.34.5",
+    "sharp": "^0.35.4",
     "socket.io": "^4.8.1",
-    "zod": "^4.4.3"
+    "zod": "^4.6.4"
   },
   "devDependencies": {
     "@types/archiver": "^6.0.4",
@@ -48,7 +48,7 @@
     "@types/node": "^24.13.3",
     "@types/nodemailer": "^7.0.4",
     "@types/pg": "^8.15.6",
-    "prisma": "^7.9.1",
+    "prisma": "^7.10.0",
     "typescript": "^6.0.3"
   }
 }

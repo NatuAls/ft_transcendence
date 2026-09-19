@@ -22,7 +22,9 @@
 global:
   resolve_timeout: 5m
   smtp_smarthost: '@@ALERT_SMTP_HOST@@'
-  smtp_from: 'HelpDesk Lite Alertas <alertas@helpdesklite.me>'
+  # Debe ser un remitente validado en Brevo (o un dominio autenticado con
+  # SPF/DKIM). Se cambia con ALERT_SMTP_FROM en el .env sin tocar esto.
+  smtp_from: '@@ALERT_SMTP_FROM@@'
   smtp_auth_username: '@@ALERT_SMTP_USER@@'
   smtp_auth_password_file: /etc/alertmanager/smtp_password
   smtp_require_tls: true
@@ -69,12 +71,16 @@ receivers:
     email_configs:
       - to: '@@ALERT_EMAIL_TO@@'
         send_resolved: true
-    # Telegram para las críticas. Para activarlo:
+    # Telegram para las críticas. Opcional: el renderizador (servicio
+    # `alertmanager-config`) QUITA el bloque entre las dos marcas si falta
+    # ALERT_TELEGRAM_TOKEN o ALERT_TELEGRAM_CHAT_ID en el .env; con las dos
+    # presentes lo deja. Para activarlo:
     #   1. crear el bot con @BotFather y quedarse con el token,
     #   2. escribirle al bot y sacar el chat_id de
     #      https://api.telegram.org/bot<TOKEN>/getUpdates
-    #   3. descomentar este bloque, cambiar los dos valores por @@TOKENS@@ y
-    #      añadir las dos sustituciones al servicio `alertmanager-config`.
+    #   3. poner los dos valores en /opt/helpdesk/observability/.env y
+    #      relanzar: docker compose -f compose.observability.yml up -d alertmanager
+    # @@TELEGRAM_BEGIN@@
     telegram_configs:
       - bot_token: '@@ALERT_TELEGRAM_TOKEN@@'
         chat_id: @@ALERT_TELEGRAM_CHAT_ID@@
@@ -85,3 +91,4 @@ receivers:
           {{ range .Alerts }}{{ .Annotations.summary }}
           {{ if .Annotations.runbook }}➜ {{ .Annotations.runbook }}{{ end }}
           {{ end }}
+    # @@TELEGRAM_END@@

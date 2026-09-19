@@ -75,7 +75,7 @@ jobs:
         with:
           sparse-checkout: scripts/ci/prod-gate.mjs
           sparse-checkout-cone-mode: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
       - name: Comprobar PR aprobada / liberación autorizada
@@ -92,8 +92,12 @@ jobs:
   build-and-deploy:
     name: Construir y desplegar (requiere aprobación)
     needs: [ci, gate]
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # Runner ARM64 nativo: las imágenes son linux/arm64 (Ampere) y construirlas
+    # emuladas con QEMU en amd64 tardaba de 10 a 30 min cuando cambiaban las
+    # dependencias (y Node bajo QEMU puede quedarse colgado). Gratuito en
+    # repositorios públicos. 30 min: si algo se atasca, que falle, no que espere.
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
     environment:
       name: PROD
     permissions:
@@ -110,21 +114,18 @@ jobs:
           echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
           echo "build_time=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to the Container registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push API image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: apps/api/Dockerfile.prod
@@ -139,7 +140,7 @@ jobs:
             APP_VERSION=${{ github.ref_name }}-${{ github.run_number }}
 
       - name: Build and push Web image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: apps/web/Dockerfile.prod
@@ -152,7 +153,7 @@ jobs:
       # El script remoto hace: copia previa -> .env -> pull -> up -> espera al
       # healthcheck -> smoke test -> ROLLBACK automático si algo de eso falla.
       - name: Deploy to Oracle Cloud
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.5
         env:
           ENV_NAME: prod
           DEPLOY_DIR: /opt/helpdesk/prod
@@ -198,7 +199,7 @@ jobs:
             #   sudo mkdir -p /opt/helpdesk/staging /opt/helpdesk/prod
             #   sudo chown -R deployer:deployer /opt/helpdesk
             if ! mkdir -p "$DEPLOY_DIR/scripts/deploy" 2>/dev/null; then
-              echo "ERROR: $(id -un) no puede crear $DEPLOY_DIR. Ver doc/DEVOPS_CICD.md, apartado 'Usuario de despliegue'." >&2
+              echo "ERROR: $(id -un) no puede crear $DEPLOY_DIR. Ver la guía DevOps del equipo, apartado 'Usuario de despliegue'." >&2
               exit 1
             fi
             cd "$DEPLOY_DIR"
