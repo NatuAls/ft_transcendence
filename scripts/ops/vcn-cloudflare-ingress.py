@@ -18,7 +18,7 @@ Localiza la instancia por su nombre (--instance, por defecto la única en
 RUNNING) y toma la security list de su subred. Guarda una copia de la lista
 anterior en el scratch antes de aplicar.
 """
-import argparse, json, subprocess, sys, tempfile, time, urllib.request
+import argparse, ipaddress, json, subprocess, sys, tempfile, time, urllib.request
 
 CF_V4 = "https://www.cloudflare.com/ips-v4"
 WEB_PORTS = (80, 443)
@@ -41,9 +41,32 @@ def tcp_rule(source, port, description):
             "tcp-options": {"destination-port-range": {"max": port, "min": port}, "source-port-range": None},
             "udp-options": None}
 
+def is_private(cidr):
+    try:
+        return ipaddress.ip_network(cidr, strict=False).is_private
+    except ValueError:
+        return False
+
+def permits_web(rule):
+    """True si la regla deja pasar 80 o 443 desde una fuente PÚBLICA: TCP con
+    un rango que los cubra (o sin rango = todos los puertos) o protocolo
+    'all'. Las fuentes privadas (VCN, RFC1918) no cuentan: no son el origen
+    abierto a internet que se quiere cerrar."""
+    if rule.get("source-type", "CIDR_BLOCK") != "CIDR_BLOCK" or is_private(rule.get("source", "")):
+        return False
+    proto = rule.get("protocol")
+    if proto == "all":
+        return True
+    if proto != "6":
+        return False
+    pr = (rule.get("tcp-options") or {}).get("destination-port-range")
+    if not pr:
+        return True  # TCP sin rango = todos los puertos
+    return any(pr["min"] <= p <= pr["max"] for p in WEB_PORTS)
+
 def is_web(rule):
-    t = rule.get("tcp-options") or {}
-    pr = t.get("destination-port-range") or {}
+    """Regla web nuestra: TCP, un solo puerto 80 o 443 (las de Cloudflare)."""
+    pr = (rule.get("tcp-options") or {}).get("destination-port-range") or {}
     return rule.get("protocol") == "6" and pr.get("min") in WEB_PORTS and pr.get("min") == pr.get("max")
 
 def key(rule):
@@ -62,23 +85,45 @@ def main():
         if line.startswith("tenancy="): tenancy = line.split("=", 1)[1].strip()
     if not tenancy: sys.exit("no encuentro tenancy= en ~/.oci/config")
 
-    inst = [i for i in oci("compute", "instance", "list", "--compartment-id", tenancy, "--all")
+    inst = [i for i in oci("compute", "instance", "list", "--compartment-id", tenancy,
+                           "--compartment-id-in-subtree", "true", "--all")
             if i["lifecycle-state"] == "RUNNING" and (not a.instance or i["display-name"] == a.instance)]
     if len(inst) != 1: sys.exit("instancias RUNNING encontradas: %d (usa --instance)" % len(inst))
     inst = inst[0]
     vnic = oci("compute", "instance", "list-vnics", "--instance-id", inst["id"])[0]
     subnet = oci("network", "subnet", "get", "--subnet-id", vnic["subnet-id"])
-    sl_id = subnet["security-list-ids"][0]
-    sl = oci("network", "security-list", "get", "--security-list-id", sl_id)
-    current = sl["ingress-security-rules"]
-    print("instancia %s · subred %s · security list «%s» (%d reglas de entrada)"
-          % (inst["display-name"], subnet["display-name"], sl["display-name"], len(current)))
+    # Una subred puede llevar hasta 5 security lists y sus reglas se SUMAN:
+    # se gestiona la primera y se exige que ninguna otra abra 80/443.
+    lists = [oci("network", "security-list", "get", "--security-list-id", i) for i in subnet["security-list-ids"]]
+    sl, others = lists[0], lists[1:]
+    sl_id, current = sl["id"], sl["ingress-security-rules"]
+    print("instancia %s · subred %s · security list «%s» (%d reglas de entrada; %d listas más en la subred)"
+          % (inst["display-name"], subnet["display-name"], sl["display-name"], len(current), len(others)))
+    for o in others:
+        bad = [r for r in o["ingress-security-rules"] if permits_web(r)]
+        if bad:
+            for r in bad: print("  ! «%s»: %s %s" % (o["display-name"], r.get("protocol"), r.get("source")))
+            sys.exit("la security list «%s» también abre 80/443 a internet: quítalo allí primero (este script sólo gestiona la primera lista)." % o["display-name"])
 
     with urllib.request.urlopen(CF_V4, timeout=20) as r:
         cf = sorted(l.strip() for l in r.read().decode().splitlines() if l.strip())
+    # Sin esta comprobación, una respuesta vacía o una página intermedia
+    # dejaría el origen sin ninguna regla web con --apply.
+    if len(cf) < 10:
+        sys.exit("lista IPv4 de Cloudflare vacía o sospechosamente corta (%d entradas): no se aplica nada." % len(cf))
+    for cidr in cf:
+        try:
+            ipaddress.IPv4Network(cidr)
+        except ValueError:
+            sys.exit("entrada no válida en la lista de Cloudflare: %r. No se aplica nada." % cidr)
     print("rangos IPv4 de Cloudflare hoy: %d" % len(cf))
 
-    desired = [r for r in current if not is_web(r)]
+    # Se quitan nuestras reglas web (se regeneran) y cualquier otra que abra
+    # 80/443 desde internet (rangos que los incluyan, TCP sin rango, 'all').
+    dropped = [r for r in current if not is_web(r) and permits_web(r)]
+    for r in dropped:
+        print("  - se retira (abre 80/443 a internet): %s %s %s" % (r.get("protocol"), r.get("source"), r.get("description") or ""))
+    desired = [r for r in current if not is_web(r) and not permits_web(r)]
     for port, name in ((80, "HTTP"), (443, "HTTPS")):
         for cidr in cf:
             desired.append(tcp_rule(cidr, port, "Cloudflare %s" % name))

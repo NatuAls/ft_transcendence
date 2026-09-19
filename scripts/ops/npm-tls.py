@@ -118,8 +118,10 @@ def main():
     for h in hosts:
         if not (set(h["domain_names"]) & set(DOMAINS)): continue
         body = {k: h[k] for k in PUT_FIELDS if k in h}
+        # ssl_forced sólo se ACTIVA con --force-ssl; nunca se desactiva por
+        # omisión (una ejecución normal posterior dejaría el :80 abierto).
         body.update({"certificate_id": cert["id"], "http2_support": True, "hsts_enabled": False,
-                     "ssl_forced": bool(args.force_ssl)})
+                     "ssl_forced": bool(args.force_ssl or h.get("ssl_forced"))})
         log("Proxy host #%d %s → cert #%d, http2, ssl_forced=%s" % (h["id"], h["domain_names"], cert["id"], body["ssl_forced"]))
         if not args.dry_run: npm.call("PUT", "/nginx/proxy-hosts/%d" % h["id"], body)
 

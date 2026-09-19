@@ -125,13 +125,17 @@ services:
           telegram='/@@TELEGRAM_BEGIN@@/,/@@TELEGRAM_END@@/d'
           echo "Telegram: sin ALERT_TELEGRAM_TOKEN/CHAT_ID, sólo correo."
         fi
+        # Los valores van como REEMPLAZO de sed: un '&', un '|' (el delimitador)
+        # o una barra invertida en el remitente romperían el YAML renderizado.
+        # esc() los escapa; la contraseña SMTP nunca pasa por sed (va a fichero).
+        esc() { printf '%s' "$$1" | sed 's/[\\&|]/\\&/g'; }
         sed -e "$$telegram" \
-            -e "s|@@ALERT_SMTP_FROM@@|$$ALERT_SMTP_FROM|g" \
-            -e "s|@@ALERT_SMTP_HOST@@|$$ALERT_SMTP_HOST|g" \
-            -e "s|@@ALERT_SMTP_USER@@|$$ALERT_SMTP_USER|g" \
-            -e "s|@@ALERT_EMAIL_TO@@|$$ALERT_EMAIL_TO|g" \
-            -e "s|@@ALERT_TELEGRAM_TOKEN@@|$$ALERT_TELEGRAM_TOKEN|g" \
-            -e "s|@@ALERT_TELEGRAM_CHAT_ID@@|$$ALERT_TELEGRAM_CHAT_ID|g" \
+            -e "s|@@ALERT_SMTP_FROM@@|$$(esc "$$ALERT_SMTP_FROM")|g" \
+            -e "s|@@ALERT_SMTP_HOST@@|$$(esc "$$ALERT_SMTP_HOST")|g" \
+            -e "s|@@ALERT_SMTP_USER@@|$$(esc "$$ALERT_SMTP_USER")|g" \
+            -e "s|@@ALERT_EMAIL_TO@@|$$(esc "$$ALERT_EMAIL_TO")|g" \
+            -e "s|@@ALERT_TELEGRAM_TOKEN@@|$$(esc "$$ALERT_TELEGRAM_TOKEN")|g" \
+            -e "s|@@ALERT_TELEGRAM_CHAT_ID@@|$$(esc "$$ALERT_TELEGRAM_CHAT_ID")|g" \
             /tmpl/alertmanager.yml.tmpl > /render/alertmanager.yml.tmp
         grep -q '^route:' /render/alertmanager.yml.tmp \
           || { echo "el alertmanager.yml renderizado no tiene 'route:'; no se instala." >&2; exit 1; }

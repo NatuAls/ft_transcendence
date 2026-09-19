@@ -27,6 +27,7 @@ import { randomBytes } from 'node:crypto';
 
 const API = process.env.API_URL ?? 'http://127.0.0.1:5000/api/v1';
 const DOMAIN = process.env.SEED_DOMAIN ?? 'helpdesklite.me';
+const ORG_SLUG = 'vilanova-ti';
 
 const pw = () => 'Demo-' + randomBytes(9).toString('base64url') + '1a!';
 const users = [
@@ -97,16 +98,35 @@ for (const u of users) {
     u.id = r.user.id;
     log(`cuenta ${u.username} (${u.role})`);
   } catch (e) {
-    if (u === users[0] && /409|exist|conflict|taken/i.test(e.message)) {
+    if (/409|exist|conflict|taken/i.test(e.message)) {
+      // No se asume que "la cuenta existe" signifique "todo sembrado": una
+      // ejecución anterior pudo quedarse a medias. Se para con código 2 y se
+      // explica cómo comprobarlo y cómo limpiar para volver a sembrar.
+      log(`${u.email} ya existe. No se toca nada (código de salida 2).`);
       log(
-        `${u.email} ya existe: los datos de demostración ya están sembrados. No se toca nada.`,
+        'Si la siembra anterior terminó, no hay nada que hacer. Si se quedó a medias,',
       );
-      process.exit(0);
+      log(
+        `limpia y repite:  docker exec helpdesk-db-<env> psql -U <DB_USER> -d <DB_NAME> -c "DELETE FROM organizations WHERE slug='${ORG_SLUG}'" -c "DELETE FROM users WHERE email LIKE 'demo-%@${DOMAIN}'"`,
+      );
+      process.exit(2);
     }
     throw e;
   }
 }
 const [admin, agent, laura, marc] = users;
+
+// Las credenciales salen YA por stdout: si algo falla más adelante, quien
+// las redirigió a fichero sigue teniendo las cuentas para entrar o limpiar.
+process.stdout.write(
+  [
+    `# Cuentas de demostración (${DOMAIN}). Generado ${new Date().toISOString()}`,
+    ...users.map(
+      (u) => `${u.role.padEnd(9)} ${u.email.padEnd(32)} ${u.password}`,
+    ),
+    '',
+  ].join('\n'),
+);
 
 // --- 2. organización, miembros, categorías ----------------------------------
 const org = await call(
@@ -114,7 +134,7 @@ const org = await call(
   '/organizations',
   {
     name: 'Ayuntamiento de Vilanova — Soporte TI',
-    slug: 'vilanova-ti',
+    slug: ORG_SLUG,
     description:
       'Incidencias y peticiones del personal municipal (demostración).',
   },
@@ -303,15 +323,9 @@ for (const t of T) {
 }
 log(`${n} tickets creados`);
 
-// --- 4. cuentas por stdout (el que llama las redirige a un fichero 600) --------
+// --- 4. cierre --------------------------------------------------------------
 process.stdout.write(
-  [
-    `# Cuentas de demostración — organización "${org.name}" (${DOMAIN}). Generado ${new Date().toISOString()}`,
-    ...users.map(
-      (u) => `${u.role.padEnd(9)} ${u.email.padEnd(32)} ${u.password}`,
-    ),
-    '',
-  ].join('\n'),
+  `# organización "${org.name}" (${org.id}) · ${n} tickets · siembra completa\n`,
 );
 log(
   'cuentas emitidas por stdout (redirigido a fichero). No se registran en ningún log.',

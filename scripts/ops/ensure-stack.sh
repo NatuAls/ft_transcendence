@@ -17,9 +17,10 @@
 #      sudo rm    /opt/helpdesk/prod/.maintenance     # al terminar
 #
 #  Sólo actúa si api, web o db llevan DOS comprobaciones seguidas (≥ 5 min)
-#  sin correr: un despliegue recrea los contenedores en menos de eso y no se
-#  interfiere con él. Levanta con la configuración que hay en el directorio
-#  (.env + compose.prod.yml), sin descargar nada nuevo.
+#  sin correr, y nunca mientras remote-deploy.sh tenga el cerrojo
+#  /run/lock/helpdesk-deploy-<env>.lock (despliegue o rollback en curso).
+#  Levanta con la configuración que hay en el directorio (.env +
+#  compose.prod.yml), sin descargar nada nuevo.
 # =============================================================================
 set -euo pipefail
 ACTION="${1:-}"; shift || true
@@ -34,6 +35,14 @@ check() {
   fi
   if [ -f "$dir/.maintenance" ]; then
     echo "[$env] en mantenimiento ($dir/.maintenance): no se toca"; rm -f "$miss"; return 0
+  fi
+  # Mismo cerrojo que remote-deploy.sh: si hay un despliegue (o rollback) en
+  # curso, se espera a la siguiente comprobación en vez de intercalarse.
+  local lock="/run/lock/helpdesk-deploy-${env}.lock"
+  [ -e "$lock" ] || ( umask 000 && : > "$lock" )
+  exec 9<"$lock"
+  if ! flock -n 9; then
+    echo "[$env] despliegue en curso (cerrojo $lock): no se toca"; return 0
   fi
   cd "$dir"
   running=$(docker compose -f compose.prod.yml ps -q --status running api web db 2>/dev/null | wc -l)

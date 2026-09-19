@@ -42,12 +42,16 @@ docker exec -i -e APP_PW="$APP_PW" -e MON_PW="$MON_PW" "helpdesk-db-$ENV_NAME" \
 # vez de imprimirse: útil cuando el script lo lanza una sesión cuya salida
 # queda registrada (asistente, CI). Sin la variable, se imprimen una vez.
 if [ -n "${SECRETS_OUT:-}" ]; then
-  umask 077
   # Cada línea lleva el nombre exacto que consume su destino: la primera es
   # el secreto de GitHub; las otras dos van tal cual al .env de observabilidad
   # (compose.observability.yml lee ${ENV}_DB_USER / ${ENV}_DB_PASSWORD).
+  # Temporal nuevo (umask 077) + chmod + mv atómico: si SECRETS_OUT ya
+  # existiera con 644, una redirección directa conservaría esos permisos.
+  umask 077
+  tmp=$(mktemp "${SECRETS_OUT}.XXXXXX")
   printf '# GitHub → Secrets\n%s_DB_APP_PASSWORD=%s\n# /opt/helpdesk/observability/.env\n%s_DB_USER=helpdesk_monitor\n%s_DB_PASSWORD=%s\n' \
-    "${ENV_NAME^^}" "$APP_PW" "${ENV_NAME^^}" "${ENV_NAME^^}" "$MON_PW" > "$SECRETS_OUT"
+    "${ENV_NAME^^}" "$APP_PW" "${ENV_NAME^^}" "${ENV_NAME^^}" "$MON_PW" > "$tmp"
+  chmod 600 "$tmp" && mv -f "$tmp" "$SECRETS_OUT"
   echo "Roles creados en $DB_NAME ($ENV_NAME). Contraseñas escritas en $SECRETS_OUT (600), con el nombre que espera cada destino."
   exit 0
 fi

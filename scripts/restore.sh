@@ -82,14 +82,28 @@ cat "$BACKUP_PATH/MANIFEST" 2>/dev/null || true
 # 1. Integridad antes de tocar nada: las huellas del MANIFEST.
 # -----------------------------------------------------------------------------
 log "Verificando huellas SHA-256"
-if [ -f "$BACKUP_PATH/MANIFEST" ]; then
-  expected_db=$(grep -m1 '^dump_sha256=' "$BACKUP_PATH/MANIFEST" | cut -d= -f2- || true)
-  actual_db=$(sha256sum "$BACKUP_PATH/database.dump.enc" | cut -d' ' -f1)
-  if [ -n "$expected_db" ] && [ "$expected_db" != "$actual_db" ]; then
-    bad "la huella del dump NO coincide: la copia está corrupta."
-    FAILURES=$((FAILURES + 1))
+# check_hash <clave del MANIFEST> <fichero>: la huella tiene que EXISTIR en el
+# MANIFEST y coincidir. Un MANIFEST sin huella ya no cuenta como correcto.
+check_hash() {
+  local key="$1" file="$2" expected actual
+  expected=$(grep -m1 "^${key}=" "$BACKUP_PATH/MANIFEST" | cut -d= -f2- || true)
+  if [ ! -f "$file" ]; then
+    bad "falta $(basename "$file")"; FAILURES=$((FAILURES + 1)); return
+  fi
+  if [ -z "$expected" ]; then
+    bad "el MANIFEST no trae ${key}: no se puede verificar $(basename "$file")"; FAILURES=$((FAILURES + 1)); return
+  fi
+  actual=$(sha256sum "$file" | cut -d' ' -f1)
+  if [ "$expected" != "$actual" ]; then
+    bad "la huella de $(basename "$file") NO coincide: la copia está corrupta."; FAILURES=$((FAILURES + 1))
   else
-    ok "huella del dump correcta"
+    ok "huella de $(basename "$file") correcta"
+  fi
+}
+if [ -f "$BACKUP_PATH/MANIFEST" ]; then
+  check_hash dump_sha256 "$BACKUP_PATH/database.dump.enc"
+  if [ -f "$BACKUP_PATH/uploads.tar.gz.enc" ] || grep -q '^uploads_sha256=' "$BACKUP_PATH/MANIFEST"; then
+    check_hash uploads_sha256 "$BACKUP_PATH/uploads.tar.gz.enc"
   fi
 else
   bad "sin MANIFEST: no se puede verificar la integridad"
@@ -284,14 +298,29 @@ $COMPOSE run --rm --no-deps \
 log "Parando API y web (la base sigue en pie)"
 $COMPOSE stop api web
 
+log "Descifrando la copia (antes de tocar la base)"
+# El descifrado va a un fichero temporal y se comprueba POR SEPARADO: una
+# clave incorrecta o un dump corrupto abortan siempre, aunque se haya pedido
+# ignorar los errores de pg_restore.
+PLAIN=$(mktemp "$BACKUP_PATH/.database.dump.XXXXXX")
+chmod 600 "$PLAIN"
+trap 'rm -f "$PLAIN"' EXIT
+decrypt "$BACKUP_PATH/database.dump.enc" > "$PLAIN" \
+  || die "no se puede descifrar database.dump.enc (¿BACKUP_ENCRYPTION_KEY correcta?). La base NO se ha tocado."
+[ -s "$PLAIN" ] || die "el dump descifrado está vacío. La base NO se ha tocado."
+if [ -f "$BACKUP_PATH/uploads.tar.gz.enc" ]; then
+  decrypt "$BACKUP_PATH/uploads.tar.gz.enc" | tar -tzf - > /dev/null \
+    || die "no se puede descifrar/abrir uploads.tar.gz.enc. La base NO se ha tocado."
+fi
+
 log "Restaurando la base de datos"
 # pg_restore devuelve 1 tanto por un error real como por avisos que ignora
 # («errors ignored on restore»). Aquí no se distingue: si hay errores la pila
 # NO se levanta, y decide una persona con la salida delante. Para continuar
-# a sabiendas: RESTORE_IGNORE_ERRORS=1.
-if ! decrypt "$BACKUP_PATH/database.dump.enc" \
-  | $COMPOSE exec -T -e PGPASSWORD="$DB_PASSWORD" db \
-      pg_restore -U "$DB_USER" -d "$DB_NAME" --clean --if-exists --no-owner; then
+# a sabiendas (sólo errores de pg_restore; el descifrado ya se validó):
+# RESTORE_IGNORE_ERRORS=1.
+if ! $COMPOSE exec -T -e PGPASSWORD="$DB_PASSWORD" db \
+      pg_restore -U "$DB_USER" -d "$DB_NAME" --clean --if-exists --no-owner < "$PLAIN"; then
   bad "pg_restore ha devuelto errores (ver arriba)"
   if [ "${RESTORE_IGNORE_ERRORS:-0}" != "1" ]; then
     cat <<MSG
