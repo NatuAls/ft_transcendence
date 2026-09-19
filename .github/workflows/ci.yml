@@ -364,7 +364,7 @@ jobs:
       - uses: docker/setup-buildx-action@v3
 
       - name: Imagen de la API
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: apps/api/Dockerfile.prod
@@ -378,7 +378,7 @@ jobs:
             GIT_COMMIT=${{ github.sha }}
 
       - name: Imagen de la web
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: apps/web/Dockerfile.prod
