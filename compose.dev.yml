@@ -38,7 +38,7 @@ services:
   mailpit:
     # Fijada por versión: `:latest` haría que dos desarrolladores levantasen
     # servidores de correo distintos sin enterarse (tarea DevOps 2).
-    image: axllent/mailpit:v1.28.3
+    image: axllent/mailpit:v1.31.1
     container_name: dev_mailpit
     restart: unless-stopped
     networks:
