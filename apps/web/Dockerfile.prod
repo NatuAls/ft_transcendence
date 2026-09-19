@@ -29,7 +29,7 @@ RUN npm run build
 # ==========================================
 # ETAPA 2: PRODUCCIÓN (El Camarero - Nginx)
 # ==========================================
-FROM nginx:1.28-alpine AS production
+FROM nginx:1.31-alpine AS production
 
 # 1. Limpiamos la página por defecto de Nginx
 RUN rm -rf /usr/share/nginx/html/*

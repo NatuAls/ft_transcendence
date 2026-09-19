@@ -38,7 +38,7 @@ x-logging: &default-logging
 services:
   # ---------------------------------------------------------------- métricas --
   prometheus:
-    image: prom/prometheus:v3.1.0
+    image: prom/prometheus:v3.14.0
     container_name: helpdesk-prometheus
     restart: always
     logging: *default-logging
@@ -146,7 +146,7 @@ services:
         echo "alertmanager.yml renderizado ($$(wc -c < /render/alertmanager.yml) bytes)."
 
   alertmanager:
-    image: prom/alertmanager:v0.28.0
+    image: prom/alertmanager:v0.34.1
     container_name: helpdesk-alertmanager
     restart: always
     logging: *default-logging
@@ -165,7 +165,7 @@ services:
 
   # ------------------------------------------------------------- exportadores --
   node-exporter:
-    image: prom/node-exporter:v1.9.0
+    image: prom/node-exporter:v1.12.1
     container_name: helpdesk-node-exporter
     restart: always
     logging: *default-logging
@@ -278,7 +278,7 @@ services:
 
   # --------------------------------------------------------------- paneles --
   grafana:
-    image: grafana/grafana:11.5.2
+    image: grafana/grafana:13.2.2
     container_name: helpdesk-grafana
     restart: always
     logging: *default-logging
