@@ -1,7 +1,7 @@
 # ==========================================
 # ETAPA 1: BUILDER (El Cocinero)
 # ==========================================
-FROM node:24-alpine@sha256:d32cdf619f63fe0471182d08996dd516c6275bb5fd31ae06e55a570bd9e1ad43 AS builder
+FROM node:25-alpine@sha256:bdf2cca6fe3dabd014ea60163eca3f0f7015fbd5c7ee1b0e9ccb4ced6eb02ef4 AS builder
 
 # 1. Dependencias nativas necesarias para compilar argon2 y sharp
 RUN apk add --no-cache python3 make g++
@@ -34,7 +34,7 @@ RUN npm prune --omit=dev
 # ==========================================
 # ETAPA 2: PRODUCCIÓN (El Plato Final)
 # ==========================================
-FROM node:24-alpine@sha256:d32cdf619f63fe0471182d08996dd516c6275bb5fd31ae06e55a570bd9e1ad43 AS production
+FROM node:25-alpine@sha256:bdf2cca6fe3dabd014ea60163eca3f0f7015fbd5c7ee1b0e9ccb4ced6eb02ef4 AS production
 
 # 0. Trazabilidad de la release (tarea DevOps 7).
 #    El pipeline pasa el SHA del commit y la fecha de construcción como
