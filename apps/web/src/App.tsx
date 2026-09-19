@@ -9,7 +9,6 @@ import {
 } from './app/routes';
 import { sessionCapabilities } from './app/session';
 import { WorkspacePage } from './app/WorkspacePage';
-import { initialAccountProfile } from './features/account/accountData';
 import { AdminAccessDenied } from './features/admin/AdminAccessDenied';
 import { GlobalAdminPage } from './features/admin/GlobalAdminPage';
 import { RegisterPage } from './features/auth/RegisterPage';
@@ -17,10 +16,11 @@ import { SignInPage } from './features/auth/SignInPage';
 import { LegalPage } from './features/legal/LegalPage';
 import type { NewTicketValues } from './features/tickets/CreateTicketPage';
 import { initialTickets, type Ticket } from './features/tickets/ticketData';
+import type { AccountProfile } from './features/account/accountData';
 import { AppShell } from './layout/AppShell';
 import { logout, refreshSession, type AuthResponse } from './api/auth';
 
-function accountProfileFromUser(user: AuthResponse['user']) {
+function accountProfileFromUser(user: AuthResponse['user']): AccountProfile {
   return {
     bio: user.bio ?? '',
     email: user.email,
@@ -36,19 +36,34 @@ function accountProfileFromUser(user: AuthResponse['user']) {
 function App() {
   const [location, setLocation] = useState<AppLocation>(readLocation);
   const [avatarUrl, setAvatarUrl] = useState<string>();
-  const [accountProfile, setAccountProfile] = useState(initialAccountProfile);
+  const [accountProfile, setAccountProfile] = useState<AccountProfile | null>(
+    null,
+  );
+  const [sessionReady, setSessionReady] = useState(false);
   const [tickets, setTickets] = useState<Ticket[]>(initialTickets);
   const [organizationName, setOrganizationName] = useState('Northstar Studio');
 
   useEffect(() => {
-    void refreshSession().then((authData) => {
-      if (!authData) return;
-      setAccountProfile(accountProfileFromUser(authData.user));
-      setAvatarUrl(authData.user.avatarUrl ?? undefined);
-      if (location.route === 'login' || location.route === 'register') {
-        window.location.hash = buildHash('tickets');
-      }
-    });
+    void refreshSession()
+      .then((authData) => {
+        if (!authData) {
+          if (
+            location.route !== 'login' &&
+            location.route !== 'register' &&
+            location.route !== 'privacy-policy' &&
+            location.route !== 'terms'
+          ) {
+            window.location.hash = buildHash('login');
+          }
+          return;
+        }
+        setAccountProfile(accountProfileFromUser(authData.user));
+        setAvatarUrl(authData.user.avatarUrl ?? undefined);
+        if (location.route === 'login' || location.route === 'register') {
+          window.location.hash = buildHash('tickets');
+        }
+      })
+      .finally(() => setSessionReady(true));
   }, [location.route]);
 
   useEffect(() => {
@@ -67,13 +82,14 @@ function App() {
   };
 
   async function handleSignIn(user: AuthResponse['user']) {
-    void user;
+    setAccountProfile(accountProfileFromUser(user));
+    setAvatarUrl(user.avatarUrl ?? undefined);
     navigate('tickets');
   }
 
   function handleRegister(user: AuthResponse['user']) {
-    // The future auth service call belongs here; the page only owns form state.
-    void user;
+    setAccountProfile(accountProfileFromUser(user));
+    setAvatarUrl(user.avatarUrl ?? undefined);
     navigate('tickets');
   }
 
@@ -81,11 +97,14 @@ function App() {
     try {
       await logout();
     } finally {
+      setAccountProfile(null);
+      setAvatarUrl(undefined);
       navigate('login');
     }
   }
 
   function handleCreateTicket(values: NewTicketValues) {
+    if (!accountProfile) return;
     const ticketNumber =
       244 + Math.max(0, tickets.length - initialTickets.length);
     const ticket: Ticket = {
@@ -153,6 +172,10 @@ function App() {
         onSignIn={() => navigate('login')}
       />
     );
+  }
+
+  if (!sessionReady || !accountProfile) {
+    return <main aria-live="polite">Loading...</main>;
   }
 
   return (
