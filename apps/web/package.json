@@ -16,6 +16,7 @@
     "contracts": "0.0.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "socket.io-client": "^4.8.3",
     "ui": "0.0.0"
   },
   "devDependencies": {

@@ -9,6 +9,7 @@ import {
 import { prisma } from '../../database/prisma.ts';
 import { DomainEvents } from '../../database/events.ts';
 import { createLogger } from '../../common/logger.ts';
+import { registerChatSocketHandlers } from '../chat/chat.socket.ts';
 
 const logger = createLogger('realtime');
 
@@ -187,44 +188,7 @@ export function createSocketServer(httpServer: HttpServer): RealtimeServer {
       },
     );
 
-    client.on(
-      'conversation.subscribe',
-      (
-        body: { conversationId?: string },
-        ack?: (res: { ok: boolean }) => void,
-      ) => {
-        void (async () => {
-          const user = sockets.get(client.id);
-          if (!user || !body?.conversationId) return ack?.({ ok: false });
-          const member = await prisma.conversationMember.findUnique({
-            where: {
-              conversationId_userId: {
-                conversationId: body.conversationId,
-                userId: user.id,
-              },
-            },
-            select: { userId: true },
-          });
-          if (!member) return ack?.({ ok: false });
-          await client.join(`conv:${body.conversationId}`);
-          ack?.({ ok: true });
-        })();
-      },
-    );
-
-    client.on(
-      'conversation.unsubscribe',
-      (
-        body: { conversationId?: string },
-        ack?: (res: { ok: true }) => void,
-      ) => {
-        void (async () => {
-          if (body?.conversationId)
-            await client.leave(`conv:${body.conversationId}`);
-          ack?.({ ok: true });
-        })();
-      },
-    );
+    registerChatSocketHandlers(client, () => sockets.get(client.id));
 
     /** Called by the client after a reconnect: everything that changed while
      * the socket was away, so the UI never shows stale data. */
