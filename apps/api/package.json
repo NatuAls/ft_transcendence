@@ -49,6 +49,6 @@
     "@types/nodemailer": "^7.0.4",
     "@types/pg": "^8.15.6",
     "prisma": "^7.10.0",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.2"
   }
 }
