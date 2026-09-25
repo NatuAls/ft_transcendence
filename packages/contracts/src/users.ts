@@ -4,17 +4,27 @@ import { globalRoleSchema, localeSchema, orgRoleSchema } from './enums.ts';
 
 /** User & profile contracts. */
 
+const timezoneSchema = z
+  .string()
+  .max(64)
+  .refine(
+    (timezone) =>
+      timezone === 'UTC' ||
+      (typeof Intl.supportedValuesOf === 'function' &&
+        Intl.supportedValuesOf('timeZone').includes(timezone)),
+    { message: 'errors.timezone.invalid' },
+  );
+
 export const updateProfileSchema = z.object({
   firstName: z.string().trim().min(1).max(60).optional(),
   lastName: z.string().trim().min(1).max(60).optional(),
-  displayName: z.string().trim().min(1).max(80).optional(),
   bio: z.string().trim().max(500).optional(),
   jobTitle: z.string().trim().max(80).optional(),
 });
 
 export const updatePreferencesSchema = z.object({
   locale: localeSchema.optional(),
-  timezone: z.string().max(64).optional(),
+  timezone: timezoneSchema.optional(),
   theme: z.enum(['light', 'dark', 'system']).optional(),
   notifyOnTicketUpdate: z.boolean().optional(),
   notifyOnComment: z.boolean().optional(),
@@ -55,6 +65,8 @@ export interface PublicUser {
 
 export interface SessionUser extends PublicUser {
   email: string;
+  firstName: string;
+  lastName: string;
   globalRole: z.infer<typeof globalRoleSchema>;
   locale: z.infer<typeof localeSchema>;
   timezone: string;

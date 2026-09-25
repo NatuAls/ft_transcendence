@@ -18,6 +18,7 @@ import { validate } from '../../common/middleware/validate.ts';
 import { Errors } from '../../common/errors/domain-error.ts';
 import { param } from '../../common/utils/http.ts';
 import { loadConfiguration } from '../../config/env.ts';
+import { verifyAccessToken } from '../../common/jwt.ts';
 
 const REFRESH_COOKIE = 'hd_refresh';
 const SESSION_HINT_COOKIE = 'hd_session';
@@ -108,13 +109,24 @@ authRouter.post('/refresh', rateLimitDefault, async (req, res) => {
   res.status(200).json({ user: result.user, accessToken: result.accessToken });
 });
 
-authRouter.post('/logout', ...authed, async (req, res) => {
+authRouter.post('/logout', rateLimitDefault, async (req, res) => {
   const token = (req.cookies as Record<string, string> | undefined)?.[
     REFRESH_COOKIE
   ];
-  // The access token travels too: revoking only the refresh row would leave
-  // the JWT this very request authenticated with valid until it expired.
-  await auth.logout(token, req.accessToken);
+  // Logout must still clear the refresh cookie after the short-lived access
+  // token expires. If the Bearer is valid, revoke it too; an expired or
+  // malformed Bearer must not prevent ending the browser session.
+  const header = req.headers.authorization;
+  const accessToken = header?.startsWith('Bearer ')
+    ? (() => {
+        try {
+          return verifyAccessToken(header.slice('Bearer '.length).trim());
+        } catch {
+          return undefined;
+        }
+      })()
+    : undefined;
+  await auth.logout(token, accessToken);
   clearAuthCookies(res);
   res.status(204).end();
 });

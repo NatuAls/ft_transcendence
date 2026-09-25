@@ -6,12 +6,14 @@ export function ProfileMenu({
   className = '',
   label,
   onNavigate,
+  onSignOut,
   showAdministration = false,
 }: {
   children: ReactNode;
   className?: string;
   label: string;
   onNavigate: Navigate;
+  onSignOut: () => void | Promise<void>;
   showAdministration?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -133,7 +135,10 @@ export function ProfileMenu({
           ) : null}
           <hr role="separator" />
           <button
-            onClick={() => navigate('login')}
+            onClick={() => {
+              setOpen(false);
+              void onSignOut();
+            }}
             role="menuitem"
             type="button"
           >

@@ -95,6 +95,13 @@
   background: #fff;
 }
 
+.auth-field-hint {
+  margin: 5px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
 .auth-password-field > p {
   display: none;
   margin: 4px 0 0;

@@ -69,16 +69,22 @@ export async function publicProfile(username: string) {
 }
 
 export async function updateProfile(userId: string, input: UpdateProfileInput) {
+  const current =
+    input.firstName || input.lastName
+      ? await prisma.userProfile.findUniqueOrThrow({
+          where: { userId },
+          select: { firstName: true, lastName: true },
+        })
+      : null;
+  const firstName = input.firstName ?? current?.firstName;
+  const lastName = input.lastName ?? current?.lastName;
   const profile = await prisma.userProfile.update({
     where: { userId },
     data: {
       ...input,
-      ...(input.firstName || input.lastName
+      ...(firstName || lastName
         ? {
-            displayName:
-              input.displayName ??
-              (`${input.firstName ?? ''} ${input.lastName ?? ''}`.trim() ||
-                undefined),
+            displayName: `${firstName ?? ''} ${lastName ?? ''}`.trim(),
           }
         : {}),
     },

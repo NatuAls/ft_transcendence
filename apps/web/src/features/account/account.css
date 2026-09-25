@@ -164,6 +164,22 @@
   padding: 12px;
   font-size: 11px;
 }
+.account-feedback--success {
+  border-left-color: #287a4b;
+  background: #e5f4ea;
+  color: #1f633b;
+}
+.account-feedback--info {
+  border-left-color: var(--color-info);
+  background: #e5eef0;
+  color: var(--color-text-secondary);
+}
+.profile-form__readonly .ui-field__input,
+.profile-form__readonly input {
+  background: #eef0f2;
+  color: var(--color-text-secondary);
+  cursor: not-allowed;
+}
 .preferences-card {
   display: grid;
   max-width: 620px;
