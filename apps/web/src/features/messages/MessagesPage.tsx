@@ -37,7 +37,11 @@ export function MessagesPage({
   const [newConversationOpen, setNewConversationOpen] = useState(false);
   const [candidateQuery, setCandidateQuery] = useState('');
   const [candidates, setCandidates] = useState<ChatUser[]>([]);
+  const [candidateResultsQuery, setCandidateResultsQuery] = useState('');
   const [remoteMessages, setRemoteMessages] = useState<ApiMessage[]>([]);
+  const [messagesConversationId, setMessagesConversationId] = useState<
+    string | null
+  >(null);
   const [messagePage, setMessagePage] = useState(1);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -97,17 +101,22 @@ export function MessagesPage({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [initialPerson]);
 
   useEffect(() => {
     if (!newConversationOpen || candidateQuery.trim().length < 2) {
-      setCandidates([]);
+      // setCandidates([]); // Sustituido: visibleCandidates filtra la UI sin
+      // ejecutar setState síncrono dentro del efecto.
       return;
     }
+    const normalizedQuery = candidateQuery.trim();
     let cancelled = false;
-    void searchUsers(candidateQuery.trim())
+    void searchUsers(normalizedQuery)
       .then((users) => {
-        if (!cancelled) setCandidates(users);
+        if (!cancelled) {
+          setCandidates(users);
+          setCandidateResultsQuery(normalizedQuery);
+        }
       })
       .catch((error: unknown) =>
         console.error('Unable to search users', error),
@@ -145,7 +154,8 @@ export function MessagesPage({
 
   useEffect(() => {
     if (!activeConversationId) {
-      setRemoteMessages([]);
+      // setRemoteMessages([]); // Sustituido: visibleRemoteMessages evita
+      // mostrar mensajes de una conversación que ya no está activa.
       return;
     }
     scrollToLatestRef.current = true;
@@ -155,6 +165,7 @@ export function MessagesPage({
       .then((page) => {
         if (!cancelled) {
           setRemoteMessages(page.data);
+          setMessagesConversationId(activeConversationId);
           setMessagePage(page.meta.page);
           setHasMoreMessages(page.meta.page < page.meta.pages);
         }
@@ -197,6 +208,17 @@ export function MessagesPage({
     };
   }, [activeConversationId]);
 
+  const visibleCandidates =
+    newConversationOpen &&
+    candidateQuery.trim().length >= 2 &&
+    candidateResultsQuery === candidateQuery.trim()
+      ? candidates
+      : [];
+  const visibleRemoteMessages =
+    activeConversationId && messagesConversationId === activeConversationId
+      ? remoteMessages
+      : [];
+
   useEffect(() => {
     const body = threadBodyRef.current;
     if (!body) return;
@@ -208,7 +230,7 @@ export function MessagesPage({
     const distanceFromBottom =
       body.scrollHeight - body.scrollTop - body.clientHeight;
     if (distanceFromBottom < 160) body.scrollTop = body.scrollHeight;
-  }, [remoteMessages]);
+  }, [remoteMessages, messagesConversationId, activeConversationId]);
   const visibleConversations = useMemo(
     () =>
       conversations.filter((conversation) =>
@@ -378,10 +400,10 @@ export function MessagesPage({
             {loadingOlder ? (
               <p className="message-thread__loading">Loading older messages…</p>
             ) : null}
-            {activeConversationId && !remoteMessages.length ? (
+            {activeConversationId && !visibleRemoteMessages.length ? (
               <p className="message-thread__empty">No messages yet.</p>
             ) : null}
-            {remoteMessages.map((item) => (
+            {visibleRemoteMessages.map((item) => (
               <article
                 className={item.sender.id === userId ? 'is-own' : ''}
                 key={item.id}
@@ -480,7 +502,7 @@ export function MessagesPage({
                 Write at least 2 characters to search.
               </p>
             ) : null}
-            {candidates.map((user) => (
+            {visibleCandidates.map((user) => (
               <button
                 key={user.id}
                 onClick={() => void startConversation(user)}
@@ -498,7 +520,7 @@ export function MessagesPage({
                 <i aria-hidden="true">→</i>
               </button>
             ))}
-            {candidateQuery.trim().length >= 2 && !candidates.length ? (
+            {candidateQuery.trim().length >= 2 && !visibleCandidates.length ? (
               <p className="new-conversation-list__hint">No users found.</p>
             ) : null}
           </div>
