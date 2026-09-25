@@ -1,4 +1,7 @@
 export interface Conversation {
+  id?: string;
+  userId?: string;
+  username?: string;
   initials: string;
   name: string;
   preview: string;
@@ -6,6 +9,8 @@ export interface Conversation {
   time: string;
 }
 
+// Datos del mockup original conservados como referencia. La UI real no los
+// carga: MessagesPage empieza vacía y obtiene conversaciones desde la API.
 export const initialConversations: Conversation[] = [
   {
     initials: 'MS',
@@ -44,6 +49,8 @@ export const initialConversations: Conversation[] = [
   },
 ];
 
+// Candidatos del mockup original conservados como referencia. La UI real usa
+// el buscador autenticado de /users/search.
 export const newConversationCandidates: Conversation[] = [
   {
     initials: 'NK',
