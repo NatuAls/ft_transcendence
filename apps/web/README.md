@@ -28,11 +28,11 @@ npm run build --workspace=apps/web
 | Ruta | Qué hay |
 |---|---|
 | `src/app/` | arranque, rutas (`routes.ts`), sesión (`session.ts`), error boundary, 404, página de trabajo |
-| `src/features/<área>/` | una carpeta por área funcional: `auth`, `organizations`, `organization`, `tickets`, `messages`, `people`, `account`, `admin`, `legal` (cada una con sus vistas, su `*Data.ts` de acceso a la API y su CSS) |
+| `src/features/<área>/` | una carpeta por área funcional: `auth`, `organizations`, `organization`, `tickets`, `messages`, `people`, `account`, `admin`, `legal` |
 | `src/layout/` | armazón de la aplicación (`AppShell`), menú de perfil, búsqueda global |
 | `src/api/` | cliente HTTP y autenticación (access token en memoria, refresh por cookie `HttpOnly`) |
-| `src/styles/` | estilos globales |
-| `../../packages/ui` | componentes compartidos (botones, campos, diálogos, avatares…) |
+| `src/styles/` | entrada Tailwind v4, tokens y estilos globales mínimos |
+| `../../packages/ui` | sistema de diseño compartido (componentes, variantes, iconos y estados) |
 | `../../packages/contracts` | esquemas Zod compartidos con la API: la validación del formulario es la misma que la del servidor |
 
 ## Producción
@@ -44,3 +44,5 @@ credenciales). No hay que tocar nada para desplegar: lo hace el pipeline.
 
 Más detalle de la integración con la API: [`INTEGRATION.md`](INTEGRATION.md).
 Referencia de endpoints: [`../api/ENDPOINTS.md`](../api/ENDPOINTS.md).
+Convenciones y creación de pantallas: [`FRONTEND_GUIDE.md`](FRONTEND_GUIDE.md).
+Catálogo del sistema de diseño: [`../../packages/ui/README.md`](../../packages/ui/README.md).

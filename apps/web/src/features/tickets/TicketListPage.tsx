@@ -208,7 +208,7 @@ export function TicketListPage({
           </label>
         </header>
 
-        <div className="flex gap-2.5 border-b border-border px-6 py-3 max-md:gap-2 max-md:overflow-x-auto max-md:border-0 max-md:px-0 max-md:pt-3 max-md:pb-4 max-md:[scrollbar-width:none] max-md:[&_.ui-select-field__control]:min-h-9 max-md:[&_.ui-select-field__control]:rounded-full max-md:[&_.ui-select-field__control]:py-1.5 max-md:[&_.ui-select-field__control]:text-xs">
+        <div className="flex gap-2.5 border-b border-border px-6 py-3 max-md:gap-2 max-md:overflow-x-auto max-md:border-0 max-md:px-0 max-md:pt-3 max-md:pb-4 max-md:[contain:paint] max-md:[scrollbar-width:none] max-md:[&_.ui-select-field]:shrink-0 max-md:[&_.ui-select-field__control]:min-h-9 max-md:[&_.ui-select-field__control]:rounded-full max-md:[&_.ui-select-field__control]:py-1.5 max-md:[&_.ui-select-field__control]:text-xs">
           <SelectField
             className="max-md:!rounded-full"
             hideLabel

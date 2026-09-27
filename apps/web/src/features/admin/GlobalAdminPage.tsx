@@ -176,13 +176,15 @@ export function GlobalAdminPage({
                 {feedback}
               </Alert>
             ) : null}
-            <header className="flex items-center gap-[9px] p-4">
-              <h2 className="flex-1 text-base font-medium">Platform users</h2>
-              <label className="flex h-10 items-center rounded-sm border border-border p-2.5 focus-within:border-focus focus-within:outline-3 focus-within:outline-focus/20">
+            <header className="flex items-center gap-[9px] p-4 max-[600px]:grid max-[600px]:grid-cols-2">
+              <h2 className="flex-1 text-base font-medium max-[600px]:col-span-2">
+                Platform users
+              </h2>
+              <label className="flex h-10 min-w-0 items-center rounded-sm border border-border p-2.5 focus-within:border-focus focus-within:outline-3 focus-within:outline-focus/20 max-[600px]:col-span-2">
                 <Icon className="mr-1" name="search" size={14} />{' '}
                 <span className="sr-only">Search platform users</span>
                 <input
-                  className="border-0 bg-transparent outline-0"
+                  className="min-w-0 flex-1 border-0 bg-transparent outline-0"
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Search name or email"
                   ref={searchRef}
@@ -191,6 +193,7 @@ export function GlobalAdminPage({
                 />
               </label>
               <SelectField
+                className="max-[600px]:w-full"
                 hideLabel
                 label="Roles"
                 onChange={(event) => setRole(event.target.value)}
@@ -201,6 +204,7 @@ export function GlobalAdminPage({
                 <option value="Global admin">Global admin</option>
               </SelectField>
               <SelectField
+                className="max-[600px]:w-full"
                 hideLabel
                 label="States"
                 onChange={(event) => setState(event.target.value)}
@@ -220,6 +224,7 @@ export function GlobalAdminPage({
             </div>
             {filteredUsers.map((user) => (
               <button
+                aria-label={`Edit ${user[1]}`}
                 className="grid w-full grid-cols-[2fr_1fr_1fr_1fr_25px] items-center gap-2.5 border-t border-border px-[18px] py-[13px] text-left text-[11px] max-[1000px]:grid-cols-[2fr_1fr_1fr_20px] max-[1000px]:[&>span:nth-child(2)]:hidden"
                 key={user[1]}
                 onClick={() => {

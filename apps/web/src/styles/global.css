@@ -23,32 +23,16 @@
   --radius-lg: 16px;
 }
 
-:root {
-  --color-text-primary: var(--color-ink);
-  --color-text-secondary: var(--color-muted);
-  --font-family: var(--font-sans);
-  --font-size-xs: 12px;
-  --font-size-sm: 14px;
-  --font-size-md: 16px;
-  --font-size-lg: 20px;
-  --font-size-xl: 24px;
-  --font-size-xxl: 32px;
-  --font-weight-regular: 400;
-  --font-weight-medium: 500;
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 12px;
-  --space-lg: 16px;
-  --space-xl: 24px;
-  --space-xxl: 32px;
-  --space-xxxl: 48px;
-}
-
 html,
 body,
 #root {
   margin: 0;
   min-height: 100vh;
+}
+
+html,
+body {
+  overflow-x: clip;
 }
 
 *,

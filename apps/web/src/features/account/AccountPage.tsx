@@ -130,14 +130,18 @@ function AccountHome({
           initials={getInitials(profile.fullName)}
           src={avatarUrl}
         />
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           <h2 className="mb-1 text-lg font-medium">{profile.fullName}</h2>
-          <p className="text-xs text-muted">{profile.email}</p>
+          <p className="truncate text-xs text-muted">{profile.email}</p>
           <small className="text-[10px] text-muted">
             {profile.jobTitle || 'User'}
           </small>
         </div>
-        <Button onClick={onProfile} variant="secondary">
+        <Button
+          className="max-md:!min-w-[124px] max-md:!px-3"
+          onClick={onProfile}
+          variant="secondary"
+        >
           Edit profile
         </Button>
       </section>

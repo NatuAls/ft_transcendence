@@ -17,7 +17,7 @@ export function SelectField({
 
   return (
     <label
-      className="ui-select-field grid gap-2 text-sm font-medium text-ink"
+      className="ui-select-field grid min-w-0 gap-2 text-sm font-medium text-ink"
       htmlFor={selectId}
     >
       <span className={hideLabel ? 'sr-only' : ''}>{label}</span>
