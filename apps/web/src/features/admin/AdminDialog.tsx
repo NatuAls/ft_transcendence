@@ -1,4 +1,4 @@
-import { Button, Dialog, SelectField, TextField } from 'ui';
+import { Alert, Button, Dialog, SelectField, TextField } from 'ui';
 import { useState } from 'react';
 import type { AdminDialogKind, AdminUser } from './adminData';
 
@@ -21,7 +21,7 @@ export function AdminDialog({
 
   return (
     <Dialog
-      className="admin-dialog"
+      className="max-w-[500px]"
       description={
         remove
           ? 'This permanently removes the platform account. Organization ownership must be transferred before deletion.'
@@ -34,7 +34,7 @@ export function AdminDialog({
         <>
           {!create && !remove ? (
             <Button
-              className="admin-dialog__delete"
+              className="mr-auto max-[1000px]:mr-0 max-[1000px]:w-full"
               onClick={onDelete}
               variant="destructive"
             >
@@ -99,9 +99,9 @@ export function AdminDialog({
             <option>Active</option>
             <option>Suspended</option>
           </SelectField>
-          <p className="admin-dialog__notice">
+          <Alert>
             Changes are enforced by the backend on the next authorized action.
-          </p>
+          </Alert>
         </>
       ) : (
         <>

@@ -8,11 +8,11 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variants: Record<ButtonVariant, string> = {
-  primary: 'bg-primary text-surface hover:not-disabled:bg-primary-hover',
+  primary: '!bg-primary text-surface hover:not-disabled:!bg-primary-hover',
   secondary:
-    'border-border bg-surface text-ink hover:not-disabled:bg-surface-secondary',
-  ghost: 'bg-surface-secondary text-primary hover:not-disabled:bg-[#e6ebe6]',
-  destructive: 'bg-danger text-surface hover:not-disabled:bg-[#7f4343]',
+    '!border-border !bg-surface text-ink hover:not-disabled:!bg-surface-secondary',
+  ghost: '!bg-surface-secondary text-primary hover:not-disabled:!bg-[#e6ebe6]',
+  destructive: '!bg-danger text-surface hover:not-disabled:!bg-[#7f4343]',
 };
 
 export function Button({

@@ -1,4 +1,4 @@
-import { Button } from 'ui';
+import { Alert, Button, IconButton, Tabs } from 'ui';
 import { useState } from 'react';
 import { getInitials } from '../../app/text';
 import { OrganizationDialog } from './OrganizationDialog';
@@ -14,7 +14,6 @@ import type {
   OrganizationRow,
   OrgTab,
 } from './organizationData';
-import './organization.css';
 
 export function OrganizationPage({
   onOpenCategory,
@@ -144,16 +143,25 @@ export function OrganizationPage({
   }
 
   return (
-    <div className="organization-page">
-      <header className="organization-heading">
+    <div className="relative mx-auto max-w-[1160px] p-10 max-md:px-4 max-md:py-6">
+      <header className="flex items-end justify-between max-md:items-start">
         <div>
-          <span>ORGANIZATION</span>
-          <h1>{organizationName}</h1>
-          <p>Manage members, roles, categories and organization settings.</p>
+          <span className="text-[11px] tracking-[.08em] text-muted max-md:hidden">
+            ORGANIZATION
+          </span>
+          <h1 className="my-2 text-[30px] font-medium max-md:text-[22px]">
+            {organizationName}
+          </h1>
+          <p className="text-sm text-muted max-md:hidden">
+            Manage members, roles, categories and organization settings.
+          </p>
         </div>
-        <div>
-          <span>Organization admin</span>
+        <div className="flex items-center gap-3">
+          <span className="text-[11px] text-success max-md:hidden">
+            Organization admin
+          </span>
           <Button
+            className="max-md:!min-h-9 max-md:!px-2.5"
             onClick={() => {
               setSelectedName(organizationName);
               setDeleteContext(null);
@@ -165,7 +173,7 @@ export function OrganizationPage({
           </Button>
         </div>
       </header>
-      <section className="organization-stats">
+      <section className="my-5 mt-7 grid grid-cols-4 gap-3 max-md:my-[18px] max-md:grid-cols-2">
         {[
           [String(memberRows.length), 'Members'],
           [
@@ -175,24 +183,37 @@ export function OrganizationPage({
           ['24', 'Open tickets'],
           [String(categoryRows.length), 'Categories'],
         ].map(([value, label]) => (
-          <article key={label}>
-            <strong>{value}</strong>
-            <span>{label}</span>
+          <article
+            className="grid gap-[5px] rounded-md border border-border bg-surface p-[18px]"
+            key={label}
+          >
+            <strong className="text-[22px] font-medium">{value}</strong>
+            <span className="text-[11px] text-muted">{label}</span>
           </article>
         ))}
       </section>
       {feedback ? (
-        <p aria-live="polite" className="organization-feedback" role="status">
+        <Alert
+          aria-live="polite"
+          className="-mt-1.5 mb-[18px] !py-2.5 !text-[11px] !text-muted"
+          role="status"
+          tone="success"
+        >
           {feedback}
-        </p>
+        </Alert>
       ) : null}
-      <section className="organization-panel">
-        <header>
+      <section className="w-[calc(100%_-_270px)] overflow-hidden rounded-md border border-border bg-surface max-[900px]:w-full">
+        <header className="flex items-center justify-between p-5 max-md:p-4">
           <div>
-            <h2>{title}</h2>
-            <p>{description}</p>
+            <h2 className="text-base font-medium">{title}</h2>
+            <p className="mt-1.5 text-[11px] text-muted max-md:hidden">
+              {description}
+            </p>
           </div>
-          <Button onClick={openCreateDialog}>
+          <Button
+            className="max-md:!min-h-9 max-md:!px-2.5"
+            onClick={openCreateDialog}
+          >
             {tab === 'members'
               ? 'Add member'
               : tab === 'roles'
@@ -200,22 +221,23 @@ export function OrganizationPage({
                 : 'Create category'}
           </Button>
         </header>
-        <nav aria-label="Organization settings">
-          {(['members', 'roles', 'categories'] as const).map((value) => (
-            <button
-              aria-current={tab === value ? 'page' : undefined}
-              key={value}
-              onClick={() => setTab(value)}
-              type="button"
-            >
-              {value === 'roles'
-                ? 'Access roles'
-                : value[0].toUpperCase() + value.slice(1)}
-            </button>
-          ))}
-        </nav>
+        <div className="overflow-auto border-y border-border px-[15px] max-md:px-[5px]">
+          <Tabs
+            activeTab={tab}
+            items={[
+              { id: 'members', label: 'Members' },
+              { id: 'roles', label: 'Access roles' },
+              { id: 'categories', label: 'Categories' },
+            ]}
+            label="Organization settings"
+            onChange={setTab}
+          />
+        </div>
         <div className="organization-table" role="table">
-          <div className="organization-table__head" role="row">
+          <div
+            className="grid grid-cols-[2fr_1fr_1fr] items-center gap-3 bg-surface-secondary px-[18px] py-[11px] text-[9px] text-muted max-md:hidden"
+            role="row"
+          >
             <span>
               {tab === 'members'
                 ? 'MEMBER'
@@ -240,14 +262,18 @@ export function OrganizationPage({
                   ? 'role'
                   : 'category';
             return (
-              <div className="organization-table__row" key={row[1]} role="row">
+              <div
+                className="grid grid-cols-[1fr_44px] border-t border-border"
+                key={row[1]}
+                role="row"
+              >
                 <button
                   aria-label={
                     tab === 'categories'
                       ? `View tickets in ${row[1]}`
                       : `Open ${row[1]}`
                   }
-                  className="organization-table__primary"
+                  className="grid min-h-[68px] w-full grid-cols-[2fr_1fr_1fr] items-center gap-3 px-[18px] py-[11px] text-left hover:bg-surface-secondary max-md:grid-cols-[1fr_auto] max-md:p-3 max-md:[&>span:nth-child(2)]:hidden"
                   onClick={() => {
                     setSelectedName(row[1]);
                     if (tab === 'categories') onOpenCategory(row[1]);
@@ -255,45 +281,47 @@ export function OrganizationPage({
                   }}
                   type="button"
                 >
-                  <span className="organization-identity">
-                    <b>{row[0]}</b>
-                    <span>
-                      <strong>{row[1]}</strong>
-                      <small>{row[2]}</small>
+                  <span className="flex items-center gap-2.5">
+                    <b className="grid size-8 place-items-center rounded-full bg-[#d8e5df] text-[9px] text-primary">
+                      {row[0]}
+                    </b>
+                    <span className="grid gap-1">
+                      <strong className="text-xs">{row[1]}</strong>
+                      <small className="text-[10px] text-muted max-md:max-w-[180px] max-md:overflow-hidden max-md:text-ellipsis max-md:whitespace-nowrap">
+                        {row[2]}
+                      </small>
                     </span>
                   </span>
-                  <span>{row[3]}</span>
-                  <span className="organization-state">
-                    <i />
+                  <span className="text-[10px] text-muted">{row[3]}</span>
+                  <span className="flex items-center gap-1.5 text-[10px] text-muted">
+                    <i className="size-1.5 rounded-full bg-success" />
                     {row[4]}
                   </span>
                 </button>
-                <button
-                  aria-label={`Edit ${row[1]}`}
-                  className="organization-table__actions"
+                <IconButton
+                  label={`Edit ${row[1]}`}
+                  icon="more"
                   onClick={() => {
                     setSelectedName(row[1]);
                     setDeleteContext(null);
                     setDialog(editor);
                   }}
-                  type="button"
-                >
-                  ⋯
-                </button>
+                  size="sm"
+                />
               </div>
             );
           })}
         </div>
       </section>
-      <aside className="organization-overview">
-        <h2>
+      <aside className="absolute top-[258px] right-10 w-[250px] rounded-md border border-border bg-surface p-5 max-[900px]:static max-[900px]:mt-4 max-[900px]:w-full max-md:hidden">
+        <h2 className="text-base font-medium">
           {tab === 'roles'
             ? 'Permission summary'
             : tab === 'categories'
               ? 'Routing overview'
               : 'Ticket categories'}
         </h2>
-        <p>
+        <p className="mt-1.5 text-[11px] text-muted">
           {tab === 'roles'
             ? 'How access is distributed by role.'
             : tab === 'categories'
@@ -309,10 +337,13 @@ export function OrganizationPage({
             ]
           : categoryRows.slice(0, 4).map((row) => [row[1], row[3]])
         ).map(([label, value]) => (
-          <div key={label}>
-            <span>●</span>
-            <strong>{label}</strong>
-            <small>{value}</small>
+          <div
+            className="mt-[18px] grid grid-cols-[12px_1fr_auto] gap-[7px]"
+            key={label}
+          >
+            <span className="text-[9px] text-brand-mint">●</span>
+            <strong className="text-[10px]">{label}</strong>
+            <small className="text-[10px] text-muted">{value}</small>
           </div>
         ))}
       </aside>

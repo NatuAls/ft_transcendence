@@ -1,11 +1,10 @@
-import { Button, Dialog, TextField } from 'ui';
+import { Alert, Button, Dialog, EmptyState, Icon, TextField } from 'ui';
 import { useMemo, useState } from 'react';
 import { getInitials } from '../../app/text';
 import {
   initialOrganizations,
   normalizeWorkspaceSlug,
 } from './organizationsData';
-import './organizations.css';
 
 export function OrganizationsPage({
   onOpen,
@@ -62,45 +61,75 @@ export function OrganizationsPage({
   }
 
   return (
-    <div className="organizations-page">
-      <header>
+    <div className="mx-auto max-w-[1000px] p-10 max-md:px-4 max-md:py-6">
+      <header className="flex items-end justify-between max-md:items-start">
         <div>
-          <span>ORGANIZATIONS</span>
-          <h1>Organizations</h1>
-          <p>Create workspaces and manage the organizations you belong to.</p>
+          <span className="text-[10px] tracking-[.08em] text-muted">
+            ORGANIZATIONS
+          </span>
+          <h1 className="my-2 text-[30px] font-medium max-md:text-[22px]">
+            Organizations
+          </h1>
+          <p className="text-[13px] text-muted max-md:hidden">
+            Create workspaces and manage the organizations you belong to.
+          </p>
         </div>
-        <Button onClick={() => setCreate(true)}>New organization</Button>
+        <Button
+          className="max-md:!min-h-9 max-md:!px-2.5"
+          onClick={() => setCreate(true)}
+        >
+          New organization
+        </Button>
       </header>
-      <div className="organizations-toolbar">
-        <label>
-          <span aria-hidden="true">⌕</span>{' '}
+      <div className="my-4 mt-7 flex items-center gap-5">
+        <label className="flex h-[42px] flex-1 items-center rounded-sm border border-border bg-surface px-[13px] py-2.5 focus-within:border-focus focus-within:outline-3 focus-within:outline-focus/20">
+          <Icon className="mr-1" name="search" size={15} />{' '}
           <span className="sr-only">Search organizations</span>
           <input
+            className="w-[90%] border-0 bg-transparent outline-0"
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search organizations"
             type="search"
             value={query}
           />
         </label>
-        <span>{visibleOrganizations.length} organizations</span>
+        <span className="text-[11px] text-muted">
+          {visibleOrganizations.length} organizations
+        </span>
       </div>
       {feedback ? (
-        <p aria-live="polite" className="organizations-feedback" role="status">
+        <Alert
+          aria-live="polite"
+          className="-mt-1 mb-4"
+          role="status"
+          tone="success"
+        >
           {feedback}
-        </p>
+        </Alert>
       ) : null}
-      <section>
+      <section className="grid gap-3">
         {visibleOrganizations.map((organization) => (
-          <article key={organization[1]}>
-            <span>{organization[0]}</span>
+          <article
+            className="grid grid-cols-[56px_1fr_auto] items-center gap-4 rounded-md border border-border bg-surface p-5 max-md:grid-cols-[48px_1fr]"
+            key={organization[1]}
+          >
+            <span className="grid size-12 place-items-center rounded-md bg-[#d8e5df] text-primary">
+              {organization[0]}
+            </span>
             <div>
-              <h2>{organization[1]}</h2>
-              <strong>{organization[2]}</strong>
-              <p>{organization[3]}</p>
+              <h2 className="mb-[5px] text-base font-medium">
+                {organization[1]}
+              </h2>
+              <strong className="text-[10px] text-primary">
+                {organization[2]}
+              </strong>
+              <p className="my-[5px] text-[10px] text-muted">
+                {organization[3]}
+              </p>
             </div>
-            <div>
-              <small>Last activity</small>
-              <p>{organization[4]}</p>
+            <div className="text-right max-md:col-span-full max-md:flex max-md:items-center max-md:justify-end max-md:gap-2.5 max-md:[&>small]:hidden max-md:[&>p]:hidden">
+              <small className="text-[9px] text-muted">Last activity</small>
+              <p className="text-[10px] text-muted">{organization[4]}</p>
               <Button
                 onClick={() => onOpen(organization[1])}
                 variant="secondary"
@@ -111,7 +140,10 @@ export function OrganizationsPage({
           </article>
         ))}
         {!visibleOrganizations.length ? (
-          <p className="organizations-empty">No organizations found.</p>
+          <EmptyState
+            description="Try another search."
+            title="No organizations found"
+          />
         ) : null}
       </section>
       {create ? (
@@ -157,18 +189,14 @@ export function OrganizationsPage({
             required
             value={slug}
           />
-          <small className="organizations-url-preview">
+          <small className="-mt-2 text-[11px] text-muted">
             helpdesk.local/{slug || 'workspace-name'}
           </small>
-          <p className="organizations-url-help">
+          <p className="text-xs leading-[1.5] text-muted">
             This unique slug identifies the workspace address. Lowercase
             letters, numbers and single hyphens are allowed.
           </p>
-          {createError ? (
-            <p className="organizations-create-error" role="alert">
-              {createError}
-            </p>
-          ) : null}
+          {createError ? <Alert tone="danger">{createError}</Alert> : null}
         </Dialog>
       ) : null}
     </div>

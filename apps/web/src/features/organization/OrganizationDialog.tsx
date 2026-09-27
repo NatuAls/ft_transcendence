@@ -1,4 +1,4 @@
-import { Button, Dialog, SelectField, TextField } from 'ui';
+import { Alert, Button, Dialog, SelectField, TextField } from 'ui';
 import { useEffect, useRef, useState } from 'react';
 import type {
   DeleteContext,
@@ -97,14 +97,13 @@ export function OrganizationDialog({
 
   return (
     <Dialog
-      className="organization-dialog"
       description={config[1]}
       eyebrow="ORGANIZATION"
       footer={
         <>
           {!['add-member', 'delete'].includes(dialog) ? (
             <Button
-              className="organization-dialog__delete"
+              className="mr-auto max-md:mr-0 max-md:w-full"
               disabled={roleHasMembers}
               onClick={() => onDelete(dialog as Exclude<DeleteContext, null>)}
               title={
@@ -155,9 +154,9 @@ export function OrganizationDialog({
             value={confirmation}
           />
         ) : (
-          <p className="organization-dialog__warning">
+          <Alert tone="danger">
             This action cannot be undone in the current preview.
-          </p>
+          </Alert>
         )
       ) : dialog === 'add-member' ? (
         <>
@@ -173,10 +172,10 @@ export function OrganizationDialog({
             <option>User</option>
             <option>Org admin</option>
           </SelectField>
-          <p className="organization-dialog__notice">
+          <Alert>
             Ticket access comes from the selected role. The production backend
             will validate the invitation and send it by email.
-          </p>
+          </Alert>
         </>
       ) : dialog === 'settings' ? (
         <>
@@ -228,7 +227,7 @@ export function OrganizationDialog({
             name="description"
             required
           />
-          <fieldset>
+          <fieldset className="grid gap-[9px] rounded-sm border border-border p-3 text-xs">
             <legend>Permissions</legend>
             {[
               'View organization',
@@ -248,9 +247,9 @@ export function OrganizationDialog({
             ))}
           </fieldset>
           {roleHasMembers ? (
-            <p className="organization-dialog__warning">
+            <Alert tone="danger">
               Reassign all members before deleting this role.
-            </p>
+            </Alert>
           ) : null}
         </>
       ) : (
