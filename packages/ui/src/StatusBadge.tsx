@@ -8,6 +8,14 @@ export interface StatusBadgeProps extends HTMLAttributes<HTMLSpanElement> {
   tone: StatusBadgeTone;
 }
 
+const tones: Record<StatusBadgeTone, string> = {
+  open: 'bg-[#e5eef0] text-info',
+  progress: 'bg-[#efe9dc] text-warning',
+  resolved: 'bg-[#e1ece5] text-success',
+  urgent: 'bg-[#f1e3e3] text-danger',
+  closed: 'bg-[#e8ebea] text-muted',
+};
+
 export function StatusBadge({
   children,
   className = '',
@@ -16,7 +24,7 @@ export function StatusBadge({
 }: StatusBadgeProps) {
   return (
     <span
-      className={`ui-status-badge ui-status-badge--${tone} ${className}`.trim()}
+      className={`ui-status-badge inline-flex min-h-6 items-center justify-center rounded-full px-2.5 py-[3px] text-xs leading-[18px] font-medium whitespace-nowrap ${tones[tone]} ${className}`.trim()}
       {...props}
     >
       {children}

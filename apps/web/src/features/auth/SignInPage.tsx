@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { loginSchema } from 'contracts';
-import { Button, Checkbox, TextField } from 'ui';
+import { Alert, Button, Checkbox, TextField } from 'ui';
 import { AuthBrandPanel, BrandHeader } from './AuthBrand';
 import { login, type AuthResponse } from '../../api/auth';
-import './auth.css';
 
 export interface SignInValues {
   email: string;
@@ -62,7 +61,7 @@ export function SignInPage({ onCreateAccount, onSubmit }: SignInPageProps) {
   }
 
   return (
-    <main className="auth-page">
+    <main className="min-h-screen bg-canvas text-ink min-[1100px]:grid min-[1100px]:grid-cols-[580px_minmax(0,1fr)]">
       <AuthBrandPanel
         title={
           <>
@@ -73,40 +72,66 @@ export function SignInPage({ onCreateAccount, onSubmit }: SignInPageProps) {
         }
         description="Track requests, collaborate clearly and keep every resolution in one dependable place."
         insight={
-          <section className="auth-insight" aria-labelledby="today-heading">
-            <h2 id="today-heading">Today at a glance</h2>
-            <div className="auth-insight__metrics">
-              <p>
-                <strong>92%</strong>
-                <span>tickets resolved</span>
+          <section
+            className="mt-36 max-w-[452px] rounded-lg bg-[#244148] p-6"
+            aria-labelledby="today-heading"
+          >
+            <h2
+              className="mb-[21px] text-[11px] font-medium text-[#bfd8cf] uppercase"
+              id="today-heading"
+            >
+              Today at a glance
+            </h2>
+            <div className="grid grid-cols-[140px_1fr] gap-[31px]">
+              <p className="grid gap-[3px]">
+                <strong className="text-[28px] font-medium">92%</strong>
+                <span className="text-xs text-[#c9d5d3]">tickets resolved</span>
               </p>
-              <p>
-                <strong>18 min</strong>
-                <span>average first response</span>
+              <p className="grid gap-[3px] border-l border-[#496269] pl-[31px]">
+                <strong className="text-[28px] font-medium">18 min</strong>
+                <span className="text-xs text-[#c9d5d3]">
+                  average first response
+                </span>
               </p>
             </div>
           </section>
         }
       />
 
-      <section className="auth-content">
-        <div className="auth-mobile-header">
+      <section className="flex min-h-screen min-w-0 flex-col px-4 pt-6 pb-10 md:items-center md:justify-center md:p-12">
+        <div className="md:hidden">
           <BrandHeader />
         </div>
 
-        <header className="auth-mobile-intro">
-          <h1>Welcome back</h1>
-          <p>Sign in to continue to your organization workspace.</p>
+        <header className="mx-2 mt-[55px] mb-[18px] md:hidden">
+          <h1 className="text-[28px] leading-[1.2] font-medium">
+            Welcome back
+          </h1>
+          <p className="mt-2.5 text-[13px] leading-[1.45] text-muted">
+            Sign in to continue to your organization workspace.
+          </p>
         </header>
 
-        <section className="auth-card" aria-labelledby="sign-in-heading">
-          <header className="auth-card__intro">
-            <p className="auth-eyebrow">Welcome back</p>
-            <h1 id="sign-in-heading">Sign in to your workspace</h1>
-            <p>Use the credentials provided by your organization.</p>
+        <section
+          className="w-full rounded-lg border border-border bg-surface px-[23px] pt-[37px] pb-[72px] md:max-w-[520px] md:px-[51px] md:pt-[46px] md:pb-[118px]"
+          aria-labelledby="sign-in-heading"
+        >
+          <header className="mb-8 hidden md:block">
+            <p className="mb-[17px] text-[11px] font-medium tracking-[.01em] text-primary uppercase">
+              Welcome back
+            </p>
+            <h1
+              className="text-[28px] leading-[1.2] font-medium"
+              id="sign-in-heading"
+            >
+              Sign in to your workspace
+            </h1>
+            <p className="mt-2.5 text-[13px] leading-[1.45] text-muted">
+              Use the credentials provided by your organization.
+            </p>
           </header>
 
-          <form className="auth-form" onSubmit={handleSubmit}>
+          <form className="grid gap-7 md:gap-5" onSubmit={handleSubmit}>
             <TextField
               label="Email address"
               name="email"
@@ -117,8 +142,8 @@ export function SignInPage({ onCreateAccount, onSubmit }: SignInPageProps) {
               onChange={handleChange(setEmail)}
               required
             />
-            <div className="auth-password-field">
-              <div className="auth-password-wrapper">
+            <div>
+              <div className="relative">
                 <TextField
                   label="Password"
                   name="password"
@@ -131,7 +156,7 @@ export function SignInPage({ onCreateAccount, onSubmit }: SignInPageProps) {
                 />
                 <button
                   type="button"
-                  className="auth-password-toggle"
+                  className="absolute right-3 bottom-0 flex h-12 items-center border-0 bg-transparent px-1 text-[11px] font-medium text-muted hover:text-primary hover:underline md:h-[52px] md:text-xs"
                   onClick={() => setShowPassword(!showPassword)}
                   tabIndex={-1} // Evita que el usuario caiga aquí accidentalmente al usar la tecla Tab
                 >
@@ -140,26 +165,30 @@ export function SignInPage({ onCreateAccount, onSubmit }: SignInPageProps) {
               </div>
             </div>
             <Checkbox
+              className="md:my-2"
               label={
                 <>
-                  <span className="auth-remember__desktop">
+                  <span className="hidden md:inline">
                     Keep me signed in on this device
                   </span>
-                  <span className="auth-remember__mobile">
-                    Keep me signed in
-                  </span>
+                  <span className="md:hidden">Keep me signed in</span>
                 </>
               }
               checked={keepSignedIn}
               onChange={(event) => setKeepSignedIn(event.target.checked)}
             />
-            {error && <p className="auth-error-msg">{error}</p>}
-            <Button fullWidth type="submit" disabled={isSubmitting || !!error}>
+            {error && <Alert tone="danger">{error}</Alert>}
+            <Button
+              className="!min-h-12"
+              fullWidth
+              type="submit"
+              disabled={isSubmitting || !!error}
+            >
               {isSubmitting ? 'Signing in...' : 'Sign in'}
             </Button>
           </form>
 
-          <div className="auth-switch">
+          <div className="mt-[26px] flex justify-center gap-3 border-t border-border pt-[29px] text-[11px] text-muted md:mt-[31px] md:border-0 md:pt-0 md:text-[13px] [&_a]:font-medium [&_a]:text-primary [&_a]:no-underline hover:[&_a]:underline">
             <span>New to HelpDesk Lite?</span>
             <a
               href="#register"
@@ -173,12 +202,12 @@ export function SignInPage({ onCreateAccount, onSubmit }: SignInPageProps) {
           </div>
         </section>
 
-        <footer className="auth-legal">
+        <footer className="mt-auto pt-[47px] text-center text-[10px] text-muted md:mt-7 md:p-0 md:text-xs [&_a]:font-medium [&_a]:text-primary [&_a]:no-underline hover:[&_a]:underline">
           <p>
             <a href="#terms">Terms of Service</a> ·{' '}
             <a href="#privacy-policy">Privacy Policy</a>
           </p>
-          <p className="auth-legal__security">Secure access · Privacy-first</p>
+          <p className="mt-8 md:hidden">Secure access · Privacy-first</p>
         </footer>
       </section>
     </main>

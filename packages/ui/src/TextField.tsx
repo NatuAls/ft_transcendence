@@ -17,21 +17,25 @@ export function TextField({
   const errorId = `${inputId}-error`;
 
   return (
-    <div
-      className={`ui-field ${error ? 'ui-field--error' : ''} ${className}`.trim()}
-    >
-      <label className="ui-field__label" htmlFor={inputId}>
+    <div className={`ui-field grid gap-[7px] ${className}`.trim()}>
+      <label
+        className="ui-field__label text-xs leading-[1.2] font-medium text-ink"
+        htmlFor={inputId}
+      >
         {label}
       </label>
       <input
-        className="ui-field__input"
+        className={`ui-field__input h-[52px] w-full rounded-[10px] border bg-[#f7faf8] px-4 text-sm leading-[1.2] text-ink placeholder:text-[#849397] focus:border-focus focus:outline-none focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-focus/40 ${error ? 'border-danger' : 'border-border'}`}
         id={inputId}
         aria-invalid={Boolean(error)}
         aria-describedby={error ? errorId : undefined}
         {...props}
       />
       {error ? (
-        <span className="ui-field__error" id={errorId}>
+        <span
+          className="ui-field__error text-xs leading-[1.2] text-danger"
+          id={errorId}
+        >
           {error}
         </span>
       ) : null}
