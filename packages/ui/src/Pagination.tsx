@@ -26,7 +26,7 @@ export function Pagination({
         (page) => (
           <button
             aria-current={page === currentPage ? 'page' : undefined}
-            className="size-8 rounded-[7px] text-xs text-muted aria-current:bg-primary aria-current:text-surface"
+            className={`size-8 rounded-[7px] text-xs ${page === currentPage ? 'bg-primary text-surface' : 'text-muted'}`}
             key={page}
             onClick={() => onPageChange(page)}
             type="button"
