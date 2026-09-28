@@ -37,28 +37,28 @@ export function CreateTicketPage({
   }
 
   return (
-    <div className="mx-auto max-w-[1160px] px-10 py-9 max-md:px-4 max-md:pt-0 max-md:pb-7">
+    <div className="mx-auto max-w-[1160px] px-10 py-9 max-[900px]:px-4 max-[900px]:pt-0 max-[900px]:pb-7">
       <button
-        className="hidden h-14 w-full items-center gap-4 border-b border-border text-lg text-ink max-md:flex"
+        className="hidden h-14 w-full items-center gap-4 border-b border-border text-lg text-ink max-[900px]:flex"
         onClick={onCancel}
         type="button"
       >
         ← <strong>Create ticket</strong>
       </button>
-      <header className="mb-[30px] flex items-center justify-between max-md:m-0 max-md:block max-md:px-1 max-md:pt-[26px] max-md:pb-5">
+      <header className="mb-[30px] flex items-center justify-between max-[900px]:m-0 max-[900px]:block max-[900px]:px-1 max-[900px]:pt-[26px] max-[900px]:pb-5">
         <div>
-          <span className="text-[11px] tracking-[.08em] text-muted max-md:hidden">
+          <span className="text-[11px] tracking-[.08em] text-muted max-[900px]:hidden">
             TICKETS / NEW
           </span>
-          <h1 className="my-2.5 mb-1.5 text-[30px] font-medium max-md:hidden">
+          <h1 className="my-2.5 mb-1.5 text-[30px] font-medium max-[900px]:hidden">
             Create a ticket
           </h1>
-          <p className="text-sm text-muted max-md:text-[11px]">
+          <p className="text-sm text-muted max-[900px]:text-[11px]">
             Describe the issue clearly so the right person can help.
           </p>
         </div>
         <button
-          className="text-primary max-md:hidden"
+          className="text-primary max-[900px]:hidden"
           onClick={onCancel}
           type="button"
         >
@@ -66,9 +66,9 @@ export function CreateTicketPage({
         </button>
       </header>
 
-      <div className="grid grid-cols-[minmax(0,680px)_280px] gap-8 max-md:block">
+      <div className="grid grid-cols-[minmax(0,680px)_280px] gap-8 max-[900px]:block">
         <form
-          className="grid gap-6 rounded-md border border-border bg-surface p-7 max-md:gap-[22px] max-md:px-4 max-md:py-5"
+          className="grid min-w-0 gap-6 rounded-md border border-border bg-surface p-7 max-md:gap-[22px] max-md:px-4 max-md:py-5"
           onSubmit={handleSubmit}
         >
           <header className="max-md:hidden">
@@ -107,7 +107,7 @@ export function CreateTicketPage({
           <label className="relative grid gap-2 text-sm font-medium">
             <span>Description *</span>
             <textarea
-              className="min-h-[130px] resize-y rounded-sm border border-border bg-surface p-[14px] text-ink max-md:min-h-[120px]"
+              className="min-h-[130px] w-full min-w-0 resize-y rounded-sm border border-border bg-surface p-[14px] text-ink max-md:min-h-[120px]"
               maxLength={1200}
               onChange={(event) => setDescription(event.target.value)}
               placeholder="Explain what happened, what you expected and any steps that reproduce the problem."
@@ -118,7 +118,7 @@ export function CreateTicketPage({
               {description.length} / 1200
             </small>
           </label>
-          <fieldset className="m-0 border-0 p-0">
+          <fieldset className="m-0 min-w-0 border-0 p-0">
             <legend className="mb-2.5 text-sm font-medium">Priority *</legend>
             <div className="grid grid-cols-3 gap-2.5 max-md:gap-2">
               {priorities.map((item) => (
@@ -146,7 +146,7 @@ export function CreateTicketPage({
               ))}
             </div>
           </fieldset>
-          <footer className="flex justify-end gap-2.5 border-t border-border pt-[22px] max-md:sticky max-md:bottom-0 max-md:bg-surface max-md:pt-4 max-md:[&_.ui-button]:flex-1">
+          <footer className="flex min-w-0 justify-end gap-2.5 border-t border-border pt-[22px] max-md:sticky max-md:bottom-0 max-md:bg-surface max-md:pt-4 max-md:[&_.ui-button]:!min-w-0 max-md:[&_.ui-button]:flex-1 max-md:[&_.ui-button]:!px-2 max-md:[&_.ui-button]:text-xs max-md:[&_.ui-button]:whitespace-nowrap">
             <Button onClick={onCancel} variant="secondary">
               Cancel
             </Button>
@@ -154,7 +154,7 @@ export function CreateTicketPage({
           </footer>
         </form>
 
-        <aside className="self-start rounded-md border border-border bg-surface p-6 max-md:hidden">
+        <aside className="self-start rounded-md border border-border bg-surface p-6 max-[900px]:hidden">
           <span className="text-[11px] tracking-[.08em] text-muted">
             BEFORE YOU SUBMIT
           </span>

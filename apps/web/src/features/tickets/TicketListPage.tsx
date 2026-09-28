@@ -97,16 +97,15 @@ export function TicketListPage({
     <div className="mx-auto max-w-[1440px] p-10 max-md:px-[18px] max-md:pt-0 max-md:pb-6">
       <section className="hidden py-[22px] max-md:block">
         <p className="mb-1 text-[13px] text-muted">Good morning, Ana</p>
-        <div className="flex items-center justify-between">
-          <strong className="text-xl font-medium">
+        <div className="flex items-center justify-between gap-3">
+          <strong className="min-w-0 text-xl font-medium">
             4 tickets need attention
           </strong>
           <Button
-            className="!size-10 !min-h-10 !min-w-10 !p-0 text-[22px]"
-            aria-label="Create ticket"
+            className="shrink-0 !min-w-0 !px-3 text-sm whitespace-nowrap"
             onClick={onCreateTicket}
           >
-            +
+            +&nbsp;&nbsp;New ticket
           </Button>
         </div>
       </section>
