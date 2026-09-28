@@ -86,7 +86,7 @@ export function OrganizationsPage({
           <Icon className="mr-1" name="search" size={15} />{' '}
           <span className="sr-only">Search organizations</span>
           <input
-            className="w-[90%] border-0 bg-transparent outline-0"
+            className="w-[90%] border-0 bg-transparent outline-0 focus-visible:!outline-none"
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search organizations"
             type="search"

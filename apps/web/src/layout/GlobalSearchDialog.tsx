@@ -101,12 +101,14 @@ export function GlobalSearchDialog({
         </label>
         <Icon name="search" size={18} />
         <input
-          className="h-full min-w-0 border-0 bg-transparent outline-0"
+          className="h-full min-w-0 border-0 bg-transparent outline-0 focus-visible:!outline-none"
           id="global-search-input"
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search by title, ID, person or setting"
           ref={inputRef}
-          type="search"
+          inputMode="search"
+          role="searchbox"
+          type="text"
           value={query}
         />
         {query ? (

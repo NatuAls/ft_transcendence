@@ -202,151 +202,153 @@ export function OrganizationPage({
           {feedback}
         </Alert>
       ) : null}
-      <section className="w-[calc(100%_-_270px)] overflow-hidden rounded-md border border-border bg-surface max-[900px]:w-full">
-        <header className="flex items-center justify-between p-5 max-md:p-4">
-          <div>
-            <h2 className="text-base font-medium">{title}</h2>
-            <p className="mt-1.5 text-[11px] text-muted max-md:hidden">
-              {description}
-            </p>
-          </div>
-          <Button
-            className="max-md:!min-h-9 max-md:!px-2.5"
-            onClick={openCreateDialog}
-          >
-            {tab === 'members'
-              ? 'Add member'
-              : tab === 'roles'
-                ? 'Create role'
-                : 'Create category'}
-          </Button>
-        </header>
-        <div className="overflow-auto border-y border-border px-[15px] max-md:px-[5px]">
-          <Tabs
-            activeTab={tab}
-            items={[
-              { id: 'members', label: 'Members' },
-              { id: 'roles', label: 'Access roles' },
-              { id: 'categories', label: 'Categories' },
-            ]}
-            label="Organization settings"
-            onChange={setTab}
-          />
-        </div>
-        <div className="organization-table" role="table">
-          <div
-            className="grid grid-cols-[2fr_1fr_1fr] items-center gap-3 bg-surface-secondary px-[18px] py-[11px] text-[9px] text-muted max-md:hidden"
-            role="row"
-          >
-            <span>
+      <div className="grid grid-cols-[minmax(0,1fr)_250px] items-start gap-5 max-[900px]:block">
+        <section className="w-full overflow-hidden rounded-md border border-border bg-surface">
+          <header className="flex items-center justify-between p-5 max-md:p-4">
+            <div>
+              <h2 className="text-base font-medium">{title}</h2>
+              <p className="mt-1.5 text-[11px] text-muted max-md:hidden">
+                {description}
+              </p>
+            </div>
+            <Button
+              className="max-md:!min-h-9 max-md:!px-2.5"
+              onClick={openCreateDialog}
+            >
               {tab === 'members'
-                ? 'MEMBER'
+                ? 'Add member'
                 : tab === 'roles'
+                  ? 'Create role'
+                  : 'Create category'}
+            </Button>
+          </header>
+          <div className="overflow-auto border-y border-border px-[15px] max-md:px-[5px]">
+            <Tabs
+              activeTab={tab}
+              items={[
+                { id: 'members', label: 'Members' },
+                { id: 'roles', label: 'Access roles' },
+                { id: 'categories', label: 'Categories' },
+              ]}
+              label="Organization settings"
+              onChange={setTab}
+            />
+          </div>
+          <div className="organization-table" role="table">
+            <div
+              className="grid grid-cols-[2fr_1fr_1fr] items-center gap-3 bg-surface-secondary px-[18px] py-[11px] text-[9px] text-muted max-md:hidden"
+              role="row"
+            >
+              <span>
+                {tab === 'members'
+                  ? 'MEMBER'
+                  : tab === 'roles'
+                    ? 'ROLE'
+                    : 'CATEGORY'}
+              </span>
+              <span>
+                {tab === 'members'
                   ? 'ROLE'
-                  : 'CATEGORY'}
-            </span>
-            <span>
-              {tab === 'members'
-                ? 'ROLE'
-                : tab === 'roles'
-                  ? 'MEMBERS'
-                  : 'OPEN TICKETS'}
-            </span>
-            <span>{tab === 'roles' ? 'ACCESS' : 'STATUS'}</span>
-          </div>
-          {rows.map((row) => {
-            const editor =
-              tab === 'members'
-                ? 'edit-member'
-                : tab === 'roles'
-                  ? 'role'
-                  : 'category';
-            return (
-              <div
-                className="grid grid-cols-[1fr_44px] border-t border-border"
-                key={row[1]}
-                role="row"
-              >
-                <button
-                  aria-label={
-                    tab === 'categories'
-                      ? `View tickets in ${row[1]}`
-                      : `Open ${row[1]}`
-                  }
-                  className="grid min-h-[68px] w-full grid-cols-[2fr_1fr_1fr] items-center gap-3 px-[18px] py-[11px] text-left hover:bg-surface-secondary max-md:grid-cols-[1fr_auto] max-md:p-3 max-md:[&>span:nth-child(2)]:hidden"
-                  onClick={() => {
-                    setSelectedName(row[1]);
-                    if (tab === 'categories') onOpenCategory(row[1]);
-                    else setDialog(editor);
-                  }}
-                  type="button"
+                  : tab === 'roles'
+                    ? 'MEMBERS'
+                    : 'OPEN TICKETS'}
+              </span>
+              <span>{tab === 'roles' ? 'ACCESS' : 'STATUS'}</span>
+            </div>
+            {rows.map((row) => {
+              const editor =
+                tab === 'members'
+                  ? 'edit-member'
+                  : tab === 'roles'
+                    ? 'role'
+                    : 'category';
+              return (
+                <div
+                  className="grid grid-cols-[1fr_44px] border-t border-border"
+                  key={row[1]}
+                  role="row"
                 >
-                  <span className="flex items-center gap-2.5">
-                    <b className="grid size-8 place-items-center rounded-full bg-[#d8e5df] text-[9px] text-primary">
-                      {row[0]}
-                    </b>
-                    <span className="grid gap-1">
-                      <strong className="text-xs">{row[1]}</strong>
-                      <small className="text-[10px] text-muted max-md:max-w-[180px] max-md:overflow-hidden max-md:text-ellipsis max-md:whitespace-nowrap">
-                        {row[2]}
-                      </small>
+                  <button
+                    aria-label={
+                      tab === 'categories'
+                        ? `View tickets in ${row[1]}`
+                        : `Open ${row[1]}`
+                    }
+                    className="grid min-h-[68px] w-full grid-cols-[2fr_1fr_1fr] items-center gap-3 px-[18px] py-[11px] text-left hover:bg-surface-secondary max-md:grid-cols-[1fr_auto] max-md:p-3 max-md:[&>span:nth-child(2)]:hidden"
+                    onClick={() => {
+                      setSelectedName(row[1]);
+                      if (tab === 'categories') onOpenCategory(row[1]);
+                      else setDialog(editor);
+                    }}
+                    type="button"
+                  >
+                    <span className="flex items-center gap-2.5">
+                      <b className="grid size-8 place-items-center rounded-full bg-[#d8e5df] text-[9px] text-primary">
+                        {row[0]}
+                      </b>
+                      <span className="grid gap-1">
+                        <strong className="text-xs">{row[1]}</strong>
+                        <small className="text-[10px] text-muted max-md:max-w-[180px] max-md:overflow-hidden max-md:text-ellipsis max-md:whitespace-nowrap">
+                          {row[2]}
+                        </small>
+                      </span>
                     </span>
-                  </span>
-                  <span className="text-[10px] text-muted">{row[3]}</span>
-                  <span className="flex items-center gap-1.5 text-[10px] text-muted">
-                    <i className="size-1.5 rounded-full bg-success" />
-                    {row[4]}
-                  </span>
-                </button>
-                <IconButton
-                  label={`Edit ${row[1]}`}
-                  icon="more"
-                  onClick={() => {
-                    setSelectedName(row[1]);
-                    setDeleteContext(null);
-                    setDialog(editor);
-                  }}
-                  size="sm"
-                />
-              </div>
-            );
-          })}
-        </div>
-      </section>
-      <aside className="absolute top-[258px] right-10 w-[250px] rounded-md border border-border bg-surface p-5 max-[900px]:static max-[900px]:mt-4 max-[900px]:w-full max-md:hidden">
-        <h2 className="text-base font-medium">
-          {tab === 'roles'
-            ? 'Permission summary'
-            : tab === 'categories'
-              ? 'Routing overview'
-              : 'Ticket categories'}
-        </h2>
-        <p className="mt-1.5 text-[11px] text-muted">
-          {tab === 'roles'
-            ? 'How access is distributed by role.'
-            : tab === 'categories'
-              ? 'Open workload by category.'
-              : 'Used to route new requests.'}
-        </p>
-        {(tab === 'roles'
-          ? [
-              ['Manage members', '2 access roles'],
-              ['Manage tickets', '3 access roles'],
-              ['Manage categories', '2 access roles'],
-              ['View conversations', '3 access roles'],
-            ]
-          : categoryRows.slice(0, 4).map((row) => [row[1], row[3]])
-        ).map(([label, value]) => (
-          <div
-            className="mt-[18px] grid grid-cols-[12px_1fr_auto] gap-[7px]"
-            key={label}
-          >
-            <span className="text-[9px] text-brand-mint">●</span>
-            <strong className="text-[10px]">{label}</strong>
-            <small className="text-[10px] text-muted">{value}</small>
+                    <span className="text-[10px] text-muted">{row[3]}</span>
+                    <span className="flex items-center gap-1.5 text-[10px] text-muted">
+                      <i className="size-1.5 rounded-full bg-success" />
+                      {row[4]}
+                    </span>
+                  </button>
+                  <IconButton
+                    label={`Edit ${row[1]}`}
+                    icon="more"
+                    onClick={() => {
+                      setSelectedName(row[1]);
+                      setDeleteContext(null);
+                      setDialog(editor);
+                    }}
+                    size="sm"
+                  />
+                </div>
+              );
+            })}
           </div>
-        ))}
-      </aside>
+        </section>
+        <aside className="w-full rounded-md border border-border bg-surface p-5 max-[900px]:mt-4 max-md:hidden">
+          <h2 className="text-base font-medium">
+            {tab === 'roles'
+              ? 'Permission summary'
+              : tab === 'categories'
+                ? 'Routing overview'
+                : 'Ticket categories'}
+          </h2>
+          <p className="mt-1.5 text-[11px] text-muted">
+            {tab === 'roles'
+              ? 'How access is distributed by role.'
+              : tab === 'categories'
+                ? 'Open workload by category.'
+                : 'Used to route new requests.'}
+          </p>
+          {(tab === 'roles'
+            ? [
+                ['Manage members', '2 access roles'],
+                ['Manage tickets', '3 access roles'],
+                ['Manage categories', '2 access roles'],
+                ['View conversations', '3 access roles'],
+              ]
+            : categoryRows.slice(0, 4).map((row) => [row[1], row[3]])
+          ).map(([label, value]) => (
+            <div
+              className="mt-[18px] grid grid-cols-[12px_1fr_auto] gap-[7px]"
+              key={label}
+            >
+              <span className="text-[9px] text-brand-mint">●</span>
+              <strong className="text-[10px]">{label}</strong>
+              <small className="text-[10px] text-muted">{value}</small>
+            </div>
+          ))}
+        </aside>
+      </div>
       {dialog ? (
         <OrganizationDialog
           deleteContext={deleteContext}

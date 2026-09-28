@@ -184,7 +184,7 @@ export function GlobalAdminPage({
                 <Icon className="mr-1" name="search" size={14} />{' '}
                 <span className="sr-only">Search platform users</span>
                 <input
-                  className="min-w-0 flex-1 border-0 bg-transparent outline-0"
+                  className="min-w-0 flex-1 border-0 bg-transparent outline-0 focus-visible:!outline-none"
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Search name or email"
                   ref={searchRef}

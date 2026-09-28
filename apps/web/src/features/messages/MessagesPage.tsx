@@ -336,7 +336,7 @@ export function MessagesPage({
             <Icon name="search" size={15} />
             <span className="sr-only">Search conversations</span>
             <input
-              className="min-w-0 border-0 bg-transparent outline-0"
+              className="min-w-0 border-0 bg-transparent outline-0 focus-visible:!outline-none"
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search conversations"
               type="search"

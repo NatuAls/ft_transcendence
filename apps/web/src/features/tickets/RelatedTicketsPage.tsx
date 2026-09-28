@@ -96,7 +96,7 @@ export function RelatedTicketsPage({
             <Icon className="mr-1" name="search" size={14} />{' '}
             <span className="sr-only">Search these tickets</span>
             <input
-              className="border-0 bg-transparent outline-0 max-[900px]:flex-1"
+              className="border-0 bg-transparent outline-0 focus-visible:!outline-none max-[900px]:flex-1"
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search these tickets"
               type="search"

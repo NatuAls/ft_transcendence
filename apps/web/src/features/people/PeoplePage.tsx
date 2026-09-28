@@ -68,7 +68,7 @@ export function PeoplePage({
       <label className="my-5 mt-7 flex h-[42px] w-80 items-center gap-[9px] rounded-sm border border-border bg-surface px-[13px] focus-within:border-focus focus-within:outline-3 focus-within:outline-focus/20 max-md:my-2.5 max-md:mt-5 max-md:w-full">
         <Icon name="search" size={16} />
         <input
-          className="min-w-0 flex-1 border-0 bg-transparent outline-0"
+          className="min-w-0 flex-1 border-0 bg-transparent outline-0 focus-visible:!outline-none"
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search people"
           type="search"
@@ -215,9 +215,6 @@ export function PeoplePage({
             ))}
         </section>
       )}
-      <p className="text-center text-[11px] text-muted max-md:hidden">
-        Public profiles show only shared information, role and online state.
-      </p>
     </div>
   );
 }

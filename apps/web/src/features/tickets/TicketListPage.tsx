@@ -196,7 +196,7 @@ export function TicketListPage({
             <Icon name="search" size={15} />
             <span className="sr-only">Search tickets</span>
             <input
-              className="min-w-0 flex-1 border-0 bg-transparent text-ink outline-0"
+              className="min-w-0 flex-1 border-0 bg-transparent text-ink outline-0 focus-visible:!outline-none"
               onChange={(event) => {
                 setQuery(event.target.value);
                 setPage(1);
