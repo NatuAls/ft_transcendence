@@ -1,9 +1,11 @@
 import type { ButtonHTMLAttributes } from 'react';
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'destructive';
+type ButtonSize = 'default' | 'compact';
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
+  size?: ButtonSize;
   fullWidth?: boolean;
 }
 
@@ -15,17 +17,24 @@ const variants: Record<ButtonVariant, string> = {
   destructive: '!bg-danger text-surface hover:not-disabled:!bg-[#7f4343]',
 };
 
+const sizes: Record<ButtonSize, string> = {
+  default: 'min-w-[170px] px-6',
+  compact: 'min-w-0 px-3',
+};
+
 export function Button({
   className = '',
   variant = 'primary',
+  size = 'default',
   fullWidth = false,
   type = 'button',
   ...props
 }: ButtonProps) {
   const classes = [
     'ui-button',
-    'inline-flex min-h-11 min-w-[170px] items-center justify-center rounded-sm border border-transparent px-6 text-sm leading-[1.2] font-medium transition-colors duration-160 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-focus/40 disabled:cursor-not-allowed disabled:border-border disabled:bg-surface-secondary disabled:text-[#9aa5a3]',
+    'inline-flex min-h-11 items-center justify-center rounded-sm border border-transparent text-sm leading-[1.2] font-medium transition-colors duration-160 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-focus/40 disabled:cursor-not-allowed disabled:border-border disabled:bg-surface-secondary disabled:text-[#9aa5a3]',
     variants[variant],
+    sizes[size],
     fullWidth ? 'w-full' : '',
     className,
   ]

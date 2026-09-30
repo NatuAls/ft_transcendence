@@ -192,6 +192,7 @@ export function PeoplePage({
                       setSentRequests((current) => [...current, person.name]);
                       setFeedback(`Connection request sent to ${person.name}.`);
                     }}
+                    size="compact"
                   >
                     Connect
                   </Button>

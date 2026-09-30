@@ -65,7 +65,12 @@ export function PrivacyPage({
                 LAST EXPORT · No export requested
               </small>
             </div>
-            <Button onClick={onExport} variant="secondary">
+            <Button
+              className="self-center"
+              onClick={onExport}
+              size="compact"
+              variant="secondary"
+            >
               Request export
             </Button>
           </section>
@@ -86,7 +91,12 @@ export function PrivacyPage({
                 Email confirmation required
               </small>
             </div>
-            <Button onClick={onDelete} variant="destructive">
+            <Button
+              className="self-center"
+              onClick={onDelete}
+              size="compact"
+              variant="destructive"
+            >
               Delete account
             </Button>
           </section>
