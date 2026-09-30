@@ -17,18 +17,13 @@ export function Tabs<T extends string>({
   onChange,
 }: TabsProps<T>) {
   return (
-    <div
-      aria-label={label}
-      className="flex gap-0 overflow-x-auto"
-      role="tablist"
-    >
+    <div aria-label={label} className="flex gap-0 overflow-x-auto" role="group">
       {items.map((item) => (
         <button
-          aria-selected={activeTab === item.id}
-          className="min-h-12 shrink-0 border-b-2 border-transparent px-4 text-base text-muted aria-selected:border-primary aria-selected:text-primary"
+          aria-pressed={activeTab === item.id}
+          className="min-h-12 shrink-0 border-b-2 border-transparent px-4 text-base text-muted aria-pressed:border-primary aria-pressed:text-primary"
           key={item.id}
           onClick={() => onChange(item.id)}
-          role="tab"
           type="button"
         >
           {item.label}

@@ -123,7 +123,7 @@ export function GlobalAdminPage() {
           <h2 className="flex-1 text-base font-medium max-[600px]:col-span-2">
             Platform users
           </h2>
-          <label className="flex h-10 min-w-0 items-center rounded-sm border border-border p-2.5 focus-within:border-focus focus-within:outline-3 focus-within:outline-focus/20 max-[600px]:col-span-2">
+          <label className="flex h-10 min-w-0 items-center rounded-sm border border-border p-2.5 focus-within:border-focus focus-within:outline-3 focus-within:outline-focus max-[600px]:col-span-2">
             <Icon className="mr-1" name="search" size={14} />{' '}
             <span className="sr-only">Search platform users</span>
             <input

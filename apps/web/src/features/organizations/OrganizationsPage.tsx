@@ -102,7 +102,7 @@ export function OrganizationsPage({
         ) : null}
       </header>
       <div className="my-4 mt-7 flex items-center gap-5">
-        <label className="flex h-[42px] flex-1 items-center rounded-sm border border-border bg-surface px-[13px] py-2.5 focus-within:border-focus focus-within:outline-3 focus-within:outline-focus/20">
+        <label className="flex h-[42px] flex-1 items-center rounded-sm border border-border bg-surface px-[13px] py-2.5 focus-within:border-focus focus-within:outline-3 focus-within:outline-focus">
           <Icon className="mr-1" name="search" size={15} />{' '}
           <span className="sr-only">Search organizations</span>
           <input

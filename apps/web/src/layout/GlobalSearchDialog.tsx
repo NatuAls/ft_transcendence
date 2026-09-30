@@ -95,7 +95,7 @@ export function GlobalSearchDialog({
       onClose={onClose}
       title="Search HelpDesk Lite"
     >
-      <div className="grid h-[50px] grid-cols-[24px_1fr_auto] items-center gap-2 rounded-sm border border-border bg-[#f7faf8] px-[14px] focus-within:border-focus focus-within:outline-3 focus-within:outline-focus/20">
+      <div className="grid h-[50px] grid-cols-[24px_1fr_auto] items-center gap-2 rounded-sm border border-border bg-[#f7faf8] px-[14px] focus-within:border-focus focus-within:outline-3 focus-within:outline-focus">
         <label className="sr-only" htmlFor="global-search-input">
           Search
         </label>

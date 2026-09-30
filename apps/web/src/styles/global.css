@@ -13,7 +13,7 @@
   --color-brand-mint: #86afa4;
   --color-focus: #6a858b;
   --color-success: #3f765a;
-  --color-warning: #8a6536;
+  --color-warning: #805a32;
   --color-danger: #934f4f;
   --color-info: #466d78;
   --font-sans:
@@ -99,7 +99,7 @@ button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--color-focus) 42%, transparent);
+  outline: 3px solid var(--color-focus);
   outline-offset: 2px;
 }
 

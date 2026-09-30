@@ -226,7 +226,7 @@ export function ProfileSettings({
         <label className="grid gap-2 text-sm font-medium">
           Bio
           <textarea
-            className="min-h-[90px] resize-y rounded-sm border border-border p-3 leading-[1.5] focus-visible:border-focus focus-visible:outline-3 focus-visible:outline-focus/20"
+            className="min-h-[90px] resize-y rounded-sm border border-border p-3 leading-[1.5] focus-visible:border-focus focus-visible:outline-3 focus-visible:outline-focus"
             maxLength={280}
             name="bio"
             onChange={(event) => updateDraft('bio', event.target.value)}

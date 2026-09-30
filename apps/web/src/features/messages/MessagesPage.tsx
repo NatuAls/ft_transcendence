@@ -424,7 +424,7 @@ export function MessagesPage({
               size="sm"
             />
           </div>
-          <label className="mx-4 mb-2 flex h-[38px] items-center gap-2 rounded-sm border border-border px-2.5 focus-within:border-focus focus-within:outline-3 focus-within:outline-focus/20 max-md:mx-0 max-md:mt-4 max-md:mb-[18px] max-md:h-11">
+          <label className="mx-4 mb-2 flex h-[38px] items-center gap-2 rounded-sm border border-border px-2.5 focus-within:border-focus focus-within:outline-3 focus-within:outline-focus max-md:mx-0 max-md:mt-4 max-md:mb-[18px] max-md:h-11">
             <Icon name="search" size={15} />
             <span className="sr-only">Search conversations</span>
             <input
@@ -491,7 +491,7 @@ export function MessagesPage({
             />
             <button
               aria-label={`View ${active.name} profile`}
-              className="-m-1 flex min-w-0 flex-1 items-center gap-2.5 rounded-sm border-0 bg-transparent p-1 text-left hover:bg-surface-secondary focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-focus/40"
+              className="-m-1 flex min-w-0 flex-1 items-center gap-2.5 rounded-sm border-0 bg-transparent p-1 text-left hover:bg-surface-secondary focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-focus"
               onClick={() => onOpenProfile(active.name)}
               title={`View ${active.name} profile`}
               type="button"
@@ -510,7 +510,7 @@ export function MessagesPage({
             </button>
             <button
               aria-label={`View tickets related to ${active.name} (2)`}
-              className="min-h-10 shrink-0 rounded-sm px-2 text-[11px] text-primary hover:bg-surface-secondary focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-focus/40 max-[360px]:px-1.5"
+              className="min-h-10 shrink-0 rounded-sm px-2 text-[11px] text-primary hover:bg-surface-secondary focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-focus max-[360px]:px-1.5"
               onClick={() => onViewTickets(active.name)}
               type="button"
             >

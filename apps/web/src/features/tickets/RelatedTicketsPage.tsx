@@ -92,7 +92,7 @@ export function RelatedTicketsPage({
               {visibleTickets.length} results
             </span>
           </div>
-          <label className="rounded-sm border border-border px-3 py-[9px] focus-within:border-focus focus-within:outline-3 focus-within:outline-focus/20 max-[900px]:mt-[14px] max-[900px]:flex">
+          <label className="rounded-sm border border-border px-3 py-[9px] focus-within:border-focus focus-within:outline-3 focus-within:outline-focus max-[900px]:mt-[14px] max-[900px]:flex">
             <Icon className="mr-1" name="search" size={14} />{' '}
             <span className="sr-only">Search these tickets</span>
             <input

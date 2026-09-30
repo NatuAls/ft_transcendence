@@ -216,7 +216,7 @@ export function TicketListPage({
               {filteredTickets.length} sample results
             </span>
           </div>
-          <label className="flex h-10 w-[min(300px,35vw)] items-center gap-2 rounded-sm border border-border px-3 focus-within:border-focus focus-within:outline-3 focus-within:outline-focus/20 max-md:h-11 max-md:w-full">
+          <label className="flex h-10 w-[min(300px,35vw)] items-center gap-2 rounded-sm border border-border px-3 focus-within:border-focus focus-within:outline-3 focus-within:outline-focus max-md:h-11 max-md:w-full">
             <Icon name="search" size={15} />
             <span className="sr-only">Search tickets</span>
             <input
