@@ -162,7 +162,14 @@ ERROR: $(id -un) no puede leer $SOURCE_ENV.
   --env-file <ruta> a un fichero con: DB_USER DB_PASSWORD DB_NAME
   JWT_ACCESS_SECRET JWT_REFRESH_SECRET PASSWORD_PEPPER BACKUP_ENCRYPTION_KEY
   METRICS_TOKEN CORS_ORIGINS (opcionales: SMTP_HOST SMTP_PORT MAIL_FROM
-  RCLONE_REMOTE DB_APP_PASSWORD BOOTSTRAP_ADMIN_EMAIL).
+  RCLONE_REMOTE DB_APP_USER DB_APP_PASSWORD BOOTSTRAP_ADMIN_EMAIL
+  BOOTSTRAP_ADMIN_USERNAME BOOTSTRAP_ADMIN_PASSWORD BOOTSTRAP_ADMIN_DISPLAY_NAME
+  BOOTSTRAP_ADMIN_ROTATE DOCS_HTPASSWD DOCS_GATEWAY_TOKEN DOCS_ACCESS).
+
+  Ese fichero lo genera entero  bash scripts/gen-secrets.sh --env <entorno>
+  (escribe un .env en la raíz del repositorio; muévelo o pásalo con
+  --env-file). Sin las tres últimas, la documentación de la API queda cerrada;
+  sin las de BOOTSTRAP_ADMIN, el entorno arranca sin administrador.
 MSG
   exit 1
 fi
