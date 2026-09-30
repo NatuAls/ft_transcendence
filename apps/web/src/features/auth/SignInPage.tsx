@@ -12,10 +12,15 @@ export interface SignInValues {
 
 interface SignInPageProps {
   onCreateAccount: () => void;
+  onOpenPreview?: () => void;
   onSubmit: (user: AuthResponse['user']) => void | Promise<void>;
 }
 
-export function SignInPage({ onCreateAccount, onSubmit }: SignInPageProps) {
+export function SignInPage({
+  onCreateAccount,
+  onOpenPreview,
+  onSubmit,
+}: SignInPageProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [keepSignedIn, setKeepSignedIn] = useState(true);
@@ -74,26 +79,19 @@ export function SignInPage({ onCreateAccount, onSubmit }: SignInPageProps) {
         insight={
           <section
             className="mt-36 max-w-[452px] rounded-lg bg-[#244148] p-6"
-            aria-labelledby="today-heading"
+            aria-labelledby="benefits-heading"
           >
             <h2
               className="mb-[21px] text-[11px] font-medium text-[#bfd8cf] uppercase"
-              id="today-heading"
+              id="benefits-heading"
             >
-              Today at a glance
+              Built for dependable support
             </h2>
-            <div className="grid grid-cols-[140px_1fr] gap-[31px]">
-              <p className="grid gap-[3px]">
-                <strong className="text-[28px] font-medium">92%</strong>
-                <span className="text-xs text-[#c9d5d3]">tickets resolved</span>
-              </p>
-              <p className="grid gap-[3px] border-l border-[#496269] pl-[31px]">
-                <strong className="text-[28px] font-medium">18 min</strong>
-                <span className="text-xs text-[#c9d5d3]">
-                  average first response
-                </span>
-              </p>
-            </div>
+            <ul className="grid list-none gap-[15px] p-0 text-[13px] text-[#f7faf8] [&_li]:flex [&_li]:items-center [&_li]:gap-3 [&_li]:before:grid [&_li]:before:size-5 [&_li]:before:shrink-0 [&_li]:before:place-items-center [&_li]:before:rounded-full [&_li]:before:bg-[#86afa4] [&_li]:before:text-[11px] [&_li]:before:font-medium [&_li]:before:text-[#183039] [&_li]:before:content-['✓']">
+              <li>Clear ownership from request to resolution</li>
+              <li>Shared context for requesters and agents</li>
+              <li>A searchable record of every decision</li>
+            </ul>
           </section>
         }
       />
@@ -113,7 +111,7 @@ export function SignInPage({ onCreateAccount, onSubmit }: SignInPageProps) {
         </header>
 
         <section
-          className="w-full rounded-lg border border-border bg-surface px-[23px] pt-[37px] pb-[72px] md:max-w-[520px] md:px-[51px] md:pt-[46px] md:pb-[118px]"
+          className="auth-card-enter w-full rounded-lg border border-border bg-surface px-[23px] pt-[37px] pb-[72px] md:max-w-[520px] md:px-[51px] md:pt-[46px] md:pb-[118px]"
           aria-labelledby="sign-in-heading"
         >
           <header className="mb-8 hidden md:block">
@@ -186,6 +184,11 @@ export function SignInPage({ onCreateAccount, onSubmit }: SignInPageProps) {
             >
               {isSubmitting ? 'Signing in...' : 'Sign in'}
             </Button>
+            {onOpenPreview ? (
+              <Button fullWidth onClick={onOpenPreview} variant="secondary">
+                Open frontend preview
+              </Button>
+            ) : null}
           </form>
 
           <div className="mt-[26px] flex justify-center gap-3 border-t border-border pt-[29px] text-[11px] text-muted md:mt-[31px] md:border-0 md:pt-0 md:text-[13px] [&_a]:font-medium [&_a]:text-primary [&_a]:no-underline hover:[&_a]:underline">

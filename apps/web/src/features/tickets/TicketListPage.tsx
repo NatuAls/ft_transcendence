@@ -5,6 +5,7 @@ import { TicketListResults } from './TicketListResults';
 import { initialTickets, type Ticket } from './ticketData';
 
 interface TicketListPageProps {
+  currentUserName: string;
   initialCategory?: string;
   initialPage?: number;
   initialPriority?: string;
@@ -15,15 +16,9 @@ interface TicketListPageProps {
   onCreateTicket: () => void;
   onFiltersChange: (params: Record<string, string | undefined>) => void;
   onOpenTicket: (ticketId: string) => void;
+  organizationWide: boolean;
   tickets?: Ticket[];
 }
-
-const stats = [
-  { label: 'Open', tone: 'open', value: 24 },
-  { label: 'In progress', tone: 'progress', value: 12 },
-  { label: 'Resolved', tone: 'resolved', value: 38 },
-  { label: 'High priority', tone: 'urgent', value: 4 },
-] as const;
 
 const statToneClasses = {
   open: 'bg-[#e5eef0] text-info',
@@ -33,6 +28,7 @@ const statToneClasses = {
 };
 
 export function TicketListPage({
+  currentUserName,
   initialCategory = '',
   initialPage = 1,
   initialPriority = 'all',
@@ -43,6 +39,7 @@ export function TicketListPage({
   onCreateTicket,
   onFiltersChange,
   onOpenTicket,
+  organizationWide,
   tickets = initialTickets,
 }: TicketListPageProps) {
   const [showFilters, setShowFilters] = useState(false);
@@ -57,6 +54,28 @@ export function TicketListPage({
   );
   const closeFilters = useCallback(() => setShowFilters(false), []);
   const pageSize = 3;
+  const stats = [
+    {
+      label: 'Open',
+      tone: 'open',
+      value: tickets.filter((ticket) => ticket.status === 'Open').length,
+    },
+    {
+      label: 'In progress',
+      tone: 'progress',
+      value: tickets.filter((ticket) => ticket.status === 'In progress').length,
+    },
+    {
+      label: 'Resolved',
+      tone: 'resolved',
+      value: tickets.filter((ticket) => ticket.status === 'Resolved').length,
+    },
+    {
+      label: 'High priority',
+      tone: 'urgent',
+      value: tickets.filter((ticket) => ticket.priority === 'High').length,
+    },
+  ] as const;
 
   const filteredTickets = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -96,13 +115,15 @@ export function TicketListPage({
   return (
     <div className="mx-auto max-w-[1440px] p-10 max-md:px-[18px] max-md:pt-0 max-md:pb-6">
       <section className="hidden py-[22px] max-md:block">
-        <p className="mb-1 text-[13px] text-muted">Good morning, Ana</p>
+        <p className="mb-1 text-[13px] text-muted">
+          Good morning, {currentUserName.split(' ')[0]}
+        </p>
         <div className="flex items-center justify-between gap-3">
-          <strong className="min-w-0 text-xl font-medium">
-            4 tickets need attention
+          <strong className="min-w-0 text-xl font-medium max-[360px]:text-[17px]">
+            {stats[0].value + stats[1].value} tickets need attention
           </strong>
           <Button
-            className="shrink-0 !min-w-0 !px-3 text-sm whitespace-nowrap"
+            className="shrink-0 !min-w-0 !px-3 text-sm whitespace-nowrap max-[360px]:!px-2 max-[360px]:text-xs"
             onClick={onCreateTicket}
           >
             +&nbsp;&nbsp;New ticket
@@ -116,7 +137,9 @@ export function TicketListPage({
             Tickets
           </h1>
           <p className="text-sm text-muted">
-            Track requests across your organization and move work forward.
+            {organizationWide
+              ? 'Track requests across your organization and move work forward.'
+              : 'Track the requests you created and follow their progress.'}
           </p>
         </div>
         <Button onClick={onCreateTicket}>+&nbsp;&nbsp;New ticket</Button>
@@ -186,7 +209,9 @@ export function TicketListPage({
       <section className="overflow-hidden rounded-md border border-border bg-surface max-md:overflow-visible max-md:border-0">
         <header className="flex min-h-[82px] items-center justify-between gap-6 border-b border-border px-6 py-[18px] max-md:block max-md:min-h-0 max-md:border-0 max-md:p-0">
           <div className="flex items-baseline gap-2.5 max-md:hidden">
-            <h2 className="text-lg font-medium">All tickets</h2>
+            <h2 className="text-lg font-medium">
+              {organizationWide ? 'All tickets' : 'Your tickets'}
+            </h2>
             <span className="text-[13px] text-muted">
               {filteredTickets.length} sample results
             </span>

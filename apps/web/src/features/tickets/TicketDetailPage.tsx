@@ -2,6 +2,7 @@ import {
   Alert,
   Button,
   Dialog,
+  Icon,
   IconButton,
   SelectField,
   StatusBadge,
@@ -13,7 +14,12 @@ import { initialTickets, type Ticket } from './ticketData';
 type TicketState = 'open' | 'progress' | 'resolved' | 'closed';
 
 interface TicketDetailPageProps {
+  canAssignOther: boolean;
+  canChangeStatus: boolean;
+  canReopenTickets: boolean;
+  canSelfAssign: boolean;
   currentUserName: string;
+  organizationName: string;
   onBack: () => void;
   onTicketChange: (ticket: Ticket) => void;
   ticket?: Ticket;
@@ -27,7 +33,12 @@ const stateCopy = {
 } as const;
 
 export function TicketDetailPage({
+  canAssignOther,
+  canChangeStatus,
+  canReopenTickets,
+  canSelfAssign,
   currentUserName,
+  organizationName,
   onBack,
   onTicketChange,
   ticket = initialTickets[0],
@@ -44,6 +55,8 @@ export function TicketDetailPage({
   const [menuOpen, setMenuOpen] = useState(false);
   const [feedback, setFeedback] = useState('');
   const current = stateCopy[ticketState];
+  const requesterName = ticket.requester ?? 'John Lee';
+  const isRequester = requesterName === currentUserName;
 
   function updateState(
     nextState: TicketState,
@@ -82,7 +95,7 @@ export function TicketDetailPage({
 
   return (
     <div className="mx-auto max-w-[1160px] px-10 pt-8 pb-[50px] max-md:px-4 max-md:pt-0 max-md:pb-6">
-      <header className="hidden h-[58px] grid-cols-[32px_1fr_32px] items-center border-b border-border max-md:grid">
+      <header className="sticky top-0 z-20 -mx-4 hidden h-[58px] grid-cols-[32px_1fr_32px] items-center border-b border-border bg-surface/96 px-4 backdrop-blur max-md:grid">
         <IconButton
           icon="chevron-left"
           label="Back to tickets"
@@ -123,7 +136,7 @@ export function TicketDetailPage({
             </small>
           </div>
         </div>
-        {ticketState === 'open' && (
+        {ticketState === 'open' && canSelfAssign && (
           <Button
             className="max-md:!min-w-[100px] max-md:!px-3"
             onClick={() => {
@@ -138,7 +151,7 @@ export function TicketDetailPage({
             Assign to me
           </Button>
         )}
-        {ticketState === 'progress' && (
+        {ticketState === 'progress' && canChangeStatus && (
           <Button
             className="max-md:!min-w-[100px] max-md:!px-3"
             onClick={() =>
@@ -148,29 +161,48 @@ export function TicketDetailPage({
             Mark resolved
           </Button>
         )}
-        {ticketState === 'resolved' && (
+        {ticketState === 'resolved' && (canChangeStatus || isRequester) && (
           <div className="flex items-center gap-[14px] max-md:flex-col max-md:items-end max-md:gap-2 max-md:[&_.ui-button]:!min-h-[38px] max-md:[&_.ui-button]:!px-3">
-            <Button
-              onClick={() =>
-                updateState('progress', 'Ticket reopened for support.')
-              }
-              variant="ghost"
-            >
-              Reopen ticket
-            </Button>
-            <Button
-              onClick={() =>
-                updateState('closed', 'Resolution confirmed and ticket closed.')
-              }
-            >
-              Confirm & close
-            </Button>
+            {canReopenTickets ? (
+              <Button
+                onClick={() =>
+                  updateState('progress', 'Ticket reopened for support.')
+                }
+                variant="ghost"
+              >
+                Reopen ticket
+              </Button>
+            ) : null}
+            {isRequester ? (
+              <Button
+                onClick={() =>
+                  updateState(
+                    'closed',
+                    'Resolution confirmed and ticket closed.',
+                  )
+                }
+              >
+                Confirm &amp; close
+              </Button>
+            ) : null}
           </div>
         )}
         {ticketState === 'closed' && (
-          <span className="rounded-sm bg-[#e1ece5] px-4 py-3 text-xs font-medium text-success">
-            ✓ Ticket closed
-          </span>
+          <div className="flex items-center gap-2 max-md:flex-col max-md:items-end">
+            <span className="rounded-sm bg-[#e1ece5] px-4 py-3 text-xs font-medium text-success">
+              ✓ Ticket closed
+            </span>
+            {canReopenTickets ? (
+              <Button
+                onClick={() =>
+                  updateState('progress', 'Ticket reopened for support.')
+                }
+                variant="secondary"
+              >
+                Reopen ticket
+              </Button>
+            ) : null}
+          </div>
         )}
       </section>
 
@@ -191,7 +223,7 @@ export function TicketDetailPage({
               Issue description
             </h2>
             <small className="text-[11px] text-muted">
-              {ticket.requester ?? 'John Lee'} · Requester
+              {requesterName} · Requester
             </small>
             <p className="mt-[18px] max-w-[670px] text-[13px] leading-[1.65] text-muted max-md:text-[11px]">
               {ticket.description ??
@@ -208,7 +240,7 @@ export function TicketDetailPage({
             </summary>
             <dl className="mt-4 grid grid-cols-2 gap-2 text-[11px] [&_dd]:m-0">
               <dt>Organization</dt>
-              <dd>Northstar Studio</dd>
+              <dd>{organizationName}</dd>
               <dt>Created</dt>
               <dd>Today, 09:42</dd>
             </dl>
@@ -258,43 +290,54 @@ export function TicketDetailPage({
                 </span>
               </article>
             ))}
-            <form
-              className="relative grid gap-3"
-              onSubmit={(event) => {
-                event.preventDefault();
-                sendReply();
-              }}
-            >
-              <label className="relative grid gap-2 text-xs">
-                <span className="max-md:hidden">Reply</span>
-                <textarea
-                  className="min-h-24 resize-y rounded-sm border border-border p-[13px] max-md:min-h-12 max-md:pr-12"
-                  onChange={(event) => setReply(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (
-                      event.key === 'Enter' &&
-                      !event.shiftKey &&
-                      !event.nativeEvent.isComposing
-                    ) {
-                      event.preventDefault();
-                      sendReply();
-                    }
-                  }}
-                  placeholder="Write a reply…"
-                  value={reply}
-                />
-                <small className="absolute bottom-[9px] left-3 text-[10px] text-muted max-md:hidden">
-                  Shift + Enter for a new line
-                </small>
-              </label>
-              <Button
-                className="self-end justify-self-end max-md:absolute max-md:right-2 max-md:bottom-[5px] max-md:!size-[38px] max-md:!min-h-[38px] max-md:!min-w-[38px] max-md:!p-0 max-md:text-0 max-md:after:text-lg max-md:after:content-['→']"
-                disabled={!reply.trim()}
-                type="submit"
+            {ticketState === 'closed' ? (
+              <p className="rounded-sm bg-surface-secondary px-4 py-3 text-xs text-muted">
+                This ticket is read-only while closed. Reopen it before adding
+                another reply.
+              </p>
+            ) : (
+              <form
+                className="relative grid min-w-0 gap-3"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  sendReply();
+                }}
               >
-                Send reply
-              </Button>
-            </form>
+                <label className="relative grid min-w-0 gap-2 text-xs">
+                  <span className="max-md:hidden">Reply</span>
+                  <textarea
+                    className="min-h-24 min-w-0 resize-y rounded-sm border border-border p-[13px] max-md:min-h-12 max-md:pr-14"
+                    onChange={(event) => setReply(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (
+                        event.key === 'Enter' &&
+                        !event.shiftKey &&
+                        !event.nativeEvent.isComposing
+                      ) {
+                        event.preventDefault();
+                        sendReply();
+                      }
+                    }}
+                    placeholder="Write a reply…"
+                    value={reply}
+                  />
+                  <small className="absolute bottom-[9px] left-3 text-[10px] text-muted max-md:hidden">
+                    Shift + Enter for a new line
+                  </small>
+                </label>
+                <Button
+                  aria-label="Send reply"
+                  className="self-end justify-self-end max-md:absolute max-md:top-1/2 max-md:right-1.5 max-md:bottom-auto max-md:-translate-y-1/2 max-md:!size-10 max-md:!min-h-10 max-md:!min-w-10 max-md:!p-0"
+                  disabled={!reply.trim()}
+                  type="submit"
+                >
+                  <span className="max-md:sr-only">Send</span>
+                  <span className="hidden max-md:block">
+                    <Icon name="send" size={17} />
+                  </span>
+                </Button>
+              </form>
+            )}
           </section>
         </div>
 
@@ -311,7 +354,7 @@ export function TicketDetailPage({
               <dt>Category</dt>
               <dd>{ticket.category}</dd>
               <dt>Organization</dt>
-              <dd>Northstar Studio</dd>
+              <dd>{organizationName}</dd>
               <dt>Created</dt>
               <dd>Today, 09:42</dd>
             </dl>
@@ -320,22 +363,26 @@ export function TicketDetailPage({
             </h3>
             <div className="flex items-center gap-2.5 text-xs">
               <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#e9e2d8] text-[10px] text-[#6e573c]">
-                {(ticket.requester ?? 'John Lee')
+                {requesterName
                   .split(' ')
                   .map((part) => part[0])
                   .join('')}
               </span>
-              {ticket.requester ?? 'John Lee'}
+              {requesterName}
             </div>
           </section>
           <section className="rounded-md border border-border bg-surface p-[26px]">
             <h2 className="mb-[7px] text-base font-medium">
               {ticketState === 'resolved' || ticketState === 'closed'
                 ? 'Requester decision'
-                : 'Agent actions'}
+                : canAssignOther
+                  ? 'Agent actions'
+                  : 'Assignment'}
             </h2>
             <p className="mb-5 text-[11px] leading-[1.5] text-muted">
-              Assignment and status changes are recorded.
+              {canAssignOther
+                ? 'Assignment and status changes are recorded.'
+                : 'Current ticket assignment.'}
             </p>
             {ticketState === 'closed' ? (
               <div className="grid gap-2 rounded-sm bg-surface-secondary p-[14px] text-xs">
@@ -345,7 +392,7 @@ export function TicketDetailPage({
                   remains available for reference.
                 </span>
               </div>
-            ) : (
+            ) : canAssignOther ? (
               <SelectField
                 label="Assignee"
                 onChange={(event) => {
@@ -370,12 +417,24 @@ export function TicketDetailPage({
                 value={assignee}
               >
                 <option>Unassigned</option>
-                {[currentUserName, 'Maya Singh', 'Mia Chen', 'Carlos Vega'].map(
-                  (name) => (
-                    <option key={name}>{name}</option>
-                  ),
-                )}
+                {[
+                  ...new Set([
+                    currentUserName,
+                    'Maya Singh',
+                    'Mia Chen',
+                    'Carlos Vega',
+                  ]),
+                ].map((name) => (
+                  <option key={name}>{name}</option>
+                ))}
               </SelectField>
+            ) : (
+              <div className="grid gap-2 rounded-sm bg-surface-secondary p-[14px] text-xs">
+                <strong>{assignee}</strong>
+                <span className="text-[11px] leading-[1.5] text-muted">
+                  Only organization administrators can reassign this ticket.
+                </span>
+              </div>
             )}
           </section>
         </aside>

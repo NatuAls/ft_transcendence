@@ -1,27 +1,38 @@
 import { Alert, Button, Dialog, EmptyState, Icon, TextField } from 'ui';
 import { useMemo, useState } from 'react';
-import { getInitials } from '../../app/text';
+import type { ViewerSession } from '../../app/session';
 import {
-  initialOrganizations,
-  normalizeWorkspaceSlug,
+  getOrganizationInitials,
+  normalizeOrganizationSlug,
+  organizationsForViewer,
+  type OrganizationSummary,
 } from './organizationsData';
 
 export function OrganizationsPage({
   onOpen,
+  viewer,
 }: {
-  onOpen: (organizationName: string) => void;
+  onOpen: (organization: OrganizationSummary) => void;
+  viewer: ViewerSession;
 }) {
+  const platformView = viewer.globalRole === 'GLOBAL_ADMIN';
   const [create, setCreate] = useState(false);
-  const [organizations, setOrganizations] = useState(initialOrganizations);
+  const [organizations, setOrganizations] = useState(() =>
+    organizationsForViewer(viewer),
+  );
   const [query, setQuery] = useState('');
   const [name, setName] = useState('');
-  const [slug, setSlug] = useState('');
+  const [description, setDescription] = useState('');
+  const [administratorEmail, setAdministratorEmail] = useState('');
   const [createError, setCreateError] = useState('');
   const [feedback, setFeedback] = useState('');
+  const slug = normalizeOrganizationSlug(name);
   const visibleOrganizations = useMemo(
     () =>
       organizations.filter((organization) =>
-        organization[1].toLowerCase().includes(query.trim().toLowerCase()),
+        `${organization.name} ${organization.description}`
+          .toLowerCase()
+          .includes(query.trim().toLowerCase()),
       ),
     [organizations, query],
   );
@@ -29,34 +40,39 @@ export function OrganizationsPage({
   function closeCreate() {
     setCreate(false);
     setName('');
-    setSlug('');
+    setDescription('');
+    setAdministratorEmail('');
     setCreateError('');
   }
 
   function createOrganization() {
     const trimmedName = name.trim();
-    if (!trimmedName || !slug.trim()) return;
+    const trimmedAdministratorEmail = administratorEmail.trim();
+    if (!trimmedName || !slug || !trimmedAdministratorEmail) return;
     if (
       organizations.some(
         (organization) =>
-          organization[1].toLowerCase() === trimmedName.toLowerCase(),
+          organization.name.toLowerCase() === trimmedName.toLowerCase() ||
+          organization.slug === slug,
       )
     ) {
-      setCreateError('An organization with this name already exists.');
+      setCreateError('An organization with this name or URL already exists.');
       return;
     }
-    const initials = getInitials(trimmedName);
-    setOrganizations((current) => [
-      ...current,
-      [
-        initials,
-        trimmedName,
-        'Organization admin',
-        '1 member · 0 open tickets',
-        'Just now',
-      ],
-    ]);
-    setFeedback(`${trimmedName} was created in this frontend preview.`);
+    const createdOrganization: OrganizationSummary = {
+      description:
+        description.trim() || 'Organization support and service requests.',
+      id: `preview-${slug}`,
+      initials: getOrganizationInitials(trimmedName),
+      name: trimmedName,
+      roleLabel: 'Platform access',
+      slug,
+      summary: `Administrator invitation pending · ${trimmedAdministratorEmail}`,
+    };
+    setOrganizations((current) => [...current, createdOrganization]);
+    setFeedback(
+      `${trimmedName} was created and its administrator invitation was prepared in this frontend preview.`,
+    );
     closeCreate();
   }
 
@@ -65,21 +81,25 @@ export function OrganizationsPage({
       <header className="flex items-end justify-between max-md:items-start">
         <div>
           <span className="text-[10px] tracking-[.08em] text-muted">
-            ORGANIZATIONS
+            {platformView ? 'PLATFORM' : 'ORGANIZATIONS'}
           </span>
           <h1 className="my-2 text-[30px] font-medium max-md:text-[22px]">
-            Organizations
+            {platformView ? 'Organizations' : 'Your organizations'}
           </h1>
           <p className="text-[13px] text-muted max-md:hidden">
-            Create workspaces and manage the organizations you belong to.
+            {platformView
+              ? 'Review organizations configured on the platform.'
+              : 'Choose an organization to continue with your assigned access.'}
           </p>
         </div>
-        <Button
-          className="max-md:!min-h-9 max-md:!px-2.5"
-          onClick={() => setCreate(true)}
-        >
-          New organization
-        </Button>
+        {platformView ? (
+          <Button
+            className="max-md:!min-h-9 max-md:!px-2.5"
+            onClick={() => setCreate(true)}
+          >
+            New organization
+          </Button>
+        ) : null}
       </header>
       <div className="my-4 mt-7 flex items-center gap-5">
         <label className="flex h-[42px] flex-1 items-center rounded-sm border border-border bg-surface px-[13px] py-2.5 focus-within:border-focus focus-within:outline-3 focus-within:outline-focus/20">
@@ -111,29 +131,25 @@ export function OrganizationsPage({
         {visibleOrganizations.map((organization) => (
           <article
             className="grid grid-cols-[56px_1fr_auto] items-center gap-4 rounded-md border border-border bg-surface p-5 max-md:grid-cols-[48px_1fr]"
-            key={organization[1]}
+            key={organization.id}
           >
             <span className="grid size-12 place-items-center rounded-md bg-[#d8e5df] text-primary">
-              {organization[0]}
+              {organization.initials}
             </span>
             <div>
               <h2 className="mb-[5px] text-base font-medium">
-                {organization[1]}
+                {organization.name}
               </h2>
               <strong className="text-[10px] text-primary">
-                {organization[2]}
+                {organization.roleLabel}
               </strong>
               <p className="my-[5px] text-[10px] text-muted">
-                {organization[3]}
+                {organization.description}
               </p>
+              <p className="text-[10px] text-muted">{organization.summary}</p>
             </div>
-            <div className="text-right max-md:col-span-full max-md:flex max-md:items-center max-md:justify-end max-md:gap-2.5 max-md:[&>small]:hidden max-md:[&>p]:hidden">
-              <small className="text-[9px] text-muted">Last activity</small>
-              <p className="text-[10px] text-muted">{organization[4]}</p>
-              <Button
-                onClick={() => onOpen(organization[1])}
-                variant="secondary"
-              >
+            <div className="text-right max-md:col-span-full max-md:flex max-md:items-center max-md:justify-end max-md:gap-2.5">
+              <Button onClick={() => onOpen(organization)} variant="secondary">
                 Open organization
               </Button>
             </div>
@@ -148,14 +164,17 @@ export function OrganizationsPage({
       </section>
       {create ? (
         <Dialog
-          description="New organizations start with you as their administrator."
+          description="Create the organization and prepare an invitation for its first administrator."
           eyebrow="ORGANIZATIONS"
           footer={
             <>
               <Button onClick={closeCreate} variant="secondary">
                 Cancel
               </Button>
-              <Button disabled={!name.trim() || !slug.trim()} type="submit">
+              <Button
+                disabled={!name.trim() || !slug || !administratorEmail.trim()}
+                type="submit"
+              >
                 Create organization
               </Button>
             </>
@@ -170,32 +189,37 @@ export function OrganizationsPage({
           <TextField
             label="Organization name"
             onChange={(event) => {
-              const nextName = event.target.value;
-              setName(nextName);
+              setName(event.target.value);
               setCreateError('');
-              setSlug(normalizeWorkspaceSlug(nextName));
             }}
             placeholder="Example: Acme Support"
             required
             value={name}
           />
           <TextField
-            label="Workspace URL"
-            onChange={(event) =>
-              setSlug(normalizeWorkspaceSlug(event.target.value))
-            }
-            pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
-            placeholder="acme-support"
-            required
-            value={slug}
+            label="Description"
+            onChange={(event) => setDescription(event.target.value)}
+            placeholder="What this organization supports"
+            value={description}
           />
-          <small className="-mt-2 text-[11px] text-muted">
-            helpdesk.local/{slug || 'workspace-name'}
-          </small>
-          <p className="text-xs leading-[1.5] text-muted">
-            This unique slug identifies the workspace address. Lowercase
-            letters, numbers and single hyphens are allowed.
-          </p>
+          <TextField
+            label="Initial organization administrator"
+            onChange={(event) => setAdministratorEmail(event.target.value)}
+            placeholder="admin@company.com"
+            required
+            type="email"
+            value={administratorEmail}
+          />
+          <div className="grid gap-1.5 rounded-sm border border-border bg-surface-secondary px-3.5 py-3">
+            <span className="text-xs font-medium">Organization URL</span>
+            <code className="overflow-hidden text-xs text-ellipsis text-muted">
+              helpdesk.local/{slug || 'organization-name'}
+            </code>
+            <small className="text-[10px] text-muted">
+              Generated automatically. The backend remains responsible for
+              uniqueness.
+            </small>
+          </div>
           {createError ? <Alert tone="danger">{createError}</Alert> : null}
         </Dialog>
       ) : null}

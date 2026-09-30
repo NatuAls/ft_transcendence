@@ -9,23 +9,29 @@ import {
   type ReactNode,
 } from 'react';
 import type { Navigate } from '../app/routes';
+import { PreviewIdentitySelect } from '../app/PreviewIdentitySelect';
+import { previewMode, type PreviewIdentity } from '../app/session';
 
 export function ProfileMenu({
   children,
   className = '',
   label,
   onNavigate,
+  onPreviewIdentityChange,
   onSignOut,
   placement = 'topbar',
   showAdministration = false,
+  previewIdentity,
 }: {
   children: ReactNode;
   className?: string;
   label: string;
   onNavigate: Navigate;
+  onPreviewIdentityChange?: (identity: PreviewIdentity) => void;
   onSignOut: () => void | Promise<void>;
   placement?: 'mobile' | 'sidebar' | 'topbar';
   showAdministration?: boolean;
+  previewIdentity?: PreviewIdentity;
 }) {
   const [open, setOpen] = useState(false);
   const menuId = useId();
@@ -120,12 +126,20 @@ export function ProfileMenu({
             Privacy &amp; data
           </MenuItem>
           <MenuItem icon="building" onClick={() => navigate('organizations')}>
-            Organizations
+            {showAdministration ? 'Organizations' : 'Your organizations'}
           </MenuItem>
           {showAdministration ? (
-            <MenuItem icon="ticket" onClick={() => navigate('admin')}>
-              Administration
+            <MenuItem icon="users" onClick={() => navigate('admin')}>
+              Platform users
             </MenuItem>
+          ) : null}
+          {previewMode && previewIdentity && onPreviewIdentityChange ? (
+            <div className="border-t border-border p-2.5" role="none">
+              <PreviewIdentitySelect
+                onChange={onPreviewIdentityChange}
+                value={previewIdentity}
+              />
+            </div>
           ) : null}
           <hr
             className="my-[5px] w-full border-0 border-t border-border"

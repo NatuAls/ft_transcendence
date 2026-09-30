@@ -34,7 +34,7 @@ export function Avatar({
       {online ? (
         <span
           aria-hidden="true"
-          className="absolute right-[2cqw] bottom-[2cqw] size-[25cqw] rounded-full border-[4cqw] border-surface bg-success"
+          className="absolute right-0 bottom-0 size-[25cqw] rounded-full border-[4cqw] border-surface bg-success"
         />
       ) : null}
     </span>

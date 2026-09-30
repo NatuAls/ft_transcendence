@@ -1,7 +1,11 @@
 import { Avatar, Button, Dialog, Icon, IconButton, LoadingState } from 'ui';
 import { io, type Socket } from 'socket.io-client';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { type Conversation } from './messageData';
+import {
+  initialConversations,
+  newConversationCandidates,
+  type Conversation,
+} from './messageData';
 import {
   listConversations,
   listMessages,
@@ -15,6 +19,26 @@ import {
   type ApiMessage,
 } from './messagesApi';
 import { getAccessToken } from '../../api/auth';
+import { previewMode } from '../../app/session';
+
+const previewMessages: ApiMessage[] = [
+  {
+    body: 'I reviewed the latest ticket update.',
+    conversationId: 'preview-conversation-maya',
+    createdAt: '2026-09-28T12:00:00.000Z',
+    editedAt: null,
+    id: 'preview-message-1',
+    sender: { id: 'preview-maya', username: 'maya.singh' },
+  },
+  {
+    body: 'Great, I will follow up with the requester.',
+    conversationId: 'preview-conversation-maya',
+    createdAt: '2026-09-28T12:05:00.000Z',
+    editedAt: null,
+    id: 'preview-message-2',
+    sender: { id: 'preview-current-user', username: 'preview.user' },
+  },
+];
 
 export function MessagesPage({
   initialPerson,
@@ -25,11 +49,16 @@ export function MessagesPage({
   onOpenProfile: (personName: string) => void;
   onViewTickets: (personName: string) => void;
 }) {
-  // Los datos de ejemplo del mockup se conservan comentados en messageData.ts;
-  // la pantalla real siempre empieza con datos vacíos hasta consultar la API.
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const previewInitialConversation =
+    initialConversations.find(
+      (conversation) => conversation.name === initialPerson,
+    ) ?? initialConversations[0];
+  const [conversations, setConversations] = useState<Conversation[]>(
+    previewMode ? initialConversations : [],
+  );
   const [selected, setSelected] = useState<string | null>(
-    initialPerson ?? null,
+    initialPerson ??
+      (previewMode ? (previewInitialConversation?.name ?? null) : null),
   );
   const [message, setMessage] = useState('');
   const [query, setQuery] = useState('');
@@ -37,10 +66,15 @@ export function MessagesPage({
   const [candidateQuery, setCandidateQuery] = useState('');
   const [candidates, setCandidates] = useState<ChatUser[]>([]);
   const [candidateResultsQuery, setCandidateResultsQuery] = useState('');
-  const [remoteMessages, setRemoteMessages] = useState<ApiMessage[]>([]);
+  const [remoteMessages, setRemoteMessages] = useState<ApiMessage[]>(
+    previewMode &&
+      previewInitialConversation?.id === 'preview-conversation-maya'
+      ? previewMessages
+      : [],
+  );
   const [messagesConversationId, setMessagesConversationId] = useState<
     string | null
-  >(null);
+  >(previewMode ? (previewInitialConversation?.id ?? null) : null);
   const [messagePage, setMessagePage] = useState(1);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -60,9 +94,10 @@ export function MessagesPage({
       time: '',
     };
   const activeConversationId = active.id;
-  const userId = currentUserId();
+  const userId = previewMode ? 'preview-current-user' : currentUserId();
 
   useEffect(() => {
+    if (previewMode) return;
     const token = getAccessToken();
     if (!token) return;
     let cancelled = false;
@@ -80,6 +115,7 @@ export function MessagesPage({
               username: row.participant.username,
               initials: name.slice(0, 2).toUpperCase(),
               name,
+              online: row.participant.profile?.isOnline ?? false,
               preview: row.lastMessage?.body ?? 'No messages yet',
               role: 'Colleague',
               time: row.lastMessageAt
@@ -103,6 +139,7 @@ export function MessagesPage({
   }, [initialPerson]);
 
   useEffect(() => {
+    if (previewMode) return;
     if (!newConversationOpen || candidateQuery.trim().length < 2) {
       // setCandidates([]); // Sustituido: visibleCandidates filtra la UI sin
       // ejecutar setState síncrono dentro del efecto.
@@ -126,6 +163,7 @@ export function MessagesPage({
   }, [candidateQuery, newConversationOpen]);
 
   useEffect(() => {
+    if (previewMode) return;
     const token = getAccessToken();
     if (!token) return;
     const socket = io(`${socketOrigin() ?? window.location.origin}/rt`, {
@@ -158,6 +196,7 @@ export function MessagesPage({
       return;
     }
     scrollToLatestRef.current = true;
+    if (previewMode) return;
     let cancelled = false;
     const socket = socketRef.current;
     void listMessages(activeConversationId)
@@ -207,10 +246,23 @@ export function MessagesPage({
     };
   }, [activeConversationId]);
 
-  const visibleCandidates =
-    newConversationOpen &&
-    candidateQuery.trim().length >= 2 &&
-    candidateResultsQuery === candidateQuery.trim()
+  const visibleCandidates = previewMode
+    ? newConversationOpen && candidateQuery.trim().length >= 2
+      ? newConversationCandidates
+          .filter((candidate) =>
+            candidate.name
+              .toLowerCase()
+              .includes(candidateQuery.trim().toLowerCase()),
+          )
+          .map((candidate) => ({
+            id: `preview-${candidate.name.toLowerCase().replaceAll(' ', '-')}`,
+            profile: { displayName: candidate.name },
+            username: candidate.name.toLowerCase().replaceAll(' ', '.'),
+          }))
+      : []
+    : newConversationOpen &&
+        candidateQuery.trim().length >= 2 &&
+        candidateResultsQuery === candidateQuery.trim()
       ? candidates
       : [];
   const visibleRemoteMessages =
@@ -263,6 +315,24 @@ export function MessagesPage({
     const text = message.trim();
     if (!text) return;
     if (activeConversationId) {
+      if (previewMode) {
+        setRemoteMessages((current) => [
+          ...current,
+          {
+            body: text,
+            conversationId: activeConversationId,
+            createdAt: new Date().toISOString(),
+            editedAt: null,
+            id: `preview-message-${current.length + 1}`,
+            sender: {
+              id: 'preview-current-user',
+              username: 'preview.user',
+            },
+          },
+        ]);
+        setMessage('');
+        return;
+      }
       void sendChatMessage(activeConversationId, text)
         .then((created) =>
           setRemoteMessages((current) =>
@@ -281,6 +351,30 @@ export function MessagesPage({
   }
 
   async function startConversation(user: ChatUser) {
+    if (previewMode) {
+      const name = user.profile?.displayName ?? user.username;
+      const item: Conversation = {
+        id: `preview-conversation-${user.id}`,
+        initials: name.slice(0, 2).toUpperCase(),
+        name,
+        online: user.profile?.isOnline,
+        preview: 'No messages yet',
+        role: 'Colleague',
+        time: 'Now',
+        userId: user.id,
+        username: user.username,
+      };
+      setConversations((current) => [
+        item,
+        ...current.filter((existing) => existing.name !== item.name),
+      ]);
+      setSelected(item.name);
+      setRemoteMessages([]);
+      setMessagesConversationId(item.id ?? null);
+      setNewConversationOpen(false);
+      setCandidateQuery('');
+      return;
+    }
     try {
       const conversation = await openConversation(user.id);
       const name = user.profile?.displayName ?? user.username;
@@ -308,20 +402,18 @@ export function MessagesPage({
 
   return (
     <div
-      className={`mx-auto w-[calc(100%_-_48px)] max-w-[1480px] pt-8 pb-12 md:max-[1100px]:p-8 max-md:w-auto max-md:px-4 max-md:pt-0 max-md:pb-5 ${selected ? 'max-md:[&_.messages-heading]:hidden max-md:[&_.conversation-list]:hidden' : ''}`}
+      className={`mx-auto w-[calc(100%_-_48px)] max-w-[1480px] pt-8 pb-12 min-[1101px]:flex min-[1101px]:h-[calc(100dvh-80px)] min-[1101px]:flex-col md:max-[1100px]:flex md:max-[1100px]:h-[calc(100dvh-142px)] md:max-[1100px]:flex-col md:max-[1100px]:p-8 max-md:w-auto max-md:px-4 max-md:pt-0 max-md:pb-5 ${selected ? 'max-md:[&_.conversation-list]:hidden' : ''}`}
     >
-      <header className="messages-heading max-md:py-6 max-md:pb-[18px]">
-        <span className="text-[11px] tracking-[.08em] text-muted max-md:hidden">
+      <header className="messages-heading shrink-0 max-[1100px]:hidden">
+        <span className="text-[11px] tracking-[.08em] text-muted">
           CONVERSATIONS
         </span>
-        <h1 className="my-2 text-[30px] font-medium max-md:text-[22px]">
-          Messages
-        </h1>
-        <p className="mb-7 text-sm text-muted max-md:hidden">
+        <h1 className="my-2 text-[30px] font-medium">Messages</h1>
+        <p className="mb-7 text-sm text-muted">
           Stay connected with colleagues through persistent conversations.
         </p>
       </header>
-      <section className="grid h-[min(780px,calc(100dvh-190px))] min-h-[560px] grid-cols-[330px_minmax(520px,1fr)_280px] overflow-hidden rounded-md border border-border bg-surface md:max-[1100px]:grid-cols-[260px_minmax(0,1fr)] max-md:block max-md:h-auto max-md:min-h-0 max-md:overflow-visible max-md:border-0">
+      <section className="grid min-h-0 flex-1 grid-cols-[330px_minmax(0,1fr)] overflow-hidden rounded-md border border-border bg-surface md:max-[1100px]:grid-cols-[260px_minmax(0,1fr)] max-md:block max-md:h-auto max-md:overflow-visible max-md:border-0">
         <aside className="conversation-list flex min-h-0 flex-col border-r border-border max-md:border-0">
           <div className="flex h-[62px] items-center justify-between px-5 max-md:hidden">
             <h2 className="text-base font-medium">Conversations</h2>
@@ -332,7 +424,7 @@ export function MessagesPage({
               size="sm"
             />
           </div>
-          <label className="mx-4 mb-2 flex h-[38px] items-center gap-2 rounded-sm border border-border px-2.5 focus-within:border-focus focus-within:outline-3 focus-within:outline-focus/20 max-md:mx-0 max-md:mb-[18px] max-md:h-11">
+          <label className="mx-4 mb-2 flex h-[38px] items-center gap-2 rounded-sm border border-border px-2.5 focus-within:border-focus focus-within:outline-3 focus-within:outline-focus/20 max-md:mx-0 max-md:mt-4 max-md:mb-[18px] max-md:h-11">
             <Icon name="search" size={15} />
             <span className="sr-only">Search conversations</span>
             <input
@@ -348,12 +440,23 @@ export function MessagesPage({
               <button
                 className={`grid h-[82px] w-full grid-cols-[34px_1fr_auto] items-center gap-2.5 border-t border-border px-4 py-3 text-left max-md:h-[104px] max-md:px-2 ${active.name === conversation.name ? 'bg-surface-secondary' : ''}`}
                 key={conversation.name}
-                onClick={() => setSelected(conversation.name)}
+                onClick={() => {
+                  setSelected(conversation.name);
+                  if (previewMode) {
+                    setRemoteMessages(
+                      conversation.id === 'preview-conversation-maya'
+                        ? previewMessages
+                        : [],
+                    );
+                    setMessagesConversationId(conversation.id ?? null);
+                  }
+                }}
                 type="button"
               >
                 <Avatar
                   className="!size-[34px] !basis-[34px] !text-[10px]"
                   initials={conversation.initials}
+                  online={conversation.online}
                 />
                 <span className="grid gap-1.5">
                   <strong className="text-xs font-medium">
@@ -386,23 +489,33 @@ export function MessagesPage({
               onClick={() => setSelected(null)}
               size="sm"
             />
-            <Avatar
-              className="!size-[34px] !basis-[34px] !text-[10px]"
-              initials={active.initials}
-              online
-            />
-            <div className="grid flex-1 gap-[3px]">
-              <strong className="text-sm">{active.name}</strong>
-              <small className="text-[10px] text-muted">
-                Online · {active.role}
-              </small>
-            </div>
             <button
-              className="text-[11px] text-primary max-md:hidden"
+              aria-label={`View ${active.name} profile`}
+              className="-m-1 flex min-w-0 flex-1 items-center gap-2.5 rounded-sm border-0 bg-transparent p-1 text-left hover:bg-surface-secondary focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-focus/40"
+              onClick={() => onOpenProfile(active.name)}
+              title={`View ${active.name} profile`}
+              type="button"
+            >
+              <Avatar
+                className="!size-[34px] !basis-[34px] !text-[10px]"
+                initials={active.initials}
+                online={Boolean(active.online)}
+              />
+              <span className="grid min-w-0 gap-[3px]">
+                <strong className="truncate text-sm">{active.name}</strong>
+                <small className="truncate text-[10px] text-muted">
+                  {active.online ? 'Online' : 'Offline'} · {active.role}
+                </small>
+              </span>
+            </button>
+            <button
+              aria-label={`View tickets related to ${active.name} (2)`}
+              className="min-h-10 shrink-0 rounded-sm px-2 text-[11px] text-primary hover:bg-surface-secondary focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-focus/40 max-[360px]:px-1.5"
               onClick={() => onViewTickets(active.name)}
               type="button"
             >
-              View tickets (2)
+              <span className="max-md:hidden">View tickets (2)</span>
+              <span className="hidden max-md:inline">Tickets (2)</span>
             </button>
           </header>
           <div
@@ -482,33 +595,6 @@ export function MessagesPage({
             </Button>
           </form>
         </section>
-        <aside className="border-l border-border px-[22px] py-[30px] text-center md:max-[1100px]:hidden max-md:hidden">
-          <Avatar
-            alt={active.name}
-            className="mx-auto !size-[58px] !basis-[58px]"
-            initials={active.initials}
-            online
-          />
-          <h2 className="mt-[14px] mb-[5px] text-base font-medium">
-            {active.name}
-          </h2>
-          <p className="mb-2 text-[11px] text-muted">{active.role}</p>
-          <span className="inline-flex items-center gap-[5px] text-[10px] text-success before:size-1.5 before:rounded-full before:bg-current before:content-['']">
-            Online
-          </span>
-          <dl className="my-10 grid gap-2 text-left">
-            <dt className="mt-3 text-[9px] text-muted">ORGANIZATION</dt>
-            <dd className="text-[11px]">Northstar Studio</dd>
-            <dt className="mt-3 text-[9px] text-muted">CONNECTION</dt>
-            <dd className="text-[11px]">Connected since Aug 2026</dd>
-          </dl>
-          <Button
-            onClick={() => onOpenProfile(active.name)}
-            variant="secondary"
-          >
-            View profile
-          </Button>
-        </aside>
       </section>
       {newConversationOpen ? (
         <Dialog
@@ -517,9 +603,9 @@ export function MessagesPage({
           onClose={() => setNewConversationOpen(false)}
           title="New conversation"
         >
-          <div className="grid gap-1.5">
+          <div className="grid min-w-0 gap-1.5 p-[5px]">
             <input
-              className="min-h-10 rounded-sm border border-border px-3"
+              className="min-h-10 w-full min-w-0 rounded-sm border border-border px-3"
               aria-label="Search colleagues"
               onChange={(event) => setCandidateQuery(event.target.value)}
               placeholder="Search by username"

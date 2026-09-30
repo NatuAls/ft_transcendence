@@ -64,6 +64,36 @@ button:not(:disabled) {
   cursor: pointer;
 }
 
+@keyframes auth-brand-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes auth-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.auth-brand-enter {
+  animation: auth-brand-enter 420ms ease-out both;
+}
+
+.auth-card-enter {
+  animation: auth-card-enter 460ms 80ms ease-out both;
+}
+
 a:focus-visible,
 button:focus-visible,
 input:focus-visible,

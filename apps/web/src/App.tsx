@@ -7,43 +7,78 @@ import {
   type AppLocation,
   type Navigate,
 } from './app/routes';
-import { sessionCapabilities } from './app/session';
+import {
+  activeOrganizationName,
+  can,
+  previewMode,
+  previewSessions,
+  scopePreviewViewer,
+  viewerFromAuthUser,
+  type PreviewIdentity,
+  type ViewerSession,
+} from './app/session';
+import { SessionStatePage } from './app/SessionStatePage';
 import { WorkspacePage } from './app/WorkspacePage';
-import { AdminAccessDenied } from './features/admin/AdminAccessDenied';
-import { GlobalAdminPage } from './features/admin/GlobalAdminPage';
 import { RegisterPage } from './features/auth/RegisterPage';
 import { SignInPage } from './features/auth/SignInPage';
 import { LegalPage } from './features/legal/LegalPage';
 import type { NewTicketValues } from './features/tickets/CreateTicketPage';
 import { initialTickets, type Ticket } from './features/tickets/ticketData';
-import type { AccountProfile } from './features/account/accountData';
+import {
+  organizationById,
+  organizationCatalog,
+  organizationsForViewer,
+  type OrganizationSummary,
+} from './features/organizations/organizationsData';
 import { AppShell } from './layout/AppShell';
 import { logout, refreshSession, type AuthResponse } from './api/auth';
 
-function accountProfileFromUser(user: AuthResponse['user']): AccountProfile {
-  return {
-    bio: user.bio ?? '',
-    email: user.email,
-    firstName: user.firstName,
-    fullName: user.displayName,
-    jobTitle: user.jobTitle ?? '',
-    lastName: user.lastName,
-    location: user.timezone,
-    username: user.username,
-  };
-}
-
 function App() {
+  const initialViewer = previewMode ? previewSessions.agent : null;
+  const initialOrganizationId =
+    initialViewer?.memberships[0]?.organizationId ?? organizationCatalog[0].id;
   const [location, setLocation] = useState<AppLocation>(readLocation);
-  const [avatarUrl, setAvatarUrl] = useState<string>();
-  const [accountProfile, setAccountProfile] = useState<AccountProfile | null>(
-    null,
+  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(
+    initialViewer?.avatarUrl,
   );
-  const [sessionReady, setSessionReady] = useState(false);
+  const [viewer, setViewer] = useState<ViewerSession | null>(initialViewer);
+  const [accountProfile, setAccountProfile] = useState(
+    initialViewer?.profile ?? null,
+  );
+  const [sessionReady, setSessionReady] = useState(previewMode);
   const [tickets, setTickets] = useState<Ticket[]>(initialTickets);
-  const [organizationName, setOrganizationName] = useState('Northstar Studio');
+  const [organizationId, setOrganizationId] = useState(initialOrganizationId);
+  const [organizationName, setOrganizationName] = useState(
+    initialViewer
+      ? activeOrganizationName(initialViewer, initialOrganizationId)
+      : '',
+  );
+  const [organizationDescription, setOrganizationDescription] = useState(
+    organizationById(initialOrganizationId)?.description ?? '',
+  );
+
+  function selectOrganization(nextViewer: ViewerSession, nextId: string) {
+    const fallbackId =
+      nextViewer.memberships[0]?.organizationId ?? organizationCatalog[0].id;
+    const available = organizationsForViewer(nextViewer);
+    const selected =
+      available.find((organization) => organization.id === nextId) ??
+      available.find((organization) => organization.id === fallbackId) ??
+      available[0];
+    if (!selected) return;
+    setOrganizationId(selected.id);
+    setOrganizationName(selected.name);
+    setOrganizationDescription(selected.description);
+  }
+
+  function selectOrganizationSummary(organization: OrganizationSummary) {
+    setOrganizationId(organization.id);
+    setOrganizationName(organization.name);
+    setOrganizationDescription(organization.description);
+  }
 
   useEffect(() => {
+    if (previewMode) return;
     void refreshSession()
       .then((authData) => {
         if (!authData) {
@@ -57,8 +92,15 @@ function App() {
           }
           return;
         }
-        setAccountProfile(accountProfileFromUser(authData.user));
-        setAvatarUrl(authData.user.avatarUrl ?? undefined);
+        const authenticatedViewer = viewerFromAuthUser(authData.user);
+        setViewer(authenticatedViewer);
+        setAccountProfile(authenticatedViewer.profile);
+        setAvatarUrl(authenticatedViewer.avatarUrl);
+        selectOrganization(
+          authenticatedViewer,
+          authenticatedViewer.memberships[0]?.organizationId ??
+            organizationCatalog[0].id,
+        );
         if (location.route === 'login' || location.route === 'register') {
           window.location.hash = buildHash('tickets');
         }
@@ -82,24 +124,55 @@ function App() {
   };
 
   async function handleSignIn(user: AuthResponse['user']) {
-    setAccountProfile(accountProfileFromUser(user));
-    setAvatarUrl(user.avatarUrl ?? undefined);
+    const authenticatedViewer = viewerFromAuthUser(user);
+    setViewer(authenticatedViewer);
+    setAccountProfile(authenticatedViewer.profile);
+    setAvatarUrl(authenticatedViewer.avatarUrl);
+    selectOrganization(
+      authenticatedViewer,
+      authenticatedViewer.memberships[0]?.organizationId ??
+        organizationCatalog[0].id,
+    );
     navigate('tickets');
   }
 
   function handleRegister(user: AuthResponse['user']) {
-    setAccountProfile(accountProfileFromUser(user));
-    setAvatarUrl(user.avatarUrl ?? undefined);
+    const authenticatedViewer = viewerFromAuthUser(user);
+    setViewer(authenticatedViewer);
+    setAccountProfile(authenticatedViewer.profile);
+    setAvatarUrl(authenticatedViewer.avatarUrl);
+    selectOrganization(
+      authenticatedViewer,
+      authenticatedViewer.memberships[0]?.organizationId ??
+        organizationCatalog[0].id,
+    );
     navigate('tickets');
   }
 
   async function handleSignOut() {
     try {
-      await logout();
+      if (!previewMode) await logout();
     } finally {
-      setAccountProfile(null);
-      setAvatarUrl(undefined);
+      if (!previewMode) {
+        setViewer(null);
+        setAccountProfile(null);
+        setAvatarUrl(undefined);
+      }
       navigate('login');
+    }
+  }
+
+  function handlePreviewIdentityChange(identity: PreviewIdentity) {
+    const nextViewer = previewSessions[identity];
+    setViewer(nextViewer);
+    setAccountProfile(nextViewer.profile);
+    setAvatarUrl(nextViewer.avatarUrl);
+    selectOrganization(
+      nextViewer,
+      nextViewer.memberships[0]?.organizationId ?? organizationCatalog[0].id,
+    );
+    if (location.route === 'admin' && !can(nextViewer, 'user:listAll')) {
+      navigate('tickets');
     }
   }
 
@@ -112,6 +185,7 @@ function App() {
       category: values.category,
       description: values.description,
       id: `HD-${String(ticketNumber).padStart(4, '0')}`,
+      organizationId,
       priority: values.priority,
       requester: accountProfile.fullName,
       status: 'Open',
@@ -136,19 +210,8 @@ function App() {
     return (
       <SignInPage
         onCreateAccount={() => navigate('register')}
+        onOpenPreview={previewMode ? () => navigate('tickets') : undefined}
         onSubmit={handleSignIn}
-      />
-    );
-  }
-
-  if (location.route === 'admin') {
-    if (!sessionCapabilities.managePlatform) {
-      return <AdminAccessDenied onBack={() => navigate('tickets')} />;
-    }
-    return (
-      <GlobalAdminPage
-        onExit={() => navigate('tickets')}
-        onOrganizations={() => navigate('organizations')}
       />
     );
   }
@@ -174,19 +237,59 @@ function App() {
     );
   }
 
-  if (!sessionReady || !accountProfile) {
+  if (!sessionReady || !accountProfile || !viewer) {
     return <main aria-live="polite">Loading...</main>;
   }
 
+  if (viewer.accountState === 'SUSPENDED') {
+    return (
+      <SessionStatePage
+        kind="suspended"
+        onPreviewIdentityChange={handlePreviewIdentityChange}
+        onSignOut={handleSignOut}
+        viewer={viewer}
+      />
+    );
+  }
+
+  if (viewer.globalRole !== 'GLOBAL_ADMIN' && viewer.memberships.length === 0) {
+    return (
+      <SessionStatePage
+        kind="no-organization"
+        onPreviewIdentityChange={handlePreviewIdentityChange}
+        onSignOut={handleSignOut}
+        viewer={viewer}
+      />
+    );
+  }
+
+  const organizationOptions = organizationsForViewer(viewer);
+  const scopedViewer = scopePreviewViewer(viewer, organizationId);
+
   return (
     <AppShell
+      activeOrganizationId={organizationId}
       activeSection={getActiveSection(location.route)}
       avatarUrl={avatarUrl}
+      hideMobileHeader={location.route === 'ticket-detail'}
       onNavigate={navigate}
+      onOrganizationChange={(nextId) => {
+        selectOrganization(viewer, nextId);
+      }}
+      onPreviewIdentityChange={handlePreviewIdentityChange}
       onSignOut={handleSignOut}
       organizationName={organizationName}
+      organizationOptions={[
+        ...organizationOptions.map(({ id, name }) => ({ id, name })),
+        ...(organizationOptions.some(
+          (organization) => organization.id === organizationId,
+        )
+          ? []
+          : [{ id: organizationId, name: organizationName }]),
+      ]}
       userEmail={accountProfile.email}
       userName={accountProfile.fullName}
+      viewer={scopedViewer}
     >
       <WorkspacePage
         accountProfile={accountProfile}
@@ -195,8 +298,13 @@ function App() {
         navigate={navigate}
         onAvatarChange={setAvatarUrl}
         onCreateTicket={handleCreateTicket}
-        onOrganizationChange={setOrganizationName}
-        onProfileChange={setAccountProfile}
+        onOrganizationDescriptionChange={setOrganizationDescription}
+        onOrganizationNameChange={setOrganizationName}
+        onOrganizationSelect={selectOrganizationSummary}
+        onProfileChange={(profile) => {
+          setAccountProfile(profile);
+          setViewer((current) => (current ? { ...current, profile } : current));
+        }}
         onTicketChange={(updatedTicket) =>
           setTickets((current) =>
             current.map((ticket) =>
@@ -204,8 +312,11 @@ function App() {
             ),
           )
         }
+        organizationDescription={organizationDescription}
+        organizationId={organizationId}
         organizationName={organizationName}
         tickets={tickets}
+        viewer={scopedViewer}
       />
     </AppShell>
   );

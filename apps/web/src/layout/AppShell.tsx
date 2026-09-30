@@ -1,7 +1,13 @@
 import { Avatar, BrandMark, Icon, IconButton, type IconName } from 'ui';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { AppSection, Navigate } from '../app/routes';
-import { sessionCapabilities } from '../app/session';
+import { PreviewIdentitySelect } from '../app/PreviewIdentitySelect';
+import {
+  can,
+  previewMode,
+  type PreviewIdentity,
+  type ViewerSession,
+} from '../app/session';
 import { getInitials } from '../app/text';
 import { GlobalSearchDialog } from './GlobalSearchDialog';
 import { ProfileMenu } from './ProfileMenu';
@@ -9,17 +15,23 @@ import { ProfileMenu } from './ProfileMenu';
 export type { AppSection } from '../app/routes';
 
 interface AppShellProps {
+  activeOrganizationId: string;
   activeSection: AppSection;
   avatarUrl?: string;
   children: ReactNode;
+  hideMobileHeader?: boolean;
   onNavigate: Navigate;
+  onOrganizationChange: (organizationId: string) => void;
+  onPreviewIdentityChange: (identity: PreviewIdentity) => void;
   onSignOut: () => void | Promise<void>;
   organizationName: string;
+  organizationOptions: Array<{ id: string; name: string }>;
   userEmail: string;
   userName: string;
+  viewer: ViewerSession;
 }
 
-const desktopNavigation: Array<{
+const workspaceNavigation: Array<{
   icon: IconName;
   label: string;
   section: AppSection;
@@ -27,17 +39,32 @@ const desktopNavigation: Array<{
   { icon: 'ticket', label: 'Tickets', section: 'tickets' },
   { icon: 'users', label: 'People', section: 'people' },
   { icon: 'message', label: 'Messages', section: 'messages' },
-  { icon: 'building', label: 'Organization', section: 'organization' },
+  {
+    icon: 'building',
+    label: 'Organization settings',
+    section: 'organization',
+  },
 ];
 
-const mobileNavigation = desktopNavigation
+const platformNavigation: Array<{
+  icon: IconName;
+  label: string;
+  section: AppSection;
+}> = [
+  { icon: 'users', label: 'Users', section: 'admin' },
+  { icon: 'building', label: 'Organizations', section: 'organizations' },
+];
+
+const mobileNavigation = workspaceNavigation
   .slice(0, 3)
   .concat({ icon: 'user' as const, label: 'Account', section: 'account' });
 
 const mobileTitles: Record<AppSection, string> = {
   account: 'Account',
+  admin: 'Users',
   messages: 'Messages',
   organization: 'Organization',
+  organizations: 'Organizations',
   people: 'People',
   tickets: 'Tickets',
 };
@@ -73,36 +100,99 @@ function NavButton({
 }
 
 export function AppShell({
+  activeOrganizationId,
   activeSection,
   avatarUrl,
   children,
+  hideMobileHeader = false,
   onNavigate,
+  onOrganizationChange,
+  onPreviewIdentityChange,
   onSignOut,
   organizationName,
+  organizationOptions,
   userEmail,
   userName,
+  viewer,
 }: AppShellProps) {
   const [searchOpen, setSearchOpen] = useState(false);
+  const [organizationMenuOpen, setOrganizationMenuOpen] = useState(false);
+  const organizationPickerRef = useRef<HTMLDivElement>(null);
   const userInitials = getInitials(userName);
+  const showAdministration = can(viewer, 'user:listAll');
+  const canSwitchOrganization = organizationOptions.length > 1;
+
+  useEffect(() => {
+    if (!organizationMenuOpen) return;
+    function closeOrganizationMenu(event: MouseEvent) {
+      if (!organizationPickerRef.current?.contains(event.target as Node)) {
+        setOrganizationMenuOpen(false);
+      }
+    }
+    function closeFromEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setOrganizationMenuOpen(false);
+    }
+    document.addEventListener('mousedown', closeOrganizationMenu);
+    document.addEventListener('keydown', closeFromEscape);
+    return () => {
+      document.removeEventListener('mousedown', closeOrganizationMenu);
+      document.removeEventListener('keydown', closeFromEscape);
+    };
+  }, [organizationMenuOpen]);
 
   return (
     <div className="min-h-dvh bg-canvas max-[1100px]:bg-surface">
       <aside className="fixed inset-y-0 left-0 z-20 flex w-[260px] flex-col bg-[#183039] px-5 pt-7 pb-5 text-surface max-[1100px]:hidden">
-        <div className="flex items-center gap-3 px-2 pb-10 text-lg font-medium">
+        <button
+          className="flex items-center gap-3 px-2 pb-10 text-left text-lg font-medium"
+          onClick={() => onNavigate('tickets')}
+          type="button"
+        >
           <BrandMark className="!size-9 !rounded-[10px]" />
           <span>HelpDesk Lite</span>
-        </div>
+        </button>
         <nav aria-label="Main navigation" className="grid gap-1.5">
-          {desktopNavigation.map((item) => (
+          <span className="px-3 pb-1 text-[10px] tracking-[.08em] text-[#a9b9ba]">
+            ORGANIZATION
+          </span>
+          {workspaceNavigation.map((item) => (
             <NavButton
               active={item.section === activeSection}
               icon={item.icon}
               key={item.section}
-              label={item.label}
+              label={
+                item.section === 'organization' &&
+                !can(viewer, 'organization:update')
+                  ? 'Organization'
+                  : item.label
+              }
               onClick={() => onNavigate(item.section)}
             />
           ))}
+          {showAdministration ? (
+            <>
+              <span className="mt-5 px-3 pb-1 text-[10px] tracking-[.08em] text-[#a9b9ba]">
+                PLATFORM
+              </span>
+              {platformNavigation.map((item) => (
+                <NavButton
+                  active={item.section === activeSection}
+                  icon={item.icon}
+                  key={item.section}
+                  label={item.label}
+                  onClick={() => onNavigate(item.section)}
+                />
+              ))}
+            </>
+          ) : null}
         </nav>
+        {previewMode && viewer.previewIdentity ? (
+          <PreviewIdentitySelect
+            className="mt-6 px-2 !text-[#a9b9ba] [&_select]:border-white/20 [&_select]:bg-[#213e45] [&_select]:text-white"
+            onChange={onPreviewIdentityChange}
+            value={viewer.previewIdentity}
+          />
+        ) : null}
         <div className="relative mt-auto flex items-center rounded-sm">
           <button
             className="flex min-w-0 flex-1 items-center gap-2.5 border-0 bg-transparent px-2 py-3 text-left font-[inherit] text-inherit"
@@ -124,8 +214,10 @@ export function AppShell({
           <ProfileMenu
             label="Open account menu"
             onNavigate={onNavigate}
+            onPreviewIdentityChange={onPreviewIdentityChange}
             onSignOut={onSignOut}
-            showAdministration={sessionCapabilities.managePlatform}
+            previewIdentity={viewer.previewIdentity}
+            showAdministration={showAdministration}
             placement="sidebar"
           >
             <span aria-hidden="true">•••</span>
@@ -136,12 +228,73 @@ export function AppShell({
       <div className="min-h-dvh pl-[260px] max-[1100px]:pb-[74px] max-[1100px]:pl-0">
         <header className="flex h-20 items-center justify-between border-b border-border bg-surface px-10 max-[1100px]:hidden">
           <div className="flex items-center gap-2.5">
-            <strong className="text-base font-medium">
-              {organizationName}
-            </strong>
-            <span className="rounded-full bg-surface-secondary px-[9px] py-[5px] text-[10px] text-muted">
-              Frontend preview · local data
-            </span>
+            <div className="relative" ref={organizationPickerRef}>
+              {canSwitchOrganization ? (
+                <button
+                  aria-expanded={organizationMenuOpen}
+                  aria-haspopup="menu"
+                  className="flex items-center gap-2 rounded-sm px-2 py-1 text-left hover:bg-surface-secondary"
+                  onClick={() => setOrganizationMenuOpen((current) => !current)}
+                  type="button"
+                >
+                  <span className="grid gap-0.5">
+                    <small className="text-[9px] tracking-[.06em] text-muted">
+                      ACTIVE ORGANIZATION
+                    </small>
+                    <strong className="text-sm font-medium">
+                      {organizationName}
+                    </strong>
+                  </span>
+                  <Icon name="chevron-down" size={15} />
+                </button>
+              ) : (
+                <span className="grid gap-0.5 px-2 py-1">
+                  <small className="text-[9px] tracking-[.06em] text-muted">
+                    ACTIVE ORGANIZATION
+                  </small>
+                  <strong className="text-sm font-medium">
+                    {organizationName}
+                  </strong>
+                </span>
+              )}
+              {organizationMenuOpen ? (
+                <div
+                  aria-label="Choose active organization"
+                  className="absolute top-[calc(100%+8px)] left-0 z-60 grid min-w-[240px] overflow-hidden rounded-md border border-border bg-surface p-1.5 shadow-lg"
+                  role="menu"
+                >
+                  {organizationOptions.map((organization) => (
+                    <button
+                      aria-current={
+                        organization.id === activeOrganizationId
+                          ? 'true'
+                          : undefined
+                      }
+                      className="flex min-h-11 items-center justify-between gap-5 rounded-sm px-3 text-left text-sm hover:bg-surface-secondary focus-visible:bg-surface-secondary"
+                      key={organization.id}
+                      onClick={() => {
+                        onOrganizationChange(organization.id);
+                        setOrganizationMenuOpen(false);
+                      }}
+                      role="menuitem"
+                      type="button"
+                    >
+                      <span>{organization.name}</span>
+                      {organization.id === activeOrganizationId ? (
+                        <span className="text-primary" aria-hidden="true">
+                          ✓
+                        </span>
+                      ) : null}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+            {previewMode ? (
+              <span className="rounded-full bg-surface-secondary px-[9px] py-[5px] text-[10px] text-muted">
+                Frontend preview · local data
+              </span>
+            ) : null}
           </div>
           <div className="flex items-center gap-[18px]">
             <IconButton
@@ -152,8 +305,10 @@ export function AppShell({
             <ProfileMenu
               label="Open account menu"
               onNavigate={onNavigate}
+              onPreviewIdentityChange={onPreviewIdentityChange}
               onSignOut={onSignOut}
-              showAdministration={sessionCapabilities.managePlatform}
+              previewIdentity={viewer.previewIdentity}
+              showAdministration={showAdministration}
               placement="topbar"
             >
               <Avatar
@@ -164,8 +319,17 @@ export function AppShell({
             </ProfileMenu>
           </div>
         </header>
-        <header className="sticky top-0 z-10 hidden h-[68px] grid-cols-[40px_1fr_40px] items-center border-b border-border bg-surface/94 px-[18px] max-[1100px]:grid">
-          <BrandMark className="!size-9 !rounded-[10px]" />
+        <header
+          className={`${hideMobileHeader ? '' : 'max-[1100px]:grid'} sticky top-0 z-10 hidden h-[68px] grid-cols-[40px_1fr_40px] items-center border-b border-border bg-surface/94 px-[18px]`}
+        >
+          <button
+            aria-label="Go to tickets"
+            className="grid size-10 place-items-center rounded-[10px]"
+            onClick={() => onNavigate('tickets')}
+            type="button"
+          >
+            <BrandMark className="!size-9 !rounded-[10px]" />
+          </button>
           <strong className="text-center text-lg">
             {mobileTitles[activeSection]}
           </strong>
@@ -173,8 +337,10 @@ export function AppShell({
             className="justify-self-end"
             label="Open account menu"
             onNavigate={onNavigate}
+            onPreviewIdentityChange={onPreviewIdentityChange}
             onSignOut={onSignOut}
-            showAdministration={sessionCapabilities.managePlatform}
+            previewIdentity={viewer.previewIdentity}
+            showAdministration={showAdministration}
             placement="mobile"
           >
             <Avatar

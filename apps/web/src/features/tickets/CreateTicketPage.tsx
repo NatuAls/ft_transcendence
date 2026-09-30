@@ -2,8 +2,10 @@ import { Button, SelectField, TextField } from 'ui';
 import { useState, type FormEvent } from 'react';
 
 interface CreateTicketPageProps {
+  categories: Array<{ description: string; name: string }>;
   onCancel: () => void;
   onSubmit: (values: NewTicketValues) => void;
+  organizationName: string;
 }
 
 export interface NewTicketValues {
@@ -21,19 +23,29 @@ const priorities = [
 ] as const;
 
 export function CreateTicketPage({
+  categories,
   onCancel,
   onSubmit,
+  organizationName,
 }: CreateTicketPageProps) {
   const [description, setDescription] = useState('');
   const [priority, setPriority] =
     useState<NewTicketValues['priority']>('Medium');
   const [subject, setSubject] = useState('');
-  const [organization, setOrganization] = useState('Northstar Studio');
-  const [category, setCategory] = useState('Account');
+  const [category, setCategory] = useState(categories[0]?.name ?? 'Other');
+  const categoryDescription = categories.find(
+    (item) => item.name === category,
+  )?.description;
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    onSubmit({ category, description, organization, priority, subject });
+    onSubmit({
+      category,
+      description,
+      organization: organizationName,
+      priority,
+      subject,
+    });
   }
 
   return (
@@ -84,26 +96,28 @@ export function CreateTicketPage({
             required
             value={subject}
           />
-          <div className="grid grid-cols-2 gap-4 max-md:grid-cols-1">
-            <SelectField
+          <div className="grid min-w-0 grid-cols-2 gap-4 max-md:grid-cols-1">
+            <TextField
+              disabled
               label="Organization *"
-              onChange={(event) => setOrganization(event.target.value)}
-              required
-              value={organization}
-            >
-              <option>Northstar Studio</option>
-            </SelectField>
+              value={organizationName}
+            />
             <SelectField
               label="Category *"
               onChange={(event) => setCategory(event.target.value)}
               required
               value={category}
             >
-              <option>Account</option>
-              <option>Billing</option>
-              <option>Organization</option>
+              {categories.map((item) => (
+                <option key={item.name}>{item.name}</option>
+              ))}
             </SelectField>
           </div>
+          {categoryDescription ? (
+            <p className="-mt-4 text-[11px] text-muted">
+              {categoryDescription}
+            </p>
+          ) : null}
           <label className="relative grid gap-2 text-sm font-medium">
             <span>Description *</span>
             <textarea
@@ -146,7 +160,7 @@ export function CreateTicketPage({
               ))}
             </div>
           </fieldset>
-          <footer className="flex min-w-0 justify-end gap-2.5 border-t border-border pt-[22px] max-md:sticky max-md:bottom-0 max-md:bg-surface max-md:pt-4 max-md:[&_.ui-button]:!min-w-0 max-md:[&_.ui-button]:flex-1 max-md:[&_.ui-button]:!px-2 max-md:[&_.ui-button]:text-xs max-md:[&_.ui-button]:whitespace-nowrap">
+          <footer className="flex min-w-0 justify-end gap-2.5 border-t border-border pt-[22px] max-[900px]:sticky max-[900px]:bottom-[74px] max-[900px]:z-10 max-[900px]:bg-surface max-[900px]:pt-4 max-[900px]:[&_.ui-button]:!min-w-0 max-[900px]:[&_.ui-button]:flex-1 max-[900px]:[&_.ui-button]:!px-2 max-[900px]:[&_.ui-button]:text-xs max-[900px]:[&_.ui-button]:whitespace-nowrap">
             <Button onClick={onCancel} variant="secondary">
               Cancel
             </Button>

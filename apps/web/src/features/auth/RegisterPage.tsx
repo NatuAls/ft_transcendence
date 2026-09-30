@@ -145,7 +145,7 @@ export function RegisterPage({ onSignIn, onSubmit }: RegisterPageProps) {
 
       <section className="flex min-h-screen min-w-0 flex-col px-4 pt-6 pb-10 md:items-center md:justify-center md:p-12">
         <div className="md:hidden">
-          <BrandHeader mark={false} />
+          <BrandHeader />
         </div>
         <header className="mx-4 mt-[39px] mb-[22px] md:hidden">
           <h1 className="text-[28px] leading-[1.2] font-medium">
@@ -157,7 +157,7 @@ export function RegisterPage({ onSignIn, onSubmit }: RegisterPageProps) {
         </header>
 
         <section
-          className="w-full px-4 md:max-w-[520px] md:rounded-lg md:border md:border-border md:bg-surface md:px-[51px] md:pt-[46px] md:pb-[52px]"
+          className="auth-card-enter w-full px-4 md:max-w-[520px] md:rounded-lg md:border md:border-border md:bg-surface md:px-[51px] md:pt-[46px] md:pb-[52px]"
           aria-labelledby="register-heading"
         >
           <header className="mb-8 hidden md:block">

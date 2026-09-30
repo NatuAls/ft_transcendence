@@ -12,6 +12,7 @@ export function OrganizationDialog({
   onClose,
   onDelete,
   onSave,
+  organizationDescription,
   organizationName,
   selectedName,
   selectedRow,
@@ -21,6 +22,7 @@ export function OrganizationDialog({
   onClose: () => void;
   onDelete: (context: Exclude<DeleteContext, null>) => void;
   onSave: (data: FormData) => void;
+  organizationDescription: string;
   organizationName: string;
   selectedName: string;
   selectedRow?: OrganizationRow;
@@ -37,7 +39,6 @@ export function OrganizationDialog({
   );
   const deletingOrganization =
     dialog === 'delete' && deleteContext === 'settings';
-  const roleHasMembers = dialog === 'role' && selectedRow?.[3] !== '0 members';
   const config =
     dialog === 'add-member'
       ? [
@@ -57,39 +58,23 @@ export function OrganizationDialog({
               `Edit the identity and operational details of ${organizationName}.`,
               'Save changes',
             ]
-          : dialog === 'role'
+          : dialog === 'category'
             ? [
                 selectedName
-                  ? 'Edit organization role'
-                  : 'Create organization role',
-                'Configure a reusable set of organization permissions.',
-                'Save role',
+                  ? 'Edit ticket category'
+                  : 'Create ticket category',
+                'Configure how requests are classified and routed.',
+                'Save category',
               ]
-            : dialog === 'category'
-              ? [
-                  selectedName
-                    ? 'Edit ticket category'
-                    : 'Create ticket category',
-                  'Configure how requests are classified and routed.',
-                  'Save category',
-                ]
-              : [
-                  deletingOrganization
-                    ? `Delete ${organizationName}?`
-                    : deleteContext === 'category'
-                      ? `Archive ${selectedName}?`
-                      : `Delete ${selectedName}?`,
-                  deletingOrganization
-                    ? 'Members lose organization access and its tickets can no longer be changed.'
-                    : deleteContext === 'category'
-                      ? 'Existing tickets keep this category, but it cannot be selected for new tickets.'
-                      : 'This removes the item from the organization preview.',
-                  deletingOrganization
-                    ? 'Delete organization'
-                    : deleteContext === 'category'
-                      ? 'Archive category'
-                      : 'Delete',
-                ];
+            : [
+                deletingOrganization
+                  ? `Delete ${organizationName}?`
+                  : `Remove ${selectedName} from ${organizationName}?`,
+                deletingOrganization
+                  ? 'Members lose organization access and its tickets can no longer be changed.'
+                  : 'This removes organization access. It does not delete the platform account.',
+                deletingOrganization ? 'Delete organization' : 'Remove member',
+              ];
   const isDeleteConfirmed =
     dialog !== 'delete' ||
     !deletingOrganization ||
@@ -101,19 +86,13 @@ export function OrganizationDialog({
       eyebrow="ORGANIZATION"
       footer={
         <>
-          {!['add-member', 'delete'].includes(dialog) ? (
+          {['edit-member', 'settings'].includes(dialog) ? (
             <Button
               className="mr-auto max-md:mr-0 max-md:w-full"
-              disabled={roleHasMembers}
               onClick={() => onDelete(dialog as Exclude<DeleteContext, null>)}
-              title={
-                roleHasMembers
-                  ? 'Reassign members before deleting this role.'
-                  : undefined
-              }
               variant="destructive"
             >
-              {dialog === 'category' ? 'Archive' : 'Delete'}
+              {dialog === 'edit-member' ? 'Remove' : 'Delete'}
             </Button>
           ) : null}
           <Button disabled={submitting} onClick={onClose} variant="secondary">
@@ -155,7 +134,8 @@ export function OrganizationDialog({
           />
         ) : (
           <Alert tone="danger">
-            This action cannot be undone in the current preview.
+            The member loses access to this organization. Their platform account
+            and data are not deleted.
           </Alert>
         )
       ) : dialog === 'add-member' ? (
@@ -169,8 +149,8 @@ export function OrganizationDialog({
           />
           <SelectField label="Organization role" name="role">
             <option>Agent</option>
-            <option>User</option>
-            <option>Org admin</option>
+            <option>Member</option>
+            <option>Organization admin</option>
           </SelectField>
           <Alert>
             Ticket access comes from the selected role. The production backend
@@ -186,7 +166,7 @@ export function OrganizationDialog({
             required
           />
           <TextField
-            defaultValue="Design and product operations"
+            defaultValue={organizationDescription}
             label="Description"
             name="description"
           />
@@ -200,57 +180,9 @@ export function OrganizationDialog({
             name="role"
           >
             <option>Agent</option>
-            <option>User</option>
-            <option>Org admin</option>
+            <option>Member</option>
+            <option>Organization admin</option>
           </SelectField>
-          <SelectField
-            defaultValue={selectedRow?.[4]}
-            label="Membership state"
-            name="state"
-          >
-            <option>Active</option>
-            <option>Invited</option>
-            <option>Suspended</option>
-          </SelectField>
-        </>
-      ) : dialog === 'role' ? (
-        <>
-          <TextField
-            defaultValue={selectedRow?.[1] ?? ''}
-            label="Role name"
-            name="role-name"
-            required
-          />
-          <TextField
-            defaultValue={selectedRow?.[2] ?? ''}
-            label="Description"
-            name="description"
-            required
-          />
-          <fieldset className="grid gap-[9px] rounded-sm border border-border p-3 text-xs">
-            <legend>Permissions</legend>
-            {[
-              'View organization',
-              'View assigned tickets',
-              'Update ticket status',
-              'Manage members',
-            ].map((permission) => (
-              <label key={permission}>
-                <input
-                  defaultChecked={permission !== 'Manage members'}
-                  name="permissions"
-                  type="checkbox"
-                  value={permission}
-                />{' '}
-                {permission}
-              </label>
-            ))}
-          </fieldset>
-          {roleHasMembers ? (
-            <Alert tone="danger">
-              Reassign all members before deleting this role.
-            </Alert>
-          ) : null}
         </>
       ) : (
         <>
@@ -266,19 +198,6 @@ export function OrganizationDialog({
             name="description"
             required
           />
-          <SelectField label="Default assignee" name="assignee">
-            <option>Support agents</option>
-            <option>Unassigned</option>
-          </SelectField>
-          <SelectField
-            defaultValue={selectedRow?.[4] ?? 'Active'}
-            label="Status"
-            name="state"
-          >
-            <option>Active</option>
-            <option>Review</option>
-            <option>Archived</option>
-          </SelectField>
         </>
       )}
     </Dialog>

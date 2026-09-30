@@ -10,8 +10,10 @@ import {
 type PeopleTab = 'all' | 'colleagues' | 'requests';
 
 export function PeoplePage({
+  currentUserName,
   onOpenProfile,
 }: {
+  currentUserName: string;
   onOpenProfile: (personName: string) => void;
 }) {
   const [tab, setTab] = useState<PeopleTab>('all');
@@ -28,6 +30,7 @@ export function PeoplePage({
   const visiblePeople = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return people.filter((person) => {
+      if (person.name === currentUserName) return false;
       const matchesQuery = `${person.name} ${person.role} ${person.team}`
         .toLowerCase()
         .includes(normalizedQuery);
@@ -36,7 +39,7 @@ export function PeoplePage({
       if (tab === 'requests') return pendingRequests.includes(person.name);
       return true;
     });
-  }, [connected, pendingRequests, query, tab]);
+  }, [connected, currentUserName, pendingRequests, query, tab]);
 
   function resolveRequest(personName: string, accept: boolean) {
     setDismissedRequests((current) => [...current, personName]);
@@ -103,7 +106,7 @@ export function PeoplePage({
         ))}
       </nav>
       {tab === 'requests' && (
-        <h2 className="text-base font-medium">Connection requests</h2>
+        <h2 className="mb-4 text-base font-medium">Connection requests</h2>
       )}
       {feedback ? (
         <Alert
@@ -126,24 +129,35 @@ export function PeoplePage({
               key={person.name}
             >
               <div className="flex items-start justify-between max-md:relative">
-                <Avatar
-                  className="!size-[46px] !basis-[46px]"
-                  initials={person.initials}
-                />
+                <button
+                  aria-label={`View ${person.name}'s profile`}
+                  className="rounded-full"
+                  onClick={() => onOpenProfile(person.name)}
+                  type="button"
+                >
+                  <Avatar
+                    className="!size-[46px] !basis-[46px]"
+                    initials={person.initials}
+                  />
+                </button>
                 <span
                   className={`inline-flex items-center gap-[5px] text-[10px] before:size-1.5 before:rounded-full before:bg-current before:content-[''] max-md:absolute max-md:-top-2 max-md:-left-1 max-md:rounded-full max-md:bg-surface max-md:px-1 max-md:py-0.5 max-md:text-[8px] ${person.status === 'Online' ? 'text-success' : person.status === 'Away' ? 'text-warning' : 'text-muted'}`}
                 >
                   {person.status}
                 </span>
               </div>
-              <div>
+              <button
+                className="min-w-0 text-left focus-visible:rounded-sm"
+                onClick={() => onOpenProfile(person.name)}
+                type="button"
+              >
                 <h2 className="mt-[14px] mb-[5px] text-base font-medium max-md:m-0 max-md:mb-1 max-md:text-sm">
                   {person.name}
                 </h2>
                 <p className="min-h-9 text-[11px] text-muted max-md:min-h-0 max-md:text-[10px]">
                   {person.role} · {person.team}
                 </p>
-              </div>
+              </button>
               <footer className="mt-4 flex items-center justify-between border-t border-border pt-[14px] max-md:m-0 max-md:border-0 max-md:p-0 max-md:[&_.ui-button]:!min-h-[34px] max-md:[&_.ui-button]:!min-w-[75px] max-md:[&_.ui-button]:!px-[9px]">
                 <button
                   className="text-[11px] text-primary max-md:hidden"
@@ -153,7 +167,7 @@ export function PeoplePage({
                   View profile
                 </button>
                 {incoming ? (
-                  <div className="flex gap-[3px]">
+                  <div className="flex min-w-0 gap-2 [&_.ui-button]:!min-w-0 [&_.ui-button]:!px-4 max-md:[&_.ui-button]:!min-w-[75px] max-md:[&_.ui-button]:!px-[9px]">
                     <Button
                       onClick={() => resolveRequest(person.name, false)}
                       variant="ghost"
@@ -197,22 +211,64 @@ export function PeoplePage({
       </section>
       {tab === 'requests' && (
         <section className="mt-6">
-          <h2 className="text-base font-medium">Sent requests</h2>
-          {people
-            .filter((person) => sentRequests.includes(person.name))
-            .map((person) => (
-              <div
-                className="flex max-w-[440px] items-center gap-3 rounded-md border border-border bg-surface p-[14px]"
-                key={person.name}
-              >
-                <Avatar
-                  className="!size-[46px] !basis-[46px]"
-                  initials={person.initials}
-                />
-                <strong className="flex-1 text-[13px]">{person.name}</strong>
-                <span className="text-[11px] text-warning">Pending</span>
-              </div>
-            ))}
+          <h2 className="mb-4 text-base font-medium">Sent requests</h2>
+          <div className="grid grid-cols-3 gap-[14px] max-md:grid-cols-1 max-md:gap-[9px]">
+            {people
+              .filter(
+                (person) =>
+                  person.name !== currentUserName &&
+                  sentRequests.includes(person.name),
+              )
+              .map((person) => (
+                <article
+                  className="rounded-md border border-border bg-surface p-5 max-md:grid max-md:grid-cols-[48px_1fr_auto] max-md:items-center max-md:p-[14px]"
+                  key={person.name}
+                >
+                  <div className="flex items-start justify-between max-md:relative">
+                    <button
+                      aria-label={`View ${person.name}'s profile`}
+                      className="rounded-full"
+                      onClick={() => onOpenProfile(person.name)}
+                      type="button"
+                    >
+                      <Avatar
+                        className="!size-[46px] !basis-[46px]"
+                        initials={person.initials}
+                      />
+                    </button>
+                    <span
+                      className={`inline-flex items-center gap-[5px] text-[10px] before:size-1.5 before:rounded-full before:bg-current before:content-[''] max-md:absolute max-md:-top-2 max-md:-left-1 max-md:rounded-full max-md:bg-surface max-md:px-1 max-md:py-0.5 max-md:text-[8px] ${person.status === 'Online' ? 'text-success' : person.status === 'Away' ? 'text-warning' : 'text-muted'}`}
+                    >
+                      {person.status}
+                    </span>
+                  </div>
+                  <button
+                    className="min-w-0 text-left focus-visible:rounded-sm"
+                    onClick={() => onOpenProfile(person.name)}
+                    type="button"
+                  >
+                    <h3 className="mt-[14px] mb-[5px] text-base font-medium max-md:m-0 max-md:mb-1 max-md:text-sm">
+                      {person.name}
+                    </h3>
+                    <p className="min-h-9 text-[11px] text-muted max-md:min-h-0 max-md:text-[10px]">
+                      {person.role} · {person.team}
+                    </p>
+                  </button>
+                  <footer className="mt-4 flex items-center justify-between border-t border-border pt-[14px] max-md:m-0 max-md:border-0 max-md:p-0">
+                    <button
+                      className="text-[11px] text-primary max-md:hidden"
+                      onClick={() => onOpenProfile(person.name)}
+                      type="button"
+                    >
+                      View profile
+                    </button>
+                    <span className="rounded-sm bg-[#efe9dc] px-3 py-[9px] text-[11px] text-warning">
+                      Pending
+                    </span>
+                  </footer>
+                </article>
+              ))}
+          </div>
         </section>
       )}
     </div>

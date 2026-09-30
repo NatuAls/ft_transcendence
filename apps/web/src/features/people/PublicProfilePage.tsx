@@ -148,7 +148,7 @@ export function PublicProfilePage({
             </Button>
           ) : (
             <p className="rounded-sm bg-surface-secondary p-3 text-center">
-              Connect first to start a persistent conversation.
+              Connect first to start a conversation.
             </p>
           )}
         </aside>

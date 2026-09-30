@@ -37,8 +37,13 @@ export interface AuthResponse {
     locale: string;
     timezone: string;
     emailVerified: boolean;
-    memberships: unknown[];
-    permissions: unknown[];
+    memberships: Array<{
+      organizationId: string;
+      organizationName: string;
+      organizationSlug: string;
+      role: 'MEMBER' | 'AGENT' | 'ORG_ADMIN';
+    }>;
+    permissions: string[];
   };
 }
 
