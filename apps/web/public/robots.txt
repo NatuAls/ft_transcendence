@@ -6,3 +6,8 @@ User-agent: *
 Allow: /$
 Disallow: /api/
 Disallow: /socket.io/
+
+# La documentación de la API no es contenido público: además va con
+# contraseña y con X-Robots-Tag, esto es sólo la primera señal.
+Disallow: /api/v1/docs
+Disallow: /api/v1/openapi.json

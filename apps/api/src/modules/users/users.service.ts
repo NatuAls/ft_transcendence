@@ -13,6 +13,7 @@ import { prisma } from '../../database/prisma.ts';
 import { DomainEvents, events } from '../../database/events.ts';
 import { loadConfiguration } from '../../config/env.ts';
 import { Errors } from '../../common/errors/domain-error.ts';
+import { isPrimaryAdminUsername } from '../admin/bootstrap-admin.ts';
 import { paginate } from '../../common/utils/pagination.ts';
 import { uuidv7 } from '../../common/utils/uuid.ts';
 import type { RequestActor } from '../../common/types.ts';
@@ -298,6 +299,27 @@ export async function listAll(query: ListUsersQuery) {
   return paginate(rows, total, query.page, query.take);
 }
 
+/**
+ * The primary administrator is the recovery account: it is created at deploy
+ * time from a secret (see modules/admin/bootstrap-admin.ts) and it is the one
+ * that hands out roles to everybody else. Another administrator must not be
+ * able to leave the platform without it - by mistake or otherwise - so the
+ * three operations that could do so refuse to touch it. Rotating its password
+ * or retiring it is a deployment decision, not an in-app one.
+ */
+async function refusePrimaryAdmin(
+  userId: string,
+  action: string,
+): Promise<void> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { username: true },
+  });
+  if (user && isPrimaryAdminUsername(user.username)) {
+    throw Errors.forbiddenAction(`${action} the primary administrator`);
+  }
+}
+
 export async function setStatus(
   actor: RequestActor,
   userId: string,
@@ -305,6 +327,7 @@ export async function setStatus(
 ) {
   if (userId === actor.id)
     throw Errors.forbiddenAction('suspend your own account');
+  if (!isActive) await refusePrimaryAdmin(userId, 'suspend');
   const user = await prisma.user.update({
     where: { id: userId },
     data: { isActive },
@@ -321,6 +344,7 @@ export async function setGlobalRole(
 ) {
   if (userId === actor.id)
     throw Errors.forbiddenAction('change your own global role');
+  if (globalRole !== 'GLOBAL_ADMIN') await refusePrimaryAdmin(userId, 'demote');
   const user = await prisma.user.update({
     where: { id: userId },
     data: { globalRole },
@@ -336,6 +360,7 @@ export async function softDelete(
 ): Promise<void> {
   if (userId === actor.id)
     throw Errors.forbiddenAction('delete your own account here');
+  await refusePrimaryAdmin(userId, 'delete');
   await prisma.user.update({
     where: { id: userId },
     data: { deletedAt: new Date(), isActive: false },

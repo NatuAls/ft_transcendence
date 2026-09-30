@@ -32,8 +32,10 @@ const logger = createLogger('audit');
 
 export type AuditAction =
   // account and platform
+  | 'user.created'
   | 'user.role.changed'
   | 'user.status.changed'
+  | 'user.password.rotated'
   | 'user.deleted'
   // organizations
   | 'organization.created'

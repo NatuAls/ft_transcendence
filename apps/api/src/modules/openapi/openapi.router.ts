@@ -19,7 +19,9 @@ import path from 'node:path';
 import express, { Router } from 'express';
 import { buildDocument } from './document.ts';
 import { page, initScript } from './ui.ts';
+import { requireDocsAccess, docsAccessMode } from './docs-access.ts';
 import { GLOBAL_PREFIX } from '../../routing.ts';
+import { createLogger } from '../../common/logger.ts';
 
 const DOCS_PATH = `${GLOBAL_PREFIX}/docs`;
 const SPEC_PATH = `${GLOBAL_PREFIX}/openapi.json`;
@@ -55,6 +57,14 @@ function swaggerUiAssets(): string {
 }
 
 export const openapiRouter: Router = Router();
+
+// Everything under here is gated. The guard answers 404 when the caller is
+// not entitled, so the documentation does not even announce itself.
+openapiRouter.use(['/openapi.json', '/docs'], requireDocsAccess());
+
+createLogger('openapi').info(
+  `documentation mounted at ${DOCS_PATH} (access: ${docsAccessMode()})`,
+);
 
 // The document itself. Cached for a minute: it only changes with a deployment,
 // and Swagger UI asks for it on every reload.

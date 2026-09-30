@@ -4,6 +4,12 @@
 > `/api/v1/openapi.json`. Están generados desde los contratos Zod y cubren las
 > 105 rutas; esta tabla sigue siendo el resumen rápido, y el guion de
 > demostración está al final del fichero.
+>
+> En desarrollo se abren sin más. En **staging y producción** no están
+> expuestas: el proxy pide una contraseña de equipo y, además, la API sólo las
+> sirve a quien llega por ese proxy o presenta una sesión de administrador (a
+> cualquier otro le responde 404). Las credenciales y el interruptor
+> `DOCS_ACCESS` están en la guía DevOps del equipo.
 
 **105 rutas HTTP.** Tabla generada a partir de los routers reales de
 `apps/api/src/modules`, no escrita a mano. Si añades una ruta, añádela también

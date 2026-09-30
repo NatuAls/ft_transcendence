@@ -24,6 +24,9 @@
 #      CORS_ORIGINS SMTP_HOST SMTP_PORT MAIL_FROM APP_VERSION LOG_LEVEL
 #      BACKUP_RETENTION_DAYS HEALTH_TIMEOUT BACKUP_ENCRYPTION_KEY RCLONE_REMOTE METRICS_TOKEN
 #      BOOTSTRAP_ADMIN_EMAIL DB_APP_USER DB_APP_PASSWORD (rol sin privilegios; ver B4)
+#      BOOTSTRAP_ADMIN_USERNAME BOOTSTRAP_ADMIN_PASSWORD BOOTSTRAP_ADMIN_DISPLAY_NAME
+#      BOOTSTRAP_ADMIN_ROTATE (primer administrador: ver modules/admin/bootstrap-admin.ts)
+#      DOCS_ACCESS DOCS_GATEWAY_TOKEN DOCS_HTPASSWD (documentación de la API)
 #
 #  MODO LOCAL (sin GitHub Actions; ver scripts/deploy/deploy-local.sh y la guía
 #  DevOps del equipo, apartado «CI y despliegues en local»). Dos variables
@@ -220,6 +223,46 @@ fi
 # 4. Fichero de entorno. Se escribe entero en cada despliegue para que el
 #    servidor no acumule variables de versiones anteriores.
 # -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# 3 bis. Puertas de la documentación de la API.
+#
+#     El fichero de contraseñas y el token del proxy sólo existen en el disco
+#     de este servidor: llegan como secretos del despliegue, se escriben con
+#     permisos 600 y se montan de sólo lectura en el contenedor `web` (ver
+#     compose.prod.yml). Nunca están en el repositorio ni dentro de la imagen.
+#
+#     Y por defecto se cierra: sin DOCS_HTPASSWD no hay documentación servida,
+#     en vez de quedar abierta por descuido.
+# -----------------------------------------------------------------------------
+log "Puertas de la documentación"
+mkdir -p nginx
+umask 077
+if [ -n "${DOCS_HTPASSWD:-}" ]; then
+  printf '%s\n' "$DOCS_HTPASSWD" > nginx/.htpasswd
+  chmod 600 nginx/.htpasswd
+  cat > nginx/docs-auth.inc <<'AUTH'
+auth_basic            "HelpDesk Lite - internal documentation";
+auth_basic_user_file  /etc/nginx/.htpasswd;
+AUTH
+  echo "Autenticación del proxy activada para /api/v1/docs."
+else
+  : > nginx/.htpasswd
+  chmod 600 nginx/.htpasswd
+  # 404 y no `deny all` (403): la misma respuesta que da la API cuando niega la
+  # documentación. Un 403 confirmaría que ahí hay algo cerrado con llave.
+  printf 'return 404;\n' > nginx/docs-auth.inc
+  warn "DOCS_HTPASSWD no definido: la documentación queda CERRADA (404)."
+  DOCS_ACCESS="${DOCS_ACCESS:-disabled}"
+fi
+printf 'proxy_set_header X-Docs-Gateway "%s";\n' "${DOCS_GATEWAY_TOKEN:-}" > nginx/docs-gateway.inc
+# docs-gateway.inc lleva el token dentro, así que se queda en 600: los ficheros
+# de configuración los lee el proceso MAESTRO de Nginx, que es root. El
+# .htpasswd, en cambio, lo leen los procesos de trabajo (uid 101): sigue en 600
+# y es el entrypoint de la imagen quien lo coloca donde ellos puedan leerlo.
+chmod 600 nginx/docs-gateway.inc
+chmod 644 nginx/docs-auth.inc
+umask 022
+
 log "Escribiendo .env del entorno ${ENV_NAME}"
 umask 077
 cat > .env <<EOF
@@ -252,6 +295,12 @@ BACKUP_ENCRYPTION_KEY=${BACKUP_ENCRYPTION_KEY}
 RCLONE_REMOTE=${RCLONE_REMOTE:-}
 METRICS_TOKEN=${METRICS_TOKEN}
 BOOTSTRAP_ADMIN_EMAIL=${BOOTSTRAP_ADMIN_EMAIL:-}
+BOOTSTRAP_ADMIN_USERNAME=${BOOTSTRAP_ADMIN_USERNAME:-}
+BOOTSTRAP_ADMIN_PASSWORD=${BOOTSTRAP_ADMIN_PASSWORD:-}
+BOOTSTRAP_ADMIN_DISPLAY_NAME=${BOOTSTRAP_ADMIN_DISPLAY_NAME:-}
+BOOTSTRAP_ADMIN_ROTATE=${BOOTSTRAP_ADMIN_ROTATE:-0}
+DOCS_ACCESS=${DOCS_ACCESS:-gateway}
+DOCS_GATEWAY_TOKEN=${DOCS_GATEWAY_TOKEN:-}
 # Interfaz de Mailpit: 8025 en prod, 8026 en staging (mismo host).
 MAILPIT_UI_PORT=$([ "$ENV_NAME" = "prod" ] && echo 8025 || echo 8026)
 LOG_LEVEL=${LOG_LEVEL:-info}
