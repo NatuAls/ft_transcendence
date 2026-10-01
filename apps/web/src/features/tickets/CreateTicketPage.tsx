@@ -59,13 +59,13 @@ export function CreateTicketPage({
       </button>
       <header className="mb-[30px] flex items-center justify-between max-[900px]:m-0 max-[900px]:block max-[900px]:px-1 max-[900px]:pt-[26px] max-[900px]:pb-5">
         <div>
-          <span className="text-[11px] tracking-[.08em] text-muted max-[900px]:hidden">
+          <span className="text-xs2 tracking-[.08em] text-muted max-[900px]:hidden">
             TICKETS / NEW
           </span>
-          <h1 className="my-2.5 mb-1.5 text-[30px] font-medium max-[900px]:hidden">
+          <h1 className="my-2.5 mb-1.5 text-[1.875rem] font-medium max-[900px]:hidden">
             Create a ticket
           </h1>
-          <p className="text-sm text-muted max-[900px]:text-[11px]">
+          <p className="text-sm text-muted max-[900px]:text-xs2">
             Describe the issue clearly so the right person can help.
           </p>
         </div>
@@ -114,9 +114,7 @@ export function CreateTicketPage({
             </SelectField>
           </div>
           {categoryDescription ? (
-            <p className="-mt-4 text-[11px] text-muted">
-              {categoryDescription}
-            </p>
+            <p className="-mt-4 text-xs2 text-muted">{categoryDescription}</p>
           ) : null}
           <label className="relative grid gap-2 text-sm font-medium">
             <span>Description *</span>
@@ -128,7 +126,7 @@ export function CreateTicketPage({
               required
               value={description}
             />
-            <small className="absolute right-3 bottom-2.5 text-[10px] font-normal text-muted">
+            <small className="absolute right-3 bottom-2.5 text-2xs font-normal text-muted">
               {description.length} / 1200
             </small>
           </label>
@@ -150,10 +148,10 @@ export function CreateTicketPage({
                   <span
                     className={`mt-[5px] size-[7px] rounded-full ${item.label === 'Low' ? 'bg-success' : item.label === 'High' ? 'bg-danger' : 'bg-warning'}`}
                   />
-                  <strong className="text-[13px] font-medium">
+                  <strong className="text-[0.8125rem] font-medium">
                     {item.label}
                   </strong>
-                  <small className="col-span-full text-[11px] text-muted max-md:hidden">
+                  <small className="col-span-full text-xs2 text-muted max-md:hidden">
                     {item.description}
                   </small>
                 </label>
@@ -169,7 +167,7 @@ export function CreateTicketPage({
         </form>
 
         <aside className="self-start rounded-md border border-border bg-surface p-6 max-[900px]:hidden">
-          <span className="text-[11px] tracking-[.08em] text-muted">
+          <span className="text-xs2 tracking-[.08em] text-muted">
             BEFORE YOU SUBMIT
           </span>
           <h2 className="mt-3 mb-5 text-lg font-medium">
@@ -184,12 +182,12 @@ export function CreateTicketPage({
               className="my-[14px] grid grid-cols-[24px_1fr] gap-2.5"
               key={title}
             >
-              <b className="grid size-[22px] place-items-center rounded-full bg-[#dce8e3] text-[11px] text-primary">
+              <b className="grid size-[22px] place-items-center rounded-full bg-[#dce8e3] text-xs2 text-primary">
                 {index + 1}
               </b>
               <p className="grid gap-[5px]">
                 <strong className="text-xs">{title}</strong>
-                <small className="text-[11px] leading-[1.5] text-muted">
+                <small className="text-xs2 leading-[1.5] text-muted">
                   {copy}
                 </small>
               </p>
@@ -204,10 +202,10 @@ export function CreateTicketPage({
             'Resolved — You review the proposed solution.',
           ].map((step, index) => (
             <p
-              className="flex items-center gap-2.5 text-[10px] text-muted"
+              className="flex items-center gap-2.5 text-2xs text-muted"
               key={step}
             >
-              <b className="grid size-[22px] place-items-center rounded-full bg-[#dce8e3] text-[11px] text-primary">
+              <b className="grid size-[22px] place-items-center rounded-full bg-[#dce8e3] text-xs2 text-primary">
                 {index + 1}
               </b>
               {step}

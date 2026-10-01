@@ -102,7 +102,7 @@ export function TicketDetailPage({
           onClick={onBack}
           size="sm"
         />
-        <strong className="text-[15px]">Ticket detail</strong>
+        <strong className="text-[0.9375rem]">Ticket detail</strong>
         <IconButton
           icon="more"
           label="Ticket actions"
@@ -119,19 +119,19 @@ export function TicketDetailPage({
       </button>
       <section className="my-4 mb-7 flex items-center justify-between gap-6 max-md:mx-0.5 max-md:mt-8 max-md:mb-7 max-md:items-end">
         <div>
-          <span className="text-[11px] text-muted">#{ticket.id}</span>
-          <h1 className="my-3 mt-[7px] text-[28px] font-medium max-md:max-w-[310px] max-md:text-[22px]">
+          <span className="text-xs2 text-muted">#{ticket.id}</span>
+          <h1 className="my-3 mt-[7px] text-[1.75rem] font-medium max-md:max-w-[310px] max-md:text-[1.375rem]">
             {ticket.title}
           </h1>
           <div className="flex items-center gap-[14px]">
             <StatusBadge tone={current.tone}>{current.label}</StatusBadge>
-            <span className="inline-flex items-center gap-[7px] text-[13px] text-ink">
+            <span className="inline-flex items-center gap-[7px] text-[0.8125rem] text-ink">
               <span
                 className={`size-[7px] rounded-full ${ticket.priority === 'High' ? 'bg-danger' : ticket.priority === 'Medium' ? 'bg-warning' : 'bg-success'}`}
               />
               {ticket.priority} priority
             </span>
-            <small className="text-[11px] text-muted max-md:hidden">
+            <small className="text-xs2 text-muted max-md:hidden">
               Updated 28 minutes ago
             </small>
           </div>
@@ -209,7 +209,7 @@ export function TicketDetailPage({
       {feedback ? (
         <Alert
           aria-live="polite"
-          className="-mt-3 mb-5 !rounded-none !border-0 !border-l-[3px] !py-2.5 !text-[11px] !text-muted"
+          className="-mt-3 mb-5 !rounded-none !border-0 !border-l-[3px] !py-2.5 !text-xs2 !text-muted"
           role="status"
         >
           {feedback}
@@ -222,23 +222,23 @@ export function TicketDetailPage({
             <h2 className="mb-[7px] text-base font-medium">
               Issue description
             </h2>
-            <small className="text-[11px] text-muted">
+            <small className="text-xs2 text-muted">
               {requesterName} · Requester
             </small>
-            <p className="mt-[18px] max-w-[670px] text-[13px] leading-[1.65] text-muted max-md:text-[11px]">
+            <p className="mt-[18px] max-w-[670px] text-[0.8125rem] leading-[1.65] text-muted max-md:text-xs2">
               {ticket.description ??
                 'The checkout page becomes unavailable after selecting a saved payment method. Refreshing the page does not restore the form.'}
             </p>
           </section>
 
           <details className="hidden rounded-md border border-border bg-surface p-4 max-md:block">
-            <summary className="grid cursor-pointer grid-cols-[92px_1fr] items-center text-[10px]">
+            <summary className="grid cursor-pointer grid-cols-[92px_1fr] items-center text-2xs">
               <strong className="text-xs">Ticket details</strong>
               <span>
                 {current.label} · {ticket.category} · {assignee}
               </span>
             </summary>
-            <dl className="mt-4 grid grid-cols-2 gap-2 text-[11px] [&_dd]:m-0">
+            <dl className="mt-4 grid grid-cols-2 gap-2 text-xs2 [&_dd]:m-0">
               <dt>Organization</dt>
               <dd>{organizationName}</dd>
               <dt>Created</dt>
@@ -249,14 +249,14 @@ export function TicketDetailPage({
           <section className="flex flex-col gap-4 rounded-md border border-border bg-surface p-[26px] max-md:border-0 max-md:px-0 max-md:py-2">
             <h2 className="mb-[7px] text-base font-medium">Conversation</h2>
             <article className="flex gap-3">
-              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#d8e5df] text-[10px] text-primary">
+              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#d8e5df] text-2xs text-primary">
                 MS
               </span>
               <div className="max-w-[78%] max-md:max-w-[82%]">
-                <small className="text-[11px] text-muted">
+                <small className="text-xs2 text-muted">
                   Maya Singh · Support agent
                 </small>
-                <p className="mt-2 rounded-[4px_12px_12px] bg-surface-secondary px-4 py-[13px] text-xs leading-[1.5] max-md:text-[10px]">
+                <p className="mt-2 rounded-[4px_12px_12px] bg-surface-secondary px-4 py-[13px] text-xs leading-[1.5] max-md:text-2xs">
                   Thanks for the report. I can reproduce the issue and I am
                   checking the payment configuration now.
                 </p>
@@ -264,11 +264,11 @@ export function TicketDetailPage({
             </article>
             <article className="flex justify-end gap-3">
               <div className="max-w-[78%] max-md:max-w-[82%]">
-                <p className="mt-2 rounded-[4px_12px_12px] bg-[#e1ece8] px-4 py-[13px] text-xs leading-[1.5] max-md:text-[10px]">
+                <p className="mt-2 rounded-[4px_12px_12px] bg-[#e1ece8] px-4 py-[13px] text-xs leading-[1.5] max-md:text-2xs">
                   Thank you. It affects both Chrome and Firefox.
                 </p>
               </div>
-              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#e9e2d8] text-[10px] text-[#6e573c]">
+              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#e9e2d8] text-2xs text-[#6e573c]">
                 JL
               </span>
             </article>
@@ -278,14 +278,14 @@ export function TicketDetailPage({
                 key={`${text}-${index}`}
               >
                 <div className="max-w-[78%] max-md:max-w-[82%]">
-                  <small className="text-[11px] text-muted">
+                  <small className="text-xs2 text-muted">
                     {currentUserName} · Now
                   </small>
-                  <p className="mt-2 rounded-[4px_12px_12px] bg-[#e1ece8] px-4 py-[13px] text-xs leading-[1.5] max-md:text-[10px]">
+                  <p className="mt-2 rounded-[4px_12px_12px] bg-[#e1ece8] px-4 py-[13px] text-xs leading-[1.5] max-md:text-2xs">
                     {text}
                   </p>
                 </div>
-                <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#e9e2d8] text-[10px] text-[#6e573c]">
+                <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#e9e2d8] text-2xs text-[#6e573c]">
                   {getInitials(currentUserName)}
                 </span>
               </article>
@@ -321,7 +321,7 @@ export function TicketDetailPage({
                     placeholder="Write a reply…"
                     value={reply}
                   />
-                  <small className="absolute bottom-[9px] left-3 text-[10px] text-muted max-md:hidden">
+                  <small className="absolute bottom-[9px] left-3 text-2xs text-muted max-md:hidden">
                     Shift + Enter for a new line
                   </small>
                 </label>
@@ -358,11 +358,11 @@ export function TicketDetailPage({
               <dt>Created</dt>
               <dd>Today, 09:42</dd>
             </dl>
-            <h3 className="mb-3 border-t border-border pt-[18px] text-[11px] font-medium">
+            <h3 className="mb-3 border-t border-border pt-[18px] text-xs2 font-medium">
               Requester
             </h3>
             <div className="flex items-center gap-2.5 text-xs">
-              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#e9e2d8] text-[10px] text-[#6e573c]">
+              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#e9e2d8] text-2xs text-[#6e573c]">
                 {requesterName
                   .split(' ')
                   .map((part) => part[0])
@@ -379,7 +379,7 @@ export function TicketDetailPage({
                   ? 'Agent actions'
                   : 'Assignment'}
             </h2>
-            <p className="mb-5 text-[11px] leading-[1.5] text-muted">
+            <p className="mb-5 text-xs2 leading-[1.5] text-muted">
               {canAssignOther
                 ? 'Assignment and status changes are recorded.'
                 : 'Current ticket assignment.'}
@@ -387,7 +387,7 @@ export function TicketDetailPage({
             {ticketState === 'closed' ? (
               <div className="grid gap-2 rounded-sm bg-surface-secondary p-[14px] text-xs">
                 <strong>Ticket closed</strong>
-                <span className="text-[11px] leading-[1.5] text-muted">
+                <span className="text-xs2 leading-[1.5] text-muted">
                   The requester confirmed the resolution. The conversation
                   remains available for reference.
                 </span>
@@ -431,7 +431,7 @@ export function TicketDetailPage({
             ) : (
               <div className="grid gap-2 rounded-sm bg-surface-secondary p-[14px] text-xs">
                 <strong>{assignee}</strong>
-                <span className="text-[11px] leading-[1.5] text-muted">
+                <span className="text-xs2 leading-[1.5] text-muted">
                   Only organization administrators can reassign this ticket.
                 </span>
               </div>

@@ -115,11 +115,11 @@ export function TicketListPage({
   return (
     <div className="mx-auto max-w-[1440px] p-10 max-md:px-[18px] max-md:pt-0 max-md:pb-6">
       <section className="hidden py-[22px] max-md:block">
-        <p className="mb-1 text-[13px] text-muted">
+        <p className="mb-1 text-[0.8125rem] text-muted">
           Good morning, {currentUserName.split(' ')[0]}
         </p>
         <div className="flex items-center justify-between gap-3">
-          <strong className="min-w-0 text-xl font-medium max-[360px]:text-[17px]">
+          <strong className="min-w-0 text-xl font-medium max-[360px]:text-[1.0625rem]">
             {stats[0].value + stats[1].value} tickets need attention
           </strong>
           <Button
@@ -133,7 +133,7 @@ export function TicketListPage({
 
       <header className="flex items-start justify-between gap-6 max-md:hidden">
         <div>
-          <h1 className="mb-2 text-[32px] leading-[1.2] font-medium tracking-[-.02em]">
+          <h1 className="mb-2 text-[2rem] leading-[1.2] font-medium tracking-[-.02em]">
             Tickets
           </h1>
           <p className="text-sm text-muted">
@@ -155,7 +155,7 @@ export function TicketListPage({
             key={stat.label}
           >
             <span
-              className={`grid size-[42px] shrink-0 place-items-center rounded-md text-lg font-medium max-md:size-7 max-md:rounded-sm max-md:text-[13px] ${statToneClasses[stat.tone]}`}
+              className={`grid size-[42px] shrink-0 place-items-center rounded-md text-lg font-medium max-md:size-7 max-md:rounded-sm max-md:text-[0.8125rem] ${statToneClasses[stat.tone]}`}
             >
               {stat.tone === 'resolved'
                 ? '✓'
@@ -167,7 +167,7 @@ export function TicketListPage({
               <strong className="text-2xl leading-none font-medium max-md:text-lg">
                 {stat.value}
               </strong>
-              <span className="text-[13px] text-muted max-md:text-[10px]">
+              <span className="text-[0.8125rem] text-muted max-md:text-2xs">
                 {stat.label}
               </span>
             </div>
@@ -181,20 +181,20 @@ export function TicketListPage({
           role="status"
         >
           <div className="mr-auto grid gap-0.5 max-md:w-full">
-            <span className="text-[11px] tracking-[.08em] text-muted uppercase">
+            <span className="text-xs2 tracking-[.08em] text-muted uppercase">
               Category filter
             </span>
             <strong>{category}</strong>
           </div>
           <button
-            className="min-h-10 rounded-sm px-2.5 text-[13px] text-primary"
+            className="min-h-10 rounded-sm px-2.5 text-[0.8125rem] text-primary"
             onClick={onBackToCategories}
             type="button"
           >
             Back to categories
           </button>
           <button
-            className="min-h-10 rounded-sm px-2.5 text-[13px] text-primary"
+            className="min-h-10 rounded-sm px-2.5 text-[0.8125rem] text-primary"
             onClick={() => {
               setCategory('all');
               setPage(1);
@@ -212,7 +212,7 @@ export function TicketListPage({
             <h2 className="text-lg font-medium">
               {organizationWide ? 'All tickets' : 'Your tickets'}
             </h2>
-            <span className="text-[13px] text-muted">
+            <span className="text-[0.8125rem] text-muted">
               {filteredTickets.length} sample results
             </span>
           </div>

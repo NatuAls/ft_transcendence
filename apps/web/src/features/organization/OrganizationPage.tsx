@@ -156,10 +156,10 @@ export function OrganizationPage({
     <div className="relative mx-auto max-w-[1160px] p-10 max-md:px-4 max-md:py-6">
       <header className="flex items-end justify-between max-md:items-start">
         <div>
-          <span className="text-[11px] tracking-[.08em] text-muted max-md:hidden">
+          <span className="text-xs2 tracking-[.08em] text-muted max-md:hidden">
             {canManageOrganization ? 'ORGANIZATION SETTINGS' : 'ORGANIZATION'}
           </span>
-          <h1 className="my-2 text-[30px] font-medium max-md:text-[22px]">
+          <h1 className="my-2 text-[1.875rem] font-medium max-md:text-[1.375rem]">
             {organizationName}
           </h1>
           <p className="text-sm text-muted max-md:hidden">
@@ -173,7 +173,7 @@ export function OrganizationPage({
         <div className="flex items-center gap-3">
           {canManageOrganization ? (
             <>
-              <span className="text-[11px] text-success max-md:hidden">
+              <span className="text-xs2 text-success max-md:hidden">
                 Organization admin tools
               </span>
               <Button
@@ -213,19 +213,19 @@ export function OrganizationPage({
               className="grid gap-[5px] rounded-md border border-border bg-surface p-[18px]"
               key={label}
             >
-              <strong className="text-[22px] font-medium">{value}</strong>
-              <span className="text-[11px] text-muted">{label}</span>
+              <strong className="text-[1.375rem] font-medium">{value}</strong>
+              <span className="text-xs2 text-muted">{label}</span>
             </article>
           ))}
         </section>
       ) : (
         <section className="my-5 mt-7 grid grid-cols-2 gap-3 max-md:my-[18px] max-md:grid-cols-1">
           <article className="grid gap-1 rounded-md border border-border bg-surface p-[18px]">
-            <span className="text-[11px] text-muted">Your access</span>
+            <span className="text-xs2 text-muted">Your access</span>
             <strong className="text-base font-medium">Member</strong>
           </article>
           <article className="grid gap-1 rounded-md border border-border bg-surface p-[18px]">
-            <span className="text-[11px] text-muted">Ticket visibility</span>
+            <span className="text-xs2 text-muted">Ticket visibility</span>
             <strong className="text-base font-medium">Your tickets only</strong>
           </article>
         </section>
@@ -233,7 +233,7 @@ export function OrganizationPage({
       {feedback ? (
         <Alert
           aria-live="polite"
-          className="-mt-1.5 mb-[18px] !py-2.5 !text-[11px] !text-muted"
+          className="-mt-1.5 mb-[18px] !py-2.5 !text-xs2 !text-muted"
           role="status"
           tone="success"
         >
@@ -247,7 +247,7 @@ export function OrganizationPage({
           <header className="flex items-center justify-between p-5 max-md:p-4">
             <div>
               <h2 className="text-base font-medium">{title}</h2>
-              <p className="mt-1.5 text-[11px] text-muted max-md:hidden">
+              <p className="mt-1.5 text-xs2 text-muted max-md:hidden">
                 {description}
               </p>
             </div>
@@ -277,7 +277,7 @@ export function OrganizationPage({
           ) : null}
           <div className="organization-table" role="table">
             <div
-              className={`grid items-center gap-3 bg-surface-secondary px-[18px] py-[11px] text-[9px] text-muted max-md:hidden ${tableGridClass}`}
+              className={`grid items-center gap-3 bg-surface-secondary px-[18px] py-[11px] text-3xs text-muted max-md:hidden ${tableGridClass}`}
               role="row"
             >
               <span>
@@ -332,21 +332,21 @@ export function OrganizationPage({
                     type="button"
                   >
                     <span className="flex items-center gap-2.5">
-                      <b className="grid size-8 place-items-center rounded-full bg-[#d8e5df] text-[9px] text-primary">
+                      <b className="grid size-8 place-items-center rounded-full bg-[#d8e5df] text-3xs text-primary">
                         {row[0]}
                       </b>
                       <span className="grid gap-1">
                         <strong className="text-xs">{row[1]}</strong>
-                        <small className="text-[10px] text-muted max-md:max-w-[180px] max-md:overflow-hidden max-md:text-ellipsis max-md:whitespace-nowrap">
+                        <small className="text-2xs text-muted max-md:max-w-[180px] max-md:overflow-hidden max-md:text-ellipsis max-md:whitespace-nowrap">
                           {row[2]}
                         </small>
                       </span>
                     </span>
                     {tab !== 'categories' || canReadStats ? (
-                      <span className="text-[10px] text-muted">{row[3]}</span>
+                      <span className="text-2xs text-muted">{row[3]}</span>
                     ) : null}
                     {tab !== 'categories' ? (
-                      <span className="flex items-center gap-1.5 text-[10px] text-muted">
+                      <span className="flex items-center gap-1.5 text-2xs text-muted">
                         {tab === 'members' ? (
                           <i
                             className={`size-1.5 rounded-full ${row[4] === 'Invited' ? 'bg-warning' : 'bg-success'}`}
@@ -394,7 +394,7 @@ export function OrganizationPage({
                   ? 'Routing overview'
                   : 'Ticket categories'}
             </h2>
-            <p className="mt-1.5 text-[11px] text-muted">
+            <p className="mt-1.5 text-xs2 text-muted">
               {tab === 'roles'
                 ? 'How access is distributed by role.'
                 : tab === 'categories'
@@ -414,9 +414,9 @@ export function OrganizationPage({
                 className="mt-[18px] grid grid-cols-[12px_1fr_auto] gap-[7px]"
                 key={label}
               >
-                <span className="text-[9px] text-brand-mint">●</span>
-                <strong className="text-[10px]">{label}</strong>
-                <small className="text-[10px] text-muted">{value}</small>
+                <span className="text-3xs text-brand-mint">●</span>
+                <strong className="text-2xs">{label}</strong>
+                <small className="text-2xs text-muted">{value}</small>
               </div>
             ))}
           </aside>

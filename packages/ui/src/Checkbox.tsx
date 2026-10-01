@@ -10,7 +10,7 @@ export interface CheckboxProps extends Omit<
 export function Checkbox({ className = '', label, ...props }: CheckboxProps) {
   return (
     <label
-      className={`ui-checkbox relative inline-flex cursor-pointer items-center gap-2.5 text-[13px] leading-[1.2] text-muted ${className}`.trim()}
+      className={`ui-checkbox relative inline-flex cursor-pointer items-center gap-2.5 text-[0.8125rem] leading-[1.2] text-muted ${className}`.trim()}
     >
       <input className="peer sr-only" type="checkbox" {...props} />
       <span

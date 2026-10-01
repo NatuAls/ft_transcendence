@@ -144,7 +144,7 @@ export function ProfileSettings({
       >
         <header className="max-md:hidden">
           <h2 className="text-base font-medium">Public profile</h2>
-          <p className="text-[11px] text-muted">
+          <p className="text-xs2 text-muted">
             This information is visible to other platform members.
           </p>
         </header>
@@ -165,7 +165,7 @@ export function ProfileSettings({
           <Button onClick={() => inputRef.current?.click()} variant="secondary">
             Change avatar
           </Button>
-          <small className="text-[10px] text-muted max-md:w-full max-md:text-center">
+          <small className="text-2xs text-muted max-md:w-full max-md:text-center">
             PNG, JPG, GIF or WebP · Maximum 5 MB
           </small>
         </div>

@@ -80,13 +80,13 @@ export function OrganizationsPage({
     <div className="mx-auto max-w-[1000px] p-10 max-md:px-4 max-md:py-6">
       <header className="flex items-end justify-between max-md:items-start">
         <div>
-          <span className="text-[10px] tracking-[.08em] text-muted">
+          <span className="text-2xs tracking-[.08em] text-muted">
             {platformView ? 'PLATFORM' : 'ORGANIZATIONS'}
           </span>
-          <h1 className="my-2 text-[30px] font-medium max-md:text-[22px]">
+          <h1 className="my-2 text-[1.875rem] font-medium max-md:text-[1.375rem]">
             {platformView ? 'Organizations' : 'Your organizations'}
           </h1>
-          <p className="text-[13px] text-muted max-md:hidden">
+          <p className="text-[0.8125rem] text-muted max-md:hidden">
             {platformView
               ? 'Review organizations configured on the platform.'
               : 'Choose an organization to continue with your assigned access.'}
@@ -113,7 +113,7 @@ export function OrganizationsPage({
             value={query}
           />
         </label>
-        <span className="text-[11px] text-muted">
+        <span className="text-xs2 text-muted">
           {visibleOrganizations.length} organizations
         </span>
       </div>
@@ -140,13 +140,13 @@ export function OrganizationsPage({
               <h2 className="mb-[5px] text-base font-medium">
                 {organization.name}
               </h2>
-              <strong className="text-[10px] text-primary">
+              <strong className="text-2xs text-primary">
                 {organization.roleLabel}
               </strong>
-              <p className="my-[5px] text-[10px] text-muted">
+              <p className="my-[5px] text-2xs text-muted">
                 {organization.description}
               </p>
-              <p className="text-[10px] text-muted">{organization.summary}</p>
+              <p className="text-2xs text-muted">{organization.summary}</p>
             </div>
             <div className="text-right max-md:col-span-full max-md:flex max-md:items-center max-md:justify-end max-md:gap-2.5">
               <Button onClick={() => onOpen(organization)} variant="secondary">
@@ -215,7 +215,7 @@ export function OrganizationsPage({
             <code className="overflow-hidden text-xs text-ellipsis text-muted">
               helpdesk.local/{slug || 'organization-name'}
             </code>
-            <small className="text-[10px] text-muted">
+            <small className="text-2xs text-muted">
               Generated automatically. The backend remains responsible for
               uniqueness.
             </small>

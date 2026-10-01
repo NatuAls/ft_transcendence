@@ -39,13 +39,11 @@ export function RelatedTicketsPage({
       </button>
       <header className="mt-[22px] flex items-end justify-between max-[900px]:items-start">
         <div>
-          <span className="text-[10px] tracking-[.08em] text-muted">
-            TICKETS
-          </span>
-          <h1 className="my-2 text-[30px] font-medium max-[900px]:text-[22px]">
+          <span className="text-2xs tracking-[.08em] text-muted">TICKETS</span>
+          <h1 className="my-2 text-[1.875rem] font-medium max-[900px]:text-[1.375rem]">
             Tickets with {personName}
           </h1>
-          <p className="text-[13px] text-muted max-[900px]:hidden">
+          <p className="text-[0.8125rem] text-muted max-[900px]:hidden">
             Tickets where {personName} is the requester or assigned support
             agent.
           </p>
@@ -76,9 +74,9 @@ export function RelatedTicketsPage({
             }}
             type="button"
           >
-            <strong className="text-[22px]">{count}</strong>
-            <span className="text-[11px]">{label}</span>
-            <small className="text-[9px] text-primary">View queue →</small>
+            <strong className="text-[1.375rem]">{count}</strong>
+            <span className="text-xs2">{label}</span>
+            <small className="text-3xs text-primary">View queue →</small>
           </button>
         ))}
       </section>
@@ -88,7 +86,7 @@ export function RelatedTicketsPage({
             <h2 className="mr-2 inline text-base font-medium">
               Related tickets
             </h2>
-            <span className="text-[10px] text-muted">
+            <span className="text-2xs text-muted">
               {visibleTickets.length} results
             </span>
           </div>
@@ -126,7 +124,7 @@ export function RelatedTicketsPage({
             <option>Medium</option>
           </SelectField>
         </div>
-        <div className="grid w-full grid-cols-[90px_2fr_1fr_1fr_1fr_70px] items-center gap-2.5 border-t border-border bg-surface-secondary px-[18px] py-[14px] text-left text-[9px] text-muted max-[900px]:hidden">
+        <div className="grid w-full grid-cols-[90px_2fr_1fr_1fr_1fr_70px] items-center gap-2.5 border-t border-border bg-surface-secondary px-[18px] py-[14px] text-left text-3xs text-muted max-[900px]:hidden">
           <span>ID</span>
           <span>TICKET</span>
           <span>REQUESTER</span>
@@ -136,7 +134,7 @@ export function RelatedTicketsPage({
         </div>
         {visibleTickets.map((ticket) => (
           <button
-            className="grid w-full grid-cols-[90px_2fr_1fr_1fr_1fr_70px] items-center gap-2.5 border-t border-border px-[18px] py-[14px] text-left text-[10px] max-[900px]:grid-cols-[1fr_auto] max-[900px]:[&>*:not(:nth-child(2)):not(:nth-child(4))]:hidden"
+            className="grid w-full grid-cols-[90px_2fr_1fr_1fr_1fr_70px] items-center gap-2.5 border-t border-border px-[18px] py-[14px] text-left text-2xs max-[900px]:grid-cols-[1fr_auto] max-[900px]:[&>*:not(:nth-child(2)):not(:nth-child(4))]:hidden"
             key={ticket.id}
             onClick={() => onOpenTicket(ticket.id)}
             type="button"
@@ -157,7 +155,7 @@ export function RelatedTicketsPage({
             No related tickets match.
           </p>
         ) : null}
-        <footer className="p-[15px] text-[10px] text-muted">
+        <footer className="p-[15px] text-2xs text-muted">
           Showing 1–{visibleTickets.length} of {visibleTickets.length}
         </footer>
       </section>

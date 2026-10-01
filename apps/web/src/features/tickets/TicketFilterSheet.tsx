@@ -78,7 +78,7 @@ export function TicketFilterSheet({
           ← Tickets
         </button>
         <h2
-          className="mt-7 mb-1.5 text-[22px] font-medium"
+          className="mt-7 mb-1.5 text-[1.375rem] font-medium"
           id="ticket-filter-title"
           ref={headingRef}
           tabIndex={-1}

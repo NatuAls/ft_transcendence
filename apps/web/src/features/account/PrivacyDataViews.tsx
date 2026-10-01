@@ -57,11 +57,11 @@ export function PrivacyPage({
               <h2 className="text-base font-medium">
                 Export your personal data
               </h2>
-              <p className="text-[11px] text-muted">
+              <p className="text-xs2 text-muted">
                 Request a portable archive containing your profile, connections,
                 conversations and ticket activity.
               </p>
-              <small className="text-[9px] text-muted">
+              <small className="text-3xs text-muted">
                 LAST EXPORT · No export requested
               </small>
             </div>
@@ -83,11 +83,11 @@ export function PrivacyPage({
             </i>
             <div>
               <h2 className="text-base font-medium">Delete your account</h2>
-              <p className="text-[11px] text-muted">
+              <p className="text-xs2 text-muted">
                 Permanently remove your account and personal data. This action
                 cannot be undone.
               </p>
-              <small className="text-[9px] text-muted">
+              <small className="text-3xs text-muted">
                 Email confirmation required
               </small>
             </div>
@@ -102,7 +102,7 @@ export function PrivacyPage({
           </section>
           <section className="rounded-md border border-border bg-surface p-[22px] max-md:mt-[14px]">
             <h2 className="text-base font-medium">Legal documents</h2>
-            <p className="text-[11px] text-muted">
+            <p className="text-xs2 text-muted">
               Review the policies that govern the service.
             </p>
             <button
@@ -111,7 +111,7 @@ export function PrivacyPage({
               type="button"
             >
               <strong className="block">Privacy Policy</strong>
-              <small className="block text-[10px] text-muted">
+              <small className="block text-2xs text-muted">
                 How personal data is handled
               </small>
               <Icon
@@ -126,7 +126,7 @@ export function PrivacyPage({
               type="button"
             >
               <strong className="block">Terms of Service</strong>
-              <small className="block text-[10px] text-muted">
+              <small className="block text-2xs text-muted">
                 Rules for using the platform
               </small>
               <Icon
@@ -138,7 +138,9 @@ export function PrivacyPage({
           </section>
         </main>
         <aside className="rounded-md border border-border bg-surface p-[22px] max-md:hidden">
-          <h2 className="text-[15px] font-medium">Your privacy at a glance</h2>
+          <h2 className="text-[0.9375rem] font-medium">
+            Your privacy at a glance
+          </h2>
           {[
             ['Authorization', 'Access is checked by the backend.'],
             ['Data scope', 'Exports include only your own data.'],
@@ -149,8 +151,8 @@ export function PrivacyPage({
                 ✓
               </i>
               <p className="grid gap-1">
-                <strong className="text-[11px]">{title}</strong>
-                <small className="text-[9px] text-muted">{description}</small>
+                <strong className="text-xs2">{title}</strong>
+                <small className="text-3xs text-muted">{description}</small>
               </p>
             </div>
           ))}
@@ -206,12 +208,12 @@ export function ExportRequested({
     >
       <div className="grid gap-1.5 rounded-sm bg-surface-secondary p-4 text-xs">
         <strong>Backend confirmation required</strong>
-        <span className="text-[11px] text-muted">
+        <span className="text-xs2 text-muted">
           No email is sent by this frontend preview. The production API must
           create and authorize the export request.
         </span>
       </div>
-      <dl className="grid gap-2 text-[11px] [&_dt]:font-medium [&_dd]:mb-2 [&_dd]:text-muted">
+      <dl className="grid gap-2 text-xs2 [&_dt]:font-medium [&_dd]:mb-2 [&_dd]:text-muted">
         <dt>Export contents</dt>
         <dd>Profile, connections, conversations and ticket activity.</dd>
         <dt>Format</dt>
@@ -262,13 +264,13 @@ export function ExportReady({
     >
       <div className="grid gap-1.5 rounded-sm bg-surface-secondary p-4 text-xs">
         <strong>✓ Frontend preview generated</strong>
-        <span className="text-[11px] text-muted">
+        <span className="text-xs2 text-muted">
           helpdesk-lite-profile-preview.json
         </span>
       </div>
       <div className="grid gap-1.5 rounded-sm bg-surface-secondary p-4 text-xs">
         <strong>Production boundary</strong>
-        <span className="text-[11px] text-muted">
+        <span className="text-xs2 text-muted">
           The backend must generate the complete private archive and a
           short-lived authorized download URL.
         </span>
@@ -310,7 +312,7 @@ export function DeleteAccount({
         value={deletionText}
       />
       <div className="grid gap-1.5 rounded-sm bg-surface-secondary p-4 text-xs">
-        <span className="text-[11px] text-muted">
+        <span className="text-xs2 text-muted">
           Production deletion starts only after the backend sends and verifies
           an email confirmation link.
         </span>

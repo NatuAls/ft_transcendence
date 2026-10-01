@@ -11,7 +11,7 @@ export function PreviewIdentitySelect({
 }) {
   return (
     <label
-      className={`grid gap-1 text-[10px] font-medium uppercase tracking-[0.08em] text-muted ${className}`.trim()}
+      className={`grid gap-1 text-2xs font-medium uppercase tracking-[0.08em] text-muted ${className}`.trim()}
     >
       Preview as
       <select
