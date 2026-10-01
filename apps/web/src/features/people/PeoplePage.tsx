@@ -91,14 +91,14 @@ export function PeoplePage({
         ).map(([value, label]) => (
           <button
             aria-current={tab === value ? 'page' : undefined}
-            className={`flex gap-[7px] border-b-2 px-[18px] py-3 text-[13px] max-md:px-[7px] max-md:py-[11px] max-md:text-[11px] ${tab === value ? 'border-primary text-primary' : 'border-transparent text-muted'}`}
+            className={`flex items-center gap-[7px] border-b-2 px-[18px] py-3 text-[13px] max-md:px-[7px] max-md:py-[11px] max-md:text-[11px] ${tab === value ? 'border-primary text-primary' : 'border-transparent text-muted'}`}
             key={value}
             onClick={() => setTab(value)}
             type="button"
           >
             {label}
             {value === 'requests' && (
-              <small className="rounded-full bg-[#e9dfd0] px-[7px] py-0.5 text-[9px] text-warning max-md:hidden">
+              <small className="inline-flex items-center rounded-full bg-[#e9dfd0] px-[7px] py-0.5 text-[9px] leading-none text-warning max-md:hidden">
                 {pendingRequests.length} pending
               </small>
             )}
