@@ -45,7 +45,7 @@
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.0.0",
-    "@types/node": "^24.13.3",
+    "@types/node": "^24.19.0",
     "@types/nodemailer": "^7.0.4",
     "@types/pg": "^8.15.6",
     "prisma": "^7.10.0",
