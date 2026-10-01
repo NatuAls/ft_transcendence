@@ -1,20 +1,37 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { DropdownMenu, Icon, type IconName } from 'ui';
+import {
+  forwardRef,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ButtonHTMLAttributes,
+  type ReactNode,
+} from 'react';
 import type { Navigate } from '../app/routes';
+import { PreviewIdentitySelect } from '../app/PreviewIdentitySelect';
+import { previewMode, type PreviewIdentity } from '../app/session';
 
 export function ProfileMenu({
   children,
   className = '',
   label,
   onNavigate,
+  onPreviewIdentityChange,
   onSignOut,
+  placement = 'topbar',
   showAdministration = false,
+  previewIdentity,
 }: {
   children: ReactNode;
   className?: string;
   label: string;
   onNavigate: Navigate;
+  onPreviewIdentityChange?: (identity: PreviewIdentity) => void;
   onSignOut: () => void | Promise<void>;
+  placement?: 'mobile' | 'sidebar' | 'topbar';
   showAdministration?: boolean;
+  previewIdentity?: PreviewIdentity;
 }) {
   const [open, setOpen] = useState(false);
   const menuId = useId();
@@ -51,13 +68,13 @@ export function ProfileMenu({
   }
 
   return (
-    <div className={`profile-menu ${className}`.trim()} ref={wrapperRef}>
+    <div className={`relative ${className}`.trim()} ref={wrapperRef}>
       <button
         aria-controls={menuId}
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label={label}
-        className="profile-menu__trigger"
+        className={`grid min-w-0 place-items-center border-0 bg-transparent p-0 text-inherit ${placement === 'sidebar' ? 'h-11 w-9 rounded-sm' : ''}`}
         onClick={() => setOpen((current) => !current)}
         onKeyDown={(event) => {
           if (event.key === 'ArrowDown') {
@@ -71,9 +88,10 @@ export function ProfileMenu({
         {children}
       </button>
       {open ? (
-        <div
-          className="profile-menu__popover"
+        <DropdownMenu
+          className={`absolute z-60 grid w-[220px] overflow-hidden text-ink ${placement === 'sidebar' ? 'bottom-[calc(100%+8px)] left-0' : 'top-[calc(100%+10px)] right-0'}`}
           id={menuId}
+          label="Account menu"
           onKeyDown={(event) => {
             if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key))
               return;
@@ -96,57 +114,66 @@ export function ProfileMenu({
                     : (currentIndex + 1) % items.length;
             items[nextIndex]?.focus();
           }}
-          role="menu"
         >
-          <button
+          <MenuItem
+            icon="user"
             onClick={() => navigate('account/profile')}
             ref={firstItemRef}
-            role="menuitem"
-            type="button"
           >
-            <span aria-hidden="true">○</span>
             Profile settings
-          </button>
-          <button
-            onClick={() => navigate('account/privacy')}
-            role="menuitem"
-            type="button"
-          >
-            <span aria-hidden="true">◇</span>
+          </MenuItem>
+          <MenuItem icon="shield" onClick={() => navigate('account/privacy')}>
             Privacy &amp; data
-          </button>
-          <button
-            onClick={() => navigate('organizations')}
-            role="menuitem"
-            type="button"
-          >
-            <span aria-hidden="true">◫</span>
-            Organizations
-          </button>
+          </MenuItem>
+          <MenuItem icon="building" onClick={() => navigate('organizations')}>
+            {showAdministration ? 'Organizations' : 'Your organizations'}
+          </MenuItem>
           {showAdministration ? (
-            <button
-              onClick={() => navigate('admin')}
-              role="menuitem"
-              type="button"
-            >
-              <span aria-hidden="true">▣</span>
-              Administration
-            </button>
+            <MenuItem icon="users" onClick={() => navigate('admin')}>
+              Platform users
+            </MenuItem>
           ) : null}
-          <hr role="separator" />
-          <button
+          {previewMode && previewIdentity && onPreviewIdentityChange ? (
+            <div className="border-t border-border p-2.5" role="none">
+              <PreviewIdentitySelect
+                onChange={onPreviewIdentityChange}
+                value={previewIdentity}
+              />
+            </div>
+          ) : null}
+          <hr
+            className="my-[5px] w-full border-0 border-t border-border"
+            role="separator"
+          />
+          <MenuItem
+            icon="logout"
             onClick={() => {
               setOpen(false);
               void onSignOut();
             }}
-            role="menuitem"
-            type="button"
           >
-            <span aria-hidden="true">↪</span>
             Sign out
-          </button>
-        </div>
+          </MenuItem>
+        </DropdownMenu>
       ) : null}
     </div>
   );
 }
+
+const MenuItem = forwardRef<
+  HTMLButtonElement,
+  ButtonHTMLAttributes<HTMLButtonElement> & { icon: IconName }
+>(function MenuItem({ children, icon, ...props }, ref) {
+  return (
+    <button
+      className="grid min-h-[42px] grid-cols-[24px_1fr_auto] items-center rounded-sm px-2.5 text-left hover:bg-surface-secondary focus-visible:bg-surface-secondary"
+      ref={ref}
+      role="menuitem"
+      type="button"
+      {...props}
+    >
+      <Icon name={icon} size={17} />
+      {children}
+    </button>
+  );
+});

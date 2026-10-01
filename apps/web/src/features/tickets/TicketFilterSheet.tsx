@@ -69,20 +69,27 @@ export function TicketFilterSheet({
     <div
       aria-labelledby="ticket-filter-title"
       aria-modal="true"
-      className="ticket-filter-sheet"
+      className="fixed inset-0 z-40 hidden flex-col overflow-auto bg-surface px-[18px] py-[22px] max-md:flex"
       ref={dialogRef}
       role="dialog"
     >
       <header>
-        <button onClick={onClose} type="button">
+        <button className="p-0 text-primary" onClick={onClose} type="button">
           ← Tickets
         </button>
-        <h2 id="ticket-filter-title" ref={headingRef} tabIndex={-1}>
+        <h2
+          className="mt-7 mb-1.5 text-[22px] font-medium"
+          id="ticket-filter-title"
+          ref={headingRef}
+          tabIndex={-1}
+        >
           Filter tickets
         </h2>
-        <p>Combine fields to narrow the ticket list.</p>
+        <p className="text-xs text-muted">
+          Combine fields to narrow the ticket list.
+        </p>
       </header>
-      <div>
+      <div className="my-7 grid gap-4">
         <SelectField
           label="Category"
           onChange={(event) => onCategoryChange(event.target.value)}
@@ -125,7 +132,7 @@ export function TicketFilterSheet({
           <option value="oldest">Oldest</option>
         </SelectField>
       </div>
-      <Button fullWidth onClick={onClose}>
+      <Button className="mt-auto" fullWidth onClick={onClose}>
         Apply filters
       </Button>
     </div>

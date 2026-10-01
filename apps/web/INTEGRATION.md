@@ -1,11 +1,16 @@
 # Guía de integración frontend–backend — HelpDesk Lite
 
+> Inventario histórico de integración. Las decisiones vigentes de producto,
+> capacidades, roles fijos y prioridades de backend están en
+> [`FRONTEND_BACKEND_HANDOFF.md`](FRONTEND_BACKEND_HANDOFF.md). Si ambos textos
+> difieren, prevalece ese handoff y el comportamiento ejecutable seguro.
+
 Fecha: 4 de septiembre de 2026  
 Rama frontend: `feat/frontend-foundation`
 
 ## Estado verificado
 
-La interfaz, la navegación y los flujos locales del frontend están implementados. Los datos visibles proceden todavía de mocks tipados y se conservan únicamente en memoria; al recargar se reinician.
+La interfaz, la navegación y los flujos locales del frontend están implementados. Autenticación, perfil y mensajería ya tienen adaptadores de API; varias vistas de tickets, personas, organización y administración conservan datos deterministas de preview que se reinician al recargar.
 
 El backend no está por definir desde cero. El repositorio ya contiene:
 
@@ -14,7 +19,7 @@ El backend no está por definir desde cero. El repositorio ya contiene:
 - autenticación, usuarios, organizaciones, tickets, relaciones sociales, mensajería, notificaciones, archivos, GDPR y administración;
 - pruebas unitarias y de integración del API.
 
-El frontend todavía no importa `packages/contracts`, no realiza peticiones HTTP y no abre la conexión Socket.IO. Por tanto, la **fase de UI/UX está completa**, pero la **integración frontend–backend está pendiente**.
+El frontend importa `packages/contracts`, realiza peticiones HTTP y abre Socket.IO para mensajería autenticada. La integración sigue siendo parcial: los dominios enumerados como mocks al final de este documento deben sustituirse de forma incremental.
 
 ### Fuentes de verdad
 
@@ -189,7 +194,7 @@ La integración deberá cubrir:
 - lecturas y presencia;
 - permisos por conversación.
 
-`apps/web` no tiene actualmente cliente Socket.IO. Añadir `socket.io-client` requiere aprobación y actualización de dependencias antes de implementar tiempo real.
+`apps/web` ya utiliza `socket.io-client` para mensajería autenticada. La integración pendiente debe conservar autorización por participante, reconexión, deduplicación y estados de error.
 
 ## Autenticación y seguridad
 

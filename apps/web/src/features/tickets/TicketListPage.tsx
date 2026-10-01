@@ -1,11 +1,11 @@
-import { Button, SelectField } from 'ui';
+import { Button, Icon, SelectField } from 'ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { TicketFilterSheet } from './TicketFilterSheet';
 import { TicketListResults } from './TicketListResults';
 import { initialTickets, type Ticket } from './ticketData';
-import './ticket-list.css';
 
 interface TicketListPageProps {
+  currentUserName: string;
   initialCategory?: string;
   initialPage?: number;
   initialPriority?: string;
@@ -16,17 +16,19 @@ interface TicketListPageProps {
   onCreateTicket: () => void;
   onFiltersChange: (params: Record<string, string | undefined>) => void;
   onOpenTicket: (ticketId: string) => void;
+  organizationWide: boolean;
   tickets?: Ticket[];
 }
 
-const stats = [
-  { label: 'Open', tone: 'open', value: 24 },
-  { label: 'In progress', tone: 'progress', value: 12 },
-  { label: 'Resolved', tone: 'resolved', value: 38 },
-  { label: 'High priority', tone: 'urgent', value: 4 },
-] as const;
+const statToneClasses = {
+  open: 'bg-info-surface text-info',
+  progress: 'bg-warning-surface text-warning',
+  resolved: 'bg-success-surface text-success',
+  urgent: 'bg-danger-surface text-danger',
+};
 
 export function TicketListPage({
+  currentUserName,
   initialCategory = '',
   initialPage = 1,
   initialPriority = 'all',
@@ -37,6 +39,7 @@ export function TicketListPage({
   onCreateTicket,
   onFiltersChange,
   onOpenTicket,
+  organizationWide,
   tickets = initialTickets,
 }: TicketListPageProps) {
   const [showFilters, setShowFilters] = useState(false);
@@ -51,6 +54,28 @@ export function TicketListPage({
   );
   const closeFilters = useCallback(() => setShowFilters(false), []);
   const pageSize = 3;
+  const stats = [
+    {
+      label: 'Open',
+      tone: 'open',
+      value: tickets.filter((ticket) => ticket.status === 'Open').length,
+    },
+    {
+      label: 'In progress',
+      tone: 'progress',
+      value: tickets.filter((ticket) => ticket.status === 'In progress').length,
+    },
+    {
+      label: 'Resolved',
+      tone: 'resolved',
+      value: tickets.filter((ticket) => ticket.status === 'Resolved').length,
+    },
+    {
+      label: 'High priority',
+      tone: 'urgent',
+      value: tickets.filter((ticket) => ticket.priority === 'High').length,
+    },
+  ] as const;
 
   const filteredTickets = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -88,30 +113,49 @@ export function TicketListPage({
   }, [category, onFiltersChange, page, priority, query, sort, status]);
 
   return (
-    <div className="ticket-list-page">
-      <section className="ticket-list-page__mobile-intro">
-        <p>Good morning, Ana</p>
-        <div>
-          <strong>4 tickets need attention</strong>
-          <Button aria-label="Create ticket" onClick={onCreateTicket}>
-            +
+    <div className="mx-auto max-w-[1440px] p-10 max-md:px-[18px] max-md:pt-0 max-md:pb-6">
+      <section className="hidden py-[22px] max-md:block">
+        <p className="mb-1 text-[13px] text-muted">
+          Good morning, {currentUserName.split(' ')[0]}
+        </p>
+        <div className="flex items-center justify-between gap-3">
+          <strong className="min-w-0 text-xl font-medium max-[360px]:text-[17px]">
+            {stats[0].value + stats[1].value} tickets need attention
+          </strong>
+          <Button
+            className="shrink-0 !min-w-0 !px-3 text-sm whitespace-nowrap max-[360px]:!px-2 max-[360px]:text-xs"
+            onClick={onCreateTicket}
+          >
+            +&nbsp;&nbsp;New ticket
           </Button>
         </div>
       </section>
 
-      <header className="ticket-list-page__heading">
+      <header className="flex items-start justify-between gap-6 max-md:hidden">
         <div>
-          <h1>Tickets</h1>
-          <p>Track requests across your organization and move work forward.</p>
+          <h1 className="mb-2 text-[32px] leading-[1.2] font-medium tracking-[-.02em]">
+            Tickets
+          </h1>
+          <p className="text-sm text-muted">
+            {organizationWide
+              ? 'Track requests across your organization and move work forward.'
+              : 'Track the requests you created and follow their progress.'}
+          </p>
         </div>
         <Button onClick={onCreateTicket}>+&nbsp;&nbsp;New ticket</Button>
       </header>
 
-      <section aria-label="Ticket summary" className="ticket-stats">
+      <section
+        aria-label="Ticket summary"
+        className="my-8 mb-6 grid grid-cols-4 gap-4 max-md:mt-0 max-md:mb-[22px] max-md:grid-cols-3 max-md:gap-2"
+      >
         {stats.map((stat) => (
-          <article className="ticket-stat" key={stat.label}>
+          <article
+            className="flex min-h-[108px] items-center gap-4 rounded-md border border-border bg-surface p-5 max-md:min-h-[78px] max-md:justify-center max-md:gap-[9px] max-md:border-0 max-md:bg-surface-secondary max-md:px-2 max-md:py-3 max-md:last:hidden"
+            key={stat.label}
+          >
             <span
-              className={`ticket-stat__icon ticket-stat__icon--${stat.tone}`}
+              className={`grid size-[42px] shrink-0 place-items-center rounded-md text-lg font-medium max-md:size-7 max-md:rounded-sm max-md:text-[13px] ${statToneClasses[stat.tone]}`}
             >
               {stat.tone === 'resolved'
                 ? '✓'
@@ -119,24 +163,38 @@ export function TicketListPage({
                   ? '!'
                   : '○'}
             </span>
-            <div>
-              <strong>{stat.value}</strong>
-              <span>{stat.label}</span>
+            <div className="grid gap-[3px]">
+              <strong className="text-2xl leading-none font-medium max-md:text-lg">
+                {stat.value}
+              </strong>
+              <span className="text-[13px] text-muted max-md:text-[10px]">
+                {stat.label}
+              </span>
             </div>
           </article>
         ))}
       </section>
 
       {initialCategory && category !== 'all' ? (
-        <section className="ticket-category-context" role="status">
-          <div>
-            <span>Category filter</span>
+        <section
+          className="mb-4 flex items-center gap-3 rounded-md border border-border bg-surface px-4 py-3 max-md:flex-wrap"
+          role="status"
+        >
+          <div className="mr-auto grid gap-0.5 max-md:w-full">
+            <span className="text-[11px] tracking-[.08em] text-muted uppercase">
+              Category filter
+            </span>
             <strong>{category}</strong>
           </div>
-          <button onClick={onBackToCategories} type="button">
+          <button
+            className="min-h-10 rounded-sm px-2.5 text-[13px] text-primary"
+            onClick={onBackToCategories}
+            type="button"
+          >
             Back to categories
           </button>
           <button
+            className="min-h-10 rounded-sm px-2.5 text-[13px] text-primary"
             onClick={() => {
               setCategory('all');
               setPage(1);
@@ -148,16 +206,21 @@ export function TicketListPage({
         </section>
       ) : null}
 
-      <section className="ticket-list-panel">
-        <header className="ticket-list-panel__header">
-          <div>
-            <h2>All tickets</h2>
-            <span>{filteredTickets.length} sample results</span>
+      <section className="overflow-hidden rounded-md border border-border bg-surface max-md:overflow-visible max-md:border-0">
+        <header className="flex min-h-[82px] items-center justify-between gap-6 border-b border-border px-6 py-[18px] max-md:block max-md:min-h-0 max-md:border-0 max-md:p-0">
+          <div className="flex items-baseline gap-2.5 max-md:hidden">
+            <h2 className="text-lg font-medium">
+              {organizationWide ? 'All tickets' : 'Your tickets'}
+            </h2>
+            <span className="text-[13px] text-muted">
+              {filteredTickets.length} sample results
+            </span>
           </div>
-          <label className="ticket-search">
-            <span aria-hidden="true">⌕</span>
-            <span className="ticket-list-page__sr-only">Search tickets</span>
+          <label className="flex h-10 w-[min(300px,35vw)] items-center gap-2 rounded-sm border border-border px-3 focus-within:border-focus focus-within:outline-3 focus-within:outline-focus max-md:h-11 max-md:w-full">
+            <Icon name="search" size={15} />
+            <span className="sr-only">Search tickets</span>
             <input
+              className="min-w-0 flex-1 border-0 bg-transparent text-ink outline-0 focus-visible:!outline-none"
               onChange={(event) => {
                 setQuery(event.target.value);
                 setPage(1);
@@ -169,8 +232,9 @@ export function TicketListPage({
           </label>
         </header>
 
-        <div className="ticket-filters">
+        <div className="flex gap-2.5 border-b border-border px-6 py-3 max-md:gap-2 max-md:overflow-x-auto max-md:border-0 max-md:px-0 max-md:pt-3 max-md:pb-4 max-md:[contain:paint] max-md:[scrollbar-width:none] max-md:[&_.ui-select-field]:shrink-0 max-md:[&_.ui-select-field__control]:min-h-9 max-md:[&_.ui-select-field__control]:rounded-full max-md:[&_.ui-select-field__control]:py-1.5 max-md:[&_.ui-select-field__control]:text-xs">
           <SelectField
+            className="max-md:!rounded-full"
             hideLabel
             label="Status"
             onChange={(event) => {
@@ -186,6 +250,7 @@ export function TicketListPage({
             <option value="Closed">Closed</option>
           </SelectField>
           <SelectField
+            className="max-md:!rounded-full"
             hideLabel
             label="Priority"
             onChange={(event) => {
@@ -200,6 +265,7 @@ export function TicketListPage({
             <option value="Low">Low</option>
           </SelectField>
           <SelectField
+            className="max-md:!rounded-full"
             hideLabel
             label="Category"
             onChange={(event) => {
@@ -216,6 +282,7 @@ export function TicketListPage({
             )}
           </SelectField>
           <SelectField
+            className="max-md:!rounded-full"
             hideLabel
             label="Sort order"
             onChange={(event) => {
@@ -229,7 +296,7 @@ export function TicketListPage({
           </SelectField>
           <button
             aria-label="More filters"
-            className="ticket-filter-button"
+            className="hidden size-9 min-w-9 rounded-full border border-border bg-surface text-ink max-md:block"
             onClick={() => setShowFilters(true)}
             type="button"
           >
