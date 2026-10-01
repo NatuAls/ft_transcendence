@@ -86,7 +86,14 @@ MSG
 fi
 
 HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-240}"
-COMPOSE="docker compose -f compose.prod.yml"
+# El nombre del proyecto de Compose. Hasta ahora salía implícito del directorio
+# de trabajo (/opt/helpdesk/<entorno> -> "prod"), así que el MISMO entorno
+# lanzado desde otro sitio —un `make up-prod` dentro de un clon del
+# repositorio— creaba un proyecto distinto con los mismos nombres de
+# contenedor. Declararlo aquí no cambia el valor de un despliegue normal y
+# permite distinguir "lo mío" de "lo que dejó otro" (ver la sección 5).
+COMPOSE_PROJECT="${COMPOSE_PROJECT:-$ENV_NAME}"
+COMPOSE="docker compose -p $COMPOSE_PROJECT -f compose.prod.yml"
 
 # Cerrojo compartido con el temporizador de auto-recuperación
 # (scripts/ops/ensure-stack.sh): mientras dure el despliegue, el temporizador
@@ -401,6 +408,65 @@ deploy_failed() {
 # el log de la API: en el despliegue #30 de staging (17/09) la API murió al
 # arrancar por una variable de entorno y staging se quedó caído sin volver a
 # la versión anterior. Ahora un `up` fallido pasa por deploy_failed.
+# -----------------------------------------------------------------------------
+# Contenedores viejos de ESTE entorno que no son de este proyecto.
+#
+# `docker compose up -d` reconcilia los contenedores DE SU PROYECTO: para y
+# recrea lo suyo sin ayuda. Lo que no ve son contenedores con los MISMOS
+# nombres creados desde otro sitio, y los nombres de compose.prod.yml son
+# fijos (helpdesk-api-prod, helpdesk-db-prod...). Pasa en cuanto hay dos
+# copias del repositorio en la máquina: un `make up-prod` dentro de un clon
+# crea el proyecto <nombre-de-la-carpeta>, y el despliegue de verdad trabaja
+# en /opt/helpdesk/<entorno>. Entonces el arranque muere con
+#
+#     Conflict. The container name "/helpdesk-api-prod" is already in use
+#
+# y la versión ANTERIOR se queda sirviendo: parece que has desplegado y no.
+# Encima el rollback intenta lo mismo y falla igual.
+#
+# Esto se ciñe al ENTORNO que se despliega: sólo mira contenedores cuyo nombre
+# acaba en -$ENV_NAME, así que desplegar staging no toca nada de producción.
+# Tampoco toca lo que sí es de este proyecto: de eso se encarga Compose, que
+# además sabe qué puede reutilizar sin tirar la base de datos.
+# -----------------------------------------------------------------------------
+foreign_containers() {
+  # Nombre + proyecto de Compose de cada contenedor del entorno. Un contenedor
+  # arrancado a mano no tiene esa etiqueta, y entra igual en la comparación.
+  docker ps -a --format '{{.Names}}\t{{.Label "com.docker.compose.project"}}' |
+    awk -F'\t' -v env="$ENV_NAME" -v proj="$COMPOSE_PROJECT" \
+      '$1 ~ "^helpdesk-[a-z0-9]+-" env "$" && $2 != proj { print $1 }'
+}
+
+log "Comprobando contenedores previos de ${ENV_NAME}"
+FOREIGN="$(foreign_containers)"
+if [ -n "$FOREIGN" ]; then
+  warn "Hay contenedores de ${ENV_NAME} que NO pertenecen a este despliegue (proyecto '${COMPOSE_PROJECT}'):"
+  docker ps -a --filter "name=-${ENV_NAME}$" \
+    --format '{{.Names}}  ({{.Status}})  proyecto: {{.Label "com.docker.compose.project"}}' |
+    grep -F -f <(printf '%s\n' "$FOREIGN") | sed 's/^/    /' || true
+  echo "  Se paran y se eliminan: ocuparían los nombres que necesita esta pila."
+  # stop antes de rm para que cierren ordenadamente (PostgreSQL, sobre todo).
+  # shellcheck disable=SC2086
+  docker stop $FOREIGN > /dev/null 2>&1 || true
+  # shellcheck disable=SC2086
+  docker rm -f $FOREIGN > /dev/null 2>&1 || true
+  echo "  Hecho. Los volúmenes NO se tocan: los datos de ${ENV_NAME} siguen ahí."
+else
+  echo "Sin contenedores ajenos de ${ENV_NAME}."
+fi
+
+# Puertos que publica este entorno y que podría estar ocupando algo que no es
+# suyo (la pila de desarrollo publica 8025, el mismo que Mailpit en producción).
+# Aquí sólo se avisa: una pila de desarrollo es el trabajo de alguien y no se
+# mata desde un despliegue. Si el `up` de abajo falla por un puerto, la causa
+# está en esta línea.
+MAILPIT_PORT="${MAILPIT_UI_PORT:-8025}"
+PORT_HOLDER="$(docker ps --format '{{.Names}}\t{{.Ports}}' |
+  awk -F'\t' -v p=":${MAILPIT_PORT}->" '$2 ~ p { print $1 }')"
+if [ -n "$PORT_HOLDER" ]; then
+  warn "El puerto ${MAILPIT_PORT} ya lo publica: ${PORT_HOLDER}. Si no es de ${ENV_NAME}, el arranque fallará."
+fi
+
 log "Levantando la pila"
 $COMPOSE up -d --remove-orphans || deploy_failed "docker compose up ha fallado (¿la API no arranca?)"
 

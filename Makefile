@@ -1,7 +1,16 @@
 DOCKER = docker
 COMPOSE = $(DOCKER) compose
 COMPOSE_DEV = -f compose.dev.yml
-COMPOSE_PROD = -f compose.prod.yml
+
+# Proyecto de Compose de la pila de producción. Tiene que ser el MISMO que usa
+# scripts/deploy/remote-deploy.sh (el nombre del entorno), porque los nombres de
+# contenedor de compose.prod.yml son fijos (helpdesk-api-prod...). Sin esto, el
+# proyecto sale del nombre de la carpeta: dos clones del repositorio en la misma
+# máquina producen dos proyectos para el mismo entorno y el segundo arranque
+# muere con «container name is already in use», dejando sirviendo al primero.
+ENV_NAME := $(shell sed -n 's/^ENV_NAME=//p' .env 2>/dev/null | head -1)
+PROD_PROJECT := $(if $(ENV_NAME),$(ENV_NAME),prod)
+COMPOSE_PROD = -p $(PROD_PROJECT) -f compose.prod.yml
 
 #COLORS
 
