@@ -1,5 +1,4 @@
 import { BrandMark } from 'ui';
-import './legal.css';
 
 // Legal content. Written against what the application really does (Prisma
 // schema, GDPR module, backups, infrastructure) so that the pages are
@@ -152,13 +151,13 @@ export function LegalPage({
 }) {
   const page = content[kind];
   return (
-    <div className="legal-page">
-      <header>
-        <div>
-          <BrandMark />
+    <div className="min-h-dvh bg-surface">
+      <header className="flex h-[72px] items-center justify-between border-b border-border px-[6vw] max-md:px-4">
+        <div className="flex items-center gap-2.5">
+          <BrandMark className="!size-9" />
           <strong>HelpDesk Lite</strong>
         </div>
-        <nav>
+        <nav className="flex gap-2.5 [&_button]:border-0 [&_button]:bg-transparent [&_button]:p-2.5 [&_button]:text-primary max-md:[&_button:not(:last-child)]:hidden">
           <button onClick={() => onNavigate('privacy')} type="button">
             Privacy Policy
           </button>
@@ -170,15 +169,22 @@ export function LegalPage({
           </button>
         </nav>
       </header>
-      <div>
-        <aside>
-          <button onClick={onBack} type="button">
+      <div className="mx-auto grid max-w-[1100px] grid-cols-[240px_1fr] gap-[70px] px-[30px] py-12 max-md:block max-md:px-5 max-md:py-7">
+        <aside className="grid content-start gap-[13px]">
+          <button
+            className="border-0 bg-transparent p-2.5 text-left text-primary"
+            onClick={onBack}
+            type="button"
+          >
             ← Back to HelpDesk Lite
           </button>
-          <span>ON THIS PAGE</span>
+          <span className="mt-6 text-[9px] tracking-[.08em] text-muted max-md:hidden">
+            ON THIS PAGE
+          </span>
           {page.sections.map(([title]) => (
             <button
               key={title}
+              className="p-0 text-left text-[11px] text-muted max-md:hidden"
               onClick={() =>
                 document
                   .getElementById(`legal-${title.replaceAll(' ', '-')}`)
@@ -190,19 +196,27 @@ export function LegalPage({
             </button>
           ))}
         </aside>
-        <main>
-          <span>LEGAL · LAST UPDATED {LAST_UPDATED.toUpperCase()}</span>
-          <h1>{page.label}</h1>
-          <p>{page.intro}</p>
+        <main className="max-w-[720px]">
+          <span className="mt-6 text-[9px] tracking-[.08em] text-muted">
+            LEGAL · LAST UPDATED {LAST_UPDATED.toUpperCase()}
+          </span>
+          <h1 className="my-3 text-4xl font-medium max-md:text-[28px]">
+            {page.label}
+          </h1>
+          <p className="text-[15px] leading-[1.7] text-muted">{page.intro}</p>
           {page.sections.map(([title, copy], i) => (
-            <section id={`legal-${title.replaceAll(' ', '-')}`} key={title}>
-              <h2>
+            <section
+              className="mt-9 scroll-mt-6 max-md:mt-[26px]"
+              id={`legal-${title.replaceAll(' ', '-')}`}
+              key={title}
+            >
+              <h2 className="text-lg font-medium">
                 {i + 1}. {title}
               </h2>
               {typeof copy === 'string' ? (
-                <p>{copy}</p>
+                <p className="text-[13px] leading-[1.8] text-muted">{copy}</p>
               ) : (
-                <ul>
+                <ul className="text-[13px] leading-[1.8] text-muted">
                   {copy.map((item) => (
                     <li key={item}>{item}</li>
                   ))}

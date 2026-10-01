@@ -65,6 +65,8 @@ npm run dev:web                 # http://localhost:5173  (Vite)
 - Mailpit (captured e-mails): http://localhost:8025
 - API reference: [`apps/api/ENDPOINTS.md`](apps/api/ENDPOINTS.md) (105 routes)
 - Front/back integration notes: [`apps/web/INTEGRATION.md`](apps/web/INTEGRATION.md)
+- Frontend conventions: [`apps/web/FRONTEND_GUIDE.md`](apps/web/FRONTEND_GUIDE.md)
+- UI design system: [`packages/ui/README.md`](packages/ui/README.md)
 - Quality gates, same as CI: `npm run lint`, `npm run typecheck`,
   `npm run format:check`, `npm test --workspaces --if-present`.
 
@@ -100,7 +102,7 @@ Backups ─encrypted─▶ Oracle Object Storage        Alerts ─▶ Telegram +
 
 - Express 5 — https://expressjs.com/ · Prisma — https://www.prisma.io/docs ·
   Zod — https://zod.dev · Socket.IO — https://socket.io/docs/v4/
-- React 19 — https://react.dev · Vite — https://vite.dev
+- React 19 — https://react.dev · Vite — https://vite.dev · Tailwind CSS 4 — https://tailwindcss.com
 - PostgreSQL 15 — https://www.postgresql.org/docs/15/ · Redis — https://redis.io/docs/
 - OWASP ASVS and Cheat Sheet Series (authentication, session management,
   file upload) — https://cheatsheetseries.owasp.org/
@@ -153,7 +155,7 @@ Backups ─encrypted─▶ Oracle Object Storage        Alerts ─▶ Telegram +
 
 | Layer | Choice | Why |
 |---|---|---|
-| Front end | React 19, TypeScript, Vite 8, hand-rolled router (`app/routes.ts`), feature folders (`features/*`), shared `packages/ui` | No framework beyond React: small bundle, full control of routing and state; typed end to end with the shared contracts |
+| Front end | React 19, TypeScript, Vite 8, Tailwind CSS 4, hand-rolled router (`app/routes.ts`), feature folders (`features/*`), shared `packages/ui` | Small explicit routing/state layer, semantic tokens and reusable typed UI components; typed end to end with shared contracts |
 | API | Node 24, Express 5, TypeScript, Zod 4 (`packages/contracts`) | Small, explicit HTTP layer; every payload validated by the same schemas the front end uses |
 | Data access | Prisma 7 with `@prisma/adapter-pg`, versioned migrations | Typed queries, migrations applied automatically on deploy |
 | Database | PostgreSQL 15 | Relational data (organizations → members → tickets → comments) with strong constraints and cascades; mature backup tooling (`pg_dump`/`pg_restore`) |
@@ -253,6 +255,7 @@ assignee and category references are set to `NULL`.
 | Module | Type | Points | Owner | Implementation |
 |---|---|---|---|---|
 | TODO | Major | 2 | TODO | TODO |
+| Custom-made design system | Minor | 1 | TODO(frontend) | Semantic palette and typography plus 15 generic reusable components in `packages/ui`; responsive, keyboard and accessible states documented in `packages/ui/README.md` |
 | Monitoring system (Prometheus / Grafana) | Minor | 1 | fcela-ga | `compose.observability.yml`: Prometheus 3, Grafana 11, Alertmanager, exporters, 21 alert rules with runbooks |
 | Infrastructure setup for log management (Loki / Promtail) | Minor | 1 | fcela-ga | Centralized container logs with secret masking, searchable in Grafana |
 | TODO | … | … | … | … |

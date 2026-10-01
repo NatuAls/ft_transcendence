@@ -1,4 +1,4 @@
-import { Button, TextField } from 'ui';
+import { Alert, Button, Icon, Tabs, TextField } from 'ui';
 import { useState } from 'react';
 import { AccountHeader } from './AccountHeader';
 import type { AccountProfile } from './accountData';
@@ -19,77 +19,138 @@ export function PrivacyPage({
   onTerms: () => void;
 }) {
   return (
-    <div className="account-page">
-      <button className="account-back" onClick={onBack} type="button">
+    <div className="mx-auto max-w-[1040px] p-10 max-md:px-4 max-md:py-6">
+      <button
+        className="mb-[18px] hidden text-primary max-md:block"
+        onClick={onBack}
+        type="button"
+      >
         ‹ Account
       </button>
       <AccountHeader
         description="Control your personal information and understand how it is handled."
         title="Privacy & data"
       />
-      <div className="account-tabs">
-        <button onClick={onProfile} type="button">
-          Profile
-        </button>
-        <span>Privacy &amp; data</span>
+      <div className="mt-[26px] border-b border-border max-md:hidden">
+        <Tabs
+          activeTab="privacy"
+          items={[
+            { id: 'profile', label: 'Profile' },
+            { id: 'privacy', label: 'Privacy & data' },
+          ]}
+          label="Account sections"
+          onChange={(tab) => {
+            if (tab === 'profile') onProfile();
+          }}
+        />
       </div>
-      <div className="privacy-grid">
-        <main>
-          <section className="privacy-card">
-            <i aria-hidden="true">↓</i>
+      <div className="mt-[22px] grid grid-cols-[1fr_270px] gap-[18px] max-md:block">
+        <main className="grid gap-[14px]">
+          <section className="grid grid-cols-[34px_1fr_auto] gap-3 rounded-md border border-border bg-surface p-[22px] max-md:grid-cols-[34px_1fr] max-md:p-4 max-md:[&_.ui-button]:col-span-full">
+            <i
+              className="grid size-8 place-items-center rounded-[9px] bg-success-surface text-success not-italic"
+              aria-hidden="true"
+            >
+              ↓
+            </i>
             <div>
-              <h2>Export your personal data</h2>
-              <p>
+              <h2 className="text-base font-medium">
+                Export your personal data
+              </h2>
+              <p className="text-[11px] text-muted">
                 Request a portable archive containing your profile, connections,
                 conversations and ticket activity.
               </p>
-              <small>LAST EXPORT · No export requested</small>
+              <small className="text-[9px] text-muted">
+                LAST EXPORT · No export requested
+              </small>
             </div>
-            <Button onClick={onExport} variant="secondary">
+            <Button
+              className="self-center"
+              onClick={onExport}
+              size="compact"
+              variant="secondary"
+            >
               Request export
             </Button>
           </section>
-          <section className="privacy-card privacy-card--danger">
-            <i aria-hidden="true">!</i>
+          <section className="grid grid-cols-[34px_1fr_auto] gap-3 rounded-md border border-border bg-surface p-[22px] max-md:grid-cols-[34px_1fr] max-md:p-4 max-md:[&_.ui-button]:col-span-full">
+            <i
+              className="grid size-8 place-items-center rounded-[9px] bg-danger-surface text-danger not-italic"
+              aria-hidden="true"
+            >
+              !
+            </i>
             <div>
-              <h2>Delete your account</h2>
-              <p>
+              <h2 className="text-base font-medium">Delete your account</h2>
+              <p className="text-[11px] text-muted">
                 Permanently remove your account and personal data. This action
                 cannot be undone.
               </p>
-              <small>Email confirmation required</small>
+              <small className="text-[9px] text-muted">
+                Email confirmation required
+              </small>
             </div>
-            <Button onClick={onDelete} variant="destructive">
+            <Button
+              className="self-center"
+              onClick={onDelete}
+              size="compact"
+              variant="destructive"
+            >
               Delete account
             </Button>
           </section>
-          <section className="legal-card">
-            <h2>Legal documents</h2>
-            <p>Review the policies that govern the service.</p>
-            <button onClick={onPrivacyPolicy} type="button">
-              <strong>Privacy Policy</strong>
-              <small>How personal data is handled</small>
-              <span aria-hidden="true">→</span>
+          <section className="rounded-md border border-border bg-surface p-[22px] max-md:mt-[14px]">
+            <h2 className="text-base font-medium">Legal documents</h2>
+            <p className="text-[11px] text-muted">
+              Review the policies that govern the service.
+            </p>
+            <button
+              className="grid w-full grid-cols-[1fr_auto] border-t border-border py-[14px] text-left"
+              onClick={onPrivacyPolicy}
+              type="button"
+            >
+              <strong className="block">Privacy Policy</strong>
+              <small className="block text-[10px] text-muted">
+                How personal data is handled
+              </small>
+              <Icon
+                className="col-start-2 row-span-2"
+                name="chevron-right"
+                size={18}
+              />
             </button>
-            <button onClick={onTerms} type="button">
-              <strong>Terms of Service</strong>
-              <small>Rules for using the platform</small>
-              <span aria-hidden="true">→</span>
+            <button
+              className="grid w-full grid-cols-[1fr_auto] border-t border-border py-[14px] text-left"
+              onClick={onTerms}
+              type="button"
+            >
+              <strong className="block">Terms of Service</strong>
+              <small className="block text-[10px] text-muted">
+                Rules for using the platform
+              </small>
+              <Icon
+                className="col-start-2 row-span-2"
+                name="chevron-right"
+                size={18}
+              />
             </button>
           </section>
         </main>
-        <aside>
-          <h2>Your privacy at a glance</h2>
+        <aside className="rounded-md border border-border bg-surface p-[22px] max-md:hidden">
+          <h2 className="text-[15px] font-medium">Your privacy at a glance</h2>
           {[
             ['Authorization', 'Access is checked by the backend.'],
             ['Data scope', 'Exports include only your own data.'],
             ['Confirmation', 'Sensitive requests require email.'],
           ].map(([title, description]) => (
-            <div key={title}>
-              <i aria-hidden="true">✓</i>
-              <p>
-                <strong>{title}</strong>
-                <small>{description}</small>
+            <div className="mt-5 flex gap-2.5" key={title}>
+              <i className="text-success" aria-hidden="true">
+                ✓
+              </i>
+              <p className="grid gap-1">
+                <strong className="text-[11px]">{title}</strong>
+                <small className="text-[9px] text-muted">{description}</small>
               </p>
             </div>
           ))}
@@ -113,13 +174,17 @@ function FlowPage({
   title: string;
 }) {
   return (
-    <div className="account-flow">
-      <button className="account-back" onClick={onBack} type="button">
+    <div className="mx-auto max-w-[660px] p-10 max-md:px-4 max-md:py-6">
+      <button
+        className="mb-6 block text-primary max-md:mb-[18px]"
+        onClick={onBack}
+        type="button"
+      >
         ‹ {backLabel}
       </button>
-      <section>
-        <h1>{title}</h1>
-        <p>{subtitle}</p>
+      <section className="grid gap-[18px] rounded-lg border border-border bg-surface p-[30px] max-md:px-[18px] max-md:py-[22px] [&>footer]:flex [&>footer]:justify-end [&>footer]:gap-2 [&>footer]:border-t [&>footer]:border-border [&>footer]:pt-[18px] max-md:[&>footer]:flex-col-reverse max-md:[&>footer_.ui-button]:w-full">
+        <h1 className="text-2xl font-medium">{title}</h1>
+        <p className="text-xs text-muted">{subtitle}</p>
         {children}
       </section>
     </div>
@@ -139,14 +204,14 @@ export function ExportRequested({
       subtitle="A production request requires confirmation by email."
       title="Confirm your data export"
     >
-      <div className="flow-notice">
+      <div className="grid gap-1.5 rounded-sm bg-surface-secondary p-4 text-xs">
         <strong>Backend confirmation required</strong>
-        <span>
+        <span className="text-[11px] text-muted">
           No email is sent by this frontend preview. The production API must
           create and authorize the export request.
         </span>
       </div>
-      <dl>
+      <dl className="grid gap-2 text-[11px] [&_dt]:font-medium [&_dd]:mb-2 [&_dd]:text-muted">
         <dt>Export contents</dt>
         <dd>Profile, connections, conversations and ticket activity.</dd>
         <dt>Format</dt>
@@ -195,13 +260,15 @@ export function ExportReady({
       subtitle="This sample file demonstrates the download interaction."
       title="Your preview archive is ready"
     >
-      <div className="archive-card">
+      <div className="grid gap-1.5 rounded-sm bg-surface-secondary p-4 text-xs">
         <strong>✓ Frontend preview generated</strong>
-        <span>helpdesk-lite-profile-preview.json</span>
+        <span className="text-[11px] text-muted">
+          helpdesk-lite-profile-preview.json
+        </span>
       </div>
-      <div className="flow-notice">
+      <div className="grid gap-1.5 rounded-sm bg-surface-secondary p-4 text-xs">
         <strong>Production boundary</strong>
-        <span>
+        <span className="text-[11px] text-muted">
           The backend must generate the complete private archive and a
           short-lived authorized download URL.
         </span>
@@ -242,16 +309,16 @@ export function DeleteAccount({
         placeholder="DELETE"
         value={deletionText}
       />
-      <div className="flow-notice">
-        <span>
+      <div className="grid gap-1.5 rounded-sm bg-surface-secondary p-4 text-xs">
+        <span className="text-[11px] text-muted">
           Production deletion starts only after the backend sends and verifies
           an email confirmation link.
         </span>
       </div>
       {feedback ? (
-        <p aria-live="polite" className="account-feedback" role="status">
+        <Alert aria-live="polite" role="status">
           {feedback}
-        </p>
+        </Alert>
       ) : null}
       <footer>
         <Button onClick={onBack} variant="secondary">

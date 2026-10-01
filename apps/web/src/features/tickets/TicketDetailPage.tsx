@@ -1,13 +1,25 @@
-import { Button, Dialog, SelectField, StatusBadge } from 'ui';
+import {
+  Alert,
+  Button,
+  Dialog,
+  Icon,
+  IconButton,
+  SelectField,
+  StatusBadge,
+} from 'ui';
 import { useState } from 'react';
 import { getInitials } from '../../app/text';
 import { initialTickets, type Ticket } from './ticketData';
-import './ticket-detail.css';
 
 type TicketState = 'open' | 'progress' | 'resolved' | 'closed';
 
 interface TicketDetailPageProps {
+  canAssignOther: boolean;
+  canChangeStatus: boolean;
+  canReopenTickets: boolean;
+  canSelfAssign: boolean;
   currentUserName: string;
+  organizationName: string;
   onBack: () => void;
   onTicketChange: (ticket: Ticket) => void;
   ticket?: Ticket;
@@ -21,7 +33,12 @@ const stateCopy = {
 } as const;
 
 export function TicketDetailPage({
+  canAssignOther,
+  canChangeStatus,
+  canReopenTickets,
+  canSelfAssign,
   currentUserName,
+  organizationName,
   onBack,
   onTicketChange,
   ticket = initialTickets[0],
@@ -38,6 +55,8 @@ export function TicketDetailPage({
   const [menuOpen, setMenuOpen] = useState(false);
   const [feedback, setFeedback] = useState('');
   const current = stateCopy[ticketState];
+  const requesterName = ticket.requester ?? 'John Lee';
+  const isRequester = requesterName === currentUserName;
 
   function updateState(
     nextState: TicketState,
@@ -75,40 +94,51 @@ export function TicketDetailPage({
   }
 
   return (
-    <div className="ticket-detail-page">
-      <header className="ticket-detail-mobile-header">
-        <button onClick={onBack} type="button">
-          ‹
-        </button>
-        <strong>Ticket detail</strong>
-        <button
-          aria-label="Ticket actions"
+    <div className="mx-auto max-w-[1160px] px-10 pt-8 pb-[50px] max-md:px-4 max-md:pt-0 max-md:pb-6">
+      <header className="sticky top-0 z-20 -mx-4 hidden h-[58px] grid-cols-[32px_1fr_32px] items-center border-b border-border bg-surface/96 px-4 backdrop-blur max-md:grid">
+        <IconButton
+          icon="chevron-left"
+          label="Back to tickets"
+          onClick={onBack}
+          size="sm"
+        />
+        <strong className="text-[15px]">Ticket detail</strong>
+        <IconButton
+          icon="more"
+          label="Ticket actions"
           onClick={() => setMenuOpen(true)}
-          type="button"
-        >
-          ⋯
-        </button>
+          size="sm"
+        />
       </header>
-      <button className="ticket-detail-back" onClick={onBack} type="button">
+      <button
+        className="p-0 text-xs text-primary max-md:hidden"
+        onClick={onBack}
+        type="button"
+      >
         ← Tickets
       </button>
-      <section className="ticket-detail-hero">
+      <section className="my-4 mb-7 flex items-center justify-between gap-6 max-md:mx-0.5 max-md:mt-8 max-md:mb-7 max-md:items-end">
         <div>
-          <span>#{ticket.id}</span>
-          <h1>{ticket.title}</h1>
-          <div className="ticket-detail-hero__meta">
+          <span className="text-[11px] text-muted">#{ticket.id}</span>
+          <h1 className="my-3 mt-[7px] text-[28px] font-medium max-md:max-w-[310px] max-md:text-[22px]">
+            {ticket.title}
+          </h1>
+          <div className="flex items-center gap-[14px]">
             <StatusBadge tone={current.tone}>{current.label}</StatusBadge>
-            <span
-              className={`ticket-priority ticket-priority--${ticket.priority.toLowerCase()}`}
-            >
-              <span />
+            <span className="inline-flex items-center gap-[7px] text-[13px] text-ink">
+              <span
+                className={`size-[7px] rounded-full ${ticket.priority === 'High' ? 'bg-danger' : ticket.priority === 'Medium' ? 'bg-warning' : 'bg-success'}`}
+              />
               {ticket.priority} priority
             </span>
-            <small>Updated 28 minutes ago</small>
+            <small className="text-[11px] text-muted max-md:hidden">
+              Updated 28 minutes ago
+            </small>
           </div>
         </div>
-        {ticketState === 'open' && (
+        {ticketState === 'open' && canSelfAssign && (
           <Button
+            className="max-md:!min-w-[100px] max-md:!px-3"
             onClick={() => {
               setAssignee(currentUserName);
               updateState(
@@ -121,8 +151,9 @@ export function TicketDetailPage({
             Assign to me
           </Button>
         )}
-        {ticketState === 'progress' && (
+        {ticketState === 'progress' && canChangeStatus && (
           <Button
+            className="max-md:!min-w-[100px] max-md:!px-3"
             onClick={() =>
               updateState('resolved', 'Ticket marked as resolved.')
             }
@@ -130,131 +161,190 @@ export function TicketDetailPage({
             Mark resolved
           </Button>
         )}
-        {ticketState === 'resolved' && (
-          <div className="ticket-detail-hero__actions">
-            <Button
-              onClick={() =>
-                updateState('progress', 'Ticket reopened for support.')
-              }
-              variant="ghost"
-            >
-              Reopen ticket
-            </Button>
-            <Button
-              onClick={() =>
-                updateState('closed', 'Resolution confirmed and ticket closed.')
-              }
-            >
-              Confirm & close
-            </Button>
+        {ticketState === 'resolved' && (canChangeStatus || isRequester) && (
+          <div className="flex items-center gap-[14px] max-md:flex-col max-md:items-end max-md:gap-2 max-md:[&_.ui-button]:!min-h-[38px] max-md:[&_.ui-button]:!px-3">
+            {canReopenTickets ? (
+              <Button
+                onClick={() =>
+                  updateState('progress', 'Ticket reopened for support.')
+                }
+                variant="ghost"
+              >
+                Reopen ticket
+              </Button>
+            ) : null}
+            {isRequester ? (
+              <Button
+                onClick={() =>
+                  updateState(
+                    'closed',
+                    'Resolution confirmed and ticket closed.',
+                  )
+                }
+              >
+                Confirm &amp; close
+              </Button>
+            ) : null}
           </div>
         )}
         {ticketState === 'closed' && (
-          <span className="ticket-detail-closed-state">✓ Ticket closed</span>
+          <div className="flex items-center gap-2 max-md:flex-col max-md:items-end">
+            <span className="rounded-sm bg-success-surface px-4 py-3 text-xs font-medium text-success">
+              ✓ Ticket closed
+            </span>
+            {canReopenTickets ? (
+              <Button
+                onClick={() =>
+                  updateState('progress', 'Ticket reopened for support.')
+                }
+                variant="secondary"
+              >
+                Reopen ticket
+              </Button>
+            ) : null}
+          </div>
         )}
       </section>
 
       {feedback ? (
-        <p aria-live="polite" className="ticket-detail-feedback" role="status">
+        <Alert
+          aria-live="polite"
+          className="-mt-3 mb-5 !rounded-none !border-0 !border-l-[3px] !py-2.5 !text-[11px] !text-muted"
+          role="status"
+        >
           {feedback}
-        </p>
+        </Alert>
       ) : null}
 
-      <div className="ticket-detail-grid">
-        <div className="ticket-detail-main">
-          <section className="ticket-detail-card ticket-detail-description">
-            <h2>Issue description</h2>
-            <small>{ticket.requester ?? 'John Lee'} · Requester</small>
-            <p>
+      <div className="grid grid-cols-[minmax(0,1fr)_300px] gap-5 max-md:block">
+        <div className="grid content-start gap-5 max-md:gap-4">
+          <section className="rounded-md border border-border bg-surface p-[26px] max-md:p-4">
+            <h2 className="mb-[7px] text-base font-medium">
+              Issue description
+            </h2>
+            <small className="text-[11px] text-muted">
+              {requesterName} · Requester
+            </small>
+            <p className="mt-[18px] max-w-[670px] text-[13px] leading-[1.65] text-muted max-md:text-[11px]">
               {ticket.description ??
                 'The checkout page becomes unavailable after selecting a saved payment method. Refreshing the page does not restore the form.'}
             </p>
           </section>
 
-          <details className="ticket-detail-mobile-summary">
-            <summary>
-              <strong>Ticket details</strong>
+          <details className="hidden rounded-md border border-border bg-surface p-4 max-md:block">
+            <summary className="grid cursor-pointer grid-cols-[92px_1fr] items-center text-[10px]">
+              <strong className="text-xs">Ticket details</strong>
               <span>
                 {current.label} · {ticket.category} · {assignee}
               </span>
             </summary>
-            <dl>
+            <dl className="mt-4 grid grid-cols-2 gap-2 text-[11px] [&_dd]:m-0">
               <dt>Organization</dt>
-              <dd>Northstar Studio</dd>
+              <dd>{organizationName}</dd>
               <dt>Created</dt>
               <dd>Today, 09:42</dd>
             </dl>
           </details>
 
-          <section className="ticket-detail-card ticket-conversation">
-            <h2>Conversation</h2>
-            <article>
-              <span className="ticket-person ticket-person--agent">MS</span>
-              <div>
-                <small>Maya Singh · Support agent</small>
-                <p>
+          <section className="flex flex-col gap-4 rounded-md border border-border bg-surface p-[26px] max-md:border-0 max-md:px-0 max-md:py-2">
+            <h2 className="mb-[7px] text-base font-medium">Conversation</h2>
+            <article className="flex gap-3">
+              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#d8e5df] text-[10px] text-primary">
+                MS
+              </span>
+              <div className="max-w-[78%] max-md:max-w-[82%]">
+                <small className="text-[11px] text-muted">
+                  Maya Singh · Support agent
+                </small>
+                <p className="mt-2 rounded-[4px_12px_12px] bg-surface-secondary px-4 py-[13px] text-xs leading-[1.5] max-md:text-[10px]">
                   Thanks for the report. I can reproduce the issue and I am
                   checking the payment configuration now.
                 </p>
               </div>
             </article>
-            <article className="ticket-conversation__requester">
-              <div>
-                <p>Thank you. It affects both Chrome and Firefox.</p>
+            <article className="flex justify-end gap-3">
+              <div className="max-w-[78%] max-md:max-w-[82%]">
+                <p className="mt-2 rounded-[4px_12px_12px] bg-[#e1ece8] px-4 py-[13px] text-xs leading-[1.5] max-md:text-[10px]">
+                  Thank you. It affects both Chrome and Firefox.
+                </p>
               </div>
-              <span className="ticket-person">JL</span>
+              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#e9e2d8] text-[10px] text-[#6e573c]">
+                JL
+              </span>
             </article>
             {sentReplies.map((text, index) => (
               <article
-                className="ticket-conversation__requester"
+                className="flex justify-end gap-3"
                 key={`${text}-${index}`}
               >
-                <div>
-                  <small>{currentUserName} · Now</small>
-                  <p>{text}</p>
+                <div className="max-w-[78%] max-md:max-w-[82%]">
+                  <small className="text-[11px] text-muted">
+                    {currentUserName} · Now
+                  </small>
+                  <p className="mt-2 rounded-[4px_12px_12px] bg-[#e1ece8] px-4 py-[13px] text-xs leading-[1.5] max-md:text-[10px]">
+                    {text}
+                  </p>
                 </div>
-                <span className="ticket-person">
+                <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#e9e2d8] text-[10px] text-[#6e573c]">
                   {getInitials(currentUserName)}
                 </span>
               </article>
             ))}
-            <form
-              className="ticket-reply-form"
-              onSubmit={(event) => {
-                event.preventDefault();
-                sendReply();
-              }}
-            >
-              <label>
-                <span>Reply</span>
-                <textarea
-                  onChange={(event) => setReply(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (
-                      event.key === 'Enter' &&
-                      !event.shiftKey &&
-                      !event.nativeEvent.isComposing
-                    ) {
-                      event.preventDefault();
-                      sendReply();
-                    }
-                  }}
-                  placeholder="Write a reply…"
-                  value={reply}
-                />
-                <small>Shift + Enter for a new line</small>
-              </label>
-              <Button disabled={!reply.trim()} type="submit">
-                Send reply
-              </Button>
-            </form>
+            {ticketState === 'closed' ? (
+              <p className="rounded-sm bg-surface-secondary px-4 py-3 text-xs text-muted">
+                This ticket is read-only while closed. Reopen it before adding
+                another reply.
+              </p>
+            ) : (
+              <form
+                className="relative grid min-w-0 gap-3"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  sendReply();
+                }}
+              >
+                <label className="relative grid min-w-0 gap-2 text-xs">
+                  <span className="max-md:hidden">Reply</span>
+                  <textarea
+                    className="min-h-24 min-w-0 resize-y rounded-sm border border-border p-[13px] max-md:min-h-12 max-md:pr-14"
+                    onChange={(event) => setReply(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (
+                        event.key === 'Enter' &&
+                        !event.shiftKey &&
+                        !event.nativeEvent.isComposing
+                      ) {
+                        event.preventDefault();
+                        sendReply();
+                      }
+                    }}
+                    placeholder="Write a reply…"
+                    value={reply}
+                  />
+                  <small className="absolute bottom-[9px] left-3 text-[10px] text-muted max-md:hidden">
+                    Shift + Enter for a new line
+                  </small>
+                </label>
+                <Button
+                  aria-label="Send reply"
+                  className="self-end justify-self-end max-md:absolute max-md:top-1/2 max-md:right-1.5 max-md:bottom-auto max-md:-translate-y-1/2 max-md:!size-10 max-md:!min-h-10 max-md:!min-w-10 max-md:!p-0"
+                  disabled={!reply.trim()}
+                  type="submit"
+                >
+                  <span className="max-md:sr-only">Send</span>
+                  <span className="hidden max-md:block">
+                    <Icon name="send" size={17} />
+                  </span>
+                </Button>
+              </form>
+            )}
           </section>
         </div>
 
-        <aside className="ticket-detail-sidebar">
-          <section className="ticket-detail-card">
-            <h2>Ticket details</h2>
-            <dl>
+        <aside className="grid content-start gap-5 max-md:hidden">
+          <section className="rounded-md border border-border bg-surface p-[26px]">
+            <h2 className="mb-[7px] text-base font-medium">Ticket details</h2>
+            <dl className="my-[22px] mb-7 grid grid-cols-[100px_1fr] gap-x-3 gap-y-[18px] text-xs [&_dt]:text-muted [&_dd]:m-0">
               <dt>Status</dt>
               <dd>
                 <StatusBadge tone={current.tone}>{current.label}</StatusBadge>
@@ -264,37 +354,45 @@ export function TicketDetailPage({
               <dt>Category</dt>
               <dd>{ticket.category}</dd>
               <dt>Organization</dt>
-              <dd>Northstar Studio</dd>
+              <dd>{organizationName}</dd>
               <dt>Created</dt>
               <dd>Today, 09:42</dd>
             </dl>
-            <h3>Requester</h3>
-            <div className="ticket-detail-person">
-              <span className="ticket-person">
-                {(ticket.requester ?? 'John Lee')
+            <h3 className="mb-3 border-t border-border pt-[18px] text-[11px] font-medium">
+              Requester
+            </h3>
+            <div className="flex items-center gap-2.5 text-xs">
+              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#e9e2d8] text-[10px] text-[#6e573c]">
+                {requesterName
                   .split(' ')
                   .map((part) => part[0])
                   .join('')}
               </span>
-              {ticket.requester ?? 'John Lee'}
+              {requesterName}
             </div>
           </section>
-          <section className="ticket-detail-card ticket-detail-actions">
-            <h2>
+          <section className="rounded-md border border-border bg-surface p-[26px]">
+            <h2 className="mb-[7px] text-base font-medium">
               {ticketState === 'resolved' || ticketState === 'closed'
                 ? 'Requester decision'
-                : 'Agent actions'}
+                : canAssignOther
+                  ? 'Agent actions'
+                  : 'Assignment'}
             </h2>
-            <p>Assignment and status changes are recorded.</p>
+            <p className="mb-5 text-[11px] leading-[1.5] text-muted">
+              {canAssignOther
+                ? 'Assignment and status changes are recorded.'
+                : 'Current ticket assignment.'}
+            </p>
             {ticketState === 'closed' ? (
-              <div className="ticket-closed-note">
+              <div className="grid gap-2 rounded-sm bg-surface-secondary p-[14px] text-xs">
                 <strong>Ticket closed</strong>
-                <span>
+                <span className="text-[11px] leading-[1.5] text-muted">
                   The requester confirmed the resolution. The conversation
                   remains available for reference.
                 </span>
               </div>
-            ) : (
+            ) : canAssignOther ? (
               <SelectField
                 label="Assignee"
                 onChange={(event) => {
@@ -319,12 +417,24 @@ export function TicketDetailPage({
                 value={assignee}
               >
                 <option>Unassigned</option>
-                {[currentUserName, 'Maya Singh', 'Mia Chen', 'Carlos Vega'].map(
-                  (name) => (
-                    <option key={name}>{name}</option>
-                  ),
-                )}
+                {[
+                  ...new Set([
+                    currentUserName,
+                    'Maya Singh',
+                    'Mia Chen',
+                    'Carlos Vega',
+                  ]),
+                ].map((name) => (
+                  <option key={name}>{name}</option>
+                ))}
               </SelectField>
+            ) : (
+              <div className="grid gap-2 rounded-sm bg-surface-secondary p-[14px] text-xs">
+                <strong>{assignee}</strong>
+                <span className="text-[11px] leading-[1.5] text-muted">
+                  Only organization administrators can reassign this ticket.
+                </span>
+              </div>
             )}
           </section>
         </aside>
