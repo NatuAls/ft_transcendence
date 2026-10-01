@@ -402,7 +402,7 @@ export function MessagesPage({
 
   return (
     <div
-      className={`mx-auto w-[calc(100%_-_48px)] max-w-[1480px] pt-8 pb-12 min-[1101px]:flex min-[1101px]:h-[calc(100dvh-80px)] min-[1101px]:flex-col md:max-[1100px]:flex md:max-[1100px]:h-[calc(100dvh-142px)] md:max-[1100px]:flex-col md:max-[1100px]:p-8 max-md:w-auto max-md:px-4 max-md:pt-0 max-md:pb-5 ${selected ? 'max-md:[&_.conversation-list]:hidden' : ''}`}
+      className={`mx-auto w-[calc(100%_-_48px)] max-w-[1480px] pt-8 pb-12 min-[1100px]:flex min-[1100px]:h-[calc(100dvh-80px)] min-[1100px]:flex-col md:max-[1100px]:flex md:max-[1100px]:h-[calc(100dvh-142px)] md:max-[1100px]:flex-col md:max-[1100px]:p-8 max-md:w-auto max-md:px-4 max-md:pt-0 max-md:pb-5 ${selected ? 'max-md:[&_.conversation-list]:hidden' : ''}`}
     >
       <header className="messages-heading shrink-0 max-[1100px]:hidden">
         <span className="text-[11px] tracking-[.08em] text-muted">
