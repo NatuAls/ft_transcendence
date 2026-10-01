@@ -20,6 +20,16 @@
   --color-success-surface: #e1ece5;
   --color-warning-surface: #efe9dc;
   --color-danger-surface: #f1e3e3;
+  /* Tamaños por debajo de text-xs (12px): la escala de Tailwind no llega ahí,
+     así que cada pantalla se los inventaba en píxeles absolutos. En rem siguen
+     el tamaño de letra que el lector tenga configurado en su navegador, igual
+     que ya hacen text-xs, text-sm y text-base en el resto de la interfaz.
+     Los valores son los mismos de antes: a 16px de raíz, 0.6875rem = 11px. */
+  --text-4xs: 0.5rem;
+  --text-3xs: 0.5625rem;
+  --text-2xs: 0.625rem;
+  --text-xs2: 0.6875rem;
+
   --font-sans:
     Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --radius-sm: 8px;

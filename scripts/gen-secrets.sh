@@ -13,7 +13,11 @@
 #  BACKUP_ENCRYPTION_KEY y todo el bloque de servidor (ENV_NAME, GHCR_OWNER,
 #  GITHUB_SHA, APP_VERSION, DB_*, CORS_ORIGINS, RCLONE_REMOTE). Esta versión:
 #
-#    1. Genera TODOS los secretos aleatorios, incluidos los nuevos.
+#    1. Genera TODOS los secretos aleatorios, incluidos los nuevos: los cuatro
+#       clásicos, METRICS_TOKEN, BACKUP_ENCRYPTION_KEY, el administrador
+#       principal (usuario y contraseña) y las dos puertas de la documentación
+#       (fichero de contraseñas del proxy y token compartido). El único valor
+#       que no se puede generar sigue siendo RCLONE_REMOTE.
 #    2. DEDUCE del repositorio lo que se puede deducir —propietario en GHCR,
 #       SHA del commit, versión— en vez de pedirlo a mano.
 #    3. Deriva CORS_ORIGINS del dominio del entorno.
@@ -218,6 +222,28 @@ command -v python3 > /dev/null || die "hace falta python3."
 # incomprensible. Con 48 bytes (96 caracteres hex) la entropía sobra.
 rand() { openssl rand -hex "${1:-32}"; }
 
+# Contraseña que cumple la política de la aplicación (10+ caracteres, con
+# mayúscula, minúscula, dígito y símbolo) SIN caracteres que se porten mal en
+# un fichero .env, en un YAML o en un `docker run -e`: el cuerpo es
+# hexadecimal y las cuatro clases las aportan el prefijo y el sufijo.
+password() { printf 'Hd-%s-A1!' "$(rand 12)"; }
+
+# Nombre de usuario del administrador principal. A propósito sin relación con
+# el proyecto ni con la palabra "admin": ese nombre lo ven los demás usuarios
+# en el buscador, en los tickets y en los comentarios.
+admin_username() { printf 'op-%s' "$(rand 4)"; }
+
+# Una línea de fichero de contraseñas de Nginx, con el hash ya calculado.
+#
+# `openssl passwd -6` (SHA-512 con sal) en vez de bcrypt porque openssl ya es
+# requisito de este script y el Nginx de la imagen (alpine/musl) lo acepta:
+# comprobado contra la imagen real. Con bcrypt haría falta `htpasswd`
+# (apache2-utils) o un contenedor de Apache, y este script se ejecuta también
+# donde no hay ni una cosa ni la otra.
+htpasswd_line() { # htpasswd_line <usuario> <contraseña>
+  printf '%s:%s' "$1" "$(openssl passwd -6 "$2")"
+}
+
 replace() { # replace <clave> <valor>  — sobre $ENV_FILE
   local key="$1" value="$2"
   python3 - "$ENV_FILE" "$key" "$value" <<'PY'
@@ -333,6 +359,18 @@ $(read_env BACKUP_ENCRYPTION_KEY)
 ${prefix}_METRICS_TOKEN
 $(read_env METRICS_TOKEN)
 
+${prefix}_DOCS_HTPASSWD
+$(read_env DOCS_HTPASSWD | sed "s/^'//; s/'\$//")
+
+${prefix}_DOCS_GATEWAY_TOKEN
+$(read_env DOCS_GATEWAY_TOKEN)
+
+${prefix}_BOOTSTRAP_ADMIN_USERNAME
+$(read_env BOOTSTRAP_ADMIN_USERNAME)
+
+${prefix}_BOOTSTRAP_ADMIN_PASSWORD
+$(read_env BOOTSTRAP_ADMIN_PASSWORD)
+
 --- Pestaña VARIABLES (no sensibles, visibles en los logs) -------------------
 
 ${prefix}_CORS_ORIGINS
@@ -349,6 +387,15 @@ $(read_env MAIL_FROM | tr -d '"')
 
 ${prefix}_RCLONE_REMOTE
 $(read_env RCLONE_REMOTE || true)$( [ -z "$(read_env RCLONE_REMOTE || true)" ] && printf '<-- VACÍO: ver  bash scripts/gen-secrets.sh --rclone-help' || true )
+
+${prefix}_DOCS_ACCESS
+gateway
+
+${prefix}_BOOTSTRAP_ADMIN_DISPLAY_NAME
+$(read_env BOOTSTRAP_ADMIN_DISPLAY_NAME)
+
+${prefix}_BOOTSTRAP_ADMIN_ROTATE
+0
 
 --- No dependen del entorno (se definen una sola vez) ------------------------
 
@@ -471,6 +518,35 @@ replace BACKUP_RETENTION_DAYS "14"
 # claro con datos personales en el disco de la instancia.
 replace BACKUP_ENCRYPTION_KEY "$(rand 48)"
 
+# -----------------------------------------------------------------------------
+#  C) Administrador principal y puertas de la documentación
+#
+#  Se generan aquí para que un arranque desde cero —sin pipeline— tenga
+#  administrador y documentación protegida sin ir a buscar nada a mano. Son los
+#  únicos secretos que el equipo va a TECLEAR (uno para entrar, otro para la
+#  documentación), así que el script los resume al final en claro.
+# -----------------------------------------------------------------------------
+ADMIN_USER="$(admin_username)"
+ADMIN_PASS="$(password)"
+DOCS_USER="docs"
+DOCS_PASS="$(password)"
+
+replace BOOTSTRAP_ADMIN_USERNAME     "$ADMIN_USER"
+replace BOOTSTRAP_ADMIN_PASSWORD     "$ADMIN_PASS"
+replace BOOTSTRAP_ADMIN_DISPLAY_NAME "Administración"
+replace BOOTSTRAP_ADMIN_ROTATE       "0"
+
+replace DOCS_GATEWAY_TOKEN "$(rand 32)"
+# En desarrollo no hay proxy delante de la API: con `gateway` la documentación
+# quedaría inalcanzable desde el navegador.
+case "$ENV_NAME" in
+  dev) replace DOCS_ACCESS "public" ;;
+  *)   replace DOCS_ACCESS "gateway" ;;
+esac
+# El hash lleva '$'. Va entre comillas SIMPLES porque el despliegue local carga
+# este fichero con `.` y el shell expandiría lo que viene detrás del dólar.
+replace DOCS_HTPASSWD "'$(htpasswd_line "$DOCS_USER" "$DOCS_PASS")'"
+
 # ÚNICO valor que este script no puede rellenar: depende de un bucket que hay
 # que crear y de unas credenciales que emite la consola de Oracle.
 replace RCLONE_REMOTE ""
@@ -523,6 +599,16 @@ printf '  %-22s %s\n' "GHCR_OWNER"  "$(read_env GHCR_OWNER)"
 printf '  %-22s %s\n' "GITHUB_SHA"  "$(read_env GITHUB_SHA)"
 printf '  %-22s %s\n' "APP_VERSION" "$(read_env APP_VERSION)"
 printf '  %-22s %s\n' "CORS_ORIGINS" "$(read_env CORS_ORIGINS)"
+
+c_head "APÚNTALAS AHORA (son las únicas que se teclean, y una no se puede recuperar)"
+printf '  Administrador principal\n'
+printf '    entrar con ....... %s@helpdesk.invalid\n' "$(read_env BOOTSTRAP_ADMIN_USERNAME)"
+printf '    contraseña ....... %s\n' "$(read_env BOOTSTRAP_ADMIN_PASSWORD)"
+printf '  Documentación de la API (/api/v1/docs, sólo staging y producción)\n'
+printf '    usuario .......... %s\n' "$DOCS_USER"
+printf '    contraseña ....... %s\n' "$DOCS_PASS"
+c_warn "  La del administrador está en el .env; la de la documentación NO: el .env"
+c_warn "  sólo guarda su hash. Si no la apuntas ahora, hay que volver a generarla."
 
 c_head "PENDIENTE de rellenar a mano"
 c_warn "  RCLONE_REMOTE está vacío. Es el único valor que no se puede generar:"

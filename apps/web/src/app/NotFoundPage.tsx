@@ -6,7 +6,7 @@ export function NotFoundPage({ onBack }: { onBack: () => void }) {
       className="grid min-h-[calc(100dvh-72px)] place-content-center justify-items-center p-8 text-center"
       aria-labelledby="not-found-title"
     >
-      <span className="text-[13px] font-semibold tracking-[.12em] text-primary">
+      <span className="text-[0.8125rem] font-semibold tracking-[.12em] text-primary">
         404
       </span>
       <h1

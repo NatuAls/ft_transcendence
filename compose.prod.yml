@@ -90,6 +90,17 @@ services:
       # no hace nada. La inyecta el pipeline desde la variable de repositorio
       # STAGING_BOOTSTRAP_ADMIN_EMAIL / PROD_BOOTSTRAP_ADMIN_EMAIL.
       - BOOTSTRAP_ADMIN_EMAIL=${BOOTSTRAP_ADMIN_EMAIL:-}
+      # Primer administrador: si además llegan usuario y contraseña, el
+      # arranque CREA la cuenta en vez de limitarse a promocionar una
+      # existente. La contraseña es un secreto del despliegue.
+      - BOOTSTRAP_ADMIN_USERNAME=${BOOTSTRAP_ADMIN_USERNAME:-}
+      - BOOTSTRAP_ADMIN_PASSWORD=${BOOTSTRAP_ADMIN_PASSWORD:-}
+      - BOOTSTRAP_ADMIN_DISPLAY_NAME=${BOOTSTRAP_ADMIN_DISPLAY_NAME:-}
+      - BOOTSTRAP_ADMIN_ROTATE=${BOOTSTRAP_ADMIN_ROTATE:-0}
+      # Documentación de la API: por defecto sólo se sirve a quien venga por
+      # el proxy autenticado (ver modules/openapi/docs-access.ts).
+      - DOCS_ACCESS=${DOCS_ACCESS:-gateway}
+      - DOCS_GATEWAY_TOKEN=${DOCS_GATEWAY_TOKEN:-}
       # Correo del entorno. El servicio `mailpit` de abajo existe en la red
       # interna: con SMTP_HOST=mailpit (el valor por defecto) los correos de
       # verificación, recuperación, invitación y RGPD salen de verdad y se
@@ -158,6 +169,18 @@ services:
     container_name: helpdesk-web-${ENV_NAME:-prod}
     restart: always
     logging: *default-logging
+    # Las puertas de la documentación. Los tres ficheros los escribe
+    # scripts/deploy/remote-deploy.sh en cada despliegue a partir de secretos:
+    # sólo existen en el disco de este servidor, nunca en el repositorio ni
+    # dentro de la imagen, y se montan de SÓLO LECTURA.
+    volumes:
+      # El fichero de contraseñas se monta en /run/docs porque en el disco del
+      # servidor es 600 del usuario del despliegue: los procesos de trabajo de
+      # Nginx (uid 101) no pueden leerlo ahí. El entrypoint de la imagen
+      # (40-docs-auth.sh) lo instala en /etc/nginx/.htpasswd con su dueño.
+      - ./nginx/.htpasswd:/run/docs/.htpasswd:ro
+      - ./nginx/docs-auth.inc:/etc/nginx/conf.d/docs-auth.inc:ro
+      - ./nginx/docs-gateway.inc:/etc/nginx/conf.d/docs-gateway.inc:ro
     networks:
       - backend_network
       - proxy-tier

@@ -54,10 +54,10 @@ export function PeoplePage({
   return (
     <div className="mx-auto max-w-[1160px] p-10 max-md:px-4 max-md:py-6">
       <header>
-        <span className="text-[11px] tracking-[.08em] text-muted max-md:hidden">
+        <span className="text-xs2 tracking-[.08em] text-muted max-md:hidden">
           DIRECTORY
         </span>
-        <h1 className="my-2 text-[30px] font-medium max-md:text-[22px]">
+        <h1 className="my-2 text-[1.875rem] font-medium max-md:text-[1.375rem]">
           People
         </h1>
         <p className="text-sm text-muted max-md:text-xs">
@@ -91,14 +91,14 @@ export function PeoplePage({
         ).map(([value, label]) => (
           <button
             aria-current={tab === value ? 'page' : undefined}
-            className={`flex items-center gap-[7px] border-b-2 px-[18px] py-3 text-[13px] max-md:px-[7px] max-md:py-[11px] max-md:text-[11px] ${tab === value ? 'border-primary text-primary' : 'border-transparent text-muted'}`}
+            className={`flex items-center gap-[7px] border-b-2 px-[18px] py-3 text-[0.8125rem] max-md:px-[7px] max-md:py-[11px] max-md:text-xs2 ${tab === value ? 'border-primary text-primary' : 'border-transparent text-muted'}`}
             key={value}
             onClick={() => setTab(value)}
             type="button"
           >
             {label}
             {value === 'requests' && (
-              <small className="inline-flex items-center rounded-full bg-[#e9dfd0] px-[7px] py-0.5 text-[9px] leading-none text-warning max-md:hidden">
+              <small className="inline-flex items-center rounded-full bg-[#e9dfd0] px-[7px] py-0.5 text-3xs leading-none text-warning max-md:hidden">
                 {pendingRequests.length} pending
               </small>
             )}
@@ -111,7 +111,7 @@ export function PeoplePage({
       {feedback ? (
         <Alert
           aria-live="polite"
-          className="mb-[14px] !py-2.5 !text-[11px] !text-muted"
+          className="mb-[14px] !py-2.5 !text-xs2 !text-muted"
           role="status"
           tone="success"
         >
@@ -141,7 +141,7 @@ export function PeoplePage({
                   />
                 </button>
                 <span
-                  className={`inline-flex items-center gap-[5px] text-[10px] before:size-1.5 before:rounded-full before:bg-current before:content-[''] max-md:absolute max-md:-top-2 max-md:-left-1 max-md:rounded-full max-md:bg-surface max-md:px-1 max-md:py-0.5 max-md:text-[8px] ${person.status === 'Online' ? 'text-success' : person.status === 'Away' ? 'text-warning' : 'text-muted'}`}
+                  className={`inline-flex items-center gap-[5px] text-2xs before:size-1.5 before:rounded-full before:bg-current before:content-[''] max-md:absolute max-md:-top-2 max-md:-left-1 max-md:rounded-full max-md:bg-surface max-md:px-1 max-md:py-0.5 max-md:text-4xs ${person.status === 'Online' ? 'text-success' : person.status === 'Away' ? 'text-warning' : 'text-muted'}`}
                 >
                   {person.status}
                 </span>
@@ -154,13 +154,13 @@ export function PeoplePage({
                 <h2 className="mt-[14px] mb-[5px] text-base font-medium max-md:m-0 max-md:mb-1 max-md:text-sm">
                   {person.name}
                 </h2>
-                <p className="min-h-9 text-[11px] text-muted max-md:min-h-0 max-md:text-[10px]">
+                <p className="min-h-9 text-xs2 text-muted max-md:min-h-0 max-md:text-2xs">
                   {person.role} · {person.team}
                 </p>
               </button>
               <footer className="mt-4 flex items-center justify-between border-t border-border pt-[14px] max-md:m-0 max-md:border-0 max-md:p-0 max-md:[&_.ui-button]:!min-h-[34px] max-md:[&_.ui-button]:!min-w-[75px] max-md:[&_.ui-button]:!px-[9px]">
                 <button
-                  className="text-[11px] text-primary max-md:hidden"
+                  className="text-xs2 text-primary max-md:hidden"
                   onClick={() => onOpenProfile(person.name)}
                   type="button"
                 >
@@ -179,11 +179,11 @@ export function PeoplePage({
                     </Button>
                   </div>
                 ) : isConnected ? (
-                  <span className="rounded-sm bg-surface-secondary px-3 py-[9px] text-[11px] text-muted">
+                  <span className="rounded-sm bg-surface-secondary px-3 py-[9px] text-xs2 text-muted">
                     Connected
                   </span>
                 ) : isPending ? (
-                  <span className="rounded-sm bg-warning-surface px-3 py-[9px] text-[11px] text-warning">
+                  <span className="rounded-sm bg-warning-surface px-3 py-[9px] text-xs2 text-warning">
                     Pending
                   </span>
                 ) : (
@@ -238,7 +238,7 @@ export function PeoplePage({
                       />
                     </button>
                     <span
-                      className={`inline-flex items-center gap-[5px] text-[10px] before:size-1.5 before:rounded-full before:bg-current before:content-[''] max-md:absolute max-md:-top-2 max-md:-left-1 max-md:rounded-full max-md:bg-surface max-md:px-1 max-md:py-0.5 max-md:text-[8px] ${person.status === 'Online' ? 'text-success' : person.status === 'Away' ? 'text-warning' : 'text-muted'}`}
+                      className={`inline-flex items-center gap-[5px] text-2xs before:size-1.5 before:rounded-full before:bg-current before:content-[''] max-md:absolute max-md:-top-2 max-md:-left-1 max-md:rounded-full max-md:bg-surface max-md:px-1 max-md:py-0.5 max-md:text-4xs ${person.status === 'Online' ? 'text-success' : person.status === 'Away' ? 'text-warning' : 'text-muted'}`}
                     >
                       {person.status}
                     </span>
@@ -251,19 +251,19 @@ export function PeoplePage({
                     <h3 className="mt-[14px] mb-[5px] text-base font-medium max-md:m-0 max-md:mb-1 max-md:text-sm">
                       {person.name}
                     </h3>
-                    <p className="min-h-9 text-[11px] text-muted max-md:min-h-0 max-md:text-[10px]">
+                    <p className="min-h-9 text-xs2 text-muted max-md:min-h-0 max-md:text-2xs">
                       {person.role} · {person.team}
                     </p>
                   </button>
                   <footer className="mt-4 flex items-center justify-between border-t border-border pt-[14px] max-md:m-0 max-md:border-0 max-md:p-0">
                     <button
-                      className="text-[11px] text-primary max-md:hidden"
+                      className="text-xs2 text-primary max-md:hidden"
                       onClick={() => onOpenProfile(person.name)}
                       type="button"
                     >
                       View profile
                     </button>
-                    <span className="rounded-sm bg-warning-surface px-3 py-[9px] text-[11px] text-warning">
+                    <span className="rounded-sm bg-warning-surface px-3 py-[9px] text-xs2 text-warning">
                       Pending
                     </span>
                   </footer>

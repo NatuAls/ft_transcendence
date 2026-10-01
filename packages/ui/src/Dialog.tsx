@@ -108,7 +108,7 @@ export function Dialog({
         <header className="flex shrink-0 items-start justify-between gap-4 px-6 pt-6 pb-4 max-[560px]:px-4">
           <div>
             {eyebrow ? (
-              <span className="text-[10px] font-medium tracking-[0.08em] text-muted">
+              <span className="text-2xs font-medium tracking-[0.08em] text-muted">
                 {eyebrow}
               </span>
             ) : null}
@@ -126,7 +126,7 @@ export function Dialog({
           </div>
           <button
             aria-label="Close dialog"
-            className="grid size-9 shrink-0 place-items-center rounded-sm border-0 bg-surface-secondary text-[22px] text-ink"
+            className="grid size-9 shrink-0 place-items-center rounded-sm border-0 bg-surface-secondary text-[1.375rem] text-ink"
             onClick={onClose}
             type="button"
           >

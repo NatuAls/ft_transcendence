@@ -30,23 +30,23 @@ export function PublicProfilePage({
       <section className="mt-7 grid grid-cols-[84px_1fr_auto] items-center rounded-md border border-border bg-surface p-[30px] max-md:mt-0 max-md:flex max-md:flex-col max-md:p-6 max-md:text-center">
         <Avatar
           alt={person.name}
-          className="!size-16 !basis-16 !text-[17px]"
+          className="!size-16 !basis-16 !text-[1.0625rem]"
           initials={person.initials}
           online={person.status === 'Online'}
         />
         <div>
-          <h1 className="mb-[5px] text-[26px] font-medium max-md:mt-3 max-md:text-[22px]">
+          <h1 className="mb-[5px] text-[1.625rem] font-medium max-md:mt-3 max-md:text-[1.375rem]">
             {person.name}
           </h1>
           <p className="mb-2 text-xs text-muted">
             {person.role} · Northstar Studio
           </p>
           <span
-            className={`inline-flex items-center gap-[5px] text-[10px] before:size-1.5 before:rounded-full before:bg-current before:content-[''] ${person.status === 'Online' ? 'text-success' : person.status === 'Away' ? 'text-warning' : 'text-muted'}`}
+            className={`inline-flex items-center gap-[5px] text-2xs before:size-1.5 before:rounded-full before:bg-current before:content-[''] ${person.status === 'Online' ? 'text-success' : person.status === 'Away' ? 'text-warning' : 'text-muted'}`}
           >
             {person.status}
           </span>
-          <p className="mt-4 max-w-[620px] text-[13px] leading-[1.55] text-muted max-md:mt-[14px] max-md:text-center max-md:text-[11px]">
+          <p className="mt-4 max-w-[620px] text-[0.8125rem] leading-[1.55] text-muted max-md:mt-[14px] max-md:text-center max-md:text-xs2">
             Helping people get unstuck through clear communication and
             dependable support.
           </p>
@@ -78,23 +78,21 @@ export function PublicProfilePage({
           <h2 className="mb-5 text-base font-medium">About</h2>
           <dl className="grid grid-cols-2 gap-5">
             <div>
-              <dt className="text-[9px] tracking-[.06em] text-muted">
+              <dt className="text-3xs tracking-[.06em] text-muted">
                 JOB TITLE
               </dt>
               <dd className="mt-[5px] text-xs">{person.role}</dd>
             </div>
             <div>
-              <dt className="text-[9px] tracking-[.06em] text-muted">TEAM</dt>
+              <dt className="text-3xs tracking-[.06em] text-muted">TEAM</dt>
               <dd className="mt-[5px] text-xs">{person.team}</dd>
             </div>
             <div>
-              <dt className="text-[9px] tracking-[.06em] text-muted">
-                LOCATION
-              </dt>
+              <dt className="text-3xs tracking-[.06em] text-muted">LOCATION</dt>
               <dd className="mt-[5px] text-xs">Barcelona, Spain</dd>
             </div>
             <div>
-              <dt className="text-[9px] tracking-[.06em] text-muted">
+              <dt className="text-3xs tracking-[.06em] text-muted">
                 MEMBER SINCE
               </dt>
               <dd className="mt-[5px] text-xs">August 2026</dd>
@@ -103,12 +101,12 @@ export function PublicProfilePage({
         </section>
         <aside className="rounded-md border border-border bg-surface p-[25px] max-md:hidden">
           <h2 className="mb-5 text-base font-medium">Shared context</h2>
-          <p className="text-[11px] text-muted">
+          <p className="text-xs2 text-muted">
             Information relevant to your connection.
           </p>
           <dl className="my-5 grid grid-cols-1 gap-[13px]">
             <div>
-              <dt className="text-[9px] tracking-[.06em] text-muted">
+              <dt className="text-3xs tracking-[.06em] text-muted">
                 Connection
               </dt>
               <dd className="mt-[5px] text-xs">
@@ -120,21 +118,19 @@ export function PublicProfilePage({
               </dd>
             </div>
             <div>
-              <dt className="text-[9px] tracking-[.06em] text-muted">
+              <dt className="text-3xs tracking-[.06em] text-muted">
                 Organization
               </dt>
               <dd className="mt-[5px] text-xs">Northstar Studio</dd>
             </div>
             <div>
-              <dt className="text-[9px] tracking-[.06em] text-muted">
+              <dt className="text-3xs tracking-[.06em] text-muted">
                 Online state
               </dt>
               <dd className="mt-[5px] text-xs">Visible</dd>
             </div>
             <div>
-              <dt className="text-[9px] tracking-[.06em] text-muted">
-                Messages
-              </dt>
+              <dt className="text-3xs tracking-[.06em] text-muted">Messages</dt>
               <dd className="mt-[5px] text-xs">12 shared messages</dd>
             </div>
           </dl>

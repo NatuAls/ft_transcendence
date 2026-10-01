@@ -87,7 +87,7 @@ function NavButton({
       aria-current={active ? 'page' : undefined}
       className={`flex items-center border-0 bg-transparent font-[inherit] text-inherit ${
         mobile
-          ? 'min-h-0 flex-col justify-center gap-1 rounded-none p-[5px] text-center text-[11px] text-muted'
+          ? 'min-h-0 flex-col justify-center gap-1 rounded-none p-[5px] text-center text-xs2 text-muted'
           : 'min-h-12 gap-[14px] rounded-[10px] px-[14px] text-left'
       } ${active ? (mobile ? '!text-primary' : 'bg-white/12 text-white') : ''}`}
       onClick={onClick}
@@ -152,7 +152,7 @@ export function AppShell({
           <span>HelpDesk Lite</span>
         </button>
         <nav aria-label="Main navigation" className="grid gap-1.5">
-          <span className="px-3 pb-1 text-[10px] tracking-[.08em] text-[#a9b9ba]">
+          <span className="px-3 pb-1 text-2xs tracking-[.08em] text-[#a9b9ba]">
             ORGANIZATION
           </span>
           {workspaceNavigation.map((item) => (
@@ -171,7 +171,7 @@ export function AppShell({
           ))}
           {showAdministration ? (
             <>
-              <span className="mt-5 px-3 pb-1 text-[10px] tracking-[.08em] text-[#a9b9ba]">
+              <span className="mt-5 px-3 pb-1 text-2xs tracking-[.08em] text-[#a9b9ba]">
                 PLATFORM
               </span>
               {platformNavigation.map((item) => (
@@ -238,7 +238,7 @@ export function AppShell({
                   type="button"
                 >
                   <span className="grid gap-0.5">
-                    <small className="text-[9px] tracking-[.06em] text-muted">
+                    <small className="text-3xs tracking-[.06em] text-muted">
                       ACTIVE ORGANIZATION
                     </small>
                     <strong className="text-sm font-medium">
@@ -249,7 +249,7 @@ export function AppShell({
                 </button>
               ) : (
                 <span className="grid gap-0.5 px-2 py-1">
-                  <small className="text-[9px] tracking-[.06em] text-muted">
+                  <small className="text-3xs tracking-[.06em] text-muted">
                     ACTIVE ORGANIZATION
                   </small>
                   <strong className="text-sm font-medium">
@@ -291,7 +291,7 @@ export function AppShell({
               ) : null}
             </div>
             {previewMode ? (
-              <span className="rounded-full bg-surface-secondary px-[9px] py-[5px] text-[10px] text-muted">
+              <span className="rounded-full bg-surface-secondary px-[9px] py-[5px] text-2xs text-muted">
                 Frontend preview · local data
               </span>
             ) : null}

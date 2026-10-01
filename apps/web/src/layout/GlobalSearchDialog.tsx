@@ -131,8 +131,10 @@ export function GlobalSearchDialog({
             onClick={() => navigate(item.route, item.params)}
             type="button"
           >
-            <strong className="col-start-1 text-[13px]">{item.label}</strong>
-            <span className="col-start-1 text-[11px] text-muted">
+            <strong className="col-start-1 text-[0.8125rem]">
+              {item.label}
+            </strong>
+            <span className="col-start-1 text-xs2 text-muted">
               {item.description}
             </span>
             <Icon

@@ -129,12 +129,12 @@ export function RegisterPage({ onSignIn, onSubmit }: RegisterPageProps) {
             aria-labelledby="benefits-heading"
           >
             <h2
-              className="mb-[21px] text-[11px] font-medium text-[#bfd8cf] uppercase"
+              className="mb-[21px] text-xs2 font-medium text-[#bfd8cf] uppercase"
               id="benefits-heading"
             >
               Built for clarity
             </h2>
-            <ul className="grid list-none gap-[15px] p-0 text-[13px] text-[#f7faf8] [&_li]:flex [&_li]:items-center [&_li]:gap-3 [&_li]:before:grid [&_li]:before:size-5 [&_li]:before:shrink-0 [&_li]:before:place-items-center [&_li]:before:rounded-full [&_li]:before:bg-[#bfd8cf] [&_li]:before:text-[11px] [&_li]:before:font-medium [&_li]:before:text-[#183039] [&_li]:before:content-['✓']">
+            <ul className="grid list-none gap-[15px] p-0 text-[0.8125rem] text-[#f7faf8] [&_li]:flex [&_li]:items-center [&_li]:gap-3 [&_li]:before:grid [&_li]:before:size-5 [&_li]:before:shrink-0 [&_li]:before:place-items-center [&_li]:before:rounded-full [&_li]:before:bg-[#bfd8cf] [&_li]:before:text-xs2 [&_li]:before:font-medium [&_li]:before:text-[#183039] [&_li]:before:content-['✓']">
               <li>One request, one clear owner</li>
               <li>Visible status at every step</li>
               <li>Your data stays under your control</li>
@@ -148,10 +148,10 @@ export function RegisterPage({ onSignIn, onSubmit }: RegisterPageProps) {
           <BrandHeader />
         </div>
         <header className="mx-4 mt-[39px] mb-[22px] md:hidden">
-          <h1 className="text-[28px] leading-[1.2] font-medium">
+          <h1 className="text-[1.75rem] leading-[1.2] font-medium">
             Create your account
           </h1>
-          <p className="mt-2.5 text-[13px] leading-[1.45] text-muted">
+          <p className="mt-2.5 text-[0.8125rem] leading-[1.45] text-muted">
             Register to report issues and follow their resolution.
           </p>
         </header>
@@ -161,16 +161,16 @@ export function RegisterPage({ onSignIn, onSubmit }: RegisterPageProps) {
           aria-labelledby="register-heading"
         >
           <header className="mb-8 hidden md:block">
-            <p className="mb-[17px] text-[11px] font-medium tracking-[.01em] text-primary uppercase">
+            <p className="mb-[17px] text-xs2 font-medium tracking-[.01em] text-primary uppercase">
               Create your account
             </p>
             <h1
-              className="text-[28px] leading-[1.2] font-medium"
+              className="text-[1.75rem] leading-[1.2] font-medium"
               id="register-heading"
             >
               Start with HelpDesk Lite
             </h1>
-            <p className="mt-2.5 text-[13px] leading-[1.45] text-muted">
+            <p className="mt-2.5 text-[0.8125rem] leading-[1.45] text-muted">
               Your account starts as a standard user.
             </p>
           </header>
@@ -207,7 +207,7 @@ export function RegisterPage({ onSignIn, onSubmit }: RegisterPageProps) {
                 onChange={handleChange(setUsername)}
                 required
               />
-              <p className="mt-[5px] text-[11px] leading-[1.4] text-muted">
+              <p className="mt-[5px] text-xs2 leading-[1.4] text-muted">
                 Choose carefully: your username cannot be changed later.
               </p>
             </div>
@@ -236,14 +236,14 @@ export function RegisterPage({ onSignIn, onSubmit }: RegisterPageProps) {
                 />
                 <button
                   type="button"
-                  className="absolute right-3 bottom-0 flex h-12 items-center border-0 bg-transparent px-1 text-[11px] font-medium text-muted hover:text-primary hover:underline md:h-[52px] md:text-xs"
+                  className="absolute right-3 bottom-0 flex h-12 items-center border-0 bg-transparent px-1 text-xs2 font-medium text-muted hover:text-primary hover:underline md:h-[52px] md:text-xs"
                   onClick={() => setShowPassword(!showPassword)}
                   tabIndex={-1} // Evita que el usuario caiga aquí accidentalmente al usar la tecla Tab
                 >
                   {showPassword ? 'Hide' : 'Show'}
                 </button>
               </div>
-              <ul className="mt-2 grid list-none gap-1 p-0 text-[11px]">
+              <ul className="mt-2 grid list-none gap-1 p-0 text-xs2">
                 <li
                   className={`flex items-center gap-1.5 ${hasMinLength ? 'font-bold text-success' : 'text-muted'}`}
                 >
@@ -285,7 +285,7 @@ export function RegisterPage({ onSignIn, onSubmit }: RegisterPageProps) {
                 />
                 <button
                   type="button"
-                  className="absolute right-3 bottom-0 flex h-12 items-center border-0 bg-transparent px-1 text-[11px] font-medium text-muted hover:text-primary hover:underline md:h-[52px] md:text-xs"
+                  className="absolute right-3 bottom-0 flex h-12 items-center border-0 bg-transparent px-1 text-xs2 font-medium text-muted hover:text-primary hover:underline md:h-[52px] md:text-xs"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   tabIndex={-1} // Evita que el usuario caiga aquí accidentalmente al usar la tecla Tab
                 >
@@ -293,11 +293,11 @@ export function RegisterPage({ onSignIn, onSubmit }: RegisterPageProps) {
                 </button>
               </div>
               {matchError && (
-                <p className="mt-1 text-[11px] text-danger">✗ {matchError}</p>
+                <p className="mt-1 text-xs2 text-danger">✗ {matchError}</p>
               )}
             </div>
             <Checkbox
-              className="items-start text-xs leading-[1.65] text-ink md:items-center md:text-[13px] md:text-muted [&_a]:text-inherit"
+              className="items-start text-xs leading-[1.65] text-ink md:items-center md:text-[0.8125rem] md:text-muted [&_a]:text-inherit"
               label={
                 <>
                   I accept the <a href="#terms">Terms of Service</a> and{' '}
@@ -325,7 +325,7 @@ export function RegisterPage({ onSignIn, onSubmit }: RegisterPageProps) {
             </Button>
           </form>
 
-          <div className="mt-6 flex justify-between gap-3 text-[13px] text-muted md:mt-[31px] md:justify-center [&_a]:font-medium [&_a]:text-primary [&_a]:no-underline hover:[&_a]:underline">
+          <div className="mt-6 flex justify-between gap-3 text-[0.8125rem] text-muted md:mt-[31px] md:justify-center [&_a]:font-medium [&_a]:text-primary [&_a]:no-underline hover:[&_a]:underline">
             <span>Already have an account?</span>
             <a
               href="#login"

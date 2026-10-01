@@ -22,7 +22,7 @@ export function AuthBrandPanel({
       <div className="auth-brand-enter">
         <BrandHeader inverse />
         <div className="mt-[123px]">
-          <h1 className="text-[40px] leading-[1.2] font-medium">{title}</h1>
+          <h1 className="text-[2.5rem] leading-[1.2] font-medium">{title}</h1>
           <p className="mt-[47px] max-w-[420px] text-base leading-[1.2] text-[#c9d5d3]">
             {description}
           </p>
@@ -45,7 +45,7 @@ export function BrandHeader({
 }) {
   return (
     <div
-      className={`flex items-center gap-3 font-medium ${inverse ? 'text-xl' : 'text-[15px]'}`}
+      className={`flex items-center gap-3 font-medium ${inverse ? 'text-xl' : 'text-[0.9375rem]'}`}
     >
       {mark ? (
         <BrandMark className={inverse ? '' : '!size-9 !rounded-[10px]'} />

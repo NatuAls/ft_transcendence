@@ -178,13 +178,13 @@ export function LegalPage({
           >
             ← Back to HelpDesk Lite
           </button>
-          <span className="mt-6 text-[9px] tracking-[.08em] text-muted max-md:hidden">
+          <span className="mt-6 text-3xs tracking-[.08em] text-muted max-md:hidden">
             ON THIS PAGE
           </span>
           {page.sections.map(([title]) => (
             <button
               key={title}
-              className="p-0 text-left text-[11px] text-muted max-md:hidden"
+              className="p-0 text-left text-xs2 text-muted max-md:hidden"
               onClick={() =>
                 document
                   .getElementById(`legal-${title.replaceAll(' ', '-')}`)
@@ -197,13 +197,15 @@ export function LegalPage({
           ))}
         </aside>
         <main className="max-w-[720px]">
-          <span className="mt-6 text-[9px] tracking-[.08em] text-muted">
+          <span className="mt-6 text-3xs tracking-[.08em] text-muted">
             LEGAL · LAST UPDATED {LAST_UPDATED.toUpperCase()}
           </span>
-          <h1 className="my-3 text-4xl font-medium max-md:text-[28px]">
+          <h1 className="my-3 text-4xl font-medium max-md:text-[1.75rem]">
             {page.label}
           </h1>
-          <p className="text-[15px] leading-[1.7] text-muted">{page.intro}</p>
+          <p className="text-[0.9375rem] leading-[1.7] text-muted">
+            {page.intro}
+          </p>
           {page.sections.map(([title, copy], i) => (
             <section
               className="mt-9 scroll-mt-6 max-md:mt-[26px]"
@@ -214,9 +216,11 @@ export function LegalPage({
                 {i + 1}. {title}
               </h2>
               {typeof copy === 'string' ? (
-                <p className="text-[13px] leading-[1.8] text-muted">{copy}</p>
+                <p className="text-[0.8125rem] leading-[1.8] text-muted">
+                  {copy}
+                </p>
               ) : (
-                <ul className="text-[13px] leading-[1.8] text-muted">
+                <ul className="text-[0.8125rem] leading-[1.8] text-muted">
                   {copy.map((item) => (
                     <li key={item}>{item}</li>
                   ))}

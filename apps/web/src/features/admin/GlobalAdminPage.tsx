@@ -69,11 +69,11 @@ export function GlobalAdminPage() {
     <div className="mx-auto max-w-[1200px] p-9 max-[1000px]:px-[18px] max-[1000px]:py-6">
       <section className="flex justify-between">
         <div>
-          <span className="text-[10px] tracking-[.08em] text-muted">
+          <span className="text-2xs tracking-[.08em] text-muted">
             PLATFORM ADMINISTRATION
           </span>
-          <h1 className="my-2 text-[30px] font-medium">Users</h1>
-          <p className="text-[13px] leading-[1.2] text-muted">
+          <h1 className="my-2 text-[1.875rem] font-medium">Users</h1>
+          <p className="text-[0.8125rem] leading-[1.2] text-muted">
             Manage platform accounts, organization access and account state.
           </p>
         </div>
@@ -103,8 +103,8 @@ export function GlobalAdminPage() {
             className="grid gap-[5px] rounded-md border border-border bg-surface p-[18px]"
             key={l}
           >
-            <strong className="text-[22px]">{v}</strong>
-            <span className="text-[10px] text-muted">{l}</span>
+            <strong className="text-[1.375rem]">{v}</strong>
+            <span className="text-2xs text-muted">{l}</span>
           </article>
         ))}
       </section>
@@ -112,7 +112,7 @@ export function GlobalAdminPage() {
         {feedback ? (
           <Alert
             aria-live="polite"
-            className="!rounded-none !border-0 !border-l-[3px] !py-2.5 !text-[11px] !text-muted"
+            className="!rounded-none !border-0 !border-l-[3px] !py-2.5 !text-xs2 !text-muted"
             role="status"
             tone="success"
           >
@@ -159,7 +159,7 @@ export function GlobalAdminPage() {
             <option value="Invitation pending">Invitation pending</option>
           </SelectField>
         </header>
-        <div className="grid w-full grid-cols-[2fr_1fr_1fr_1fr_25px] items-center gap-2.5 border-t border-border bg-surface-secondary px-[18px] py-[13px] text-left text-[9px] text-muted max-[1000px]:grid-cols-[2fr_1fr_1fr_20px] max-[1000px]:[&>span:nth-child(2)]:hidden">
+        <div className="grid w-full grid-cols-[2fr_1fr_1fr_1fr_25px] items-center gap-2.5 border-t border-border bg-surface-secondary px-[18px] py-[13px] text-left text-3xs text-muted max-[1000px]:grid-cols-[2fr_1fr_1fr_20px] max-[1000px]:[&>span:nth-child(2)]:hidden">
           <span>USER</span>
           <span>ORGANIZATION</span>
           <span>GLOBAL ROLE</span>
@@ -169,7 +169,7 @@ export function GlobalAdminPage() {
         {filteredUsers.map((user) => (
           <button
             aria-label={`Edit ${user[1]}`}
-            className="grid w-full grid-cols-[2fr_1fr_1fr_1fr_25px] items-center gap-2.5 border-t border-border px-[18px] py-[13px] text-left text-[11px] max-[1000px]:grid-cols-[2fr_1fr_1fr_20px] max-[1000px]:[&>span:nth-child(2)]:hidden"
+            className="grid w-full grid-cols-[2fr_1fr_1fr_1fr_25px] items-center gap-2.5 border-t border-border px-[18px] py-[13px] text-left text-xs2 max-[1000px]:grid-cols-[2fr_1fr_1fr_20px] max-[1000px]:[&>span:nth-child(2)]:hidden"
             key={user[1]}
             onClick={() => {
               if (user[5] === 'Invitation pending') return;
@@ -180,18 +180,18 @@ export function GlobalAdminPage() {
             type="button"
           >
             <span className="flex items-center gap-2.5">
-              <b className="grid size-8 place-items-center rounded-full bg-[#d8e5df] text-[9px] text-primary">
+              <b className="grid size-8 place-items-center rounded-full bg-[#d8e5df] text-3xs text-primary">
                 {user[0]}
               </b>
               <span className="grid">
-                <strong className="text-[11px]">{user[1]}</strong>
-                <small className="text-[9px] text-muted">{user[2]}</small>
+                <strong className="text-xs2">{user[1]}</strong>
+                <small className="text-3xs text-muted">{user[2]}</small>
               </span>
             </span>
-            <span className="text-[11px]">{user[3]}</span>
-            <span className="text-[11px]">{user[4]}</span>
+            <span className="text-xs2">{user[3]}</span>
+            <span className="text-xs2">{user[4]}</span>
             <span
-              className={`text-[11px] ${user[5] === 'Suspended' ? 'text-danger' : ''}`}
+              className={`text-xs2 ${user[5] === 'Suspended' ? 'text-danger' : ''}`}
             >
               ● {user[5]}
             </span>
@@ -204,7 +204,7 @@ export function GlobalAdminPage() {
             title="No users match these filters"
           />
         ) : null}
-        <footer className="p-4 text-[10px] text-muted">
+        <footer className="p-4 text-2xs text-muted">
           Showing {filteredUsers.length} of {users.length} sample users
         </footer>
       </section>

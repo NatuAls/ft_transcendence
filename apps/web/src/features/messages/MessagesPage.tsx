@@ -405,10 +405,10 @@ export function MessagesPage({
       className={`mx-auto w-[calc(100%_-_48px)] max-w-[1480px] pt-8 pb-12 min-[1100px]:flex min-[1100px]:h-[calc(100dvh-80px)] min-[1100px]:flex-col md:max-[1100px]:flex md:max-[1100px]:h-[calc(100dvh-142px)] md:max-[1100px]:flex-col md:max-[1100px]:p-8 max-md:w-auto max-md:px-4 max-md:pt-0 max-md:pb-5 ${selected ? 'max-md:[&_.conversation-list]:hidden' : ''}`}
     >
       <header className="messages-heading shrink-0 max-[1100px]:hidden">
-        <span className="text-[11px] tracking-[.08em] text-muted">
+        <span className="text-xs2 tracking-[.08em] text-muted">
           CONVERSATIONS
         </span>
-        <h1 className="my-2 text-[30px] font-medium">Messages</h1>
+        <h1 className="my-2 text-[1.875rem] font-medium">Messages</h1>
         <p className="mb-7 text-sm text-muted">
           Stay connected with colleagues through persistent conversations.
         </p>
@@ -454,7 +454,7 @@ export function MessagesPage({
                 type="button"
               >
                 <Avatar
-                  className="!size-[34px] !basis-[34px] !text-[10px]"
+                  className="!size-[34px] !basis-[34px] !text-2xs"
                   initials={conversation.initials}
                   online={conversation.online}
                 />
@@ -462,17 +462,15 @@ export function MessagesPage({
                   <strong className="text-xs font-medium">
                     {conversation.name}
                   </strong>
-                  <small className="text-[9px] text-muted">
+                  <small className="text-3xs text-muted">
                     {conversation.preview}
                   </small>
                 </span>
-                <time className="text-[9px] text-muted">
-                  {conversation.time}
-                </time>
+                <time className="text-3xs text-muted">{conversation.time}</time>
               </button>
             ))}
             {!visibleConversations.length ? (
-              <p className="px-4 py-7 text-center text-[11px] text-muted">
+              <p className="px-4 py-7 text-center text-xs2 text-muted">
                 No conversations found.
               </p>
             ) : null}
@@ -497,20 +495,20 @@ export function MessagesPage({
               type="button"
             >
               <Avatar
-                className="!size-[34px] !basis-[34px] !text-[10px]"
+                className="!size-[34px] !basis-[34px] !text-2xs"
                 initials={active.initials}
                 online={Boolean(active.online)}
               />
               <span className="grid min-w-0 gap-[3px]">
                 <strong className="truncate text-sm">{active.name}</strong>
-                <small className="truncate text-[10px] text-muted">
+                <small className="truncate text-2xs text-muted">
                   {active.online ? 'Online' : 'Offline'} · {active.role}
                 </small>
               </span>
             </button>
             <button
               aria-label={`View tickets related to ${active.name} (2)`}
-              className="min-h-10 shrink-0 rounded-sm px-2 text-[11px] text-primary hover:bg-surface-secondary focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-focus max-[360px]:px-1.5"
+              className="min-h-10 shrink-0 rounded-sm px-2 text-xs2 text-primary hover:bg-surface-secondary focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-focus max-[360px]:px-1.5"
               onClick={() => onViewTickets(active.name)}
               type="button"
             >
@@ -541,12 +539,12 @@ export function MessagesPage({
               >
                 <div className="grid gap-[5px]">
                   <p
-                    className={`rounded-[4px_12px_12px] bg-surface-secondary p-[13px] text-[11px] leading-[1.5] ${item.sender.id === userId ? 'rounded-[12px_4px_12px_12px] bg-[#dce9e4]' : ''}`}
+                    className={`rounded-[4px_12px_12px] bg-surface-secondary p-[13px] text-xs2 leading-[1.5] ${item.sender.id === userId ? 'rounded-[12px_4px_12px_12px] bg-[#dce9e4]' : ''}`}
                   >
                     {item.body}
                   </p>
                   <time
-                    className={`text-[9px] text-muted ${item.sender.id === userId ? 'text-right' : ''}`}
+                    className={`text-3xs text-muted ${item.sender.id === userId ? 'text-right' : ''}`}
                   >
                     {new Date(item.createdAt).toLocaleTimeString([], {
                       hour: '2-digit',
@@ -632,7 +630,7 @@ export function MessagesPage({
                 />
                 <span className="grid gap-1">
                   <strong>{user.profile?.displayName ?? user.username}</strong>
-                  <small className="text-[11px] text-muted">
+                  <small className="text-xs2 text-muted">
                     @{user.username}
                   </small>
                 </span>

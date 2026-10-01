@@ -133,7 +133,7 @@ function AccountHome({
         <div className="min-w-0 flex-1">
           <h2 className="mb-1 text-lg font-medium">{profile.fullName}</h2>
           <p className="truncate text-xs text-muted">{profile.email}</p>
-          <small className="text-[10px] text-muted">
+          <small className="text-2xs text-muted">
             {profile.jobTitle || 'User'}
           </small>
         </div>
@@ -154,7 +154,7 @@ function AccountHome({
           <Icon name="ticket" size={20} />
           <div className="grid gap-1">
             <strong>Preferences</strong>
-            <small className="text-[10px] text-muted">
+            <small className="text-2xs text-muted">
               Time zone · {timeZone}
             </small>
           </div>
@@ -168,7 +168,7 @@ function AccountHome({
           <Icon name="shield" size={20} />
           <div className="grid gap-1">
             <strong>Privacy &amp; data</strong>
-            <small className="text-[10px] text-muted">
+            <small className="text-2xs text-muted">
               Export or delete your information
             </small>
           </div>
