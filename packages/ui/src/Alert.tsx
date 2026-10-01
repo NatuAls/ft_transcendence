@@ -7,10 +7,10 @@ export interface AlertProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 const tones = {
-  info: 'border-info/30 bg-[#e5eef0] text-info',
-  success: 'border-success/30 bg-[#e1ece5] text-success',
-  warning: 'border-warning/30 bg-[#efe9dc] text-warning',
-  danger: 'border-danger/30 bg-[#f1e3e3] text-danger',
+  info: 'border-info/30 bg-info-surface text-info',
+  success: 'border-success/30 bg-success-surface text-success',
+  warning: 'border-warning/30 bg-warning-surface text-warning',
+  danger: 'border-danger/30 bg-danger-surface text-danger',
 };
 
 export function Alert({

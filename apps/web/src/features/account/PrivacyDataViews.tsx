@@ -48,7 +48,7 @@ export function PrivacyPage({
         <main className="grid gap-[14px]">
           <section className="grid grid-cols-[34px_1fr_auto] gap-3 rounded-md border border-border bg-surface p-[22px] max-md:grid-cols-[34px_1fr] max-md:p-4 max-md:[&_.ui-button]:col-span-full">
             <i
-              className="grid size-8 place-items-center rounded-[9px] bg-[#e1ece5] text-success not-italic"
+              className="grid size-8 place-items-center rounded-[9px] bg-success-surface text-success not-italic"
               aria-hidden="true"
             >
               ↓
@@ -76,7 +76,7 @@ export function PrivacyPage({
           </section>
           <section className="grid grid-cols-[34px_1fr_auto] gap-3 rounded-md border border-border bg-surface p-[22px] max-md:grid-cols-[34px_1fr] max-md:p-4 max-md:[&_.ui-button]:col-span-full">
             <i
-              className="grid size-8 place-items-center rounded-[9px] bg-[#f1e3e3] text-danger not-italic"
+              className="grid size-8 place-items-center rounded-[9px] bg-danger-surface text-danger not-italic"
               aria-hidden="true"
             >
               !

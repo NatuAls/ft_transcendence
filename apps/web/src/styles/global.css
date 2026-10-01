@@ -16,6 +16,10 @@
   --color-warning: #805a32;
   --color-danger: #934f4f;
   --color-info: #466d78;
+  --color-info-surface: #e5eef0;
+  --color-success-surface: #e1ece5;
+  --color-warning-surface: #efe9dc;
+  --color-danger-surface: #f1e3e3;
   --font-sans:
     Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --radius-sm: 8px;

@@ -183,7 +183,7 @@ export function PeoplePage({
                     Connected
                   </span>
                 ) : isPending ? (
-                  <span className="rounded-sm bg-[#efe9dc] px-3 py-[9px] text-[11px] text-warning">
+                  <span className="rounded-sm bg-warning-surface px-3 py-[9px] text-[11px] text-warning">
                     Pending
                   </span>
                 ) : (
@@ -263,7 +263,7 @@ export function PeoplePage({
                     >
                       View profile
                     </button>
-                    <span className="rounded-sm bg-[#efe9dc] px-3 py-[9px] text-[11px] text-warning">
+                    <span className="rounded-sm bg-warning-surface px-3 py-[9px] text-[11px] text-warning">
                       Pending
                     </span>
                   </footer>

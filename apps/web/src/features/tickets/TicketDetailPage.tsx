@@ -189,7 +189,7 @@ export function TicketDetailPage({
         )}
         {ticketState === 'closed' && (
           <div className="flex items-center gap-2 max-md:flex-col max-md:items-end">
-            <span className="rounded-sm bg-[#e1ece5] px-4 py-3 text-xs font-medium text-success">
+            <span className="rounded-sm bg-success-surface px-4 py-3 text-xs font-medium text-success">
               ✓ Ticket closed
             </span>
             {canReopenTickets ? (

@@ -21,10 +21,10 @@ interface TicketListPageProps {
 }
 
 const statToneClasses = {
-  open: 'bg-[#e5eef0] text-info',
-  progress: 'bg-[#efe9dc] text-warning',
-  resolved: 'bg-[#e1ece5] text-success',
-  urgent: 'bg-[#f1e3e3] text-danger',
+  open: 'bg-info-surface text-info',
+  progress: 'bg-warning-surface text-warning',
+  resolved: 'bg-success-surface text-success',
+  urgent: 'bg-danger-surface text-danger',
 };
 
 export function TicketListPage({

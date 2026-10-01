@@ -65,7 +65,7 @@ export function PublicProfilePage({
               </Button>
             </>
           ) : connection === 'pending' ? (
-            <span className="inline-flex min-h-11 items-center rounded-sm bg-[#efe9dc] px-[18px] text-xs font-medium text-warning max-md:flex-1 max-md:justify-center">
+            <span className="inline-flex min-h-11 items-center rounded-sm bg-warning-surface px-[18px] text-xs font-medium text-warning max-md:flex-1 max-md:justify-center">
               Request sent
             </span>
           ) : (
