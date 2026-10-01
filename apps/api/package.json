@@ -19,7 +19,7 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
-    "archiver": "^7.0.1",
+    "archiver": "^8.0.0",
     "argon2": "^0.45.1",
     "compression": "^1.8.2",
     "contracts": "*",
@@ -38,7 +38,7 @@
     "zod": "^4.6.4"
   },
   "devDependencies": {
-    "@types/archiver": "^6.0.4",
+    "@types/archiver": "^8.0.0",
     "@types/compression": "^1.8.1",
     "@types/cookie-parser": "^1.4.9",
     "@types/cors": "^2.8.19",
