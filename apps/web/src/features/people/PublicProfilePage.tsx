@@ -1,7 +1,6 @@
 import { Avatar, Button, Dialog } from 'ui';
 import { useState } from 'react';
 import { initialConnections, people } from './peopleData';
-import './people.css';
 
 export function PublicProfilePage({
   onBack,
@@ -20,31 +19,39 @@ export function PublicProfilePage({
   const person = people.find((item) => item.name === personName) ?? people[0];
 
   return (
-    <div className="public-profile-page">
-      <button className="public-profile-back" onClick={onBack} type="button">
+    <div className="mx-auto max-w-[1160px] p-10 max-md:px-4 max-md:py-6">
+      <button
+        className="text-primary max-md:pb-5"
+        onClick={onBack}
+        type="button"
+      >
         ← People
       </button>
-      <section className="public-profile-hero">
+      <section className="mt-7 grid grid-cols-[84px_1fr_auto] items-center rounded-md border border-border bg-surface p-[30px] max-md:mt-0 max-md:flex max-md:flex-col max-md:p-6 max-md:text-center">
         <Avatar
           alt={person.name}
-          className="public-profile-avatar"
+          className="!size-16 !basis-16 !text-[1.0625rem]"
           initials={person.initials}
           online={person.status === 'Online'}
         />
-        <div className="public-profile-identity">
-          <h1>{person.name}</h1>
-          <p>{person.role} · Northstar Studio</p>
+        <div>
+          <h1 className="mb-[5px] text-[1.625rem] font-medium max-md:mt-3 max-md:text-[1.375rem]">
+            {person.name}
+          </h1>
+          <p className="mb-2 text-xs text-muted">
+            {person.role} · Northstar Studio
+          </p>
           <span
-            className={`person-presence person-presence--${person.status.toLowerCase()}`}
+            className={`inline-flex items-center gap-[5px] text-2xs before:size-1.5 before:rounded-full before:bg-current before:content-[''] ${person.status === 'Online' ? 'text-success' : person.status === 'Away' ? 'text-warning' : 'text-muted'}`}
           >
             {person.status}
           </span>
-          <p className="public-profile-bio">
+          <p className="mt-4 max-w-[620px] text-[0.8125rem] leading-[1.55] text-muted max-md:mt-[14px] max-md:text-center max-md:text-xs2">
             Helping people get unstuck through clear communication and
             dependable support.
           </p>
         </div>
-        <div className="public-profile-actions">
+        <div className="flex gap-2 max-md:mt-5 max-md:w-full max-md:[&_.ui-button]:flex-1">
           {connection === 'connected' ? (
             <>
               <Button onClick={() => onMessage(person.name)}>
@@ -58,41 +65,51 @@ export function PublicProfilePage({
               </Button>
             </>
           ) : connection === 'pending' ? (
-            <span className="public-profile-request-state">Request sent</span>
+            <span className="inline-flex min-h-11 items-center rounded-sm bg-warning-surface px-[18px] text-xs font-medium text-warning max-md:flex-1 max-md:justify-center">
+              Request sent
+            </span>
           ) : (
             <Button onClick={() => setConnection('pending')}>Connect</Button>
           )}
         </div>
       </section>
-      <div className="public-profile-grid">
-        <section>
-          <h2>About</h2>
-          <dl>
+      <div className="mt-5 grid grid-cols-[1fr_340px] gap-5 max-md:mt-3 max-md:block">
+        <section className="rounded-md border border-border bg-surface p-[25px] max-md:p-[18px]">
+          <h2 className="mb-5 text-base font-medium">About</h2>
+          <dl className="grid grid-cols-2 gap-5">
             <div>
-              <dt>JOB TITLE</dt>
-              <dd>{person.role}</dd>
+              <dt className="text-3xs tracking-[.06em] text-muted">
+                JOB TITLE
+              </dt>
+              <dd className="mt-[5px] text-xs">{person.role}</dd>
             </div>
             <div>
-              <dt>TEAM</dt>
-              <dd>{person.team}</dd>
+              <dt className="text-3xs tracking-[.06em] text-muted">TEAM</dt>
+              <dd className="mt-[5px] text-xs">{person.team}</dd>
             </div>
             <div>
-              <dt>LOCATION</dt>
-              <dd>Barcelona, Spain</dd>
+              <dt className="text-3xs tracking-[.06em] text-muted">LOCATION</dt>
+              <dd className="mt-[5px] text-xs">Barcelona, Spain</dd>
             </div>
             <div>
-              <dt>MEMBER SINCE</dt>
-              <dd>August 2026</dd>
+              <dt className="text-3xs tracking-[.06em] text-muted">
+                MEMBER SINCE
+              </dt>
+              <dd className="mt-[5px] text-xs">August 2026</dd>
             </div>
           </dl>
         </section>
-        <aside>
-          <h2>Shared context</h2>
-          <p>Information relevant to your connection.</p>
-          <dl>
+        <aside className="rounded-md border border-border bg-surface p-[25px] max-md:hidden">
+          <h2 className="mb-5 text-base font-medium">Shared context</h2>
+          <p className="text-xs2 text-muted">
+            Information relevant to your connection.
+          </p>
+          <dl className="my-5 grid grid-cols-1 gap-[13px]">
             <div>
-              <dt>Connection</dt>
-              <dd>
+              <dt className="text-3xs tracking-[.06em] text-muted">
+                Connection
+              </dt>
+              <dd className="mt-[5px] text-xs">
                 {connection === 'connected'
                   ? 'Connected since Aug 2026'
                   : connection === 'pending'
@@ -101,16 +118,20 @@ export function PublicProfilePage({
               </dd>
             </div>
             <div>
-              <dt>Organization</dt>
-              <dd>Northstar Studio</dd>
+              <dt className="text-3xs tracking-[.06em] text-muted">
+                Organization
+              </dt>
+              <dd className="mt-[5px] text-xs">Northstar Studio</dd>
             </div>
             <div>
-              <dt>Online state</dt>
-              <dd>Visible</dd>
+              <dt className="text-3xs tracking-[.06em] text-muted">
+                Online state
+              </dt>
+              <dd className="mt-[5px] text-xs">Visible</dd>
             </div>
             <div>
-              <dt>Messages</dt>
-              <dd>12 shared messages</dd>
+              <dt className="text-3xs tracking-[.06em] text-muted">Messages</dt>
+              <dd className="mt-[5px] text-xs">12 shared messages</dd>
             </div>
           </dl>
           {connection === 'connected' ? (
@@ -122,8 +143,8 @@ export function PublicProfilePage({
               Open conversation
             </Button>
           ) : (
-            <p className="public-profile-connection-note">
-              Connect first to start a persistent conversation.
+            <p className="rounded-sm bg-surface-secondary p-3 text-center">
+              Connect first to start a conversation.
             </p>
           )}
         </aside>

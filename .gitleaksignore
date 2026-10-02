@@ -36,3 +36,27 @@ de5685c3893b519700fd4157b497238906a406b6:mod/fix-api/claude_code_1.md:generic-ap
 de5685c3893b519700fd4157b497238906a406b6:mod/fix-api/claude_code_1.md:generic-api-key:1116
 ef0633a7a63669e98859df3b8893f6c5095aa2ef:fix/claude_code_1.md:generic-api-key:1115
 ef0633a7a63669e98859df3b8893f6c5095aa2ef:fix/claude_code_1.md:generic-api-key:1116
+
+#  -----------------------------------------------------------------------
+#  INCIDENTE: certificado autofirmado de desarrollo en el histórico
+#  -----------------------------------------------------------------------
+#  Qué pasó: `config/nginx/certs/transcendence.{crt,key}` se commiteó el
+#  2 sep 2026 junto al proxy inverso de entonces. El propio equipo lo dejó de
+#  rastrear después (`chore(security): ignore and untrack locally generated
+#  SSL certificates`), pero el objeto sigue en el histórico y gitleaks lo
+#  encuentra al escanear los commits de una rama contra develop.
+#
+#  Por qué se acepta sin rotar nada:
+#    · Es autofirmado y se emite a sí mismo, con CN=localhost. No lo respalda
+#      ninguna autoridad, así que no sirve para suplantar ningún dominio: sólo
+#      a quien hubiera añadido ESE certificado a mano a su almacén de
+#      confianza, que es nadie.
+#    · La arquitectura ya no termina TLS en este Nginx: lo hacen Nginx Proxy
+#      Manager y Cloudflare con certificados de verdad. La clave no abre nada
+#      que exista hoy.
+#    · Si alguien conserva una copia local, basta con borrarla: no hay nada
+#      que rotar en ningún servidor ni en ningún secreto.
+#
+#  Si algún día se purga el histórico con `git filter-repo`, esta línea sobra.
+
+3db9e8d5a14ca86dbbca2255334b4e686f299a2c:config/nginx/certs/transcendence.key:private-key:1

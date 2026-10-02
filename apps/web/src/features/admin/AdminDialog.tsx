@@ -1,119 +1,97 @@
-import { Button, Dialog, SelectField, TextField } from 'ui';
+import { Alert, Button, Dialog, SelectField, TextField } from 'ui';
 import { useState } from 'react';
 import type { AdminDialogKind, AdminUser } from './adminData';
 
 export function AdminDialog({
   kind,
   onClose,
-  onDelete,
   onSave,
   user,
 }: {
   kind: Exclude<AdminDialogKind, null>;
   onClose: () => void;
-  onDelete: () => void;
   onSave: (data: FormData) => void;
   user: AdminUser;
 }) {
   const create = kind === 'create';
-  const remove = kind === 'delete';
-  const [confirmation, setConfirmation] = useState('');
+  const [platformAccess, setPlatformAccess] = useState(
+    create ? 'Standard user' : user[4],
+  );
 
   return (
     <Dialog
-      className="admin-dialog"
+      className="max-w-[500px]"
       description={
-        remove
-          ? 'This permanently removes the platform account. Organization ownership must be transferred before deletion.'
-          : create
-            ? 'Create an account and assign its initial platform access.'
-            : `Update identity, role and account state for ${user[1]}.`
+        create
+          ? 'Send a single-use invitation. The recipient creates their password before the account becomes active.'
+          : `Update identity, role and account state for ${user[1]}.`
       }
       eyebrow="PLATFORM ADMINISTRATION"
       footer={
         <>
-          {!create && !remove ? (
-            <Button
-              className="admin-dialog__delete"
-              onClick={onDelete}
-              variant="destructive"
-            >
-              Delete user
-            </Button>
-          ) : null}
           <Button onClick={onClose} variant="secondary">
             Cancel
           </Button>
-          <Button
-            disabled={remove && confirmation !== 'DELETE'}
-            type="submit"
-            variant={remove ? 'destructive' : 'primary'}
-          >
-            {remove ? 'Delete user' : create ? 'Create user' : 'Save changes'}
+          <Button type="submit">
+            {create ? 'Send invitation' : 'Save changes'}
           </Button>
         </>
       }
       onClose={onClose}
       onSubmit={(event) => {
         event.preventDefault();
-        if (!remove || confirmation === 'DELETE') {
-          onSave(new FormData(event.currentTarget));
-        }
+        onSave(new FormData(event.currentTarget));
       }}
-      title={
-        remove
-          ? `Delete ${user[1]}?`
-          : create
-            ? 'Create platform user'
-            : 'Edit platform user'
-      }
+      title={create ? 'Invite user' : 'Edit platform user'}
     >
-      {!remove ? (
+      <TextField
+        defaultValue={create ? '' : user[1]}
+        label={create ? 'Display name (optional)' : 'Full name'}
+        name="name"
+      />
+      <TextField
+        defaultValue={create ? '' : user[2]}
+        label="Email address"
+        name="email"
+        required
+        type="email"
+      />
+      <SelectField
+        label="Platform access"
+        name="role"
+        onChange={(event) => setPlatformAccess(event.target.value)}
+        value={platformAccess}
+      >
+        <option>Standard user</option>
+        <option>Global admin</option>
+      </SelectField>
+      {create && platformAccess === 'Standard user' ? (
         <>
-          <TextField
-            defaultValue={create ? 'New team member' : user[1]}
-            label="Full name"
-            name="name"
-            required
-          />
-          <TextField
-            defaultValue={create ? '' : user[2]}
-            label="Email address"
-            name="email"
-            required
-            type="email"
-          />
-          <SelectField
-            defaultValue={create ? 'User' : user[4]}
-            label="Global role"
-            name="role"
-          >
-            <option>User</option>
-            <option>Global admin</option>
+          <SelectField label="Initial organization" name="organization">
+            <option>Northstar Studio</option>
+            <option>Helio Labs</option>
+            <option>Orbit Finance</option>
           </SelectField>
-          <SelectField
-            defaultValue={create ? 'Active' : user[5]}
-            label="Account state"
-            name="state"
-          >
-            <option>Active</option>
-            <option>Suspended</option>
+          <SelectField label="Organization role" name="organization-role">
+            <option>Member</option>
+            <option>Agent</option>
+            <option>Organization admin</option>
           </SelectField>
-          <p className="admin-dialog__notice">
-            Changes are enforced by the backend on the next authorized action.
-          </p>
         </>
-      ) : (
-        <>
-          <strong>This action cannot be undone.</strong>
-          <TextField
-            label="Type DELETE to continue"
-            onChange={(event) => setConfirmation(event.target.value)}
-            placeholder="DELETE"
-            value={confirmation}
-          />
-        </>
-      )}
+      ) : null}
+      {!create ? (
+        <SelectField defaultValue={user[5]} label="Account state" name="state">
+          <option>Active</option>
+          <option>Suspended</option>
+        </SelectField>
+      ) : null}
+      <Alert>
+        {create
+          ? platformAccess === 'Global admin'
+            ? 'Global administrators receive platform access without a synthetic organization membership.'
+            : 'The account remains invitation pending until the recipient opens the single-use link and creates a password.'
+          : 'Suspending blocks access. Personal-data deletion remains a separate, user-confirmed privacy request.'}
+      </Alert>
     </Dialog>
   );
 }

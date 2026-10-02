@@ -1,7 +1,16 @@
 DOCKER = docker
 COMPOSE = $(DOCKER) compose
 COMPOSE_DEV = -f compose.dev.yml
-COMPOSE_PROD = -f compose.prod.yml
+
+# Proyecto de Compose de la pila de producción. Tiene que ser el MISMO que usa
+# scripts/deploy/remote-deploy.sh (el nombre del entorno), porque los nombres de
+# contenedor de compose.prod.yml son fijos (helpdesk-api-prod...). Sin esto, el
+# proyecto sale del nombre de la carpeta: dos clones del repositorio en la misma
+# máquina producen dos proyectos para el mismo entorno y el segundo arranque
+# muere con «container name is already in use», dejando sirviendo al primero.
+ENV_NAME := $(shell sed -n 's/^ENV_NAME=//p' .env 2>/dev/null | head -1)
+PROD_PROJECT := $(if $(ENV_NAME),$(ENV_NAME),prod)
+COMPOSE_PROD = -p $(PROD_PROJECT) -f compose.prod.yml
 
 #COLORS
 
@@ -36,6 +45,33 @@ down-prod:
 
 build:
 	@$(COMPOSE) $(COMPOSE_DEV) build
+
+# -----------------------------------------------------------------------------
+# CI y despliegues SIN GitHub Actions (guía DevOps del equipo, apartado
+# «CI y despliegues en local»).
+#
+# Mismos pasos que los workflows, ejecutados en esta máquina. Node y npm salen
+# de un contenedor con las versiones de .nvmrc y devEngines, así que no hace
+# falta tenerlas instaladas en el host.
+# -----------------------------------------------------------------------------
+ci: ## CI completo en local. Un job suelto: make ci JOBS="quality unit"
+	@bash scripts/ci/run-local.sh $(JOBS)
+
+deploy-staging: ## Construir y desplegar staging desde este host
+	@bash scripts/deploy/deploy-local.sh staging $(ARGS)
+
+deploy-prod: ## Construir y desplegar producción desde este host (pide confirmación escrita)
+	@bash scripts/deploy/deploy-local.sh prod $(ARGS)
+
+# -----------------------------------------------------------------------------
+# Propuestas del frontend (ramas proposal/*): CI y vista previa.
+#   make propuesta P=estilos-base           -> qué cambia y qué mirar
+#   make propuesta P=estilos-base A=ci      -> CI local sobre esa rama
+#   make propuesta P=estilos-base A=demo    -> abre /demo.html (sin backend)
+#   make propuesta P=pantalla-referencia A=app  -> pila completa con la API
+# -----------------------------------------------------------------------------
+propuesta: ## Propuestas del frontend: make propuesta P=<propuesta> A=<ci|demo|app|down|info>
+	@bash scripts/dev/propuesta.sh $(P) $(or $(A),info)
 
 it: # usage make it ID=wordpress
 	@$(DOCKER) exec -it $(ID) sh || true
@@ -81,4 +117,4 @@ images:
 re: fclean up-dev
 
 
-.PHONY: all up-dev down-dev up-prod down-prod build it clean fclean prune-global logs ps images re
+.PHONY: all up-dev down-dev up-prod down-prod build ci deploy-staging deploy-prod propuesta it clean fclean prune-global logs ps images re

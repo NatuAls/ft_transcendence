@@ -7,7 +7,7 @@ node_modules
 dist
 apps/api/src/generated
 guias
-
+CHAT_RESUMEN_REUNION.md
 .agents/
 .claude/
 .windsurf/

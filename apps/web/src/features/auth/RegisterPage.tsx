@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Button, Checkbox, TextField } from 'ui';
+import { registerSchema } from 'contracts';
+import { Alert, Button, Checkbox, TextField } from 'ui';
 import { AuthBrandPanel, BrandHeader } from './AuthBrand';
 import { register, type AuthResponse } from '../../api/auth';
-import './auth.css';
 
 export interface RegisterValues {
   firstName: string;
@@ -13,7 +13,7 @@ export interface RegisterValues {
   confirmPassword: string;
   acceptedTerms: boolean;
   error: string | null;
-  locale: 'EN' | 'SP' | 'AR';
+  locale: 'EN' | 'ES' | 'AR';
 }
 
 interface RegisterPageProps {
@@ -57,31 +57,37 @@ export function RegisterPage({ onSignIn, onSubmit }: RegisterPageProps) {
       return;
     }
 
-    // Detectamos el idioma del navegador para el campo locale
+    // Detect the browser language, then validate it with the shared contract.
     let browserLocale = navigator.language
       ? navigator.language.split('-')[0].toUpperCase()
       : 'EN';
     if (
       browserLocale !== 'EN' &&
-      browserLocale !== 'SP' &&
+      browserLocale !== 'ES' &&
       browserLocale !== 'AR'
     ) {
       browserLocale = 'EN';
     }
 
+    const parsed = registerSchema.safeParse({
+      email,
+      username,
+      password,
+      confirmPassword,
+      firstName,
+      lastName,
+      acceptTerms: acceptedTerms,
+      locale: browserLocale,
+    });
+    if (!parsed.success) {
+      setError('Please check the form fields.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      const authData = await register({
-        email,
-        username,
-        password,
-        confirmPassword,
-        firstName,
-        lastName,
-        acceptTerms: acceptedTerms,
-        locale: browserLocale as 'EN' | 'SP' | 'AR',
-      });
+      const authData = await register(parsed.data);
 
       // El token ya se guardó en auth.ts. Pasamos el usuario al componente padre (ej. para redirigir)
       void onSubmit(authData.user);
@@ -106,7 +112,7 @@ export function RegisterPage({ onSignIn, onSubmit }: RegisterPageProps) {
   };
 
   return (
-    <main className="auth-page auth-page--register">
+    <main className="min-h-screen bg-canvas text-ink min-[1100px]:grid min-[1100px]:grid-cols-[580px_minmax(0,1fr)]">
       <AuthBrandPanel
         tone="register"
         title={
@@ -119,11 +125,16 @@ export function RegisterPage({ onSignIn, onSubmit }: RegisterPageProps) {
         description="Create an account to report issues, follow progress and stay connected with your organization."
         insight={
           <section
-            className="auth-insight auth-insight--benefits"
+            className="mt-36 max-w-[452px] rounded-lg bg-[#365e62] p-6"
             aria-labelledby="benefits-heading"
           >
-            <h2 id="benefits-heading">Built for clarity</h2>
-            <ul>
+            <h2
+              className="mb-[21px] text-xs2 font-medium text-[#bfd8cf] uppercase"
+              id="benefits-heading"
+            >
+              Built for clarity
+            </h2>
+            <ul className="grid list-none gap-[15px] p-0 text-[0.8125rem] text-[#f7faf8] [&_li]:flex [&_li]:items-center [&_li]:gap-3 [&_li]:before:grid [&_li]:before:size-5 [&_li]:before:shrink-0 [&_li]:before:place-items-center [&_li]:before:rounded-full [&_li]:before:bg-[#bfd8cf] [&_li]:before:text-xs2 [&_li]:before:font-medium [&_li]:before:text-[#183039] [&_li]:before:content-['✓']">
               <li>One request, one clear owner</li>
               <li>Visible status at every step</li>
               <li>Your data stays under your control</li>
@@ -132,27 +143,40 @@ export function RegisterPage({ onSignIn, onSubmit }: RegisterPageProps) {
         }
       />
 
-      <section className="auth-content auth-content--register">
-        <div className="auth-mobile-header auth-mobile-header--register">
-          <BrandHeader mark={false} />
+      <section className="flex min-h-screen min-w-0 flex-col px-4 pt-6 pb-10 md:items-center md:justify-center md:p-12">
+        <div className="md:hidden">
+          <BrandHeader />
         </div>
-        <header className="auth-mobile-intro auth-mobile-intro--register">
-          <h1>Create your account</h1>
-          <p>Register to report issues and follow their resolution.</p>
+        <header className="mx-4 mt-[39px] mb-[22px] md:hidden">
+          <h1 className="text-[1.75rem] leading-[1.2] font-medium">
+            Create your account
+          </h1>
+          <p className="mt-2.5 text-[0.8125rem] leading-[1.45] text-muted">
+            Register to report issues and follow their resolution.
+          </p>
         </header>
 
         <section
-          className="auth-card auth-card--register"
+          className="auth-card-enter w-full px-4 md:max-w-[520px] md:rounded-lg md:border md:border-border md:bg-surface md:px-[51px] md:pt-[46px] md:pb-[52px]"
           aria-labelledby="register-heading"
         >
-          <header className="auth-card__intro">
-            <p className="auth-eyebrow">Create your account</p>
-            <h1 id="register-heading">Start with HelpDesk Lite</h1>
-            <p>Your account starts as a standard user.</p>
+          <header className="mb-8 hidden md:block">
+            <p className="mb-[17px] text-xs2 font-medium tracking-[.01em] text-primary uppercase">
+              Create your account
+            </p>
+            <h1
+              className="text-[1.75rem] leading-[1.2] font-medium"
+              id="register-heading"
+            >
+              Start with HelpDesk Lite
+            </h1>
+            <p className="mt-2.5 text-[0.8125rem] leading-[1.45] text-muted">
+              Your account starts as a standard user.
+            </p>
           </header>
 
           <form
-            className="auth-form auth-form--register"
+            className="grid gap-4 [&_.ui-field__label]:text-muted md:[&_.ui-field__label]:text-ink [&_.ui-field__input]:h-12 [&_.ui-field__input]:border-transparent [&_.ui-field__input]:bg-white md:[&_.ui-field__input]:h-[52px] md:[&_.ui-field__input]:border-border md:[&_.ui-field__input]:bg-[#f7faf8]"
             onSubmit={handleSubmit}
           >
             <TextField
@@ -173,15 +197,20 @@ export function RegisterPage({ onSignIn, onSubmit }: RegisterPageProps) {
               onChange={handleChange(setLastName)}
               required
             />
-            <TextField
-              label="Username"
-              name="user"
-              autoComplete="username"
-              placeholder="aruiz"
-              value={username}
-              onChange={handleChange(setUsername)}
-              required
-            />
+            <div>
+              <TextField
+                label="Username"
+                name="user"
+                autoComplete="username"
+                placeholder="aruiz"
+                value={username}
+                onChange={handleChange(setUsername)}
+                required
+              />
+              <p className="mt-[5px] text-xs2 leading-[1.4] text-muted">
+                Choose carefully: your username cannot be changed later.
+              </p>
+            </div>
             <TextField
               label="Email address"
               name="email"
@@ -192,8 +221,8 @@ export function RegisterPage({ onSignIn, onSubmit }: RegisterPageProps) {
               onChange={handleChange(setEmail)}
               required
             />
-            <div className="auth-password-field">
-              <div className="auth-password-wrapper">
+            <div>
+              <div className="relative">
                 <TextField
                   label="Password"
                   name="password"
@@ -207,33 +236,43 @@ export function RegisterPage({ onSignIn, onSubmit }: RegisterPageProps) {
                 />
                 <button
                   type="button"
-                  className="auth-password-toggle"
+                  className="absolute right-3 bottom-0 flex h-12 items-center border-0 bg-transparent px-1 text-xs2 font-medium text-muted hover:text-primary hover:underline md:h-[52px] md:text-xs"
                   onClick={() => setShowPassword(!showPassword)}
                   tabIndex={-1} // Evita que el usuario caiga aquí accidentalmente al usar la tecla Tab
                 >
                   {showPassword ? 'Hide' : 'Show'}
                 </button>
               </div>
-              <ul className="auth-password-rules">
-                <li className={hasMinLength ? 'valid' : ''}>
+              <ul className="mt-2 grid list-none gap-1 p-0 text-xs2">
+                <li
+                  className={`flex items-center gap-1.5 ${hasMinLength ? 'font-bold text-success' : 'text-muted'}`}
+                >
                   {hasMinLength ? '✓' : '•'} At least 10 characters
                 </li>
-                <li className={hasUpperCase ? 'valid' : ''}>
+                <li
+                  className={`flex items-center gap-1.5 ${hasUpperCase ? 'font-bold text-success' : 'text-muted'}`}
+                >
                   {hasUpperCase ? '✓' : '•'} One uppercase letter
                 </li>
-                <li className={hasLowerCase ? 'valid' : ''}>
+                <li
+                  className={`flex items-center gap-1.5 ${hasLowerCase ? 'font-bold text-success' : 'text-muted'}`}
+                >
                   {hasLowerCase ? '✓' : '•'} One lowercase letter
                 </li>
-                <li className={hasNumber ? 'valid' : ''}>
+                <li
+                  className={`flex items-center gap-1.5 ${hasNumber ? 'font-bold text-success' : 'text-muted'}`}
+                >
                   {hasNumber ? '✓' : '•'} One number
                 </li>
-                <li className={hasSymbol ? 'valid' : ''}>
+                <li
+                  className={`flex items-center gap-1.5 ${hasSymbol ? 'font-bold text-success' : 'text-muted'}`}
+                >
                   {hasSymbol ? '✓' : '•'} One special character
                 </li>
               </ul>
             </div>
-            <div className="auth-password-field">
-              <div className="auth-password-wrapper">
+            <div>
+              <div className="relative">
                 <TextField
                   label="Confirm Password"
                   name="confirmPassword"
@@ -246,7 +285,7 @@ export function RegisterPage({ onSignIn, onSubmit }: RegisterPageProps) {
                 />
                 <button
                   type="button"
-                  className="auth-password-toggle"
+                  className="absolute right-3 bottom-0 flex h-12 items-center border-0 bg-transparent px-1 text-xs2 font-medium text-muted hover:text-primary hover:underline md:h-[52px] md:text-xs"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   tabIndex={-1} // Evita que el usuario caiga aquí accidentalmente al usar la tecla Tab
                 >
@@ -254,11 +293,11 @@ export function RegisterPage({ onSignIn, onSubmit }: RegisterPageProps) {
                 </button>
               </div>
               {matchError && (
-                <p className="auth-password-match-error">✗ {matchError}</p>
+                <p className="mt-1 text-xs2 text-danger">✗ {matchError}</p>
               )}
             </div>
             <Checkbox
-              className="auth-terms"
+              className="items-start text-xs leading-[1.65] text-ink md:items-center md:text-[0.8125rem] md:text-muted [&_a]:text-inherit"
               label={
                 <>
                   I accept the <a href="#terms">Terms of Service</a> and{' '}
@@ -269,8 +308,9 @@ export function RegisterPage({ onSignIn, onSubmit }: RegisterPageProps) {
               onChange={(event) => setAcceptedTerms(event.target.checked)}
               required
             />
-            {error && <p className="auth-error-msg">{error}</p>}
+            {error && <Alert tone="danger">{error}</Alert>}
             <Button
+              className="!min-h-12"
               fullWidth
               type="submit"
               disabled={
@@ -285,7 +325,7 @@ export function RegisterPage({ onSignIn, onSubmit }: RegisterPageProps) {
             </Button>
           </form>
 
-          <div className="auth-switch auth-switch--register">
+          <div className="mt-6 flex justify-between gap-3 text-[0.8125rem] text-muted md:mt-[31px] md:justify-center [&_a]:font-medium [&_a]:text-primary [&_a]:no-underline hover:[&_a]:underline">
             <span>Already have an account?</span>
             <a
               href="#login"
@@ -299,7 +339,7 @@ export function RegisterPage({ onSignIn, onSubmit }: RegisterPageProps) {
           </div>
         </section>
 
-        <footer className="auth-legal auth-legal--register">
+        <footer className="mx-4 mt-[49px] text-left text-xs text-muted md:hidden">
           <p>Secure access · Privacy-first</p>
         </footer>
       </section>

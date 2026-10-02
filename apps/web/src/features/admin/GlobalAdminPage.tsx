@@ -1,18 +1,11 @@
-import { BrandMark, Button, SelectField } from 'ui';
+import { Alert, Button, EmptyState, Icon, SelectField } from 'ui';
 import { useMemo, useRef, useState } from 'react';
 import { getInitials } from '../../app/text';
 import { AdminDialog } from './AdminDialog';
 import { initialUsers } from './adminData';
 import type { AdminDialogKind, AdminUser } from './adminData';
-import './admin.css';
 
-export function GlobalAdminPage({
-  onOrganizations,
-  onExit,
-}: {
-  onOrganizations: () => void;
-  onExit: () => void;
-}) {
+export function GlobalAdminPage() {
   const [dialog, setDialog] = useState<AdminDialogKind>(null);
   const [users, setUsers] = useState(initialUsers);
   const [selectedUser, setSelectedUser] = useState<AdminUser>(initialUsers[0]);
@@ -37,20 +30,22 @@ export function GlobalAdminPage({
   function saveUser(kind: Exclude<AdminDialogKind, null>, data: FormData) {
     const value = (name: string) => String(data.get(name) ?? '').trim();
     if (kind === 'create') {
-      const name = value('name');
+      const email = value('email');
+      const name = value('name') || email.split('@')[0] || 'Invited user';
+      const platformAccess = value('role');
       setUsers((current) => [
         ...current,
         [
           getInitials(name),
           name,
-          value('email'),
-          'No organization',
-          value('role'),
-          value('state'),
+          email,
+          platformAccess === 'Global admin' ? '—' : value('organization'),
+          platformAccess,
+          'Invitation pending',
         ],
       ]);
-      setFeedback(`${name} was created in this frontend preview.`);
-    } else if (kind === 'edit') {
+      setFeedback(`Invitation prepared for ${email}.`);
+    } else {
       const name = value('name');
       setUsers((current) =>
         current.map((user) =>
@@ -67,180 +62,157 @@ export function GlobalAdminPage({
         ),
       );
       setFeedback(`${name} was updated.`);
-    } else {
-      setUsers((current) =>
-        current.filter((user) => user[2] !== selectedUser[2]),
-      );
-      setFeedback(`${selectedUser[1]} was deleted from the frontend preview.`);
     }
     setDialog(null);
   }
   return (
-    <div className="admin-shell">
-      <aside>
+    <div className="mx-auto max-w-[1200px] p-9 max-[1000px]:px-[18px] max-[1000px]:py-6">
+      <section className="flex justify-between">
         <div>
-          <BrandMark />
-          <strong>HelpDesk Lite</strong>
-        </div>
-        <nav>
-          <span aria-current="page" className="active">
-            ▣ Users
+          <span className="text-2xs tracking-[.08em] text-muted">
+            PLATFORM ADMINISTRATION
           </span>
-          <button onClick={onOrganizations} type="button">
-            ◫ Organizations
-          </button>
-        </nav>
-        <button onClick={onExit} type="button">
-          <span>AR</span>Ana Ruiz
-        </button>
-      </aside>
-      <main>
-        <header>
-          <strong>Platform administration</strong>
-          <button
-            className="admin-topbar-search"
-            onClick={() => searchRef.current?.focus()}
-            type="button"
-          >
-            ⌕ Search users
-          </button>
-          <button
-            aria-label="Return to workspace"
-            className="admin-topbar-avatar"
-            onClick={onExit}
-            type="button"
-          >
-            AR
-          </button>
-        </header>
-        <div className="admin-page">
-          <section className="admin-heading">
-            <div>
-              <span>PLATFORM ADMINISTRATION</span>
-              <h1>Users</h1>
-              <p>
-                Manage platform accounts, organization access and account state.
-              </p>
-            </div>
-            <Button onClick={() => setDialog('create')}>Create user</Button>
-          </section>
-          <section className="admin-stats">
-            {[
-              [String(users.length), 'Sample users'],
-              [
-                String(users.filter((user) => user[5] === 'Active').length),
-                'Active',
-              ],
-              [
-                String(
-                  users.filter((user) => user[4] === 'Global admin').length,
-                ),
-                'Administrators',
-              ],
-              [
-                String(
-                  new Set(
-                    users
-                      .map((user) => user[3])
-                      .filter((value) => value !== 'No organization'),
-                  ).size,
-                ),
-                'Organizations',
-              ],
-            ].map(([v, l]) => (
-              <article key={l}>
-                <strong>{v}</strong>
-                <span>{l}</span>
-              </article>
-            ))}
-          </section>
-          <section className="admin-table">
-            {feedback ? (
-              <p aria-live="polite" className="admin-feedback" role="status">
-                {feedback}
-              </p>
-            ) : null}
-            <header>
-              <h2>Platform users</h2>
-              <label>
-                <span aria-hidden="true">⌕</span>{' '}
-                <span className="sr-only">Search platform users</span>
-                <input
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search name or email"
-                  ref={searchRef}
-                  type="search"
-                  value={query}
-                />
-              </label>
-              <SelectField
-                hideLabel
-                label="Roles"
-                onChange={(event) => setRole(event.target.value)}
-                value={role}
-              >
-                <option value="all">All roles</option>
-                <option value="User">User</option>
-                <option value="Global admin">Global admin</option>
-              </SelectField>
-              <SelectField
-                hideLabel
-                label="States"
-                onChange={(event) => setState(event.target.value)}
-                value={state}
-              >
-                <option value="all">All states</option>
-                <option value="Active">Active</option>
-                <option value="Suspended">Suspended</option>
-              </SelectField>
-            </header>
-            <div className="admin-row admin-row--head">
-              <span>USER</span>
-              <span>ORGANIZATION</span>
-              <span>GLOBAL ROLE</span>
-              <span>STATE</span>
-              <span />
-            </div>
-            {filteredUsers.map((user) => (
-              <button
-                className="admin-row"
-                key={user[1]}
-                onClick={() => {
-                  setSelectedUser(user);
-                  setDialog('edit');
-                }}
-                type="button"
-              >
-                <span className="admin-user">
-                  <b>{user[0]}</b>
-                  <span>
-                    <strong>{user[1]}</strong>
-                    <small>{user[2]}</small>
-                  </span>
-                </span>
-                <span>{user[3]}</span>
-                <span>{user[4]}</span>
-                <span className={user[5] === 'Suspended' ? 'suspended' : ''}>
-                  ● {user[5]}
-                </span>
-                <span>⋯</span>
-              </button>
-            ))}
-            {!filteredUsers.length ? (
-              <p className="admin-empty">No users match these filters.</p>
-            ) : null}
-            <footer>
-              Showing {filteredUsers.length} of {users.length} sample users
-            </footer>
-          </section>
+          <h1 className="my-2 text-[1.875rem] font-medium">Users</h1>
+          <p className="text-[0.8125rem] leading-[1.2] text-muted">
+            Manage platform accounts, organization access and account state.
+          </p>
         </div>
-      </main>
+        <Button onClick={() => setDialog('create')}>Invite user</Button>
+      </section>
+      <section className="my-[26px] grid grid-cols-4 gap-3 max-[1000px]:grid-cols-2">
+        {[
+          [String(users.length), 'Sample users'],
+          [
+            String(users.filter((user) => user[5] === 'Active').length),
+            'Active',
+          ],
+          [
+            String(users.filter((user) => user[4] === 'Global admin').length),
+            'Administrators',
+          ],
+          [
+            String(
+              new Set(
+                users.map((user) => user[3]).filter((value) => value !== '—'),
+              ).size,
+            ),
+            'Organizations',
+          ],
+        ].map(([v, l]) => (
+          <article
+            className="grid gap-[5px] rounded-md border border-border bg-surface p-[18px]"
+            key={l}
+          >
+            <strong className="text-[1.375rem]">{v}</strong>
+            <span className="text-2xs text-muted">{l}</span>
+          </article>
+        ))}
+      </section>
+      <section className="overflow-hidden rounded-md border border-border bg-surface">
+        {feedback ? (
+          <Alert
+            aria-live="polite"
+            className="!rounded-none !border-0 !border-l-[3px] !py-2.5 !text-xs2 !text-muted"
+            role="status"
+            tone="success"
+          >
+            {feedback}
+          </Alert>
+        ) : null}
+        <header className="flex items-center gap-[9px] p-4 max-[600px]:grid max-[600px]:grid-cols-2">
+          <h2 className="flex-1 text-base font-medium max-[600px]:col-span-2">
+            Platform users
+          </h2>
+          <label className="flex h-10 min-w-0 items-center rounded-sm border border-border p-2.5 focus-within:border-focus focus-within:outline-3 focus-within:outline-focus max-[600px]:col-span-2">
+            <Icon className="mr-1" name="search" size={14} />{' '}
+            <span className="sr-only">Search platform users</span>
+            <input
+              className="min-w-0 flex-1 border-0 bg-transparent outline-0 focus-visible:!outline-none"
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search name or email"
+              ref={searchRef}
+              type="search"
+              value={query}
+            />
+          </label>
+          <SelectField
+            className="max-[600px]:w-full"
+            hideLabel
+            label="Roles"
+            onChange={(event) => setRole(event.target.value)}
+            value={role}
+          >
+            <option value="all">All roles</option>
+            <option value="Standard user">Standard user</option>
+            <option value="Global admin">Global admin</option>
+          </SelectField>
+          <SelectField
+            className="max-[600px]:w-full"
+            hideLabel
+            label="States"
+            onChange={(event) => setState(event.target.value)}
+            value={state}
+          >
+            <option value="all">All states</option>
+            <option value="Active">Active</option>
+            <option value="Suspended">Suspended</option>
+            <option value="Invitation pending">Invitation pending</option>
+          </SelectField>
+        </header>
+        <div className="grid w-full grid-cols-[2fr_1fr_1fr_1fr_25px] items-center gap-2.5 border-t border-border bg-surface-secondary px-[18px] py-[13px] text-left text-3xs text-muted max-[1000px]:grid-cols-[2fr_1fr_1fr_20px] max-[1000px]:[&>span:nth-child(2)]:hidden">
+          <span>USER</span>
+          <span>ORGANIZATION</span>
+          <span>GLOBAL ROLE</span>
+          <span>STATE</span>
+          <span />
+        </div>
+        {filteredUsers.map((user) => (
+          <button
+            aria-label={`Edit ${user[1]}`}
+            className="grid w-full grid-cols-[2fr_1fr_1fr_1fr_25px] items-center gap-2.5 border-t border-border px-[18px] py-[13px] text-left text-xs2 max-[1000px]:grid-cols-[2fr_1fr_1fr_20px] max-[1000px]:[&>span:nth-child(2)]:hidden"
+            key={user[1]}
+            onClick={() => {
+              if (user[5] === 'Invitation pending') return;
+              setSelectedUser(user);
+              setDialog('edit');
+            }}
+            disabled={user[5] === 'Invitation pending'}
+            type="button"
+          >
+            <span className="flex items-center gap-2.5">
+              <b className="grid size-8 place-items-center rounded-full bg-[#d8e5df] text-3xs text-primary">
+                {user[0]}
+              </b>
+              <span className="grid">
+                <strong className="text-xs2">{user[1]}</strong>
+                <small className="text-3xs text-muted">{user[2]}</small>
+              </span>
+            </span>
+            <span className="text-xs2">{user[3]}</span>
+            <span className="text-xs2">{user[4]}</span>
+            <span
+              className={`text-xs2 ${user[5] === 'Suspended' ? 'text-danger' : ''}`}
+            >
+              ● {user[5]}
+            </span>
+            <span>⋯</span>
+          </button>
+        ))}
+        {!filteredUsers.length ? (
+          <EmptyState
+            description="Adjust the search, role or state filters."
+            title="No users match these filters"
+          />
+        ) : null}
+        <footer className="p-4 text-2xs text-muted">
+          Showing {filteredUsers.length} of {users.length} sample users
+        </footer>
+      </section>
       {dialog && (
         <AdminDialog
           key={dialog}
           kind={dialog}
           onClose={() => setDialog(null)}
-          onDelete={() => setDialog('delete')}
           onSave={(data) => saveUser(dialog, data)}
           user={selectedUser}
         />

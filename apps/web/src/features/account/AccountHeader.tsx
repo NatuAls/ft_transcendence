@@ -6,10 +6,14 @@ export function AccountHeader({
   title: string;
 }) {
   return (
-    <header className="account-heading">
-      <span>ACCOUNT</span>
-      <h1>{title}</h1>
-      <p>{description}</p>
+    <header>
+      <span className="text-xs2 tracking-[.08em] text-muted max-md:hidden">
+        ACCOUNT
+      </span>
+      <h1 className="my-2 text-[1.875rem] font-medium max-md:text-[1.375rem]">
+        {title}
+      </h1>
+      <p className="text-sm text-muted max-md:text-xs">{description}</p>
     </header>
   );
 }

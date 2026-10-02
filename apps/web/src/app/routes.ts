@@ -1,5 +1,11 @@
 export type AppSection =
-  'tickets' | 'people' | 'messages' | 'organization' | 'account';
+  | 'tickets'
+  | 'people'
+  | 'messages'
+  | 'organization'
+  | 'account'
+  | 'admin'
+  | 'organizations';
 
 export type AccountView =
   | 'home'
@@ -120,7 +126,7 @@ export function getActiveSection(route: AppRoute): AppSection {
   )
     return 'tickets';
   if (route === 'people-profile') return 'people';
-  if (route === 'organizations') return 'organization';
+  if (route === 'admin' || route === 'organizations') return route;
   if (route.startsWith('account')) return 'account';
   if (
     route === 'tickets' ||

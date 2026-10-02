@@ -1,4 +1,4 @@
-import { Dialog } from 'ui';
+import { Dialog, EmptyState, Icon, IconButton } from 'ui';
 import { useMemo, useRef, useState } from 'react';
 import type { AppRoute, Navigate } from '../app/routes';
 
@@ -89,53 +89,66 @@ export function GlobalSearchDialog({
 
   return (
     <Dialog
-      className="global-search"
+      className="max-w-[640px]"
       description="Search tickets, people and workspace settings."
       initialFocusRef={inputRef}
       onClose={onClose}
       title="Search HelpDesk Lite"
     >
-      <div className="global-search__field">
+      <div className="grid h-[50px] grid-cols-[24px_1fr_auto] items-center gap-2 rounded-sm border border-border bg-[#f7faf8] px-[14px] focus-within:border-focus focus-within:outline-3 focus-within:outline-focus">
         <label className="sr-only" htmlFor="global-search-input">
           Search
         </label>
-        <span aria-hidden="true">⌕</span>
+        <Icon name="search" size={18} />
         <input
+          className="h-full min-w-0 border-0 bg-transparent outline-0 focus-visible:!outline-none"
           id="global-search-input"
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search by title, ID, person or setting"
           ref={inputRef}
-          type="search"
+          inputMode="search"
+          role="searchbox"
+          type="text"
           value={query}
         />
         {query ? (
-          <button
-            aria-label="Clear search"
-            className="global-search__clear"
+          <IconButton
+            icon="close"
+            label="Clear search"
             onClick={() => {
               setQuery('');
               inputRef.current?.focus();
             }}
-            type="button"
-          >
-            ×
-          </button>
+            size="sm"
+          />
         ) : null}
       </div>
-      <div aria-live="polite" className="global-search__results">
+      <div aria-live="polite" className="grid gap-1">
         {results.map((item) => (
           <button
+            className="grid min-h-[60px] grid-cols-[1fr_28px] items-center gap-x-3 gap-y-1 rounded-sm px-3 py-2.5 text-left hover:bg-surface-secondary"
             key={`${item.route}-${item.label}`}
             onClick={() => navigate(item.route, item.params)}
             type="button"
           >
-            <strong>{item.label}</strong>
-            <span>{item.description}</span>
-            <i aria-hidden="true">→</i>
+            <strong className="col-start-1 text-[0.8125rem]">
+              {item.label}
+            </strong>
+            <span className="col-start-1 text-xs2 text-muted">
+              {item.description}
+            </span>
+            <Icon
+              className="col-start-2 row-span-2"
+              name="chevron-right"
+              size={18}
+            />
           </button>
         ))}
         {!results.length ? (
-          <p>No results. Try a ticket ID, person or setting.</p>
+          <EmptyState
+            description="Try a ticket ID, person or setting."
+            title="No results"
+          />
         ) : null}
       </div>
     </Dialog>

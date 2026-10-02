@@ -154,6 +154,21 @@ describe(
       );
     });
 
+    it('logout limpia la sesión aunque falte el access token', async (t) => {
+      if (!up) return t.skip(SKIP_MESSAGE);
+      const session = await login(user.email);
+
+      const logout = await api('POST', '/auth/logout', {
+        cookie: session.cookie,
+      });
+      assert.equal(logout.status, 204);
+      assert.equal(
+        (await api('POST', '/auth/refresh', { cookie: session.cookie })).status,
+        401,
+        'la cookie de refresh debe quedar revocada',
+      );
+    });
+
     it('logout-all invalida también los tokens de las demás sesiones', async (t) => {
       if (!up) return t.skip(SKIP_MESSAGE);
       const tabA = await login(user.email);

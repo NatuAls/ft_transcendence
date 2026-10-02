@@ -27,7 +27,8 @@ async function bootstrap(): Promise<void> {
 
   await connectDatabase();
   await connectRedis();
-  // Sólo actúa si BOOTSTRAP_ADMIN_EMAIL está definido y no hay ningún admin.
+  // Promociona por BOOTSTRAP_ADMIN_EMAIL y crea el administrador principal
+  // si llegan usuario y contraseña por secreto. Sin esas variables, no hace nada.
   await bootstrapFirstAdmin();
 
   const app = createApp();

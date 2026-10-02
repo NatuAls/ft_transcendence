@@ -13,15 +13,19 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
+    "contracts": "0.0.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "socket.io-client": "^4.8.3",
     "ui": "0.0.0"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24.13.5",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.4",
+    "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
     "vite": "^8.3.0"
   }

@@ -1,9 +1,21 @@
 # Referencia de endpoints — HelpDesk Lite API
 
+> **Referencia navegable:** `/api/v1/docs` (Swagger UI) y el documento en
+> `/api/v1/openapi.json`. Están generados desde los contratos Zod y cubren las
+> 105 rutas; esta tabla sigue siendo el resumen rápido, y el guion de
+> demostración está al final del fichero.
+>
+> En desarrollo se abren sin más. En **staging y producción** no están
+> expuestas: el proxy pide una contraseña de equipo y, además, la API sólo las
+> sirve a quien llega por ese proxy o presenta una sesión de administrador (a
+> cualquier otro le responde 404). Las credenciales y el interruptor
+> `DOCS_ACCESS` están en la guía DevOps del equipo.
+
 **105 rutas HTTP.** Tabla generada a partir de los routers reales de
 `apps/api/src/modules`, no escrita a mano. Si añades una ruta, añádela también
-aquí y en la documentación de Notion (*Frontend && Backend → 8. Endpoints
-funcionales*).
+aquí, en `src/modules/openapi/paths/` y en la documentación de Notion
+(*Frontend && Backend → 8. Endpoints funcionales*). El test
+`test/unit/openapi.test.ts` falla si una ruta se queda sin documentar.
 
 ## Convenciones
 
@@ -254,3 +266,67 @@ RATE_LIMIT_AUTH_PER_MIN=100000 RATE_LIMIT_GLOBAL_PER_MIN=200000 \
 
 El motivo de relajar los límites está explicado en la cabecera de
 `test/integration/helpers.ts`.
+
+---
+
+## Documentación interactiva y guion de demostración
+
+### Dónde está
+
+| Recurso | URL | Para qué |
+|---|---|---|
+| Swagger UI | `/api/v1/docs` | Leer la API y **ejecutarla** desde el navegador |
+| Documento OpenAPI 3.0.3 | `/api/v1/openapi.json` | Postman, generadores de cliente, CI de un integrador |
+
+El documento se construye en el arranque a partir de los contratos de
+`packages/contracts`: los cuerpos de petición que se ven en la página son
+**los mismos objetos Zod que valida el servidor**, así que no pueden
+desincronizarse. Las respuestas están escritas a mano en
+`src/modules/openapi/schemas.ts`, contrastadas contra la API real.
+
+`OPENAPI_SERVERS` añade entornos al desplegable de *Servers* sin tocar código:
+
+```bash
+OPENAPI_SERVERS="https://helpdesklite.me/api/v1|Production,https://staging.helpdesklite.me/api/v1|Staging"
+```
+
+### Guion de demostración (10 minutos, contra datos reales)
+
+1. **Abrir** `/api/v1/docs`. Enseñar la cabecera: autenticación, sobre de
+   error, paginación y límites de peticiones. Mencionar que son 105 rutas en
+   11 secciones y que el buscador de arriba filtra.
+2. **Crear la clave.** En `Organizations → POST /organizations/{organizationId}/api-keys`,
+   *Try it out* con un token de sesión de un `ORG_ADMIN`:
+
+   ```json
+   { "name": "Demo", "scopes": ["tickets:read", "tickets:write", "comments:write"] }
+   ```
+
+   Señalar que el campo `secret` **sólo viaja esta vez**: en la base sólo queda
+   su hash Argon2id y el prefijo.
+3. **Autorizar.** Botón *Authorize* → `apiKeyAuth` → pegar el `secret`. Queda
+   guardado entre recargas (`persistAuthorization`).
+4. **Comprobar la identidad de la clave**: `GET /public/me` devuelve la
+   organización a la que está atada y sus *scopes*.
+5. **Crear un ticket**: `POST /public/tickets`. No se le pasa organización —
+   la inyecta la clave—, y el ticket nace en `OPEN` con su referencia.
+6. **Comentarlo**: `POST /public/tickets/{id}/comments`.
+7. **Verlo en la aplicación web**: el mismo ticket aparece en la interfaz, con
+   su comentario. Es la prueba de que la API pública no es una puerta paralela:
+   llama a los mismos servicios de dominio.
+8. **Enseñar los límites**: repetir una llamada y mirar las cabeceras
+   `RateLimit-*` en la respuesta que pinta Swagger.
+9. **Enseñar un error de verdad**: crear un ticket con `title` de dos letras.
+   Devuelve `400 VALIDATION_FAILED` con `details` por campo y `requestId`, y
+   ese mismo `requestId` está en los logs.
+10. **Cerrar con el contrato**: abrir `CreateTicketInput` en *Schemas* y
+    contar que ese mínimo de 5 caracteres no se ha escrito en la
+    documentación, sale del contrato que valida el servidor.
+
+### Comprobado el 30/09/2026
+
+Ejecutado de punta a punta contra la API real (PostgreSQL y Redis en
+contenedores): registro → organización → clave → `GET /public/me` →
+`POST /public/tickets` → comentario → listado. El documento pasa
+`redocly lint` sin errores, y la página no lleva ni un `<script>` en línea,
+así que funciona con la CSP estricta de producción (`script-src 'self'`).

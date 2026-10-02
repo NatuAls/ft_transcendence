@@ -23,6 +23,7 @@ import { filesRouter } from './modules/files/files.router.ts';
 import { gdprRouter } from './modules/gdpr/gdpr.router.ts';
 import { publicApiRouter } from './modules/public-api/public-api.router.ts';
 import { adminRouter } from './modules/admin/admin.router.ts';
+import { openapiRouter } from './modules/openapi/openapi.router.ts';
 
 export function createApp(): Express {
   const config = loadConfiguration();
@@ -104,6 +105,10 @@ export function createApp(): Express {
   v1.use('/gdpr', gdprRouter);
   v1.use('/public', publicApiRouter);
   v1.use('/admin', adminRouter);
+  // La referencia navegable y el documento OpenAPI. Van sin prefijo propio
+  // porque sus rutas ya lo llevan (/docs y /openapi.json) y así el documento
+  // se sirve desde la misma base que describe.
+  v1.use(openapiRouter);
   app.use(GLOBAL_PREFIX, v1);
 
   // After every router: turns an unmatched URL into the same JSON error

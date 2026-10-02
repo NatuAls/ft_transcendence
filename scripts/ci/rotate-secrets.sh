@@ -31,6 +31,12 @@ esac
 
 command -v openssl > /dev/null || { echo "hace falta openssl" >&2; exit 1; }
 
+# Mismos generadores que scripts/gen-secrets.sh, para que un secreto rotado
+# aquí valga exactamente igual que uno recién generado allí.
+password() { printf 'Hd-%s-A1!' "$(openssl rand -hex 12)"; }
+DOCS_PASS="$(password)"
+ADMIN_PASS="$(password)"
+
 cat <<EOF
 
 ===============================================================================
@@ -49,6 +55,46 @@ $(openssl rand -hex 48)
 
 ${PREFIX}_PEPPER
 $(openssl rand -hex 32)
+
+${PREFIX}_METRICS_TOKEN
+$(openssl rand -hex 32)
+
+${PREFIX}_BACKUP_KEY
+$(openssl rand -hex 48)
+
+${PREFIX}_DOCS_GATEWAY_TOKEN
+$(openssl rand -hex 32)
+
+${PREFIX}_DOCS_HTPASSWD
+docs:$(openssl passwd -6 "$DOCS_PASS")
+
+${PREFIX}_BOOTSTRAP_ADMIN_PASSWORD
+${ADMIN_PASS}
+
+-------------------------------------------------------------------------------
+ LAS DOS CONTRASEÑAS EN CLARO (apúntalas: no salen de ningún otro sitio)
+
+   documentación de la API .... docs / ${DOCS_PASS}
+   administrador principal .... ${ADMIN_PASS}
+
+ De la primera, GitHub sólo guarda el hash de arriba; de la segunda, el valor
+ en claro (lo necesita la API para crear la cuenta).
+-------------------------------------------------------------------------------
+
+ QUÉ NO ROTA ESTE SCRIPT
+
+   ${PREFIX}_DB_APP_PASSWORD   la genera el servidor:
+                               sudo bash scripts/ops/create-app-role.sh ${ENV_NAME}
+   ${PREFIX}_BOOTSTRAP_ADMIN_USERNAME
+                               el nombre del administrador no se rota por
+                               rotar: cambiarlo deja la cuenta anterior ahí y
+                               crea otra. Si hay que cambiarlo, hazlo a
+                               conciencia y borra la vieja desde el panel.
+   ORACLE_HOST / ORACLE_SSH_KEY
+                               infraestructura: la clave, con
+                               ssh-keygen -t ed25519, y hay que copiar la
+                               pública a /home/deployer/.ssh/authorized_keys
+                               ANTES de cambiar el secreto.
 
 -------------------------------------------------------------------------------
  DESPUÉS de actualizarlos en GitHub:
@@ -72,6 +118,13 @@ $(openssl rand -hex 32)
 
  4. Cambiar los secretos JWT invalida las sesiones abiertas. Los usuarios
     tendrán que volver a entrar. Eso es lo deseable tras una filtración.
+
+ 5. BACKUP_KEY: guarda la ANTERIOR. Las copias ya subidas se cifraron con
+    ella y sin ella son ruido irrecuperable.
+
+ 6. La contraseña del administrador principal no se aplica sola: hay que poner
+    la variable ${PREFIX}_BOOTSTRAP_ADMIN_ROTATE a 1, desplegar y devolverla a
+    0. El despliegue la fija y revoca las sesiones de esa cuenta.
 -------------------------------------------------------------------------------
 
 EOF
