@@ -55,7 +55,7 @@ fclean:
 	else \
 		printf "$(YELLOW)Deep clean cancelled.$(NC)\n"; \
 	fi
-
+#test
 prune-global:
 	@printf "$(RED)WARNING! This will delete ALL images and empty containers from YOUR COMPUTER.$(NC)\n"
 	@read -p "Should the global purge continue? [y/N]: " ans; \
