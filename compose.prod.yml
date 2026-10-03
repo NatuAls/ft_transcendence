@@ -112,9 +112,17 @@ services:
       # en la imagen como build-args (apps/api/Dockerfile.prod). Así
       # GET /api/version describe el artefacto que está corriendo y no lo que
       # dice un fichero .env del servidor, que puede haber cambiado después.
+    # SÓLO la red del entorno. La API NO entra en `proxy-tier`, y es importante:
+    # Compose registra el nombre del servicio (`api`) como alias en CADA red a la
+    # que se une, así que con staging y producción en la misma máquina las dos
+    # APIs respondían al nombre `api` dentro de la red compartida. El Nginx de
+    # staging resolvía `api` a la API de PRODUCCIÓN en 4 de cada 10 intentos
+    # (medido el 03/10), con lo que casi la mitad de sus peticiones las atendía
+    # el otro entorno. Quien necesita `proxy-tier` es `web`, para que el proxy
+    # llegue a él; la API se alcanza desde `web` por la red del entorno, y
+    # Prometheus la alcanza por esa misma red (ver compose.observability.yml).
     networks:
       - backend_network
-      - proxy-tier
     volumes:
       - uploads:/var/lib/helpdesk/uploads
     # Sonda de VIDA, no de preparación, y es deliberado. /api/health/ready
