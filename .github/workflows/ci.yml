@@ -467,7 +467,7 @@ jobs:
       # Gratuito en repositorios públicos y personales. En un repo de
       # organización hace falta GITLEAKS_LICENSE.
       - name: Escaneo de secretos (gitleaks)
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
