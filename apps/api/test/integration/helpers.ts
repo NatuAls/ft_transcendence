@@ -98,6 +98,28 @@ export async function api<T = unknown>(
   };
 }
 
+/**
+ * Repite una lectura hasta que cumpla la condición o se agote el plazo, y
+ * devuelve la última. Para lo que la API hace DESPUÉS de responder a
+ * propósito: la auditoría se escribe sin bloquear la acción (ver
+ * audit.service.ts), así que una consulta inmediata puede llegar antes que la
+ * entrada. Esperar con plazo no esconde nada: si la entrada no llega, la
+ * aserción que sigue falla igual.
+ */
+export async function eventually<T>(
+  read: () => Promise<T>,
+  done: (value: T) => boolean,
+  timeoutMs = 5000,
+): Promise<T> {
+  const deadline = Date.now() + timeoutMs;
+  let value = await read();
+  while (!done(value) && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    value = await read();
+  }
+  return value;
+}
+
 /** `true` si la API responde; las suites lo usan para saltarse en vez de reventar. */
 export async function apiIsUp(): Promise<boolean> {
   try {

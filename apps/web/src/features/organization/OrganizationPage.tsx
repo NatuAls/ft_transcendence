@@ -82,6 +82,9 @@ export function OrganizationPage({
     canReadMembers ? 'members' : 'categories',
   );
   const [dialog, setDialog] = useState<OrganizationDialogKind>(null);
+  // Who created the organization: the API lets only them (or a platform
+  // administrator) delete it.
+  const [createdById, setCreatedById] = useState<string | null>(null);
   const [deleteContext, setDeleteContext] = useState<DeleteContext>(null);
   const [selectedName, setSelectedName] = useState('Maya Singh');
   const [memberRows, setMemberRows] = useState(fixture.members);
@@ -111,9 +114,13 @@ export function OrganizationPage({
       canReadStats
         ? organizationsApi.getOrganizationStats(organizationId)
         : null,
+      canManageOrganization
+        ? organizationsApi.getOrganization(organizationId)
+        : null,
     ])
-      .then(([members, reservations, categories, stats]) => {
+      .then(([members, reservations, categories, stats, detail]) => {
         if (!active) return;
+        setCreatedById(detail?.createdById ?? null);
         setMemberRows([
           ...(members ?? []).map((member): OrganizationRow => [
             getInitials(member.displayName),
@@ -174,7 +181,14 @@ export function OrganizationPage({
     return () => {
       active = false;
     };
-  }, [canManageMembers, canReadMembers, canReadStats, organizationId, version]);
+  }, [
+    canManageMembers,
+    canManageOrganization,
+    canReadMembers,
+    canReadStats,
+    organizationId,
+    version,
+  ]);
   const rows =
     tab === 'members' ? memberRows : tab === 'roles' ? roleRows : categoryRows;
   const selectedRow = rows.find((row) => row[1] === selectedName);
@@ -660,6 +674,11 @@ export function OrganizationPage({
       </div>
       {dialog ? (
         <OrganizationDialog
+          canDeleteOrganization={
+            previewMode ||
+            organizationRole === 'GLOBAL_ADMIN' ||
+            createdById === currentUserId
+          }
           deleteContext={deleteContext}
           dialog={dialog}
           key={`${dialog}-${deleteContext ?? 'none'}`}

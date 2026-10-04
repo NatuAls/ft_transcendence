@@ -246,10 +246,17 @@ npm run test:ci --workspace=apps/api | tee test-results/unit.tap
 SCRIPT
   bash "$WORK/scripts/ci/check-test-report.sh" "$WORK/test-results/unit.tap" "tests unitarios" || return 1
 
-  # Tests de componentes del frontend: sólo en las ramas que los tienen
-  # (apps/web declara el script `test`). Así el mismo lanzador sirve para una
-  # rama con vitest y para una sin él.
-  if grep -q '"test":' "$WORK/apps/web/package.json" 2> /dev/null; then
+  # Tests de la web: sólo en las ramas que los tienen (apps/web declara el
+  # script `test`). Con `test:ci` se hace lo mismo que el job de CI: informe
+  # TAP y el mismo guardián que el de la API.
+  if grep -q '"test:ci":' "$WORK/apps/web/package.json" 2> /dev/null; then
+    log "Tests de la web (vitest)"
+    node_run unit-web <<'SCRIPT' || return 1
+mkdir -p test-results
+npm run test:ci --workspace=apps/web | tee test-results/web.tap
+SCRIPT
+    bash "$WORK/scripts/ci/check-test-report.sh" "$WORK/test-results/web.tap" "tests de la web" || return 1
+  elif grep -q '"test":' "$WORK/apps/web/package.json" 2> /dev/null; then
     log "Tests de componentes del frontend (vitest)"
     node_run unit-web <<'SCRIPT' || return 1
 npm run test --workspace=apps/web

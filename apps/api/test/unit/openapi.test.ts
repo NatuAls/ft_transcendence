@@ -9,6 +9,8 @@
  */
 import { describe, it, before } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { validate, type Schema } from '../support/openapi-schema.ts';
 
 // The app validates its configuration at import time; these are throwaway
 // values, only good enough to let it build.
@@ -129,6 +131,38 @@ const UNDOCUMENTED = new Set([
   'GET /api/v1/docs',
   'GET /api/v1/docs/init.js',
 ]);
+
+const METHODS = ['get', 'post', 'put', 'patch', 'delete'];
+
+/** Every response of every operation, with `$ref`s to shared responses followed. */
+function responsesOf(
+  doc: Loose,
+): Array<{ where: string; status: string; response: Loose }> {
+  const shared = (doc['components'] as Record<string, Record<string, Loose>>)[
+    'responses'
+  ]!;
+  const out: Array<{ where: string; status: string; response: Loose }> = [];
+  for (const [path, item] of Object.entries(
+    doc['paths'] as Record<string, Loose>,
+  ))
+    for (const method of METHODS) {
+      const operation = item[method] as Operation | undefined;
+      if (!operation) continue;
+      for (const [status, raw] of Object.entries(operation.responses ?? {})) {
+        const reference = (raw as Loose)['$ref'];
+        const response =
+          typeof reference === 'string'
+            ? shared[reference.split('/').pop()!]!
+            : (raw as Loose);
+        out.push({
+          where: `${method.toUpperCase()} ${path}`,
+          status,
+          response,
+        });
+      }
+    }
+  return out;
+}
 
 describe('OpenAPI document', () => {
   let doc: Loose;
@@ -260,6 +294,140 @@ describe('OpenAPI document', () => {
       missing,
       [],
       'Dangling references: ' + missing.join(', '),
+    );
+  });
+
+  it('shows examples that match the schema they illustrate', () => {
+    const wrong: string[] = [];
+    let checked = 0;
+    for (const { where, status, response } of responsesOf(doc)) {
+      const media = (
+        response['content'] as Record<string, Loose> | undefined
+      )?.['application/json'];
+      if (!media || media['example'] === undefined) continue;
+      checked += 1;
+      for (const problem of validate(
+        doc,
+        media['schema'] as Schema,
+        media['example'],
+      ))
+        wrong.push(`${where} ${status}: ${problem}`);
+    }
+    assert.ok(checked > 0, 'no example was found to check');
+    assert.deepStrictEqual(wrong, [], wrong.join('\n'));
+  });
+
+  it('answers every error with the ApiError envelope, under its own status', () => {
+    const wrong: string[] = [];
+    for (const { where, status, response } of responsesOf(doc)) {
+      if (Number(status) < 400) continue;
+      const media = (
+        response['content'] as Record<string, Loose> | undefined
+      )?.['application/json'];
+      const schema = media?.['schema'] as Loose | undefined;
+      if (schema?.['$ref'] !== '#/components/schemas/ApiError') {
+        wrong.push(`${where} ${status}: not an ApiError`);
+        continue;
+      }
+      // A 413 pointing at the 400 response was a real mistake once: the
+      // example would have shown a reader the wrong status for the error.
+      const example = media?.['example'] as Loose | undefined;
+      if (example && example['statusCode'] !== Number(status))
+        wrong.push(
+          `${where} ${status}: its example says ${String(example['statusCode'])}`,
+        );
+    }
+    assert.deepStrictEqual(wrong, [], wrong.join('\n'));
+  });
+
+  it('documents the role assignment by e-mail at both levels', () => {
+    const paths = doc['paths'] as Record<string, Record<string, Operation>>;
+    const schemas = (
+      doc['components'] as Record<string, Record<string, Loose>>
+    )['schemas']!;
+    for (const [path, assignment] of [
+      ['/admin/role-grants', 'PlatformRoleAssignment'],
+      [
+        '/organizations/{organizationId}/role-grants',
+        'OrganizationRoleAssignment',
+      ],
+    ] as const) {
+      const post = paths[path]?.['post'];
+      assert.ok(post, `POST ${path} is documented`);
+      assert.ok(paths[path]?.['get'], `GET ${path} is documented`);
+      assert.ok(
+        paths[`${path}/{grantId}`]?.['delete'],
+        `DELETE ${path}/{grantId} is documented`,
+      );
+      // 200 when it applies at once, 201 when it is reserved for the address.
+      for (const status of ['200', '201']) {
+        const media = (
+          (post!.responses![status] as Loose)['content'] as Record<
+            string,
+            Loose
+          >
+        )['application/json']!;
+        assert.deepStrictEqual(media['schema'], {
+          $ref: `#/components/schemas/${assignment}`,
+        });
+      }
+      const outcome = (
+        schemas[assignment]!['properties'] as Record<string, Loose>
+      )['outcome']!;
+      assert.deepStrictEqual(outcome['enum'], [
+        'APPLIED',
+        'UNCHANGED',
+        'RESERVED',
+      ]);
+    }
+    // The request bodies come from the contracts: USER is not grantable by
+    // e-mail (taking a role back is PATCH /users/{id}/role).
+    const platformInput = schemas['AssignPlatformRoleInput']![
+      'properties'
+    ] as Record<string, Loose>;
+    assert.deepStrictEqual(platformInput['globalRole']!['enum'], [
+      'GLOBAL_ADMIN',
+    ]);
+    const listUsers = paths['/users']!['get'] as Operation & {
+      parameters: Array<{ name?: string }>;
+    };
+    for (const name of ['globalRole', 'isActive', 'sort', 'order', 'q'])
+      assert.ok(
+        listUsers.parameters.some((parameter) => parameter.name === name),
+        `GET /users documents ?${name}`,
+      );
+    const info = doc['info'] as { description: string };
+    assert.match(info.description, /## Roles/);
+  });
+
+  it('names every action the audit trail can record', () => {
+    // The catalogue is a TypeScript union, so it is read from the source: a
+    // new action added there and not here fails this test.
+    const source = readFileSync(
+      new URL('../../src/modules/audit/audit.service.ts', import.meta.url),
+      'utf8',
+    );
+    const union = source.slice(
+      source.indexOf('export type AuditAction'),
+      source.indexOf('export interface AuditContext'),
+    );
+    const actions = [...union.matchAll(/\| '([a-zA-Z.]+)'/g)].map((m) => m[1]!);
+    assert.ok(actions.includes('role.reserved'), 'the catalogue was parsed');
+    const auditLog = (
+      doc['components'] as Record<string, Record<string, Loose>>
+    )['schemas']!['AuditLog']!;
+    const described = (
+      (auditLog['properties'] as Record<string, Loose>)['action'] as {
+        description: string;
+      }
+    ).description;
+    const missing = actions.filter(
+      (action) => !described.includes(`\`${action}\``),
+    );
+    assert.deepStrictEqual(
+      missing,
+      [],
+      'AuditLog.action does not mention them',
     );
   });
 

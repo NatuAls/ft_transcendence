@@ -73,7 +73,8 @@ npm run dev:web                 # http://localhost:5173  (Vite)
 - Frontend conventions: [`apps/web/FRONTEND_GUIDE.md`](apps/web/FRONTEND_GUIDE.md)
 - UI design system: [`packages/ui/README.md`](packages/ui/README.md)
 - Quality gates, same as CI: `npm run lint`, `npm run typecheck`,
-  `npm run format:check`, `npm test --workspaces --if-present`.
+  `npm run format:check`, `npm test --workspaces --if-present`
+  (`make ci` runs the whole CI locally).
 
 `.env` variables (names only; see `.env.example` for defaults): database
 (`DATABASE_URL`, `POSTGRES_*`), `REDIS_URL`, `JWT_ACCESS_SECRET`,
@@ -205,8 +206,8 @@ production is bit-for-bit what passed the tests.
 | Job | What it checks |
 |---|---|
 | `quality` | Prettier, ESLint, TypeScript across every workspace, and a full build |
-| `unit-tests` | 106 cases (`node --test`), including a test that walks the real routers and fails if any route is missing from the OpenAPI document |
-| `integration-tests` | 76 cases against **real** PostgreSQL and Redis, with migrations applied |
+| `unit-tests` | API: 123 cases (`node --test`), including a test that walks the real routers and fails if any route is missing from the OpenAPI document. Web: 51 cases (Vitest + jsdom) whose fake API answers are validated against that same document, plus a cross-check of the interface's permissions with the server's policy table |
+| `integration-tests` | 100 cases against **real** PostgreSQL and Redis, with migrations applied, including one that validates the real answers of the API against the OpenAPI document in strict mode |
 | `compose-validation` | The three Compose files parse, and no external image is pinned to a moving tag |
 | `docker-build` | Both production images build (pull requests only) |
 | `security` | gitleaks over the branch's commits, `npm audit` (critical blocks), Trivy over the tree, SBOM |
@@ -717,7 +718,14 @@ honest:
 - **A test fails if the two disagree.** `apps/api/test/unit/openapi.test.ts`
   walks the real routers and fails if a route is undocumented, if a documented
   route does not exist, or if an operation is missing its id, tag, summary,
-  description, security or responses.
+  description, security or responses. It also checks every example against
+  its schema and every error against the `ApiError` envelope.
+- **And if the answers drift.** `apps/api/test/integration/openapi-contract.test.ts`
+  calls the running API and validates each answer against the documented
+  schema in strict mode: an undocumented field, an undeclared null or an
+  undocumented status code fails it. The web tests feed their screens only
+  answers that pass the same validator, so client and server are tested
+  against one contract.
 
 `apps/api/ENDPOINTS.md` stays as the quick reference table and ends with a
 ten-step demonstration script, run end to end against a real database.
@@ -779,7 +787,7 @@ deployment closes the reference instead of leaving it open, and
 | Health check and status page system with automated backups and disaster recovery | Minor | 1 | fcela-ga | Liveness, readiness and a public per-area traffic light (`/api/health`, `/ready`, `/status`), the last one answering with full detail only to the operation token; a status page at `/status` served as a static file so it survives both the application bundle and the API; nightly AES-256 backups to Oracle Object Storage, `restore.sh` with integrity checks and a weekly automated restore drill with the recovery time measured; seven alert rules watch backups and drills, three of them on the absence of the metric. See «Health checks, the status page and recovery» above |
 | GDPR compliance features | Minor | 1 | fcela-ga | The module's four subpoints, end to end from the browser: request your data (`POST /gdpr/export`), deletion with confirmation (`POST /gdpr/delete`, needing both the e-mailed code **and** your own username typed back), export in a readable format (a ZIP of JSON built in the background and served through a short-lived authenticated download) and confirmation e-mails at every step. Content other people depend on is anonymised rather than erased, which is what the regulation allows. See «Privacy and data rights» below |
 | Standard user management and authentication | Major | 2 | TODO(backend) (API) · fcela-ga (screens and integration) | The module's four requirements, from the browser and against the API: profile editing; avatar upload re-encoded to WebP without EXIF, with the initials as default avatar and "Remove photo" that also deletes the file; friends with requests both ways and **live** online status (one Socket.IO connection for the whole signed-in session, `presence.changed` followed by the screens); a profile page with presence, organizations and activity. On top, revocable sessions with the current device marked, which the Terms of Service promise. See «Users, organizations and roles» above |
-| Advanced permissions system | Major | 2 | TODO(backend) (RBAC) · fcela-ga (roles by e-mail, screens) | Users CRUD (list, invite, edit, suspend, change role, delete) with your own account and the primary administrator locked; five fixed roles on two levels decided by one pure policy function on every request; roles given **by e-mail address** at platform and organization level, reaching the account only when the address is verified; and screens that change with the role — the same «Roles & access» route is three different screens for `MEMBER`, `AGENT` and `ORG_ADMIN`. 15 integration cases cover the assignment and the membership rules around it. See «Users, organizations and roles» above |
+| Advanced permissions system | Major | 2 | TODO(backend) (RBAC) · fcela-ga (roles by e-mail, screens) | Users CRUD (list, invite, edit, suspend, change role, delete) with your own account and the primary administrator locked; five fixed roles on two levels decided by one pure policy function on every request; roles given **by e-mail address** at platform and organization level, reaching the account only when the address is verified; and screens that change with the role — the same «Roles & access» route is three different screens for `MEMBER`, `AGENT` and `ORG_ADMIN`. 19 integration cases cover the assignment and the membership rules around it, 7 more the platform user administration, and the web tests check that each role sees its own screen and that the interface never offers what the API refuses. See «Users, organizations and roles» above |
 | Organization system | Major | 2 | TODO(backend) (API) · fcela-ga (screens and integration) | Create (with its first administrator given by e-mail), edit and delete organizations; add users by e-mail address and remove them; the active organization taken from the API and switchable; inside it, categories created and edited, members re-roled, and per-organization statistics — every rule enforced again by the server (`orgScope`, 404 rather than 403 to outsiders, the last-administrator rule). See «Users, organizations and roles» above |
 | TODO | … | … | … | … |
 | **Total** | | **TODO** | | |

@@ -166,12 +166,12 @@ export const organizationsPaths: Paths = {
       operationId: 'leaveOrganization',
       summary: 'Leave the organization',
       description:
-        'Any member may leave; the last administrator may not, for the same reason as above.',
+        'Any member may leave; the last administrator may not, for the same reason as above. Here the refusal comes from the `member:leave` policy itself, so it is a 403 `RBAC_FORBIDDEN` rather than the 409 `ORG_LAST_ADMIN` of the routes above. Accounts deleted by their owner do not count as administrators.',
       security: session,
       parameters: [orgId],
       responses: {
         '204': noContent('You are no longer a member.'),
-        ...errs('401', '404', '409'),
+        ...errs('401', '403', '404'),
       },
     }),
   },

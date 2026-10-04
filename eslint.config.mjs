@@ -42,7 +42,7 @@ export default defineConfig([
   },
 
   {
-    files: ['apps/web/vite.config.ts'],
+    files: ['apps/web/vite.config.ts', 'apps/web/vitest.config.ts'],
     extends: [js.configs.recommended, tseslint.configs.recommended],
     languageOptions: {
       ecmaVersion: 'latest',
@@ -74,5 +74,20 @@ export default defineConfig([
   {
     files: ['apps/web/src/**/*.{ts,tsx}'],
     extends: [reactRefresh.configs.vite],
+  },
+
+  {
+    // Pruebas de la web (Vitest + jsdom): código de navegador que además lee
+    // ficheros y el documento OpenAPI de la API desde Node.
+    files: ['apps/web/test/**/*.{ts,tsx}'],
+    extends: [
+      js.configs.recommended,
+      tseslint.configs.recommended,
+      reactHooks.configs.flat.recommended,
+    ],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      globals: { ...globals.browser, ...globals.node },
+    },
   },
 ]);

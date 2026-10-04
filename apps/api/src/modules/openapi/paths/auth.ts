@@ -127,12 +127,15 @@ export const authPaths: Paths = {
       operationId: 'resendVerification',
       summary: 'Send the verification e-mail again',
       description:
-        'Answers the same whether or not the address exists, so it cannot be used to find out who is registered.',
-      security: open,
-      requestBody: body('ForgotPasswordInput'),
+        "For the signed-in account only, so it cannot be used to mail somebody else or to find out who is registered: there is no body, the address is the caller's. The previous link stops working. An address that is already verified gets nothing, and the answer is the same.",
+      security: session,
       responses: {
-        '204': noContent('If the address exists, the message was sent.'),
-        ...errs('400', '429'),
+        '202': ok('Accepted: the message is on its way.', {
+          type: 'object',
+          properties: { accepted: { type: 'boolean', enum: [true] } },
+          required: ['accepted'],
+        }),
+        ...errs('401', '429'),
       },
     }),
   },

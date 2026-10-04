@@ -5,6 +5,7 @@ import {
   api,
   apiIsUp,
   createOrganization,
+  eventually,
   registerUser,
   SKIP_MESSAGE,
   unique,
@@ -461,6 +462,163 @@ describe(
         { token: orgAdmin.token },
       );
       assert.ok(!members.body.some((row) => row.user.id === person.id));
+    });
+
+    it('un administrador borrado no cuenta para la regla del último administrador', async (t) => {
+      if (!ready) return skip(t);
+      const organization = await createOrganization(orgAdmin.token);
+      const coAdmin = await registerUser('rgCoAdmin');
+      await addMember(
+        orgAdmin.token,
+        organization,
+        coAdmin.username,
+        'ORG_ADMIN',
+      );
+      // Con dos administradores vivos, uno puede dejar de serlo...
+      const path = `/organizations/${organization}/members/${orgAdmin.id}`;
+      // ...pero si el otro borra su cuenta, el que queda es el último.
+      assert.equal(
+        (await api('DELETE', `/users/${coAdmin.id}`, { token: admin.token }))
+          .status,
+        204,
+      );
+      const demoted = await api<{ code: string }>('PATCH', path, {
+        token: orgAdmin.token,
+        body: { role: 'MEMBER' },
+      });
+      assert.equal(
+        demoted.status,
+        409,
+        'la organización se quedaría sin nadie que la gestione',
+      );
+      assert.equal(demoted.body.code, 'ORG_LAST_ADMIN');
+      // Irse tampoco: aquí lo rechaza la política `member:leave` (403).
+      const left = await api<{ code: string }>(
+        'POST',
+        `/organizations/${organization}/leave`,
+        { token: orgAdmin.token },
+      );
+      assert.equal(left.status, 403);
+      assert.equal(left.body.code, 'RBAC_FORBIDDEN');
+    });
+
+    it('volver a dar un rol a una dirección reservada la actualiza, no la duplica', async (t) => {
+      if (!ready) return skip(t);
+      const email = freshEmail('rgTwice');
+      const path = `/organizations/${organizationId}/role-grants`;
+      const first = await api<Assignment>('POST', path, {
+        token: orgAdmin.token,
+        body: { email, role: 'MEMBER' },
+      });
+      const second = await api<Assignment>('POST', path, {
+        token: orgAdmin.token,
+        body: { email, role: 'ORG_ADMIN' },
+      });
+      assert.equal(second.status, 201);
+      assert.equal(second.body.reservation?.id, first.body.reservation?.id);
+
+      const listed = await api<Array<{ email: string; role: string }>>(
+        'GET',
+        path,
+        { token: orgAdmin.token },
+      );
+      assert.deepEqual(
+        listed.body.filter((row) => row.email === email).map((row) => row.role),
+        ['ORG_ADMIN'],
+      );
+
+      // Al verificar llega el ÚLTIMO rol dado, no el primero.
+      const person = await registerUser('rgTwice', email);
+      await verifyEmailOf(person.id);
+      const joined = (await me(person.token)).memberships.find(
+        (row) => row.organizationId === organizationId,
+      );
+      assert.equal(joined?.role, 'ORG_ADMIN');
+    });
+
+    it('un GLOBAL_ADMIN gestiona las reservas de cualquier organización', async (t) => {
+      if (!ready) return skip(t);
+      const path = `/organizations/${organizationId}/role-grants`;
+      const assigned = await api<Assignment>('POST', path, {
+        token: admin.token,
+        body: { email: freshEmail('rgByAdmin'), role: 'AGENT' },
+      });
+      assert.equal(assigned.status, 201, 'sin ser miembro de la organización');
+      assert.equal(
+        (
+          await api('DELETE', `${path}/${assigned.body.reservation!.id}`, {
+            token: admin.token,
+          })
+        ).status,
+        204,
+      );
+    });
+
+    it('la auditoría registra la reserva, su cancelación y su reclamación', async (t) => {
+      if (!ready) return skip(t);
+      type Entries = {
+        data: Array<{
+          action: string;
+          entity: string;
+          actor: { id: string } | null;
+        }>;
+      };
+      const audit = (query: string) =>
+        api<Entries>('GET', `/admin/audit-logs?${query}`, {
+          token: admin.token,
+        });
+
+      // Reservada y cancelada (plataforma).
+      const cancelled = await api<Assignment>('POST', '/admin/role-grants', {
+        token: admin.token,
+        body: { email: freshEmail('rgAuditC'), globalRole: 'GLOBAL_ADMIN' },
+      });
+      const grantId = cancelled.body.reservation!.id;
+      await api('DELETE', `/admin/role-grants/${grantId}`, {
+        token: admin.token,
+      });
+      const trail = await eventually(
+        () => audit(`entityId=${grantId}`),
+        (response) => response.body.data.length >= 2,
+      );
+      assert.deepEqual(
+        trail.body.data.map((entry) => [entry.action, entry.entity]).sort(),
+        [
+          ['role.reservation.cancelled', 'PlatformRoleGrant'],
+          ['role.reserved', 'PlatformRoleGrant'],
+        ],
+      );
+      assert.ok(trail.body.data.every((entry) => entry.actor?.id === admin.id));
+
+      // Reservada y reclamada al verificar (organización).
+      const email = freshEmail('rgAuditJ');
+      const reserved = await api<Assignment>(
+        'POST',
+        `/organizations/${organizationId}/role-grants`,
+        { token: orgAdmin.token, body: { email, role: 'MEMBER' } },
+      );
+      assert.deepEqual(
+        (
+          await eventually(
+            () => audit(`entityId=${reserved.body.reservation!.id}`),
+            (response) => response.body.data.length >= 1,
+          )
+        ).body.data.map((entry) => entry.action),
+        ['role.reserved'],
+      );
+      const person = await registerUser('rgAuditJ', email);
+      await verifyEmailOf(person.id);
+      const claimed = await eventually(
+        () =>
+          audit(`action=role.reservation.claimed&entityId=${organizationId}`),
+        (response) => response.body.data.length >= 1,
+      );
+      assert.ok(
+        claimed.body.data.some(
+          (entry) => entry.entity === 'OrganizationMember',
+        ),
+        'la llegada del rol al verificar también queda registrada',
+      );
     });
 
     it('una reserva de otra organización no se puede cancelar desde la propia', async (t) => {

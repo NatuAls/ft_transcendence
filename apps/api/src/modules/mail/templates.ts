@@ -149,7 +149,9 @@ export function roleReservedTemplate(input: {
       `<p>${grantor} gave this e-mail address the role <strong>${role}</strong> (${scope}).</p><p>${next}</p><p>If you were not expecting it, ignore this message: nothing changes until an account with this address is verified.</p>`,
       {
         label: input.hasAccount ? 'Sign in' : 'Create my account',
-        url: input.url,
+        // The origin comes from the request headers, so the link is escaped
+        // like any other value that did not originate in this file.
+        url: escapeHtml(input.url),
       },
     ),
     text: `${input.grantor} gave this address the role ${input.roleLabel} (${input.scopeLabel}). ${next} ${input.url}`,

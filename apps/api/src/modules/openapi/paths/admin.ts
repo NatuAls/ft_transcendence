@@ -20,37 +20,48 @@ export const adminPaths: Paths = {
       operationId: 'platformStats',
       summary: 'Platform statistics',
       description:
-        'GLOBAL_ADMIN only. Users, organizations, tickets by state and activity of the last days: the numbers behind the administration dashboard.',
+        'GLOBAL_ADMIN only. Platform-wide counters: the numbers behind the administration dashboard. Deleted accounts, organizations, messages and attachments are not counted.',
       security: session,
       responses: {
-        '200': ok('Counters.', {
-          type: 'object',
-          properties: {
-            users: {
-              type: 'object',
-              properties: {
-                total: { type: 'integer' },
-                active: { type: 'integer' },
-                admins: { type: 'integer' },
+        '200': ok(
+          'Counters.',
+          {
+            type: 'object',
+            properties: {
+              users: { type: 'integer', description: 'Accounts.' },
+              activeUsers: {
+                type: 'integer',
+                description: 'Accounts that are not suspended.',
               },
-            },
-            organizations: { type: 'integer' },
-            tickets: {
-              type: 'object',
-              additionalProperties: { type: 'integer' },
-            },
-            recentActivity: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  date: { type: 'string', format: 'date' },
-                  tickets: { type: 'integer' },
-                },
+              organizations: { type: 'integer' },
+              tickets: { type: 'integer' },
+              openTickets: {
+                type: 'integer',
+                description: 'Tickets OPEN or IN_PROGRESS.',
               },
+              messages: { type: 'integer', description: 'Chat messages.' },
+              attachments: { type: 'integer' },
             },
+            required: [
+              'users',
+              'activeUsers',
+              'organizations',
+              'tickets',
+              'openTickets',
+              'messages',
+              'attachments',
+            ],
           },
-        }),
+          {
+            users: 128,
+            activeUsers: 121,
+            organizations: 9,
+            tickets: 1342,
+            openTickets: 87,
+            messages: 5210,
+            attachments: 402,
+          },
+        ),
         ...errs('401', '403'),
       },
     }),
