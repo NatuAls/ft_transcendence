@@ -9,6 +9,8 @@ import { OrganizationsPage } from '../features/organizations/OrganizationsPage';
 import type { OrganizationSummary } from '../features/organizations/organizationsData';
 import { PeoplePage } from '../features/people/PeoplePage';
 import { PublicProfilePage } from '../features/people/PublicProfilePage';
+import { OrganizationRolesPage } from '../features/roles/OrganizationRolesPage';
+import { PlatformRolesPage } from '../features/roles/PlatformRolesPage';
 import {
   CreateTicketPage,
   type NewTicketValues,
@@ -35,15 +37,18 @@ export function WorkspacePage({
   avatarUrl,
   location,
   navigate,
+  onAccessChanged,
   onAvatarChange,
   onCreateTicket,
   onOrganizationDescriptionChange,
   onOrganizationNameChange,
   onOrganizationSelect,
+  onOrganizationsChanged,
   onSignOut,
   organizationDescription,
   organizationId,
   organizationName,
+  organizations,
   onProfileChange,
   onTicketChange,
   tickets,
@@ -53,15 +58,20 @@ export function WorkspacePage({
   avatarUrl?: string;
   location: AppLocation;
   navigate: Navigate;
+  /** The viewer's own access may have changed: read the session again. */
+  onAccessChanged: () => void;
   onAvatarChange: (avatarUrl: string) => void;
   onCreateTicket: (values: NewTicketValues) => void;
   onOrganizationDescriptionChange: (description: string) => void;
   onOrganizationNameChange: (organizationName: string) => void;
   onOrganizationSelect: (organization: OrganizationSummary) => void;
+  /** An organization was created, renamed or deleted; optionally switch to one. */
+  onOrganizationsChanged: (preferredId?: string) => void;
   onSignOut: () => void;
   organizationDescription: string;
   organizationId: string;
   organizationName: string;
+  organizations: OrganizationSummary[];
   onProfileChange: (profile: AccountProfile) => void;
   onTicketChange: (ticket: Ticket) => void;
   tickets: Ticket[];
@@ -83,6 +93,12 @@ export function WorkspacePage({
   const requestedTicket = visibleTickets.find(
     (ticket) => ticket.id === location.params.get('id'),
   );
+  const organizationRole =
+    viewer.globalRole === 'GLOBAL_ADMIN'
+      ? 'GLOBAL_ADMIN'
+      : (viewer.memberships.find(
+          (membership) => membership.organizationId === organizationId,
+        )?.role ?? 'MEMBER');
 
   switch (route) {
     case 'not-found':
@@ -190,20 +206,17 @@ export function WorkspacePage({
           canManageOrganization={can(viewer, 'organization:update')}
           canReadMembers={can(viewer, 'member:read')}
           canReadStats={can(viewer, 'stats:read')}
+          currentUserId={viewer.id}
+          onAccessChanged={onAccessChanged}
           onOpenCategory={(category) => navigate('tickets', { category })}
           onOrganizationDeleted={() => navigate('organizations')}
+          onOrganizationsChanged={onOrganizationsChanged}
           onOrganizationDescriptionChange={onOrganizationDescriptionChange}
           onOrganizationNameChange={onOrganizationNameChange}
           organizationDescription={organizationDescription}
           organizationId={organizationId}
           organizationName={organizationName}
-          organizationRole={
-            viewer.globalRole === 'GLOBAL_ADMIN'
-              ? 'GLOBAL_ADMIN'
-              : (viewer.memberships.find(
-                  (membership) => membership.organizationId === organizationId,
-                )?.role ?? 'MEMBER')
-          }
+          organizationRole={organizationRole}
         />
       );
     case 'organizations':
@@ -213,14 +226,38 @@ export function WorkspacePage({
             onOrganizationSelect(organization);
             navigate('organization');
           }}
+          onOrganizationsChanged={onOrganizationsChanged}
+          organizations={organizations}
           viewer={viewer}
         />
       );
     case 'admin':
       return can(viewer, 'user:listAll') ? (
-        <GlobalAdminPage />
+        <GlobalAdminPage
+          currentUserId={viewer.id}
+          organizations={organizations}
+        />
       ) : (
         <AdminAccessDenied onBack={() => navigate('tickets')} />
+      );
+    case 'platform-roles':
+      return can(viewer, 'user:setGlobalRole') ? (
+        <PlatformRolesPage currentUserId={viewer.id} />
+      ) : (
+        <AdminAccessDenied onBack={() => navigate('tickets')} />
+      );
+    case 'organization-roles':
+      return (
+        <OrganizationRolesPage
+          canManage={can(viewer, 'member:invite')}
+          currentUserId={viewer.id}
+          key={organizationId}
+          onAccessChanged={onAccessChanged}
+          onOpenOrganizations={() => navigate('organizations')}
+          organizationId={organizationId}
+          organizationName={organizationName}
+          viewerRole={organizationRole}
+        />
       );
     default:
       if (route === 'account' || route.startsWith('account/')) {
@@ -233,11 +270,11 @@ export function WorkspacePage({
               navigate(view === 'home' ? 'account' : `account/${view}`)
             }
             onPrivacyPolicy={() =>
-              navigate('privacy-policy', { from: 'account' })
+              navigate('privacy-policy', { from: 'account/privacy' })
             }
             onProfileChange={onProfileChange}
             onSignOut={onSignOut}
-            onTerms={() => navigate('terms', { from: 'account' })}
+            onTerms={() => navigate('terms', { from: 'account/privacy' })}
             profile={accountProfile}
             view={getAccountView(route)}
           />

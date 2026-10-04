@@ -1,3 +1,4 @@
+import type { OrganizationRecord } from '../../api/organizations';
 import type { ViewerSession } from '../../app/session';
 
 export interface OrganizationSummary {
@@ -103,4 +104,25 @@ export function getOrganizationInitials(value: string) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
     .join('');
+}
+
+/** An organization as the API returns it, in the shape the screens use. */
+export function summaryFromRecord(
+  record: OrganizationRecord,
+): OrganizationSummary {
+  const members = record._count?.members ?? 0;
+  const tickets = record._count?.tickets ?? 0;
+  return {
+    description:
+      record.description || 'Organization support and service requests.',
+    id: record.id,
+    initials: getOrganizationInitials(record.name),
+    name: record.name,
+    roleLabel: record.myRole ? roleLabels[record.myRole] : 'Platform access',
+    slug: record.slug,
+    summary:
+      record.myRole === 'MEMBER'
+        ? 'Your organization'
+        : `${members} ${members === 1 ? 'member' : 'members'} · ${tickets} ${tickets === 1 ? 'ticket' : 'tickets'}`,
+  };
 }

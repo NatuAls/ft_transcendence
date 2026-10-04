@@ -313,6 +313,20 @@
       footer p:last-child {
         margin-bottom: 0;
       }
+      /* Los textos legales, alcanzables también desde aquí: esta página es
+         pública y la puede abrir quien no ha entrado nunca en la aplicación. */
+      footer nav ul {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 1.25rem;
+        margin: 0.75rem 0 0;
+      }
+      footer nav li {
+        display: block;
+        padding: 0;
+        border: 0;
+        font-size: inherit;
+      }
     </style>
   </head>
   <body>
@@ -423,6 +437,13 @@
           application does not. If this page itself does not load, the server is
           unreachable.
         </p>
+        <nav aria-label="Legal information">
+          <ul>
+            <li><a href="/#privacy-policy">Privacy Policy</a></li>
+            <li><a href="/#terms">Terms of Service</a></li>
+            <li><a href="/">HelpDesk Lite</a></li>
+          </ul>
+        </nav>
       </footer>
     </main>
     <script src="/status.js" defer></script>

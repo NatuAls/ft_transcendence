@@ -1,4 +1,4 @@
-import type { LoginInput, RegisterInput } from 'contracts';
+import type { LoginInput, PendingRole, RegisterInput } from 'contracts';
 
 // --- 1. GESTIÓN DEL TOKEN EN MEMORIA ---
 let inMemoryAccessToken: string | null = null;
@@ -44,6 +44,8 @@ export interface AuthResponse {
       role: 'MEMBER' | 'AGENT' | 'ORG_ADMIN';
     }>;
     permissions: string[];
+    /** Roles reserved for this address that wait for its confirmation. */
+    pendingRoles?: PendingRole[];
   };
 }
 

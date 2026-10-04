@@ -1,6 +1,9 @@
 import { Alert, Button, Dialog, EmptyState, Icon, TextField } from 'ui';
 import { useMemo, useState } from 'react';
-import type { ViewerSession } from '../../app/session';
+import { emailSchema } from 'contracts';
+import * as organizationsApi from '../../api/organizations';
+import { assignOrganizationRole } from '../../api/roles';
+import { previewMode, type ViewerSession } from '../../app/session';
 import {
   getOrganizationInitials,
   normalizeOrganizationSlug,
@@ -10,16 +13,26 @@ import {
 
 export function OrganizationsPage({
   onOpen,
+  onOrganizationsChanged,
+  organizations: liveOrganizations,
   viewer,
 }: {
   onOpen: (organization: OrganizationSummary) => void;
+  /** An organization was created: read the list again and switch to it. */
+  onOrganizationsChanged: (preferredId?: string) => void;
+  /** The organizations the session knows about (from the API). */
+  organizations: OrganizationSummary[];
   viewer: ViewerSession;
 }) {
   const platformView = viewer.globalRole === 'GLOBAL_ADMIN';
   const [create, setCreate] = useState(false);
-  const [organizations, setOrganizations] = useState(() =>
+  // The preview keeps its own sample list; the application uses the one the
+  // session loaded from the API.
+  const [previewOrganizations, setPreviewOrganizations] = useState(() =>
     organizationsForViewer(viewer),
   );
+  const organizations = previewMode ? previewOrganizations : liveOrganizations;
+  const [submitting, setSubmitting] = useState(false);
   const [query, setQuery] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -45,10 +58,15 @@ export function OrganizationsPage({
     setCreateError('');
   }
 
-  function createOrganization() {
+  async function createOrganization() {
     const trimmedName = name.trim();
     const trimmedAdministratorEmail = administratorEmail.trim();
     if (!trimmedName || !slug || !trimmedAdministratorEmail) return;
+    const parsedEmail = emailSchema.safeParse(trimmedAdministratorEmail);
+    if (!parsedEmail.success) {
+      setCreateError('Enter a valid e-mail address for the administrator.');
+      return;
+    }
     if (
       organizations.some(
         (organization) =>
@@ -59,21 +77,63 @@ export function OrganizationsPage({
       setCreateError('An organization with this name or URL already exists.');
       return;
     }
-    const createdOrganization: OrganizationSummary = {
-      description:
-        description.trim() || 'Organization support and service requests.',
-      id: `preview-${slug}`,
-      initials: getOrganizationInitials(trimmedName),
-      name: trimmedName,
-      roleLabel: 'Platform access',
-      slug,
-      summary: `Administrator invitation pending · ${trimmedAdministratorEmail}`,
-    };
-    setOrganizations((current) => [...current, createdOrganization]);
-    setFeedback(
-      `${trimmedName} was created and its administrator invitation was prepared in this frontend preview.`,
-    );
+    if (previewMode) {
+      const createdOrganization: OrganizationSummary = {
+        description:
+          description.trim() || 'Organization support and service requests.',
+        id: `preview-${slug}`,
+        initials: getOrganizationInitials(trimmedName),
+        name: trimmedName,
+        roleLabel: 'Platform access',
+        slug,
+        summary: `Administrator invitation pending · ${trimmedAdministratorEmail}`,
+      };
+      setPreviewOrganizations((current) => [...current, createdOrganization]);
+      setFeedback(
+        `${trimmedName} was created and its administrator invitation was prepared in this frontend preview.`,
+      );
+      closeCreate();
+      return;
+    }
+
+    setSubmitting(true);
+    setCreateError('');
+    let created: organizationsApi.OrganizationRecord;
+    try {
+      created = await organizationsApi.createOrganization({
+        description: description.trim() || undefined,
+        name: trimmedName,
+      });
+    } catch (error) {
+      setCreateError(
+        error instanceof Error
+          ? error.message
+          : 'The organization could not be created.',
+      );
+      setSubmitting(false);
+      return;
+    }
+    // The first administrator enters through the role assignment by e-mail:
+    // at once if the address has a confirmed account, otherwise when its
+    // owner creates the account with it and confirms it.
+    try {
+      const assignment = await assignOrganizationRole(created.id, {
+        email: parsedEmail.data,
+        role: 'ORG_ADMIN',
+      });
+      setFeedback(
+        assignment.outcome === 'RESERVED'
+          ? `${created.name} was created. Its administration is reserved for ${parsedEmail.data}: it becomes active when that address creates its account and confirms it.`
+          : `${created.name} was created and ${assignment.user?.displayName ?? parsedEmail.data} administers it.`,
+      );
+    } catch (error) {
+      setFeedback(
+        `${created.name} was created, but the administrator could not be assigned (${error instanceof Error ? error.message : 'unknown error'}). Assign it from Roles & access.`,
+      );
+    }
+    setSubmitting(false);
     closeCreate();
+    onOrganizationsChanged(created.id);
   }
 
   return (
@@ -156,15 +216,26 @@ export function OrganizationsPage({
           </article>
         ))}
         {!visibleOrganizations.length ? (
-          <EmptyState
-            description="Try another search."
-            title="No organizations found"
-          />
+          organizations.length ? (
+            <EmptyState
+              description="Try another search."
+              title="No organizations found"
+            />
+          ) : (
+            <EmptyState
+              description={
+                platformView
+                  ? 'Create the first one with New organization.'
+                  : 'An organization administrator has to give a role to your e-mail address.'
+              }
+              title="No organizations yet"
+            />
+          )
         ) : null}
       </section>
       {create ? (
         <Dialog
-          description="Create the organization and prepare an invitation for its first administrator."
+          description="Create the organization and give its administration to an e-mail address. The person receives it even without an account yet: it activates when they create one with that address and confirm it."
           eyebrow="ORGANIZATIONS"
           footer={
             <>
@@ -172,17 +243,22 @@ export function OrganizationsPage({
                 Cancel
               </Button>
               <Button
-                disabled={!name.trim() || !slug || !administratorEmail.trim()}
+                disabled={
+                  submitting ||
+                  !name.trim() ||
+                  !slug ||
+                  !administratorEmail.trim()
+                }
                 type="submit"
               >
-                Create organization
+                {submitting ? 'Creating…' : 'Create organization'}
               </Button>
             </>
           }
           onClose={closeCreate}
           onSubmit={(event) => {
             event.preventDefault();
-            createOrganization();
+            void createOrganization();
           }}
           title="Create an organization"
         >

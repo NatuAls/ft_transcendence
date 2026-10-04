@@ -1,5 +1,9 @@
 import { Alert, Button, IconButton, Tabs } from 'ui';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { OrgRole } from 'contracts';
+import * as organizationsApi from '../../api/organizations';
+import * as rolesApi from '../../api/roles';
+import { previewMode } from '../../app/session';
 import { getInitials } from '../../app/text';
 import { OrganizationDialog } from './OrganizationDialog';
 import {
@@ -10,9 +14,24 @@ import {
 import type {
   DeleteContext,
   OrganizationDialogKind,
+  OrganizationFixture,
   OrganizationRow,
   OrgTab,
 } from './organizationData';
+
+const ROLE_BY_LABEL: Record<string, OrgRole> = {
+  Agent: 'AGENT',
+  Member: 'MEMBER',
+  'Organization admin': 'ORG_ADMIN',
+};
+const LABEL_BY_ROLE: Record<OrgRole, string> = {
+  AGENT: 'Agent',
+  MEMBER: 'Member',
+  ORG_ADMIN: 'Organization admin',
+};
+
+const messageOf = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
 
 export function OrganizationPage({
   canManageCategories,
@@ -20,10 +39,13 @@ export function OrganizationPage({
   canManageOrganization,
   canReadMembers,
   canReadStats,
+  currentUserId,
+  onAccessChanged,
   onOpenCategory,
   onOrganizationDescriptionChange,
   onOrganizationNameChange,
   onOrganizationDeleted,
+  onOrganizationsChanged,
   organizationDescription,
   organizationId,
   organizationName,
@@ -34,16 +56,28 @@ export function OrganizationPage({
   canManageOrganization: boolean;
   canReadMembers: boolean;
   canReadStats: boolean;
+  currentUserId: string;
+  onAccessChanged: () => void;
   onOpenCategory: (category: string) => void;
   onOrganizationDescriptionChange: (description: string) => void;
   onOrganizationNameChange: (name: string) => void;
   onOrganizationDeleted: () => void;
+  onOrganizationsChanged: (preferredId?: string) => void;
   organizationDescription: string;
   organizationId: string;
   organizationName: string;
   organizationRole: 'AGENT' | 'GLOBAL_ADMIN' | 'MEMBER' | 'ORG_ADMIN';
 }) {
-  const fixture = organizationFixture(organizationId, organizationDescription);
+  // Sample rows in the preview; the application starts empty and reads the
+  // organization from the API below.
+  const fixture: OrganizationFixture = previewMode
+    ? organizationFixture(organizationId, organizationDescription)
+    : {
+        categories: [],
+        description: organizationDescription,
+        members: [],
+        openTickets: 0,
+      };
   const [tab, setTab] = useState<OrgTab>(
     canReadMembers ? 'members' : 'categories',
   );
@@ -54,6 +88,93 @@ export function OrganizationPage({
   const roleRows = roleRowsForMembers(memberRows);
   const [categoryRows, setCategoryRows] = useState(fixture.categories);
   const [feedback, setFeedback] = useState('');
+  const [failure, setFailure] = useState('');
+  const [openTickets, setOpenTickets] = useState(fixture.openTickets);
+  // The rows are display tuples; these keep the identifiers the API needs.
+  const [memberIds, setMemberIds] = useState<Record<string, string>>({});
+  const [reservationIds, setReservationIds] = useState<Record<string, string>>(
+    {},
+  );
+  const [categoryIds, setCategoryIds] = useState<Record<string, string>>({});
+  const [version, setVersion] = useState(0);
+  const reload = () => setVersion((current) => current + 1);
+
+  useEffect(() => {
+    if (previewMode || !organizationId) return;
+    let active = true;
+    Promise.all([
+      canReadMembers ? rolesApi.listMembers(organizationId) : null,
+      canManageMembers
+        ? rolesApi.listOrganizationReservations(organizationId)
+        : null,
+      organizationsApi.listCategories(organizationId),
+      canReadStats
+        ? organizationsApi.getOrganizationStats(organizationId)
+        : null,
+    ])
+      .then(([members, reservations, categories, stats]) => {
+        if (!active) return;
+        setMemberRows([
+          ...(members ?? []).map((member): OrganizationRow => [
+            getInitials(member.displayName),
+            member.displayName,
+            member.email,
+            LABEL_BY_ROLE[member.role],
+            'Active',
+          ]),
+          ...(reservations ?? []).map((reservation): OrganizationRow => [
+            getInitials(labelFromEmail(reservation.email)),
+            reservation.email,
+            reservation.waitingFor === 'ACCOUNT'
+              ? 'Waiting for the account'
+              : 'Waiting for e-mail confirmation',
+            LABEL_BY_ROLE[reservation.role],
+            'Invited',
+          ]),
+        ]);
+        setMemberIds(
+          Object.fromEntries(
+            (members ?? []).map((member) => [
+              member.displayName,
+              member.userId,
+            ]),
+          ),
+        );
+        setReservationIds(
+          Object.fromEntries(
+            (reservations ?? []).map((row) => [row.email, row.id]),
+          ),
+        );
+        setCategoryRows(
+          categories.map((category): OrganizationRow => {
+            const count = category._count?.tickets ?? 0;
+            return [
+              getInitials(category.name),
+              category.name,
+              category.description ?? '',
+              `${count} ${count === 1 ? 'ticket' : 'tickets'}`,
+              '',
+            ];
+          }),
+        );
+        setCategoryIds(
+          Object.fromEntries(categories.map((row) => [row.name, row.id])),
+        );
+        if (stats) {
+          setOpenTickets(
+            (stats.byStatus.OPEN ?? 0) + (stats.byStatus.IN_PROGRESS ?? 0),
+          );
+        }
+        setFailure('');
+      })
+      .catch((error: unknown) => {
+        if (active)
+          setFailure(messageOf(error, 'The organization could not be read.'));
+      });
+    return () => {
+      active = false;
+    };
+  }, [canManageMembers, canReadMembers, canReadStats, organizationId, version]);
   const rows =
     tab === 'members' ? memberRows : tab === 'roles' ? roleRows : categoryRows;
   const selectedRow = rows.find((row) => row[1] === selectedName);
@@ -98,6 +219,116 @@ export function OrganizationPage({
   }
 
   function saveDialog(
+    kind: Exclude<OrganizationDialogKind, null>,
+    data: FormData,
+  ) {
+    if (previewMode) {
+      savePreview(kind, data);
+      return;
+    }
+    const context = deleteContext;
+    setDialog(null);
+    setDeleteContext(null);
+    setFeedback('');
+    setFailure('');
+    void saveToApi(kind, context, data);
+  }
+
+  /**
+   * The same dialogs against the API. Each branch is one call; the lists are
+   * read again afterwards, so the screen shows what the server kept and not
+   * what the browser assumed.
+   */
+  async function saveToApi(
+    kind: Exclude<OrganizationDialogKind, null>,
+    context: DeleteContext,
+    data: FormData,
+  ) {
+    const value = (name: string) => String(data.get(name) ?? '').trim();
+    const memberId = memberIds[selectedName];
+    const categoryId = categoryIds[selectedName];
+    try {
+      if (kind === 'add-member') {
+        const result = await rolesApi.assignOrganizationRole(organizationId, {
+          email: value('email'),
+          role: ROLE_BY_LABEL[value('role')] ?? 'MEMBER',
+        });
+        setFeedback(
+          result.outcome === 'RESERVED'
+            ? `Role reserved for ${result.email}: they join when they create their account with that address and confirm it.`
+            : result.outcome === 'UNCHANGED'
+              ? `${result.user?.displayName ?? result.email} already had that role.`
+              : `${result.user?.displayName ?? result.email} now has access to ${organizationName}.`,
+        );
+      } else if (kind === 'edit-member') {
+        const role = ROLE_BY_LABEL[value('role')] ?? 'MEMBER';
+        if (memberId) {
+          await rolesApi.changeMemberRole(organizationId, memberId, role);
+          if (memberId === currentUserId) onAccessChanged();
+        } else {
+          // A reservation: assigning again to the same address replaces the
+          // role it is waiting with.
+          await rolesApi.assignOrganizationRole(organizationId, {
+            email: selectedName,
+            role,
+          });
+        }
+        setFeedback(`${selectedName}'s organization access was updated.`);
+      } else if (kind === 'settings') {
+        const updated = await organizationsApi.updateOrganization(
+          organizationId,
+          {
+            description: value('description'),
+            name: value('organization-name'),
+          },
+        );
+        onOrganizationNameChange(updated.name);
+        onOrganizationDescriptionChange(updated.description ?? '');
+        onOrganizationsChanged(organizationId);
+        setFeedback('Organization details were updated.');
+      } else if (kind === 'category') {
+        const input = {
+          description: value('description') || undefined,
+          name: value('category-name'),
+        };
+        if (selectedName && categoryId) {
+          await organizationsApi.updateCategory(
+            organizationId,
+            categoryId,
+            input,
+          );
+        } else {
+          await organizationsApi.createCategory(organizationId, {
+            ...input,
+            color: '#0d6c90',
+          });
+        }
+        setFeedback(`Category “${input.name}” was saved.`);
+      } else if (context === 'edit-member') {
+        const reservationId = reservationIds[selectedName];
+        if (memberId) {
+          await rolesApi.removeMember(organizationId, memberId);
+          setFeedback(`${selectedName} was removed from the organization.`);
+        } else if (reservationId) {
+          await rolesApi.cancelOrganizationReservation(
+            organizationId,
+            reservationId,
+          );
+          setFeedback(`The reservation for ${selectedName} was cancelled.`);
+        }
+      } else if (context === 'settings') {
+        await organizationsApi.deleteOrganization(organizationId);
+        onOrganizationsChanged();
+        onOrganizationDeleted();
+        return;
+      }
+      reload();
+    } catch (error) {
+      setFailure(messageOf(error, 'The change could not be saved.'));
+    }
+  }
+
+  function savePreview(
     kind: Exclude<OrganizationDialogKind, null>,
     data: FormData,
   ) {
@@ -206,7 +437,7 @@ export function OrganizationPage({
               ),
               'Support agents',
             ],
-            [String(fixture.openTickets), 'Open tickets'],
+            [String(openTickets), 'Open tickets'],
             [String(categoryRows.length), 'Categories'],
           ].map(([value, label]) => (
             <article
@@ -238,6 +469,11 @@ export function OrganizationPage({
           tone="success"
         >
           {feedback}
+        </Alert>
+      ) : null}
+      {failure ? (
+        <Alert className="-mt-1.5 mb-[18px] !py-2.5 !text-xs2" tone="danger">
+          {failure}
         </Alert>
       ) : null}
       <div
@@ -305,7 +541,7 @@ export function OrganizationPage({
               const editor = tab === 'members' ? 'edit-member' : 'category';
               const canEdit =
                 tab === 'members'
-                  ? canManageMembers && row[4] === 'Active'
+                  ? canManageMembers && (row[4] === 'Active' || !previewMode)
                   : tab === 'categories'
                     ? canManageCategories
                     : false;
@@ -357,7 +593,7 @@ export function OrganizationPage({
                             Invited
                             <span className="max-md:hidden">
                               {' '}
-                              · frontend mock
+                              · waiting for the person
                             </span>
                           </>
                         ) : (
