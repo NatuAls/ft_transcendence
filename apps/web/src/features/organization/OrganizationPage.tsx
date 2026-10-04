@@ -1,11 +1,14 @@
 import { Alert, Button, IconButton, Tabs } from 'ui';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { OrgRole } from 'contracts';
 import * as organizationsApi from '../../api/organizations';
 import * as rolesApi from '../../api/roles';
 import { previewMode } from '../../app/session';
 import { getInitials } from '../../app/text';
 import { OrganizationDialog } from './OrganizationDialog';
+import { errorMessage } from '../../core/api/errors';
+import { AsyncState } from '../../core/async/AsyncState';
+import { useAsync } from '../../core/async/useAsync';
 import {
   labelFromEmail,
   organizationFixture,
@@ -29,9 +32,6 @@ const LABEL_BY_ROLE: Record<OrgRole, string> = {
   MEMBER: 'Member',
   ORG_ADMIN: 'Organization admin',
 };
-
-const messageOf = (error: unknown, fallback: string) =>
-  error instanceof Error ? error.message : fallback;
 
 export function OrganizationPage({
   canManageCategories,
@@ -84,102 +84,87 @@ export function OrganizationPage({
   const [dialog, setDialog] = useState<OrganizationDialogKind>(null);
   // Who created the organization: the API lets only them (or a platform
   // administrator) delete it.
-  const [createdById, setCreatedById] = useState<string | null>(null);
   const [deleteContext, setDeleteContext] = useState<DeleteContext>(null);
   const [selectedName, setSelectedName] = useState('Maya Singh');
-  const [memberRows, setMemberRows] = useState(fixture.members);
-  const roleRows = roleRowsForMembers(memberRows);
-  const [categoryRows, setCategoryRows] = useState(fixture.categories);
   const [feedback, setFeedback] = useState('');
   const [failure, setFailure] = useState('');
-  const [openTickets, setOpenTickets] = useState(fixture.openTickets);
-  // The rows are display tuples; these keep the identifiers the API needs.
-  const [memberIds, setMemberIds] = useState<Record<string, string>>({});
-  const [reservationIds, setReservationIds] = useState<Record<string, string>>(
-    {},
-  );
-  const [categoryIds, setCategoryIds] = useState<Record<string, string>>({});
-  const [version, setVersion] = useState(0);
-  const reload = () => setVersion((current) => current + 1);
 
-  useEffect(() => {
-    if (previewMode || !organizationId) return;
-    let active = true;
-    Promise.all([
-      canReadMembers ? rolesApi.listMembers(organizationId) : null,
-      canManageMembers
-        ? rolesApi.listOrganizationReservations(organizationId)
-        : null,
-      organizationsApi.listCategories(organizationId),
-      canReadStats
-        ? organizationsApi.getOrganizationStats(organizationId)
-        : null,
-      canManageOrganization
-        ? organizationsApi.getOrganization(organizationId)
-        : null,
-    ])
-      .then(([members, reservations, categories, stats, detail]) => {
-        if (!active) return;
-        setCreatedById(detail?.createdById ?? null);
-        setMemberRows([
-          ...(members ?? []).map((member): OrganizationRow => [
-            getInitials(member.displayName),
-            member.displayName,
-            member.email,
-            LABEL_BY_ROLE[member.role],
-            'Active',
-          ]),
-          ...(reservations ?? []).map((reservation): OrganizationRow => [
-            getInitials(labelFromEmail(reservation.email)),
-            reservation.email,
-            reservation.waitingFor === 'ACCOUNT'
-              ? 'Waiting for the account'
-              : 'Waiting for e-mail confirmation',
-            LABEL_BY_ROLE[reservation.role],
-            'Invited',
-          ]),
-        ]);
-        setMemberIds(
-          Object.fromEntries(
-            (members ?? []).map((member) => [
-              member.displayName,
-              member.userId,
-            ]),
-          ),
-        );
-        setReservationIds(
-          Object.fromEntries(
-            (reservations ?? []).map((row) => [row.email, row.id]),
-          ),
-        );
-        setCategoryRows(
-          categories.map((category): OrganizationRow => {
-            const count = category._count?.tickets ?? 0;
-            return [
-              getInitials(category.name),
-              category.name,
-              category.description ?? '',
-              `${count} ${count === 1 ? 'ticket' : 'tickets'}`,
-              '',
-            ];
-          }),
-        );
-        setCategoryIds(
-          Object.fromEntries(categories.map((row) => [row.name, row.id])),
-        );
-        if (stats) {
-          setOpenTickets(
-            (stats.byStatus.OPEN ?? 0) + (stats.byStatus.IN_PROGRESS ?? 0),
-          );
-        }
-        setFailure('');
-      })
-      .catch((error: unknown) => {
-        if (active)
-          setFailure(messageOf(error, 'The organization could not be read.'));
-      });
-    return () => {
-      active = false;
+  /**
+   * Todo lo que esta pantalla lee de la API, en una sola carga: las filas que
+   * se pintan y los identificadores que necesitan las acciones. Antes salía
+   * de siete estados distintos sembrados con los datos de ejemplo, así que la
+   * aplicación real enseñaba la organización de muestra hasta que llegaba la
+   * respuesta. Ahora hay estado de carga, y los datos de ejemplo se quedan
+   * donde deben: en el modo de vista previa.
+   */
+  const view = useAsync(async () => {
+    if (previewMode || !organizationId) {
+      return {
+        categoryIds: {} as Record<string, string>,
+        categoryRows: fixture.categories,
+        createdById: null as string | null,
+        memberIds: {} as Record<string, string>,
+        memberRows: fixture.members,
+        openTickets: fixture.openTickets,
+        reservationIds: {} as Record<string, string>,
+      };
+    }
+    const [members, reservations, categories, stats, detail] =
+      await Promise.all([
+        canReadMembers ? rolesApi.listMembers(organizationId) : null,
+        canManageMembers
+          ? rolesApi.listOrganizationReservations(organizationId)
+          : null,
+        organizationsApi.listCategories(organizationId),
+        canReadStats
+          ? organizationsApi.getOrganizationStats(organizationId)
+          : null,
+        canManageOrganization
+          ? organizationsApi.getOrganization(organizationId)
+          : null,
+      ]);
+    return {
+      categoryIds: Object.fromEntries(
+        categories.map((row) => [row.name, row.id]),
+      ),
+      categoryRows: categories.map((category): OrganizationRow => {
+        const count = category._count?.tickets ?? 0;
+        return [
+          getInitials(category.name),
+          category.name,
+          category.description ?? '',
+          `${count} ${count === 1 ? 'ticket' : 'tickets'}`,
+          '',
+        ];
+      }),
+      createdById: detail?.createdById ?? null,
+      memberIds: Object.fromEntries(
+        (members ?? []).map((member) => [member.displayName, member.userId]),
+      ),
+      memberRows: [
+        ...(members ?? []).map((member): OrganizationRow => [
+          getInitials(member.displayName),
+          member.displayName,
+          member.email,
+          LABEL_BY_ROLE[member.role],
+          'Active',
+        ]),
+        ...(reservations ?? []).map((reservation): OrganizationRow => [
+          getInitials(labelFromEmail(reservation.email)),
+          reservation.email,
+          reservation.waitingFor === 'ACCOUNT'
+            ? 'Waiting for the account'
+            : 'Waiting for e-mail confirmation',
+          LABEL_BY_ROLE[reservation.role],
+          'Invited',
+        ]),
+      ],
+      openTickets: stats
+        ? (stats.byStatus.OPEN ?? 0) + (stats.byStatus.IN_PROGRESS ?? 0)
+        : fixture.openTickets,
+      reservationIds: Object.fromEntries(
+        (reservations ?? []).map((row) => [row.email, row.id]),
+      ),
     };
   }, [
     canManageMembers,
@@ -187,8 +172,29 @@ export function OrganizationPage({
     canReadMembers,
     canReadStats,
     organizationId,
-    version,
   ]);
+
+  const memberRows = view.data?.memberRows ?? [];
+  const categoryRows = view.data?.categoryRows ?? [];
+  const memberIds = view.data?.memberIds ?? {};
+  const reservationIds = view.data?.reservationIds ?? {};
+  const categoryIds = view.data?.categoryIds ?? {};
+  const createdById = view.data?.createdById ?? null;
+  const openTickets = view.data?.openTickets ?? fixture.openTickets;
+  const roleRows = roleRowsForMembers(memberRows);
+  const reload = view.reload;
+
+  /** Cambia las filas en local tras una acción, sin esperar a la recarga. */
+  function patchRows(
+    patch: (
+      previous: NonNullable<typeof view.data>,
+    ) => Partial<NonNullable<typeof view.data>>,
+  ) {
+    view.setData((current) =>
+      current ? { ...current, ...patch(current) } : current,
+    );
+  }
+
   const rows =
     tab === 'members' ? memberRows : tab === 'roles' ? roleRows : categoryRows;
   const selectedRow = rows.find((row) => row[1] === selectedName);
@@ -338,7 +344,7 @@ export function OrganizationPage({
       }
       reload();
     } catch (error) {
-      setFailure(messageOf(error, 'The change could not be saved.'));
+      setFailure(errorMessage(error, 'The change could not be saved.'));
     }
   }
 
@@ -350,19 +356,21 @@ export function OrganizationPage({
     if (kind === 'add-member') {
       const email = value('email');
       const name = labelFromEmail(email);
-      setMemberRows((current) => [
-        ...current,
-        [getInitials(name), name, email, value('role'), 'Invited'],
-      ]);
+      patchRows((current) => ({
+        memberRows: [
+          ...current.memberRows,
+          [getInitials(name), name, email, value('role'), 'Invited'],
+        ],
+      }));
       setFeedback(`Invitation prepared for ${email}.`);
     } else if (kind === 'edit-member') {
-      setMemberRows((current) =>
-        current.map((row) =>
+      patchRows((current) => ({
+        memberRows: current.memberRows.map((row) =>
           row[1] === selectedName
             ? [row[0], row[1], row[2], value('role'), row[4]]
             : row,
         ),
-      );
+      }));
       setFeedback(`${selectedName}'s organization access was updated.`);
     } else if (kind === 'settings') {
       onOrganizationNameChange(value('organization-name'));
@@ -379,16 +387,18 @@ export function OrganizationPage({
         selectedRow?.[3] ?? '0 tickets',
         '',
       ];
-      setCategoryRows((current) =>
-        selectedName
-          ? current.map((row) => (row[1] === selectedName ? nextRow : row))
-          : [...current, nextRow],
-      );
+      patchRows((current) => ({
+        categoryRows: selectedName
+          ? current.categoryRows.map((row) =>
+              row[1] === selectedName ? nextRow : row,
+            )
+          : [...current.categoryRows, nextRow],
+      }));
       setFeedback(`Category “${name}” was saved.`);
     } else if (deleteContext === 'edit-member') {
-      setMemberRows((current) =>
-        current.filter((row) => row[1] !== selectedName),
-      );
+      patchRows((current) => ({
+        memberRows: current.memberRows.filter((row) => row[1] !== selectedName),
+      }));
       setFeedback(`${selectedName} was removed from the organization.`);
     } else if (deleteContext === 'settings') {
       onOrganizationDeleted();
@@ -551,88 +561,104 @@ export function OrganizationPage({
               ) : null}
               {tab !== 'roles' ? <span aria-hidden="true" /> : null}
             </div>
-            {rows.map((row) => {
-              const editor = tab === 'members' ? 'edit-member' : 'category';
-              const canEdit =
+            <AsyncState
+              emptyDescription={
                 tab === 'members'
-                  ? canManageMembers && (row[4] === 'Active' || !previewMode)
-                  : tab === 'categories'
-                    ? canManageCategories
-                    : false;
-              const canOpen = tab === 'categories' || canEdit;
-              return (
-                <div
-                  className={`grid border-t border-border ${tableGridClass} ${rowMobileGridClass}`}
-                  key={row[1]}
-                  role="row"
-                >
-                  <button
-                    aria-label={
-                      tab === 'categories'
-                        ? `View tickets in ${row[1]}`
-                        : `Open ${row[1]}`
-                    }
-                    className={`grid min-h-[68px] w-full items-center gap-3 px-[18px] py-[11px] text-left enabled:hover:bg-surface-secondary disabled:cursor-default max-md:col-span-1 max-md:grid-cols-[minmax(0,1fr)_auto] max-md:p-3 ${rowContentClass}`}
-                    disabled={!canOpen}
-                    onClick={() => {
-                      setSelectedName(row[1]);
-                      if (tab === 'categories') onOpenCategory(row[1]);
-                      else if (canEdit) setDialog(editor);
-                    }}
-                    type="button"
+                  ? 'Add somebody by e-mail address to get started.'
+                  : 'Create one to start routing tickets.'
+              }
+              emptyTitle={
+                tab === 'members' ? 'No members yet' : 'No categories yet'
+              }
+              error={view.error}
+              errorTitle="This organization could not be read"
+              isEmpty={!rows.length}
+              onRetry={reload}
+              status={view.status}
+            >
+              {rows.map((row) => {
+                const editor = tab === 'members' ? 'edit-member' : 'category';
+                const canEdit =
+                  tab === 'members'
+                    ? canManageMembers && (row[4] === 'Active' || !previewMode)
+                    : tab === 'categories'
+                      ? canManageCategories
+                      : false;
+                const canOpen = tab === 'categories' || canEdit;
+                return (
+                  <div
+                    className={`grid border-t border-border ${tableGridClass} ${rowMobileGridClass}`}
+                    key={row[1]}
+                    role="row"
                   >
-                    <span className="flex items-center gap-2.5">
-                      <b className="grid size-8 place-items-center rounded-full bg-[#d8e5df] text-3xs text-primary">
-                        {row[0]}
-                      </b>
-                      <span className="grid gap-1">
-                        <strong className="text-xs">{row[1]}</strong>
-                        <small className="text-2xs text-muted max-md:max-w-[180px] max-md:overflow-hidden max-md:text-ellipsis max-md:whitespace-nowrap">
-                          {row[2]}
-                        </small>
-                      </span>
-                    </span>
-                    {tab !== 'categories' || canReadStats ? (
-                      <span className="text-2xs text-muted">{row[3]}</span>
-                    ) : null}
-                    {tab !== 'categories' ? (
-                      <span className="flex items-center gap-1.5 text-2xs text-muted">
-                        {tab === 'members' ? (
-                          <i
-                            className={`size-1.5 rounded-full ${row[4] === 'Invited' ? 'bg-warning' : 'bg-success'}`}
-                          />
-                        ) : null}
-                        {row[4] === 'Invited' ? (
-                          <>
-                            Invited
-                            <span className="max-md:hidden">
-                              {' '}
-                              · waiting for the person
-                            </span>
-                          </>
-                        ) : (
-                          row[4]
-                        )}
-                      </span>
-                    ) : null}
-                  </button>
-                  {canEdit ? (
-                    <IconButton
-                      label={`Edit ${row[1]}`}
-                      icon="more"
+                    <button
+                      aria-label={
+                        tab === 'categories'
+                          ? `View tickets in ${row[1]}`
+                          : `Open ${row[1]}`
+                      }
+                      className={`grid min-h-[68px] w-full items-center gap-3 px-[18px] py-[11px] text-left enabled:hover:bg-surface-secondary disabled:cursor-default max-md:col-span-1 max-md:grid-cols-[minmax(0,1fr)_auto] max-md:p-3 ${rowContentClass}`}
+                      disabled={!canOpen}
                       onClick={() => {
                         setSelectedName(row[1]);
-                        setDeleteContext(null);
-                        setDialog(editor);
+                        if (tab === 'categories') onOpenCategory(row[1]);
+                        else if (canEdit) setDialog(editor);
                       }}
-                      size="sm"
-                    />
-                  ) : tab !== 'roles' ? (
-                    <span aria-hidden="true" />
-                  ) : null}
-                </div>
-              );
-            })}
+                      type="button"
+                    >
+                      <span className="flex items-center gap-2.5">
+                        <b className="grid size-8 place-items-center rounded-full bg-[#d8e5df] text-3xs text-primary">
+                          {row[0]}
+                        </b>
+                        <span className="grid gap-1">
+                          <strong className="text-xs">{row[1]}</strong>
+                          <small className="text-2xs text-muted max-md:max-w-[180px] max-md:overflow-hidden max-md:text-ellipsis max-md:whitespace-nowrap">
+                            {row[2]}
+                          </small>
+                        </span>
+                      </span>
+                      {tab !== 'categories' || canReadStats ? (
+                        <span className="text-2xs text-muted">{row[3]}</span>
+                      ) : null}
+                      {tab !== 'categories' ? (
+                        <span className="flex items-center gap-1.5 text-2xs text-muted">
+                          {tab === 'members' ? (
+                            <i
+                              className={`size-1.5 rounded-full ${row[4] === 'Invited' ? 'bg-warning' : 'bg-success'}`}
+                            />
+                          ) : null}
+                          {row[4] === 'Invited' ? (
+                            <>
+                              Invited
+                              <span className="max-md:hidden">
+                                {' '}
+                                · waiting for the person
+                              </span>
+                            </>
+                          ) : (
+                            row[4]
+                          )}
+                        </span>
+                      ) : null}
+                    </button>
+                    {canEdit ? (
+                      <IconButton
+                        label={`Edit ${row[1]}`}
+                        icon="more"
+                        onClick={() => {
+                          setSelectedName(row[1]);
+                          setDeleteContext(null);
+                          setDialog(editor);
+                        }}
+                        size="sm"
+                      />
+                    ) : tab !== 'roles' ? (
+                      <span aria-hidden="true" />
+                    ) : null}
+                  </div>
+                );
+              })}
+            </AsyncState>
           </div>
         </section>
         {canReadStats ? (

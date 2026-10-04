@@ -1,5 +1,8 @@
-import { Alert, Button, Dialog, EmptyState, LoadingState } from 'ui';
-import { useEffect, useState } from 'react';
+import { Alert, Button, Dialog, LoadingState } from 'ui';
+import { useState } from 'react';
+import { AsyncState } from '../../core/async/AsyncState';
+import { useAsync } from '../../core/async/useAsync';
+import { errorMessage } from '../../core/api/errors';
 import {
   listSessions,
   revokeSession,
@@ -76,59 +79,38 @@ export function SessionsPage({
   onBack: () => void;
   onSignedOut: () => void;
 }) {
-  const [sessions, setSessions] = useState<DeviceSession[]>(
-    previewMode ? previewSessions : [],
-  );
-  const [loading, setLoading] = useState(!previewMode);
   const [feedback, setFeedback] = useState('');
   const [failure, setFailure] = useState('');
   const [busyId, setBusyId] = useState('');
   const [confirmAll, setConfirmAll] = useState(false);
-  const [version, setVersion] = useState(0);
 
-  useEffect(() => {
-    if (previewMode) return;
-    let active = true;
-    listSessions()
-      .then((rows) => {
-        if (active) setSessions(rows);
-      })
-      .catch((error: unknown) => {
-        if (active)
-          setFailure(
-            error instanceof Error
-              ? error.message
-              : 'The sessions could not be read.',
-          );
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [version]);
+  const devices = useAsync(
+    (signal) =>
+      previewMode ? Promise.resolve(previewSessions) : listSessions(signal),
+    [],
+  );
+  const sessions = devices.data ?? [];
 
   async function revoke(session: DeviceSession) {
     setBusyId(session.id);
     setFeedback('');
     setFailure('');
     try {
-      if (previewMode)
-        setSessions((current) =>
-          current.filter((row) => row.id !== session.id),
+      if (previewMode) {
+        // En vista previa no hay servidor al que volver a preguntar: la fila
+        // se quita en local y ya está.
+        devices.setData((current) =>
+          (current ?? []).filter((row) => row.id !== session.id),
         );
-      else await revokeSession(session.id);
+      } else {
+        await revokeSession(session.id);
+      }
       setFeedback(
         `${describeDevice(session.userAgent)} was signed out. It has to sign in again to come back.`,
       );
-      setVersion((current) => current + 1);
+      if (!previewMode) devices.reload();
     } catch (error) {
-      setFailure(
-        error instanceof Error
-          ? error.message
-          : 'The device could not be signed out.',
-      );
+      setFailure(errorMessage(error, 'The device could not be signed out.'));
     } finally {
       setBusyId('');
     }
@@ -167,9 +149,16 @@ export function SessionsPage({
         </Alert>
       ) : null}
       <section className="mt-6 overflow-hidden rounded-md border border-border bg-surface">
-        {loading ? (
-          <LoadingState label="Loading sessions" />
-        ) : sessions.length ? (
+        <AsyncState
+          emptyDescription="Reload the page if you have just signed in."
+          emptyTitle="No active sessions"
+          error={devices.error}
+          errorTitle="The sessions could not be read"
+          isEmpty={!sessions.length}
+          loading={<LoadingState label="Loading sessions" />}
+          onRetry={devices.reload}
+          status={devices.status}
+        >
           <ul>
             {sessions.map((session) => (
               <li
@@ -208,14 +197,7 @@ export function SessionsPage({
               </li>
             ))}
           </ul>
-        ) : (
-          <div className="p-5">
-            <EmptyState
-              description="Reload the page if you have just signed in."
-              title="No active sessions"
-            />
-          </div>
-        )}
+        </AsyncState>
       </section>
       <section className="mt-5 flex items-center justify-between gap-4 rounded-md border border-border bg-surface p-5 max-md:grid">
         <div>

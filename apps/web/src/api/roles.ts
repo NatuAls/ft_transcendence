@@ -10,7 +10,7 @@ import {
   type PlatformRoleAssignment,
   type PlatformRoleReservation,
 } from 'contracts';
-import { apiRequest, jsonBody } from './http';
+import { apiRequest, jsonBody } from '../core/api/client';
 
 /**
  * Role assignment by e-mail, against the API. The two screens never import

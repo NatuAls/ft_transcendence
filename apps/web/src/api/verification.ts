@@ -1,5 +1,5 @@
 import { verifyEmailSchema } from 'contracts';
-import { apiRequest, jsonBody } from './http';
+import { apiRequest, jsonBody } from '../core/api/client';
 
 /**
  * Consumes the link of the confirmation e-mail. Public on purpose: the link

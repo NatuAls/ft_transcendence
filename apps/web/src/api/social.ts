@@ -1,4 +1,4 @@
-import { apiRequest, jsonBody } from './http';
+import { apiRequest, jsonBody } from '../core/api/client';
 
 /** Someone as the social endpoints return them: public data only. */
 export interface PublicPerson {

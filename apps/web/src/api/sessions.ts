@@ -1,4 +1,4 @@
-import { apiRequest } from './http';
+import { apiRequest } from '../core/api/client';
 
 /** One signed-in device, as `GET /auth/sessions` returns it. */
 export interface DeviceSession {
@@ -14,8 +14,8 @@ export interface DeviceSession {
   userAgent: string | null;
 }
 
-export function listSessions(): Promise<DeviceSession[]> {
-  return apiRequest('/auth/sessions');
+export function listSessions(signal?: AbortSignal): Promise<DeviceSession[]> {
+  return apiRequest('/auth/sessions', { signal });
 }
 
 /** Signs that device out: its next renewal is refused. */

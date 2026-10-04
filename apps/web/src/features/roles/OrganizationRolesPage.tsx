@@ -8,7 +8,10 @@ import {
   SelectField,
   TextField,
 } from 'ui';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
+import { AsyncState } from '../../core/async/AsyncState';
+import { useAsync } from '../../core/async/useAsync';
+import { errorMessage, fieldErrorsFromIssues } from '../../core/api/errors';
 import {
   assignOrganizationRoleSchema,
   type OrgRole,
@@ -40,9 +43,6 @@ type Feedback = { text: string; tone: 'success' | 'info' | 'danger' } | null;
 
 const roleDescription = (role: OrgRole) =>
   organizationRoles.find((item) => item.value === role)?.description ?? '';
-
-const messageOf = (error: unknown, fallback: string) =>
-  error instanceof Error ? error.message : fallback;
 
 /**
  * Screen 2 of 2: roles at ORGANIZATION level, for the active organization.
@@ -130,12 +130,6 @@ function ManageView({
   organizationName: string;
   viewerRole: OrganizationViewerRole;
 }) {
-  const [members, setMembers] = useState<OrganizationMemberRow[]>([]);
-  const [reservations, setReservations] = useState<
-    OrganizationRoleReservation[]
-  >([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<OrgRole>('MEMBER');
   const [emailError, setEmailError] = useState('');
@@ -145,33 +139,17 @@ function ManageView({
   const [removing, setRemoving] = useState<OrganizationMemberRow | null>(null);
   const [demotingSelf, setDemotingSelf] = useState<OrgRole | null>(null);
 
-  // Bumped after every change; the effect below re-reads both lists.
-  const [version, setVersion] = useState(0);
-  const reload = () => setVersion((current) => current + 1);
-
-  useEffect(() => {
-    let active = true;
-    Promise.all([
+  const roles = useAsync(async () => {
+    const [members, reservations] = await Promise.all([
       rolesGateway.listMembers(organizationId),
       rolesGateway.listOrganizationReservations(organizationId),
-    ])
-      .then(([nextMembers, nextReservations]) => {
-        if (!active) return;
-        setMembers(nextMembers);
-        setReservations(nextReservations);
-        setLoadError('');
-      })
-      .catch((error: unknown) => {
-        if (active)
-          setLoadError(messageOf(error, 'The roles could not be read.'));
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [organizationId, version]);
+    ]);
+    return { members, reservations };
+  }, [organizationId]);
+  const members: OrganizationMemberRow[] = roles.data?.members ?? [];
+  const reservations: OrganizationRoleReservation[] =
+    roles.data?.reservations ?? [];
+  const reload = roles.reload;
 
   function describe(result: OrganizationRoleAssignment): Feedback {
     const name = result.user?.displayName ?? result.email;
@@ -202,7 +180,9 @@ function ManageView({
     setFeedback(null);
     const parsed = assignOrganizationRoleSchema.safeParse({ email, role });
     if (!parsed.success) {
-      setEmailError('Enter a valid e-mail address.');
+      setEmailError(
+        fieldErrorsFromIssues(parsed.error.issues).email ?? 'Check this field.',
+      );
       return;
     }
     setEmailError('');
@@ -218,7 +198,7 @@ function ManageView({
       if (result.user?.id === currentUserId) onAccessChanged();
     } catch (error) {
       setFeedback({
-        text: messageOf(error, 'The role could not be assigned.'),
+        text: errorMessage(error, 'The role could not be assigned.'),
         tone: 'danger',
       });
     } finally {
@@ -240,7 +220,7 @@ function ManageView({
       if (member.userId === currentUserId) onAccessChanged();
     } catch (error) {
       setFeedback({
-        text: messageOf(error, 'The role could not be changed.'),
+        text: errorMessage(error, 'The role could not be changed.'),
         tone: 'danger',
       });
     } finally {
@@ -262,7 +242,7 @@ function ManageView({
       reload();
     } catch (error) {
       setFeedback({
-        text: messageOf(error, 'The member could not be removed.'),
+        text: errorMessage(error, 'The member could not be removed.'),
         tone: 'danger',
       });
       setRemoving(null);
@@ -286,7 +266,7 @@ function ManageView({
       reload();
     } catch (error) {
       setFeedback({
-        text: messageOf(error, 'The reservation could not be cancelled.'),
+        text: errorMessage(error, 'The reservation could not be cancelled.'),
         tone: 'danger',
       });
     } finally {
@@ -385,30 +365,17 @@ function ManageView({
         </Alert>
       ) : null}
 
-      {loading ? (
-        <div className="mt-5">
-          <LoadingState label="Loading roles" />
-        </div>
-      ) : loadError ? (
-        <Alert
-          className="mt-5"
-          title="The roles could not be loaded"
-          tone="danger"
-        >
-          <p>{loadError}</p>
-          <Button
-            className="mt-3"
-            onClick={() => {
-              setLoading(true);
-              reload();
-            }}
-            size="compact"
-            variant="secondary"
-          >
-            Try again
-          </Button>
-        </Alert>
-      ) : (
+      <AsyncState
+        error={roles.error}
+        errorTitle="The roles could not be loaded"
+        loading={
+          <div className="mt-5">
+            <LoadingState label="Loading roles" />
+          </div>
+        }
+        onRetry={reload}
+        status={roles.status}
+      >
         <div className="mt-5 grid gap-5">
           <Panel
             description="Changing a role applies immediately. An organization always keeps at least one administrator."
@@ -520,7 +487,7 @@ function ManageView({
 
           <CapabilityMatrix highlight={self?.role} />
         </div>
-      )}
+      </AsyncState>
 
       {removing ? (
         <Dialog
@@ -586,28 +553,16 @@ function ReadOnlyView({
   organizationName: string;
   viewerRole: 'AGENT' | 'MEMBER';
 }) {
-  const [members, setMembers] = useState<OrganizationMemberRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState('');
-
-  useEffect(() => {
-    let active = true;
-    rolesGateway
-      .listMembers(organizationId)
-      .then((rows) => {
-        if (active) setMembers(rows);
-      })
-      .catch((error: unknown) => {
-        if (active)
-          setLoadError(messageOf(error, 'The members could not be read.'));
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [organizationId]);
+  const roster = useAsync(
+    () => rolesGateway.listMembers(organizationId),
+    [organizationId],
+  );
+  const members: OrganizationMemberRow[] = roster.data ?? [];
+  const loading = roster.status === 'loading';
+  const loadError =
+    roster.status === 'error'
+      ? errorMessage(roster.error, 'The members could not be read.')
+      : '';
 
   const administrators = members.filter(
     (member) => member.role === 'ORG_ADMIN',

@@ -4,6 +4,8 @@ import * as social from '../../api/social';
 import { onPresenceChange } from '../../app/realtime';
 import { getInitials } from '../../app/text';
 import { openConversation } from '../messages/messagesApi';
+import { errorMessage } from '../../core/api/errors';
+import { useAsync } from '../../core/async/useAsync';
 
 type Relation =
   | { kind: 'friend'; since: string }
@@ -24,9 +26,6 @@ const roleLabels: Record<string, string> = {
   ORG_ADMIN: 'Organization admin',
 };
 
-const messageOf = (error: unknown, fallback: string) =>
-  error instanceof Error ? error.message : fallback;
-
 /** A person's public profile, from `GET /users/:username`. */
 export function ProfileView({
   currentUserId,
@@ -41,10 +40,6 @@ export function ProfileView({
   onMessage: (username: string) => void;
   username: string;
 }) {
-  const [profile, setProfile] = useState<social.PublicProfile | null>(null);
-  const [relation, setRelation] = useState<Relation>({ kind: 'none' });
-  const [loading, setLoading] = useState(true);
-  const [missing, setMissing] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [failure, setFailure] = useState('');
   const [busy, setBusy] = useState(false);
@@ -52,49 +47,46 @@ export function ProfileView({
     isOnline: boolean;
     lastSeenAt?: string;
   } | null>(null);
-  const [version, setVersion] = useState(0);
-  const reload = () => setVersion((current) => current + 1);
-
-  useEffect(() => {
-    let active = true;
-    Promise.all([
+  // La relación con esa persona se deduce de las tres lecturas, así que
+  // viaja con ellas en una sola carga y no en un estado aparte que pueda
+  // quedarse desfasado.
+  const page = useAsync(async () => {
+    const [person, friends, requests] = await Promise.all([
       social.getPublicProfile(username),
       social.listFriends(),
       social.listFriendRequests(),
-    ])
-      .then(([person, friends, requests]) => {
-        if (!active) return;
-        setProfile(person);
-        setMissing(false);
-        const friendship = friends.find((row) => row.user.id === person.id);
-        const received = requests.incoming.find(
-          (row) => row.requester.id === person.id,
-        );
-        const sent = requests.outgoing.some(
-          (row) => row.addressee.id === person.id,
-        );
-        setRelation(
-          person.id === currentUserId
-            ? { kind: 'self' }
-            : friendship
-              ? { kind: 'friend', since: friendship.since }
-              : received
-                ? { kind: 'incoming', requestId: received.id }
-                : sent
-                  ? { kind: 'outgoing' }
-                  : { kind: 'none' },
-        );
-      })
-      .catch(() => {
-        if (active) setMissing(true);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [currentUserId, username, version]);
+    ]);
+    const friendship = friends.find((row) => row.user.id === person.id);
+    const received = requests.incoming.find(
+      (row) => row.requester.id === person.id,
+    );
+    const sent = requests.outgoing.some(
+      (row) => row.addressee.id === person.id,
+    );
+    const next: Relation =
+      person.id === currentUserId
+        ? { kind: 'self' }
+        : friendship
+          ? { kind: 'friend', since: friendship.since }
+          : received
+            ? { kind: 'incoming', requestId: received.id }
+            : sent
+              ? { kind: 'outgoing' }
+              : { kind: 'none' };
+    return { person, relation: next };
+  }, [currentUserId, username]);
+
+  const profile = page.data?.person ?? null;
+  const loading = page.status === 'loading';
+  // Esta pantalla sólo tiene dos desenlaces: la persona existe o no. Un fallo
+  // de lectura se cuenta como «no está», que es lo que ya hacía.
+  const missing = page.status === 'error';
+  const reload = page.reload;
+
+  // La relación se deriva de la carga: las acciones (aceptar, retirar,
+  // eliminar) recargan, así que no hace falta un estado paralelo que pueda
+  // contradecir a los datos.
+  const relation: Relation = page.data?.relation ?? { kind: 'none' };
 
   useEffect(
     () =>
@@ -114,7 +106,7 @@ export function ProfileView({
       setFeedback(done);
       reload();
     } catch (error) {
-      setFailure(messageOf(error, 'The request could not be completed.'));
+      setFailure(errorMessage(error, 'The request could not be completed.'));
     } finally {
       setBusy(false);
     }
@@ -203,7 +195,7 @@ export function ProfileView({
                     .then(() => onMessage(profile.username))
                     .catch((error: unknown) => {
                       setFailure(
-                        messageOf(
+                        errorMessage(
                           error,
                           'The conversation could not be opened.',
                         ),

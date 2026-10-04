@@ -1,5 +1,8 @@
 import { Alert, Avatar, Button, EmptyState, Icon, LoadingState } from 'ui';
 import { useEffect, useMemo, useState } from 'react';
+import { AsyncState } from '../../core/async/AsyncState';
+import { useAsync } from '../../core/async/useAsync';
+import { errorMessage } from '../../core/api/errors';
 import * as social from '../../api/social';
 import { listMembers } from '../../api/roles';
 import { onPresenceChange } from '../../app/realtime';
@@ -22,9 +25,6 @@ interface Person {
 }
 
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' });
-
-const messageOf = (error: unknown, fallback: string) =>
-  error instanceof Error ? error.message : fallback;
 
 function personFrom(
   user: social.PublicPerson,
@@ -60,69 +60,59 @@ export function PeopleDirectory({
   organizationId: string;
 }) {
   const [tab, setTab] = useState<PeopleTab>('colleagues');
-  const [friends, setFriends] = useState<Person[]>([]);
-  const [incoming, setIncoming] = useState<Person[]>([]);
-  const [outgoing, setOutgoing] = useState<Person[]>([]);
-  const [colleagues, setColleagues] = useState<Person[]>([]);
   const [found, setFound] = useState<Person[]>([]);
   const [query, setQuery] = useState('');
-  const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState('');
   const [failure, setFailure] = useState('');
   const [busyId, setBusyId] = useState('');
   const [presence, setPresence] = useState<
     Record<string, { isOnline: boolean; lastSeenAt?: string }>
   >({});
-  const [version, setVersion] = useState(0);
-  const reload = () => setVersion((current) => current + 1);
 
-  useEffect(() => {
-    let active = true;
-    Promise.all([
+  const directory = useAsync(async () => {
+    const [friendRows, requests, members] = await Promise.all([
       social.listFriends(),
       social.listFriendRequests(),
       organizationId ? listMembers(organizationId).catch(() => []) : [],
-    ])
-      .then(([friendRows, requests, members]) => {
-        if (!active) return;
-        setFriends(
-          friendRows.map((row) =>
-            personFrom(row.user, 'friend', { since: row.since }),
-          ),
-        );
-        setIncoming(
-          requests.incoming.map((row) =>
-            personFrom(row.requester, 'incoming', { requestId: row.id }),
-          ),
-        );
-        setOutgoing(
-          requests.outgoing.map((row) =>
-            personFrom(row.addressee, 'outgoing', { requestId: row.id }),
-          ),
-        );
-        setColleagues(
-          members.map((member) => ({
-            avatarUrl: member.avatarUrl,
-            id: member.userId,
-            isOnline: member.isOnline,
-            lastSeenAt: null,
-            name: member.displayName,
-            relation: 'none' as const,
-            username: member.username,
-          })),
-        );
-        setFailure('');
-      })
-      .catch((error: unknown) => {
-        if (active) setFailure(messageOf(error, 'People could not be read.'));
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
+    ]);
+    return {
+      friends: friendRows.map((row) =>
+        personFrom(row.user, 'friend', { since: row.since }),
+      ),
+      incoming: requests.incoming.map((row) =>
+        personFrom(row.requester, 'incoming', { requestId: row.id }),
+      ),
+      outgoing: requests.outgoing.map((row) =>
+        personFrom(row.addressee, 'outgoing', { requestId: row.id }),
+      ),
+      colleagues: members.map((member) => ({
+        avatarUrl: member.avatarUrl,
+        id: member.userId,
+        isOnline: member.isOnline,
+        lastSeenAt: null,
+        name: member.displayName,
+        relation: 'none' as const,
+        username: member.username,
+      })),
     };
-  }, [organizationId, version]);
+  }, [organizationId]);
+  const friends = useMemo(
+    () => directory.data?.friends ?? [],
+    [directory.data],
+  );
+  const incoming = useMemo(
+    () => directory.data?.incoming ?? [],
+    [directory.data],
+  );
+  const outgoing = useMemo(
+    () => directory.data?.outgoing ?? [],
+    [directory.data],
+  );
+  const colleagues = useMemo(
+    () => directory.data?.colleagues ?? [],
+    [directory.data],
+  );
+  const reload = directory.reload;
 
   // Search as you type, from two characters: the API refuses shorter terms.
   useEffect(() => {
@@ -219,7 +209,7 @@ export function PeopleDirectory({
       setFeedback(done);
       reload();
     } catch (error) {
-      setFailure(messageOf(error, 'The request could not be completed.'));
+      setFailure(errorMessage(error, 'The request could not be completed.'));
     } finally {
       setBusyId('');
     }
@@ -231,7 +221,7 @@ export function PeopleDirectory({
       await openConversation(person.id);
       onMessage(person.username);
     } catch (error) {
-      setFailure(messageOf(error, 'The conversation could not be opened.'));
+      setFailure(errorMessage(error, 'The conversation could not be opened.'));
       setBusyId('');
     }
   }
@@ -474,9 +464,13 @@ export function PeopleDirectory({
           {failure}
         </Alert>
       ) : null}
-      {loading ? (
-        <LoadingState label="Loading people" />
-      ) : (
+      <AsyncState
+        error={directory.error}
+        errorTitle="People could not be read"
+        loading={<LoadingState label="Loading people" />}
+        onRetry={reload}
+        status={directory.status}
+      >
         <>
           {tab === 'requests' ? (
             <h2 className="mb-4 text-base font-medium">Received</h2>
@@ -513,7 +507,7 @@ export function PeopleDirectory({
             </section>
           ) : null}
         </>
-      )}
+      </AsyncState>
     </div>
   );
 }

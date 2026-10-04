@@ -1,6 +1,4 @@
-import { getAccessToken } from './auth';
-
-const API_URL = import.meta.env.VITE_API_URL ?? '/api/v1';
+import { apiDownload, apiRequest, jsonBody } from '../core/api/client';
 
 export type GdprRequestType = 'EXPORT' | 'DELETE';
 
@@ -22,51 +20,28 @@ export interface GdprRequest {
   expiresAt: string;
 }
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const token = getAccessToken();
-  const response = await fetch(`${API_URL}${path}`, {
-    ...init,
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...init.headers,
-    },
-  });
-
-  if (!response.ok) {
-    const body = (await response.json().catch(() => null)) as {
-      message?: string;
-    } | null;
-    throw new Error(body?.message ?? 'The request could not be completed.');
-  }
-
-  if (response.status === 204) return undefined as T;
-  return (await response.json()) as T;
-}
-
 /** Every request this account has made, newest first. */
-export function listRequests(): Promise<GdprRequest[]> {
-  return request<GdprRequest[]>('/gdpr/requests');
+export function listRequests(signal?: AbortSignal): Promise<GdprRequest[]> {
+  return apiRequest<GdprRequest[]>('/gdpr/requests', { signal });
 }
 
 /** Starts an export. The API e-mails a confirmation token valid for 30 min. */
 export function requestExport(): Promise<GdprRequest> {
-  return request<GdprRequest>('/gdpr/export', { method: 'POST' });
+  return apiRequest<GdprRequest>('/gdpr/export', { method: 'POST' });
 }
 
 export function confirmExport(
   token: string,
 ): Promise<{ id: string; status: GdprRequestStatus }> {
-  return request('/gdpr/export/confirm', {
+  return apiRequest('/gdpr/export/confirm', {
     method: 'POST',
-    body: JSON.stringify({ token }),
+    ...jsonBody({ token }),
   });
 }
 
 /** Starts a deletion. Same e-mail step; the account is still untouched. */
 export function requestDeletion(): Promise<GdprRequest> {
-  return request<GdprRequest>('/gdpr/delete', { method: 'POST' });
+  return apiRequest<GdprRequest>('/gdpr/delete', { method: 'POST' });
 }
 
 /**
@@ -78,47 +53,13 @@ export function confirmDeletion(
   token: string,
   confirmUsername: string,
 ): Promise<{ id: string; status: GdprRequestStatus }> {
-  return request('/gdpr/delete/confirm', {
+  return apiRequest('/gdpr/delete/confirm', {
     method: 'POST',
-    body: JSON.stringify({ token, confirmUsername }),
+    ...jsonBody({ token, confirmUsername }),
   });
 }
 
-/**
- * Downloads the archive.
- *
- * It cannot be a plain link: the endpoint is authenticated with a bearer
- * token and a browser does not attach headers to a navigation. So the file is
- * fetched, turned into a blob and handed to a synthetic anchor. The object URL
- * is revoked afterwards, otherwise the blob stays in memory for the life of
- * the document.
- */
-export async function downloadExport(id: string): Promise<void> {
-  const token = getAccessToken();
-  const response = await fetch(`${API_URL}/gdpr/export/${id}/download`, {
-    credentials: 'include',
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      response.status === 404
-        ? 'The archive is no longer available. Request a new export.'
-        : 'The archive could not be downloaded.',
-    );
-  }
-
-  const blob = await response.blob();
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filenameFrom(response) ?? 'helpdesk-lite-export.zip';
-  link.click();
-  URL.revokeObjectURL(url);
-}
-
-/** The API sets the real name in Content-Disposition; use it if it is there. */
-function filenameFrom(response: Response): string | null {
-  const header = response.headers.get('content-disposition');
-  return /filename="?([^"]+)"?/.exec(header ?? '')?.[1] ?? null;
+/** Downloads the archive. The shared client handles the authenticated blob. */
+export function downloadExport(id: string): Promise<void> {
+  return apiDownload(`/gdpr/export/${id}/download`, 'helpdesk-lite-export.zip');
 }

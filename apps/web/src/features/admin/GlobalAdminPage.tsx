@@ -1,5 +1,5 @@
-import { Alert, Button, EmptyState, Icon, SelectField } from 'ui';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Button, Icon, SelectField } from 'ui';
+import { useMemo, useRef, useState } from 'react';
 import type { OrgRole } from 'contracts';
 import * as adminApi from '../../api/admin';
 import * as rolesApi from '../../api/roles';
@@ -9,15 +9,15 @@ import type { OrganizationSummary } from '../organizations/organizationsData';
 import { AdminDialog } from './AdminDialog';
 import { initialUsers } from './adminData';
 import type { AdminDialogKind, AdminUser } from './adminData';
+import { errorMessage } from '../../core/api/errors';
+import { AsyncState } from '../../core/async/AsyncState';
+import { useAsync } from '../../core/async/useAsync';
 
 const ORGANIZATION_ROLES: Record<string, OrgRole> = {
   Agent: 'AGENT',
   Member: 'MEMBER',
   'Organization admin': 'ORG_ADMIN',
 };
-
-const messageOf = (error: unknown, fallback: string) =>
-  error instanceof Error ? error.message : fallback;
 
 /** An account of the API as the row the table already knows how to draw. */
 function rowFrom(user: adminApi.PlatformUser): AdminUser {
@@ -49,56 +49,48 @@ export function GlobalAdminPage({
   organizations: OrganizationSummary[];
 }) {
   const [dialog, setDialog] = useState<AdminDialogKind>(null);
-  const [users, setUsers] = useState<AdminUser[]>(
-    previewMode ? initialUsers : [],
-  );
   const [selectedUser, setSelectedUser] = useState<AdminUser>(initialUsers[0]);
   const [query, setQuery] = useState('');
   const [role, setRole] = useState('all');
   const [state, setState] = useState('all');
   const [feedback, setFeedback] = useState('');
   const [failure, setFailure] = useState('');
-  const [loading, setLoading] = useState(!previewMode);
-  // Rows are display tuples; the API needs the account behind each address.
-  const [accounts, setAccounts] = useState<
-    Record<string, adminApi.PlatformUser>
-  >({});
-  const [version, setVersion] = useState(0);
-  const reload = () => setVersion((current) => current + 1);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (previewMode) return;
-    let active = true;
-    Promise.all([adminApi.listUsers({}), rolesApi.listPlatformReservations()])
-      .then(([page, reservations]) => {
-        if (!active) return;
-        setUsers([
-          ...page.data.map(rowFrom),
-          ...reservations.map((reservation): AdminUser => [
-            getInitials(reservation.email),
-            reservation.email,
-            reservation.email,
-            '—',
-            'Global admin',
-            'Invitation pending',
-          ]),
-        ]);
-        setAccounts(
-          Object.fromEntries(page.data.map((user) => [user.email, user])),
-        );
-        setFailure('');
-      })
-      .catch((error: unknown) => {
-        if (active) setFailure(messageOf(error, 'Users could not be read.'));
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
+  // Rows are display tuples; the API needs the account behind each address,
+  // so both travel together through the one load.
+  const directory = useAsync(async () => {
+    if (previewMode) return { users: initialUsers, accounts: {} };
+    const [page, reservations] = await Promise.all([
+      adminApi.listUsers({}),
+      rolesApi.listPlatformReservations(),
+    ]);
+    return {
+      users: [
+        ...page.data.map(rowFrom),
+        ...reservations.map((reservation): AdminUser => [
+          getInitials(reservation.email),
+          reservation.email,
+          reservation.email,
+          '—',
+          'Global admin',
+          'Invitation pending',
+        ]),
+      ],
+      accounts: Object.fromEntries(
+        page.data.map((user) => [user.email, user]),
+      ) as Record<string, adminApi.PlatformUser>,
     };
-  }, [version]);
+  }, []);
+  // Memoizado: el `?? []` crearía un array nuevo en cada render y el
+  // useMemo del filtrado se recalcularía siempre.
+  const users = useMemo<AdminUser[]>(
+    () => directory.data?.users ?? [],
+    [directory.data],
+  );
+  const accounts: Record<string, adminApi.PlatformUser> =
+    directory.data?.accounts ?? {};
+  const reload = directory.reload;
 
   const filteredUsers = useMemo(
     () =>
@@ -128,22 +120,26 @@ export function GlobalAdminPage({
       const email = value('email');
       const name = value('name') || email.split('@')[0] || 'Invited user';
       const platformAccess = value('role');
-      setUsers((current) => [
-        ...current,
-        [
-          getInitials(name),
-          name,
-          email,
-          platformAccess === 'Global admin' ? '—' : value('organization'),
-          platformAccess,
-          'Invitation pending',
+      directory.setData((current) => ({
+        accounts: current?.accounts ?? {},
+        users: [
+          ...(current?.users ?? []),
+          [
+            getInitials(name),
+            name,
+            email,
+            platformAccess === 'Global admin' ? '—' : value('organization'),
+            platformAccess,
+            'Invitation pending',
+          ],
         ],
-      ]);
+      }));
       setFeedback(`Invitation prepared for ${email}.`);
     } else {
       const name = value('name');
-      setUsers((current) =>
-        current.map((user) =>
+      directory.setData((current) => ({
+        accounts: current?.accounts ?? {},
+        users: (current?.users ?? []).map((user) =>
           user[2] === selectedUser[2]
             ? [
                 getInitials(name),
@@ -155,7 +151,7 @@ export function GlobalAdminPage({
               ]
             : user,
         ),
-      );
+      }));
       setFeedback(`${name} was updated.`);
     }
     setDialog(null);
@@ -226,7 +222,7 @@ export function GlobalAdminPage({
         setFeedback(`${name || selectedUser[1]} was updated.`);
       }
     } catch (error) {
-      setFailure(messageOf(error, 'The change could not be saved.'));
+      setFailure(errorMessage(error, 'The change could not be saved.'));
     }
     reload();
   }
@@ -240,7 +236,7 @@ export function GlobalAdminPage({
       await adminApi.deleteUser(selectedAccount.id);
       setFeedback(`${selectedUser[1]}'s account was deleted.`);
     } catch (error) {
-      setFailure(messageOf(error, 'The account could not be deleted.'));
+      setFailure(errorMessage(error, 'The account could not be deleted.'));
     }
     reload();
   }
@@ -379,7 +375,7 @@ export function GlobalAdminPage({
           <span>STATE</span>
           <span />
         </div>
-        {loading ? (
+        {directory.status === 'loading' ? (
           <p
             className="border-t border-border p-5 text-xs text-muted"
             role="status"
@@ -419,11 +415,18 @@ export function GlobalAdminPage({
             <span>⋯</span>
           </button>
         ))}
-        {!loading && !filteredUsers.length ? (
-          <EmptyState
-            description="Adjust the search, role or state filters."
-            title="No users match these filters"
-          />
+        {directory.status !== 'loading' ? (
+          <AsyncState
+            emptyDescription="Adjust the search, role or state filters."
+            emptyTitle="No users match these filters"
+            error={directory.error}
+            errorTitle="Users could not be read"
+            isEmpty={!filteredUsers.length}
+            onRetry={reload}
+            status={directory.status}
+          >
+            {null}
+          </AsyncState>
         ) : null}
         <footer className="p-4 text-2xs text-muted">
           Showing {filteredUsers.length} of {users.length}

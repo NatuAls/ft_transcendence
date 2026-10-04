@@ -1,7 +1,10 @@
 import { Alert, Button, Icon, LoadingState, Tabs, TextField } from 'ui';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AccountHeader } from './AccountHeader';
 import type { AccountProfile } from './accountData';
+import { AsyncState } from '../../core/async/AsyncState';
+import { useAsync } from '../../core/async/useAsync';
+import { errorMessage } from '../../core/api/errors';
 import {
   confirmDeletion,
   confirmExport,
@@ -43,10 +46,6 @@ import {
 const POLL_MS = 3000;
 const POLL_GIVE_UP_MS = 120_000;
 
-function messageOf(error: unknown, fallback: string): string {
-  return error instanceof Error && error.message ? error.message : fallback;
-}
-
 function latestOf(
   requests: GdprRequest[],
   type: GdprRequest['type'],
@@ -76,17 +75,15 @@ export function PrivacyPage({
   onProfile: () => void;
   onTerms: () => void;
 }) {
-  const [requests, setRequests] = useState<GdprRequest[] | null>(null);
   const [error, setError] = useState('');
   const [isWorking, setIsWorking] = useState(false);
-
-  useEffect(() => {
-    void listRequests()
-      .then(setRequests)
-      .catch(() => setRequests([]));
-  }, []);
-
-  const lastExport = requests ? latestOf(requests, 'EXPORT') : undefined;
+  // La lista acompaña, no es el contenido de la pantalla: si falla, las dos
+  // acciones siguen estando, así que no se tapa todo con un estado de error.
+  // Lo que no se hace es tragarse el fallo en silencio, como antes.
+  const requests = useAsync((signal) => listRequests(signal), []);
+  const lastExport = requests.data
+    ? latestOf(requests.data, 'EXPORT')
+    : undefined;
   const pendingExport =
     lastExport?.status === 'AWAITING_CONFIRMATION' ? lastExport : undefined;
   const completedExport =
@@ -104,9 +101,12 @@ export function PrivacyPage({
     setError('');
     try {
       await requestExport();
+      requests.reload();
       onExport();
     } catch (requestError) {
-      setError(messageOf(requestError, 'The export could not be requested.'));
+      setError(
+        errorMessage(requestError, 'The export could not be requested.'),
+      );
     } finally {
       setIsWorking(false);
     }
@@ -141,6 +141,19 @@ export function PrivacyPage({
       <div className="mt-[22px] grid grid-cols-[1fr_270px] gap-[18px] max-md:block">
         <main className="grid gap-[14px]">
           {error ? <Alert tone="danger">{error}</Alert> : null}
+          {requests.status === 'error' ? (
+            <Alert tone="warning">
+              Your previous requests could not be read, so this page cannot say
+              whether one is already under way. {errorMessage(requests.error)}{' '}
+              <button
+                className="underline"
+                onClick={requests.reload}
+                type="button"
+              >
+                Try again
+              </button>
+            </Alert>
+          ) : null}
           <section className="grid grid-cols-[34px_1fr_auto] gap-3 rounded-md border border-border bg-surface p-[22px] max-md:grid-cols-[34px_1fr] max-md:p-4 max-md:[&_.ui-button]:col-span-full">
             <i
               className="grid size-8 place-items-center rounded-[9px] bg-success-surface text-success not-italic"
@@ -158,11 +171,13 @@ export function PrivacyPage({
                 link before anything is built.
               </p>
               <small className="text-3xs text-muted uppercase">
-                {pendingExport
-                  ? 'Waiting for your e-mail confirmation'
-                  : completedExport
-                    ? `Last export · ${formatDate(completedExport.completedAt)}`
-                    : 'Last export · No export requested'}
+                {requests.status === 'loading'
+                  ? 'Last export · checking…'
+                  : pendingExport
+                    ? 'Waiting for your e-mail confirmation'
+                    : completedExport
+                      ? `Last export · ${formatDate(completedExport.completedAt)}`
+                      : 'Last export · No export requested'}
               </small>
             </div>
             <Button
@@ -319,7 +334,7 @@ export function ExportRequested({
       onConfirm();
     } catch (confirmError) {
       setError(
-        messageOf(
+        errorMessage(
           confirmError,
           'That confirmation code is not valid any more. Request the export again.',
         ),
@@ -370,46 +385,39 @@ export function ExportRequested({
 }
 
 export function ExportReady({ onBack }: { onBack: () => void }) {
-  const [request, setRequest] = useState<GdprRequest | null>(null);
   const [error, setError] = useState('');
   const [timedOut, setTimedOut] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
 
-  const load = useCallback(async () => {
-    const requests = await listRequests();
-    const latest = latestOf(requests, 'EXPORT') ?? null;
-    setRequest(latest);
-    return latest;
-  }, []);
+  // La carga es la del resto de la aplicación; lo único propio de esta
+  // pantalla es que el archivo se construye en segundo plano, así que
+  // insiste hasta que termine. El sondeo es un `reload()` cada tres
+  // segundos, no otro mecanismo de carga en paralelo.
+  const latest = useAsync(
+    async (signal) => latestOf(await listRequests(signal), 'EXPORT') ?? null,
+    [],
+  );
+  const request = latest.data ?? null;
 
   useEffect(() => {
-    let cancelled = false;
-    const startedAt = Date.now();
-
-    async function tick() {
-      try {
-        const latest = await load();
-        if (cancelled) return;
-        if (latest?.status === 'COMPLETED' || latest?.status === 'FAILED') {
-          window.clearInterval(timer);
-          return;
-        }
-        if (Date.now() - startedAt > POLL_GIVE_UP_MS) {
-          window.clearInterval(timer);
-          setTimedOut(true);
-        }
-      } catch {
-        if (!cancelled) setError('Unable to read the state of your export.');
-      }
+    if (
+      timedOut ||
+      request?.status === 'COMPLETED' ||
+      request?.status === 'FAILED'
+    ) {
+      return;
     }
-
-    void tick();
-    const timer = window.setInterval(() => void tick(), POLL_MS);
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-    };
-  }, [load]);
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => {
+      if (Date.now() - startedAt > POLL_GIVE_UP_MS) {
+        window.clearInterval(timer);
+        setTimedOut(true);
+        return;
+      }
+      latest.reload();
+    }, POLL_MS);
+    return () => window.clearInterval(timer);
+  }, [request?.status, timedOut, latest]);
 
   async function download() {
     if (!request) return;
@@ -419,7 +427,7 @@ export function ExportReady({ onBack }: { onBack: () => void }) {
       await downloadExport(request.id);
     } catch (downloadError) {
       setError(
-        messageOf(downloadError, 'The archive could not be downloaded.'),
+        errorMessage(downloadError, 'The archive could not be downloaded.'),
       );
     } finally {
       setIsDownloading(false);
@@ -439,27 +447,38 @@ export function ExportReady({ onBack }: { onBack: () => void }) {
       }
       title={isReady ? 'Your archive is ready' : 'Preparing your archive'}
     >
-      {hasFailed ? (
-        <Alert tone="danger" title="The export failed">
-          Nothing was produced. Request the export again, and if it keeps
-          failing, contact support.
-        </Alert>
-      ) : isReady ? (
-        <div className="grid gap-1.5 rounded-sm bg-surface-secondary p-4 text-xs">
-          <strong>✓ Archive generated</strong>
-          <span className="text-xs2 text-muted">
-            Requested {formatDate(request.requestedAt)} · available until{' '}
-            {formatDate(request.expiresAt)}
-          </span>
-        </div>
-      ) : timedOut ? (
-        <Alert tone="warning" title="This is taking longer than usual">
-          The archive is still being built. Come back to Privacy &amp; data in a
-          few minutes; the download appears here when it is ready.
-        </Alert>
-      ) : (
-        <LoadingState label="Building your archive" />
-      )}
+      {/* `status` se calcula sobre los datos y no sobre el estado del hook:
+          el sondeo recarga cada tres segundos y, si se mirase el hook, la
+          pantalla parpadearía a «cargando» en cada vuelta. */}
+      <AsyncState
+        error={latest.error}
+        errorTitle="The state of your export could not be read"
+        loading={<LoadingState label="Building your archive" />}
+        onRetry={latest.reload}
+        status={request ? 'success' : latest.status}
+      >
+        {hasFailed ? (
+          <Alert tone="danger" title="The export failed">
+            Nothing was produced. Request the export again, and if it keeps
+            failing, contact support.
+          </Alert>
+        ) : isReady ? (
+          <div className="grid gap-1.5 rounded-sm bg-surface-secondary p-4 text-xs">
+            <strong>✓ Archive generated</strong>
+            <span className="text-xs2 text-muted">
+              Requested {formatDate(request.requestedAt)} · available until{' '}
+              {formatDate(request.expiresAt)}
+            </span>
+          </div>
+        ) : timedOut ? (
+          <Alert tone="warning" title="This is taking longer than usual">
+            The archive is still being built. Come back to Privacy &amp; data in
+            a few minutes; the download appears here when it is ready.
+          </Alert>
+        ) : (
+          <LoadingState label="Building your archive" />
+        )}
+      </AsyncState>
       {error ? <Alert tone="danger">{error}</Alert> : null}
       <footer>
         <Button onClick={onBack} variant="secondary">
@@ -505,7 +524,10 @@ export function DeleteAccount({
       setStep('confirm');
     } catch (requestError) {
       setError(
-        messageOf(requestError, 'The confirmation e-mail could not be sent.'),
+        errorMessage(
+          requestError,
+          'The confirmation e-mail could not be sent.',
+        ),
       );
     } finally {
       setIsWorking(false);
@@ -521,7 +543,7 @@ export function DeleteAccount({
       onDeleted();
     } catch (confirmError) {
       setError(
-        messageOf(
+        errorMessage(
           confirmError,
           'The account was not deleted. Check the code and the username.',
         ),

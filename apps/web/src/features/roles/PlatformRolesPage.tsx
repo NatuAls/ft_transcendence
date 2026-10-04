@@ -1,5 +1,8 @@
 import { Alert, Button, Dialog, EmptyState, LoadingState, TextField } from 'ui';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
+import { AsyncState } from '../../core/async/AsyncState';
+import { useAsync } from '../../core/async/useAsync';
+import { errorMessage, fieldErrorsFromIssues } from '../../core/api/errors';
 import {
   assignPlatformRoleSchema,
   type PlatformRoleAssignment,
@@ -33,14 +36,6 @@ export function PlatformRolesPage({
 }: {
   currentUserId: string;
 }) {
-  const [administrators, setAdministrators] = useState<PlatformAdministrator[]>(
-    [],
-  );
-  const [reservations, setReservations] = useState<PlatformRoleReservation[]>(
-    [],
-  );
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState('');
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -53,37 +48,18 @@ export function PlatformRolesPage({
   );
   const [busyId, setBusyId] = useState('');
 
-  // Bumped after every change; the effect below re-reads both lists.
-  const [version, setVersion] = useState(0);
-  const reload = () => setVersion((current) => current + 1);
-
-  useEffect(() => {
-    let active = true;
-    Promise.all([
+  const roles = useAsync(async () => {
+    const [administrators, reservations] = await Promise.all([
       rolesGateway.listPlatformAdministrators(),
       rolesGateway.listPlatformReservations(),
-    ])
-      .then(([nextAdministrators, nextReservations]) => {
-        if (!active) return;
-        setAdministrators(nextAdministrators);
-        setReservations(nextReservations);
-        setLoadError('');
-      })
-      .catch((error: unknown) => {
-        if (active)
-          setLoadError(
-            error instanceof Error
-              ? error.message
-              : 'The roles could not be read.',
-          );
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [version]);
+    ]);
+    return { administrators, reservations };
+  }, []);
+  const administrators: PlatformAdministrator[] =
+    roles.data?.administrators ?? [];
+  const reservations: PlatformRoleReservation[] =
+    roles.data?.reservations ?? [];
+  const reload = roles.reload;
 
   function describe(result: PlatformRoleAssignment) {
     const name = result.user?.displayName ?? result.email;
@@ -116,7 +92,12 @@ export function PlatformRolesPage({
       globalRole: 'GLOBAL_ADMIN',
     });
     if (!parsed.success) {
-      setEmailError('Enter a valid e-mail address.');
+      // Mismo camino que un rechazo de la API: el mensaje sale de la pieza
+      // compartida, así que validar aquí y que lo rechace el servidor
+      // producen exactamente la misma pantalla.
+      setEmailError(
+        fieldErrorsFromIssues(parsed.error.issues).email ?? 'Check this field.',
+      );
       return;
     }
     setEmailError('');
@@ -128,10 +109,7 @@ export function PlatformRolesPage({
       reload();
     } catch (error) {
       setFeedback({
-        text:
-          error instanceof Error
-            ? error.message
-            : 'The role could not be assigned.',
+        text: errorMessage(error, 'The role could not be assigned.'),
         tone: 'danger',
       });
     } finally {
@@ -266,30 +244,17 @@ export function PlatformRolesPage({
         </Alert>
       ) : null}
 
-      {loading ? (
-        <div className="mt-5">
-          <LoadingState label="Loading platform roles" />
-        </div>
-      ) : loadError ? (
-        <Alert
-          className="mt-5"
-          title="The roles could not be loaded"
-          tone="danger"
-        >
-          <p>{loadError}</p>
-          <Button
-            className="mt-3"
-            onClick={() => {
-              setLoading(true);
-              reload();
-            }}
-            size="compact"
-            variant="secondary"
-          >
-            Try again
-          </Button>
-        </Alert>
-      ) : (
+      <AsyncState
+        error={roles.error}
+        errorTitle="The roles could not be loaded"
+        loading={
+          <div className="mt-5">
+            <LoadingState label="Loading platform roles" />
+          </div>
+        }
+        onRetry={reload}
+        status={roles.status}
+      >
         <div className="mt-5 grid gap-5">
           <Panel
             description="They can manage the whole platform. The primary administrator is created at deployment and cannot be withdrawn from here."
@@ -384,7 +349,7 @@ export function PlatformRolesPage({
             )}
           </Panel>
         </div>
-      )}
+      </AsyncState>
 
       {withdrawing ? (
         <Dialog

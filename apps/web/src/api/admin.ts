@@ -3,7 +3,7 @@ import {
   type GlobalRole,
   type Paginated,
 } from 'contracts';
-import { apiRequest, jsonBody } from './http';
+import { apiRequest, jsonBody } from '../core/api/client';
 
 /** One account as `GET /users` returns it to a platform administrator. */
 export interface PlatformUser {

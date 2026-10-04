@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
-import { ApiError, apiRequest, jsonBody } from '../src/api/http';
+import { describe, expect, it, vi } from 'vitest';
+import { ApiError, apiRequest, jsonBody } from '../src/core/api/client';
+import { NetworkError, errorMessage } from '../src/core/api/errors';
 import { getAccessToken, saveAccessToken } from '../src/api/auth';
 import { apiError, mockApi, reply } from './support/api';
 import { adminUser, page } from './support/fixtures';
@@ -62,12 +63,22 @@ describe('the API client', () => {
     });
   });
 
-  it('reports an answer without an envelope as a network error', async () => {
+  it('still reports an answer that carries no envelope', async () => {
+    // Un 502 de un proxy no trae el sobre de la API. Sigue siendo una
+    // respuesta del servidor, no un fallo de red: lo que no puede pasar es
+    // que la pantalla se quede sin `status` ni mensaje que enseñar.
     mockApi({ 'GET /users': { status: 502, body: undefined } });
-    await expect(apiRequest('/users')).rejects.toMatchObject({
-      status: 502,
-      code: 'NETWORK_ERROR',
-    });
+    const failure = await apiRequest('/users').catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(ApiError);
+    expect(failure).toMatchObject({ status: 502, code: 'UNKNOWN' });
+    expect(errorMessage(failure)).toContain('502');
+  });
+
+  it('separates a server that refuses from a network that is not there', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('offline'));
+    const failure = await apiRequest('/users').catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(NetworkError);
+    expect(errorMessage(failure)).toContain('did not answer');
   });
 
   it('renews an expired session once and repeats the request', async () => {

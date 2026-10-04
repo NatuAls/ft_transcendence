@@ -8,7 +8,7 @@ import {
   type OrgRole,
   type UpdateOrganizationInput,
 } from 'contracts';
-import { apiRequest, jsonBody } from './http';
+import { apiRequest, jsonBody } from '../core/api/client';
 
 /** One organization as `GET /organizations` returns it. */
 export interface OrganizationRecord {
