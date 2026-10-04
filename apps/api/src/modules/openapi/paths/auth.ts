@@ -196,13 +196,23 @@ export const authPaths: Paths = {
             type: 'object',
             properties: {
               id: { type: 'string', format: 'uuid' },
-              createdAt: { type: 'string', format: 'date-time' },
-              lastUsedAt: { type: 'string', format: 'date-time' },
+              createdAt: {
+                type: 'string',
+                format: 'date-time',
+                description: 'When the device signed in.',
+              },
+              lastUsedAt: {
+                type: 'string',
+                format: 'date-time',
+                description: 'Last time the device renewed its session.',
+              },
+              expiresAt: { type: 'string', format: 'date-time' },
               userAgent: { type: 'string', nullable: true },
               ip: { type: 'string', nullable: true },
               current: {
                 type: 'boolean',
-                description: 'True for the session making this call.',
+                description:
+                  'True for the session making this call, recognised by the refresh cookie that travels to every `/auth` route.',
               },
             },
           },

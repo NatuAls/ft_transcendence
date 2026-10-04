@@ -202,7 +202,10 @@ authRouter.post(
 );
 
 authRouter.get('/sessions', ...authed, async (req, res) => {
-  res.json(await auth.listSessions(req.actor!.id));
+  const refreshToken = (req.cookies as Record<string, string> | undefined)?.[
+    REFRESH_COOKIE
+  ];
+  res.json(await auth.listSessions(req.actor!.id, refreshToken));
 });
 
 authRouter.delete('/sessions/:id', ...authed, async (req, res) => {

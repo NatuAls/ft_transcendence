@@ -150,6 +150,12 @@ export const usersPaths: Paths = {
           properties: { avatarUrl: { type: 'string' } },
         }),
         ...errs('400', '401'),
+        '413': { description: 'Larger than 5 MB.' },
+        '415': { description: 'Not a PNG, JPEG, GIF or WebP image.' },
+        '422': {
+          description:
+            'Claims to be an image but cannot be decoded (damaged file): `FILE_IMAGE_UNREADABLE`.',
+        },
       },
     }),
     delete: op({
