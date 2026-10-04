@@ -19,6 +19,20 @@ export default defineConfig([
   },
 
   {
+    // Ficheros que el navegador carga tal cual desde apps/web/public (la
+    // página de estado). No pasan por Vite ni por TypeScript, así que no
+    // entran en el bloque de apps/web/src, pero sí son código de navegador:
+    // sin esto, `document` y `window` se marcan como no definidos.
+    files: ['apps/web/public/**/*.js'],
+    extends: [js.configs.recommended],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'script',
+      globals: globals.browser,
+    },
+  },
+
+  {
     files: ['apps/api/**/*.ts'],
     extends: [js.configs.recommended, tseslint.configs.recommended],
     languageOptions: {

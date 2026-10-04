@@ -40,6 +40,7 @@ export function WorkspacePage({
   onOrganizationDescriptionChange,
   onOrganizationNameChange,
   onOrganizationSelect,
+  onSignOut,
   organizationDescription,
   organizationId,
   organizationName,
@@ -57,6 +58,7 @@ export function WorkspacePage({
   onOrganizationDescriptionChange: (description: string) => void;
   onOrganizationNameChange: (organizationName: string) => void;
   onOrganizationSelect: (organization: OrganizationSummary) => void;
+  onSignOut: () => void;
   organizationDescription: string;
   organizationId: string;
   organizationName: string;
@@ -225,6 +227,7 @@ export function WorkspacePage({
         return (
           <AccountPage
             avatarUrl={avatarUrl}
+            confirmationToken={location.params.get('token') ?? undefined}
             onAvatarChange={onAvatarChange}
             onNavigate={(view) =>
               navigate(view === 'home' ? 'account' : `account/${view}`)
@@ -233,6 +236,7 @@ export function WorkspacePage({
               navigate('privacy-policy', { from: 'account' })
             }
             onProfileChange={onProfileChange}
+            onSignOut={onSignOut}
             onTerms={() => navigate('terms', { from: 'account' })}
             profile={accountProfile}
             view={getAccountView(route)}

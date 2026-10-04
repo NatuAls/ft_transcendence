@@ -1,7 +1,65 @@
-import { Alert, Button, Icon, Tabs, TextField } from 'ui';
-import { useState } from 'react';
+import { Alert, Button, Icon, LoadingState, Tabs, TextField } from 'ui';
+import { useCallback, useEffect, useState } from 'react';
 import { AccountHeader } from './AccountHeader';
 import type { AccountProfile } from './accountData';
+import {
+  confirmDeletion,
+  confirmExport,
+  downloadExport,
+  listRequests,
+  requestDeletion,
+  requestExport,
+  type GdprRequest,
+} from '../../api/gdpr';
+
+// =============================================================================
+//  Privacy & data — connected to the GDPR endpoints.
+//
+//  Until now these three screens were a mock: they rendered the flow and
+//  produced a sample JSON in the browser. The API has had the whole thing for
+//  a while (request, e-mail confirmation, ZIP archive, deletion with a second
+//  factor), so the only thing missing was this file.
+//
+//  The shape of the flow is not ours to choose, it is what the API enforces:
+//
+//      POST /gdpr/export            -> e-mails a token, 30 minutes
+//      POST /gdpr/export/confirm    -> starts building the archive
+//      GET  /gdpr/export/:id/download
+//
+//      POST /gdpr/delete            -> e-mails a token
+//      POST /gdpr/delete/confirm    -> token AND your own username
+//
+//  Two details worth keeping in mind when touching this:
+//
+//    · The confirmation token arrives in the URL of the e-mail link, so these
+//      screens accept it as a prop and pre-fill the field. The field stays
+//      editable because a mail client may cut a long link, and then copying
+//      the token by hand is the only way through.
+//    · The archive is built in the background. The ready screen polls instead
+//      of assuming, and gives up after two minutes rather than spinning for
+//      ever.
+// =============================================================================
+
+const POLL_MS = 3000;
+const POLL_GIVE_UP_MS = 120_000;
+
+function messageOf(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
+function latestOf(
+  requests: GdprRequest[],
+  type: GdprRequest['type'],
+): GdprRequest | undefined {
+  // The API already returns them newest first.
+  return requests.find((request) => request.type === type);
+}
+
+function formatDate(value: string | null): string {
+  if (!value) return '—';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString();
+}
 
 export function PrivacyPage({
   onBack,
@@ -18,6 +76,42 @@ export function PrivacyPage({
   onProfile: () => void;
   onTerms: () => void;
 }) {
+  const [requests, setRequests] = useState<GdprRequest[] | null>(null);
+  const [error, setError] = useState('');
+  const [isWorking, setIsWorking] = useState(false);
+
+  useEffect(() => {
+    void listRequests()
+      .then(setRequests)
+      .catch(() => setRequests([]));
+  }, []);
+
+  const lastExport = requests ? latestOf(requests, 'EXPORT') : undefined;
+  const pendingExport =
+    lastExport?.status === 'AWAITING_CONFIRMATION' ? lastExport : undefined;
+  const completedExport =
+    lastExport?.status === 'COMPLETED' ? lastExport : undefined;
+
+  async function startExport() {
+    // An export already waiting for its token does not need another e-mail:
+    // asking again would only be refused by the API, which rejects a second
+    // pending request of the same type.
+    if (pendingExport) {
+      onExport();
+      return;
+    }
+    setIsWorking(true);
+    setError('');
+    try {
+      await requestExport();
+      onExport();
+    } catch (requestError) {
+      setError(messageOf(requestError, 'The export could not be requested.'));
+    } finally {
+      setIsWorking(false);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-[1040px] p-10 max-md:px-4 max-md:py-6">
       <button
@@ -46,6 +140,7 @@ export function PrivacyPage({
       </div>
       <div className="mt-[22px] grid grid-cols-[1fr_270px] gap-[18px] max-md:block">
         <main className="grid gap-[14px]">
+          {error ? <Alert tone="danger">{error}</Alert> : null}
           <section className="grid grid-cols-[34px_1fr_auto] gap-3 rounded-md border border-border bg-surface p-[22px] max-md:grid-cols-[34px_1fr] max-md:p-4 max-md:[&_.ui-button]:col-span-full">
             <i
               className="grid size-8 place-items-center rounded-[9px] bg-success-surface text-success not-italic"
@@ -59,19 +154,29 @@ export function PrivacyPage({
               </h2>
               <p className="text-xs2 text-muted">
                 Request a portable archive containing your profile, connections,
-                conversations and ticket activity.
+                conversations and ticket activity. We e-mail you a confirmation
+                link before anything is built.
               </p>
-              <small className="text-3xs text-muted">
-                LAST EXPORT · No export requested
+              <small className="text-3xs text-muted uppercase">
+                {pendingExport
+                  ? 'Waiting for your e-mail confirmation'
+                  : completedExport
+                    ? `Last export · ${formatDate(completedExport.completedAt)}`
+                    : 'Last export · No export requested'}
               </small>
             </div>
             <Button
               className="self-center"
-              onClick={onExport}
+              disabled={isWorking}
+              onClick={() => void startExport()}
               size="compact"
               variant="secondary"
             >
-              Request export
+              {pendingExport
+                ? 'Continue export'
+                : isWorking
+                  ? 'Requesting…'
+                  : 'Request export'}
             </Button>
           </section>
           <section className="grid grid-cols-[34px_1fr_auto] gap-3 rounded-md border border-border bg-surface p-[22px] max-md:grid-cols-[34px_1fr] max-md:p-4 max-md:[&_.ui-button]:col-span-full">
@@ -196,148 +301,307 @@ function FlowPage({
 export function ExportRequested({
   onBack,
   onConfirm,
+  token = '',
 }: {
   onBack: () => void;
   onConfirm: () => void;
+  token?: string;
 }) {
+  const [value, setValue] = useState(token);
+  const [error, setError] = useState('');
+  const [isWorking, setIsWorking] = useState(false);
+
+  async function confirm() {
+    setIsWorking(true);
+    setError('');
+    try {
+      await confirmExport(value.trim());
+      onConfirm();
+    } catch (confirmError) {
+      setError(
+        messageOf(
+          confirmError,
+          'That confirmation code is not valid any more. Request the export again.',
+        ),
+      );
+    } finally {
+      setIsWorking(false);
+    }
+  }
+
   return (
     <FlowPage
       onBack={onBack}
-      subtitle="A production request requires confirmation by email."
+      subtitle="We have sent a confirmation link to your e-mail address. Nothing is built until you confirm."
       title="Confirm your data export"
     >
-      <div className="grid gap-1.5 rounded-sm bg-surface-secondary p-4 text-xs">
-        <strong>Backend confirmation required</strong>
-        <span className="text-xs2 text-muted">
-          No email is sent by this frontend preview. The production API must
-          create and authorize the export request.
-        </span>
-      </div>
+      <Alert tone="info" title="Check your inbox">
+        The link is valid for 30 minutes. Opening it brings you back here with
+        the code already filled in; if your mail client broke the link, paste
+        the code by hand.
+      </Alert>
+      <TextField
+        autoComplete="off"
+        label="Confirmation code"
+        onChange={(event) => setValue(event.target.value)}
+        placeholder="Paste the code from the e-mail"
+        value={value}
+      />
       <dl className="grid gap-2 text-xs2 [&_dt]:font-medium [&_dd]:mb-2 [&_dd]:text-muted">
         <dt>Export contents</dt>
         <dd>Profile, connections, conversations and ticket activity.</dd>
         <dt>Format</dt>
         <dd>ZIP archive containing readable JSON files</dd>
       </dl>
+      {error ? <Alert tone="danger">{error}</Alert> : null}
       <footer>
         <Button onClick={onBack} variant="secondary">
           Cancel request
         </Button>
-        <Button onClick={onConfirm}>Preview confirmed state</Button>
+        <Button
+          disabled={value.trim().length < 20 || isWorking}
+          onClick={() => void confirm()}
+        >
+          {isWorking ? 'Confirming…' : 'Confirm export'}
+        </Button>
       </footer>
     </FlowPage>
   );
 }
 
-export function ExportReady({
-  onBack,
-  profile,
-}: {
-  onBack: () => void;
-  profile: AccountProfile;
-}) {
-  function downloadPreview() {
-    const data = JSON.stringify(
-      {
-        generatedAt: new Date().toISOString(),
-        profile,
-        preview: true,
-      },
-      null,
-      2,
-    );
-    const url = URL.createObjectURL(
-      new Blob([data], { type: 'application/json' }),
-    );
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'helpdesk-lite-profile-preview.json';
-    link.click();
-    URL.revokeObjectURL(url);
+export function ExportReady({ onBack }: { onBack: () => void }) {
+  const [request, setRequest] = useState<GdprRequest | null>(null);
+  const [error, setError] = useState('');
+  const [timedOut, setTimedOut] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const load = useCallback(async () => {
+    const requests = await listRequests();
+    const latest = latestOf(requests, 'EXPORT') ?? null;
+    setRequest(latest);
+    return latest;
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const startedAt = Date.now();
+
+    async function tick() {
+      try {
+        const latest = await load();
+        if (cancelled) return;
+        if (latest?.status === 'COMPLETED' || latest?.status === 'FAILED') {
+          window.clearInterval(timer);
+          return;
+        }
+        if (Date.now() - startedAt > POLL_GIVE_UP_MS) {
+          window.clearInterval(timer);
+          setTimedOut(true);
+        }
+      } catch {
+        if (!cancelled) setError('Unable to read the state of your export.');
+      }
+    }
+
+    void tick();
+    const timer = window.setInterval(() => void tick(), POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [load]);
+
+  async function download() {
+    if (!request) return;
+    setIsDownloading(true);
+    setError('');
+    try {
+      await downloadExport(request.id);
+    } catch (downloadError) {
+      setError(
+        messageOf(downloadError, 'The archive could not be downloaded.'),
+      );
+    } finally {
+      setIsDownloading(false);
+    }
   }
+
+  const isReady = request?.status === 'COMPLETED';
+  const hasFailed = request?.status === 'FAILED';
 
   return (
     <FlowPage
       onBack={onBack}
-      subtitle="This sample file demonstrates the download interaction."
-      title="Your preview archive is ready"
+      subtitle={
+        isReady
+          ? 'Your archive is ready. The link expires, so download it now.'
+          : 'Your archive is being built. This page updates on its own.'
+      }
+      title={isReady ? 'Your archive is ready' : 'Preparing your archive'}
     >
-      <div className="grid gap-1.5 rounded-sm bg-surface-secondary p-4 text-xs">
-        <strong>✓ Frontend preview generated</strong>
-        <span className="text-xs2 text-muted">
-          helpdesk-lite-profile-preview.json
-        </span>
-      </div>
-      <div className="grid gap-1.5 rounded-sm bg-surface-secondary p-4 text-xs">
-        <strong>Production boundary</strong>
-        <span className="text-xs2 text-muted">
-          The backend must generate the complete private archive and a
-          short-lived authorized download URL.
-        </span>
-      </div>
+      {hasFailed ? (
+        <Alert tone="danger" title="The export failed">
+          Nothing was produced. Request the export again, and if it keeps
+          failing, contact support.
+        </Alert>
+      ) : isReady ? (
+        <div className="grid gap-1.5 rounded-sm bg-surface-secondary p-4 text-xs">
+          <strong>✓ Archive generated</strong>
+          <span className="text-xs2 text-muted">
+            Requested {formatDate(request.requestedAt)} · available until{' '}
+            {formatDate(request.expiresAt)}
+          </span>
+        </div>
+      ) : timedOut ? (
+        <Alert tone="warning" title="This is taking longer than usual">
+          The archive is still being built. Come back to Privacy &amp; data in a
+          few minutes; the download appears here when it is ready.
+        </Alert>
+      ) : (
+        <LoadingState label="Building your archive" />
+      )}
+      {error ? <Alert tone="danger">{error}</Alert> : null}
       <footer>
         <Button onClick={onBack} variant="secondary">
           Back to privacy
         </Button>
-        <Button onClick={downloadPreview}>Download preview</Button>
+        <Button
+          disabled={!isReady || isDownloading}
+          onClick={() => void download()}
+        >
+          {isDownloading ? 'Downloading…' : 'Download archive'}
+        </Button>
       </footer>
     </FlowPage>
   );
 }
 
 export function DeleteAccount({
-  deletionText,
   onBack,
-  onChange,
+  onDeleted,
+  profile,
+  token = '',
 }: {
-  deletionText: string;
   onBack: () => void;
-  onChange: (value: string) => void;
+  onDeleted: () => void;
+  profile: AccountProfile;
+  token?: string;
 }) {
-  const [feedback, setFeedback] = useState('');
+  // Arriving from the e-mail link means the request already exists: start at
+  // the confirmation step instead of asking for a second e-mail.
+  const [step, setStep] = useState<'request' | 'confirm'>(
+    token ? 'confirm' : 'request',
+  );
+  const [code, setCode] = useState(token);
+  const [username, setUsername] = useState('');
+  const [error, setError] = useState('');
+  const [isWorking, setIsWorking] = useState(false);
+
+  async function sendEmail() {
+    setIsWorking(true);
+    setError('');
+    try {
+      await requestDeletion();
+      setStep('confirm');
+    } catch (requestError) {
+      setError(
+        messageOf(requestError, 'The confirmation e-mail could not be sent.'),
+      );
+    } finally {
+      setIsWorking(false);
+    }
+  }
+
+  async function confirm() {
+    setIsWorking(true);
+    setError('');
+    try {
+      await confirmDeletion(code.trim(), username.trim());
+      // The account no longer exists: the session has to go with it.
+      onDeleted();
+    } catch (confirmError) {
+      setError(
+        messageOf(
+          confirmError,
+          'The account was not deleted. Check the code and the username.',
+        ),
+      );
+    } finally {
+      setIsWorking(false);
+    }
+  }
+
   return (
     <FlowPage
       onBack={onBack}
       subtitle="This permanently removes your account and personal data."
       title="Delete your account?"
     >
-      <p>
-        Organization-owned records may be retained only where legally or
-        operationally required.
+      <p className="text-sm">
+        Your profile, sessions, notifications and private messages are deleted.
+        Content other people still depend on — comments on their tickets — is
+        anonymised instead of removed, which is what the regulation allows and
+        what keeps their records readable.
       </p>
-      <TextField
-        label="Type DELETE to continue"
-        onChange={(event) => onChange(event.target.value)}
-        placeholder="DELETE"
-        value={deletionText}
-      />
-      <div className="grid gap-1.5 rounded-sm bg-surface-secondary p-4 text-xs">
-        <span className="text-xs2 text-muted">
-          Production deletion starts only after the backend sends and verifies
-          an email confirmation link.
-        </span>
-      </div>
-      {feedback ? (
-        <Alert aria-live="polite" role="status">
-          {feedback}
-        </Alert>
-      ) : null}
-      <footer>
-        <Button onClick={onBack} variant="secondary">
-          Cancel
-        </Button>
-        <Button
-          disabled={deletionText !== 'DELETE'}
-          onClick={() =>
-            setFeedback(
-              'Deletion request is ready for the backend; no account was deleted.',
-            )
-          }
-          variant="destructive"
-        >
-          Prepare confirmation request
-        </Button>
-      </footer>
+
+      {step === 'request' ? (
+        <>
+          <Alert tone="warning" title="Two confirmations are required">
+            First we e-mail you a confirmation code. Then you type that code and
+            your own username. Nothing is deleted before both.
+          </Alert>
+          {error ? <Alert tone="danger">{error}</Alert> : null}
+          <footer>
+            <Button onClick={onBack} variant="secondary">
+              Cancel
+            </Button>
+            <Button
+              disabled={isWorking}
+              onClick={() => void sendEmail()}
+              variant="destructive"
+            >
+              {isWorking ? 'Sending…' : 'E-mail me the confirmation code'}
+            </Button>
+          </footer>
+        </>
+      ) : (
+        <>
+          <Alert tone="danger" title="This cannot be undone">
+            Once confirmed, the account and its personal data are gone. There is
+            no recovery, not even from a backup: restoring one would bring other
+            people's data back with it.
+          </Alert>
+          <TextField
+            autoComplete="off"
+            label="Confirmation code from the e-mail"
+            onChange={(event) => setCode(event.target.value)}
+            placeholder="Paste the code from the e-mail"
+            value={code}
+          />
+          <TextField
+            autoComplete="off"
+            label="Type your username to confirm"
+            onChange={(event) => setUsername(event.target.value)}
+            placeholder={profile.username}
+            value={username}
+          />
+          {error ? <Alert tone="danger">{error}</Alert> : null}
+          <footer>
+            <Button onClick={onBack} variant="secondary">
+              Cancel
+            </Button>
+            <Button
+              disabled={
+                isWorking || code.trim().length < 20 || username.trim() === ''
+              }
+              onClick={() => void confirm()}
+              variant="destructive"
+            >
+              {isWorking ? 'Deleting…' : 'Delete my account permanently'}
+            </Button>
+          </footer>
+        </>
+      )}
     </FlowPage>
   );
 }

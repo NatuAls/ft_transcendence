@@ -21,7 +21,8 @@
 #      DB_USER DB_PASSWORD DB_NAME
 #      JWT_ACCESS_SECRET JWT_REFRESH_SECRET PASSWORD_PEPPER
 #  Opcionales:
-#      CORS_ORIGINS SMTP_HOST SMTP_PORT MAIL_FROM APP_VERSION LOG_LEVEL
+#      CORS_ORIGINS SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASS SMTP_SECURE
+#      MAIL_FROM APP_VERSION LOG_LEVEL
 #      BACKUP_RETENTION_DAYS HEALTH_TIMEOUT BACKUP_ENCRYPTION_KEY RCLONE_REMOTE METRICS_TOKEN
 #      BOOTSTRAP_ADMIN_EMAIL DB_APP_USER DB_APP_PASSWORD (rol sin privilegios; ver B4)
 #      BOOTSTRAP_ADMIN_USERNAME BOOTSTRAP_ADMIN_PASSWORD BOOTSTRAP_ADMIN_DISPLAY_NAME
@@ -288,14 +289,23 @@ JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
 JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
 PASSWORD_PEPPER=${PASSWORD_PEPPER}
 CORS_ORIGINS=${CORS_ORIGINS}
-# Si no se define un servidor de correo, se dejan los mismos valores por
-# defecto que usa env.ts. El host "mailpit" no existe en este entorno, así que
-# verifyMail() falla, /api/health/ready marca el correo como "degraded" (es
-# opcional, no bloquea) y mail.service.ts se traga el error sin romper ninguna
-# petición. Resultado: la aplicación funciona, sólo que los correos de
-# verificación y de recuperación no salen a ninguna parte.
+# Correo. Dos modos, y el que manda es si hay SMTP_USER:
+#
+#   · Sin SMTP_USER se usa el servicio `mailpit` del propio compose. Los
+#     correos SE ENVÍAN y se pueden enseñar por el túnel SSH, pero no salen de
+#     la máquina. Es lo que había hasta ahora.
+#   · Con SMTP_USER el transporte autentica contra un relevo real y exige TLS,
+#     así que la verificación de correo, la recuperación de contraseña y las
+#     confirmaciones del RGPD llegan a un buzón de verdad — que es lo que pide
+#     un evaluador que quiere probarlo con su propia dirección.
+#
+# Las credenciales llegan por secreto de GitHub (<ENV>_SMTP_USER / _SMTP_PASS);
+# si faltan, el despliegue no falla: se queda en Mailpit.
 SMTP_HOST=${SMTP_HOST:-mailpit}
 SMTP_PORT=${SMTP_PORT:-1025}
+SMTP_USER=${SMTP_USER:-}
+SMTP_PASS=${SMTP_PASS:-}
+SMTP_SECURE=${SMTP_SECURE:-false}
 MAIL_FROM=${MAIL_FROM:-HelpDesk Lite <no-reply@helpdesk.local>}
 APP_VERSION=${APP_VERSION:-1.0.0}
 BACKUP_ENCRYPTION_KEY=${BACKUP_ENCRYPTION_KEY}

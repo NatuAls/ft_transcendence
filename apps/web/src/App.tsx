@@ -301,6 +301,7 @@ function App() {
         onOrganizationDescriptionChange={setOrganizationDescription}
         onOrganizationNameChange={setOrganizationName}
         onOrganizationSelect={selectOrganizationSummary}
+        onSignOut={handleSignOut}
         onProfileChange={(profile) => {
           setAccountProfile(profile);
           setViewer((current) => (current ? { ...current, profile } : current));

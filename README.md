@@ -500,6 +500,38 @@ Deleting a user or an organization cascades to its dependent rows
 (sessions, memberships, categories, tickets, comments, attachments);
 assignee and category references are set to `NULL`.
 
+## Privacy and data rights
+
+The four things the GDPR module asks for, all of them reachable from
+**Account → Privacy & data** and none of them a mock-up.
+
+| Right | How it works |
+|---|---|
+| Request your data | `POST /gdpr/export` creates the request and e-mails a code valid for 30 minutes. Nothing is built until it is confirmed |
+| Readable export | After confirmation the archive is assembled in the background — profile, tickets, comments, messages, notifications, attachments, memberships, friendships and sessions — and served as a ZIP of JSON from an authenticated, short-lived URL |
+| Deletion with confirmation | `POST /gdpr/delete` needs **two** factors to go through: the code from the e-mail and your own username typed back. An irreversible action deserves the friction |
+| Confirmation e-mails | Sent when a request is opened and again when the archive is ready |
+
+Deletion is a real erasure, not a flag: the account, its sessions,
+notifications and private messages go. What other people depend on — a comment
+on somebody else's ticket — is anonymised instead, which is what the regulation
+allows and what keeps their records readable.
+
+Two things matter for anyone reproducing this:
+
+- **The links in those e-mails** carry the confirmation code into the
+  application (`#account/export-requested?token=…`). The field stays editable,
+  because a mail client that breaks a long line should not be the end of the
+  road.
+- **Where the e-mail goes** depends on one variable. Without `SMTP_USER` the
+  mail is delivered to the Mailpit instance that ships with the environment:
+  real messages, kept on the server, visible through the SSH tunnel, never
+  leaving the machine. With `SMTP_USER` set, the transport authenticates
+  against a real relay and refuses to send without TLS, so confirmations —
+  along with e-mail verification and password recovery — reach an actual
+  inbox. The credentials come from `<ENV>_SMTP_USER` and `<ENV>_SMTP_PASS`;
+  if they are missing the deployment still succeeds and stays on Mailpit.
+
 ## Public API
 
 A second entry point into the same data, meant for integrations rather than for
@@ -570,7 +602,7 @@ deployment closes the reference instead of leaving it open, and
 | Real-time & chat | TODO(backend) | Socket.IO rooms per ticket/user, direct messages, presence |
 | Notifications & e-mail | TODO(backend) | In-app + SMTP, user preferences |
 | Public API | TODO(backend) | Scoped API keys, per-key rate limits |
-| GDPR export/delete, audit log | TODO(backend) | |
+| GDPR export/delete, audit log | TODO(backend) · fcela-ga (screens, e-mail links and transport) | Export and deletion requests with an e-mailed code, a second factor on deletion, a background ZIP build and anonymisation of what other people depend on; the audit log records who did what |
 | Front end (all screens) | TODO(frontend) | Sign in / register, workspace, organizations, ticket list / detail / create, people and profiles, messages, account and privacy, global admin, legal pages |
 | CI/CD pipelines | fcela-ga | Reusable CI (lint, types, tests, Trivy, gitleaks), staging/production deploys with approval gate and rollback |
 | Hosting & security hardening | fcela-ga | Oracle VM, Cloudflare, origin closed to Cloudflare ranges (VCN + iptables), fail2ban, least-privilege DB roles, security headers, rate limits |
@@ -587,11 +619,12 @@ deployment closes the reference instead of leaving it open, and
 | Module | Type | Points | Owner | Implementation |
 |---|---|---|---|---|
 | TODO | Major | 2 | TODO | TODO |
-| Custom-made design system | Minor | 1 | TODO(frontend) | Semantic palette and typography plus 15 generic reusable components in `packages/ui`; responsive, keyboard and accessible states documented in `packages/ui/README.md` |
+| Custom-made design system with reusable components | Minor | 1 | arielrhea | 15 generic reusable components in `packages/ui` — the module asks for ten — built on semantic tokens rather than raw values: a `@theme` palette (canvas, surface, border, ink, muted, primary and the four feedback colours), one type scale, shared radii and a typed `Icon` set. `packages/ui/README.md` is the catalogue: every component with its API, its variants, what it is used for, and the keyboard and accessibility behaviour it guarantees. `BrandMark` is exported too but deliberately not counted, because it is product branding and not a generic component |
 | Public API with authentication, rate limiting and documentation | Major | 2 | fcela-ga | 14 endpoints with `X-API-Key` (Argon2id secret shown once), per-key scopes, 60/min and 1000/h limits and organization tenancy; OpenAPI 3.0.3 with 105 operations generated from the Zod contracts, browsable at `/api/v1/docs` behind two independent doors, and a test that fails if any route is undocumented. See «Public API» above |
 | CI/CD pipeline with automated testing and deployment | Major | 2 | fcela-ga | Seven CI jobs on every pull request, images built once per SHA on a native ARM64 runner and promoted by SHA, a production gate enforced in code (`scripts/ci/prod-gate.mjs`) because environment reviewers do not pause anything in a private repository, encrypted pre-deploy backup, smoke test and automatic rollback, and the whole pipeline reproducible locally with `make ci` / `make deploy-*`. See «Continuous Integration and Delivery» above |
 | Monitoring system with Prometheus and Grafana | Major | 2 | fcela-ga | `compose.observability.yml`: Prometheus 3.14, Grafana 13.2, Alertmanager, five exporters and blackbox probes; nine application metrics behind `METRICS_TOKEN`; 21 alert rules with runbooks, delivery verified by e-mail and Telegram. See «Observability and Alerting» above |
 | Health check and status page system with automated backups and disaster recovery | Minor | 1 | fcela-ga | Liveness, readiness and a public per-area traffic light (`/api/health`, `/ready`, `/status`), the last one answering with full detail only to the operation token; a status page at `/status` served as a static file so it survives both the application bundle and the API; nightly AES-256 backups to Oracle Object Storage, `restore.sh` with integrity checks and a weekly automated restore drill with the recovery time measured; seven alert rules watch backups and drills, three of them on the absence of the metric. See «Health checks, the status page and recovery» above |
+| GDPR compliance features | Minor | 1 | fcela-ga | The module's four subpoints, end to end from the browser: request your data (`POST /gdpr/export`), deletion with confirmation (`POST /gdpr/delete`, needing both the e-mailed code **and** your own username typed back), export in a readable format (a ZIP of JSON built in the background and served through a short-lived authenticated download) and confirmation e-mails at every step. Content other people depend on is anonymised rather than erased, which is what the regulation allows. See «Privacy and data rights» below |
 | TODO | … | … | … | … |
 | **Total** | | **TODO** | | |
 
@@ -634,8 +667,10 @@ deployment closes the reference instead of leaving it open, and
 
 ## Known limitations
 
-- E-mail is captured by Mailpit in every environment: no real messages are
-  sent to users (by design for a student project).
+- E-mail is captured by Mailpit unless `SMTP_USER` is configured, in which
+  case the transport authenticates against a real relay over TLS and messages
+  reach actual inboxes. The demo environments are deliberately left on Mailpit:
+  a student project should not be sending mail to strangers.
 - Single-server deployment: no high availability, and the monitoring runs on
   the same machine it watches, so a full host outage is not self-alerting.
   Recovery relies on the backups and the runbook.

@@ -35,7 +35,12 @@ gdprRouter.post(
   ...authed,
   validate(gdprConfirmSchema),
   async (req, res) => {
-    const result = await gdpr.confirm(req.actor!.id, 'EXPORT', req.body.token);
+    const result = await gdpr.confirm(
+      req.actor!.id,
+      'EXPORT',
+      req.body.token,
+      originOf(req),
+    );
     audit.from(req)('gdpr.export.confirmed', 'GdprRequest', result.id);
     res.json(result);
   },
@@ -69,6 +74,7 @@ gdprRouter.post(
       req.actor!.id,
       'DELETE',
       req.body.token,
+      originOf(req),
       req.body.confirmUsername,
     );
     trail('gdpr.delete.confirmed', 'GdprRequest', result.id);

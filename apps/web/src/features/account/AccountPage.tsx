@@ -15,10 +15,18 @@ import {
 
 interface AccountPageProps {
   avatarUrl?: string;
+  /**
+   * Confirmation code carried by the link in a GDPR e-mail
+   * (`#account/export-requested?token=…`). It only pre-fills the field: the
+   * API is the one that validates it.
+   */
+  confirmationToken?: string;
   onAvatarChange: (avatarUrl: string) => void;
   onNavigate: (view: AccountView) => void;
   onPrivacyPolicy: () => void;
   onProfileChange: (profile: AccountProfile) => void;
+  /** Called once the account has really been deleted: the session must end. */
+  onSignOut: () => void;
   onTerms: () => void;
   profile: AccountProfile;
   view: AccountView;
@@ -30,15 +38,16 @@ function browserTimeZone() {
 
 export function AccountPage({
   avatarUrl,
+  confirmationToken,
   onAvatarChange,
   onNavigate,
   onPrivacyPolicy,
   onProfileChange,
+  onSignOut,
   onTerms,
   profile,
   view,
 }: AccountPageProps) {
-  const [deletionText, setDeletionText] = useState('');
   const [timeZone, setTimeZone] = useState(browserTimeZone);
 
   if (view === 'home')
@@ -76,18 +85,18 @@ export function AccountPage({
       <ExportRequested
         onBack={() => onNavigate('privacy')}
         onConfirm={() => onNavigate('export-ready')}
+        token={confirmationToken}
       />
     );
   if (view === 'export-ready')
-    return (
-      <ExportReady onBack={() => onNavigate('privacy')} profile={profile} />
-    );
+    return <ExportReady onBack={() => onNavigate('privacy')} />;
   if (view === 'delete')
     return (
       <DeleteAccount
-        deletionText={deletionText}
         onBack={() => onNavigate('privacy')}
-        onChange={setDeletionText}
+        onDeleted={onSignOut}
+        profile={profile}
+        token={confirmationToken}
       />
     );
   return (

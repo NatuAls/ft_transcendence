@@ -12,20 +12,42 @@ import {
 const logger = createLogger('mail');
 
 /**
- * SMTP through Mailpit, which ships inside docker-compose. This is what makes
- * confirmation emails verifiable in dev/demo: open http://localhost:8025 and
- * see the message. No external provider, nothing to configure.
+ * SMTP with two modes, decided by whether SMTP_USER is set.
+ *
+ *   · Without it: Mailpit, which ships inside docker-compose. It accepts any
+ *     connection, keeps every message and sends nothing to the internet, which
+ *     is what makes confirmation e-mails verifiable in dev and in the demo
+ *     environments — open its web interface and the message is there.
+ *
+ *   · With it: a real relay. The transport then authenticates AND refuses to
+ *     send in clear: `requireTLS` turns a missing STARTTLS into an error
+ *     instead of a silent downgrade, and the certificate is verified like
+ *     anybody else's. Without this branch no real provider accepts the
+ *     connection, so verification, password recovery and the GDPR
+ *     confirmations never reach an actual mailbox.
+ *
+ * `rejectUnauthorized: false` stays only on the Mailpit side, where the
+ * certificate is self-signed and there is nothing to protect: applying it to a
+ * real relay would accept any certificate and hand the credentials to whoever
+ * answered.
  */
 let transporter: Transporter | undefined;
 
 function getTransporter(): Transporter {
   if (!transporter) {
     const config = loadConfiguration();
+    const auth = config.SMTP_USER
+      ? { user: config.SMTP_USER, pass: config.SMTP_PASS ?? '' }
+      : undefined;
+
     transporter = createTransport({
       host: config.SMTP_HOST,
       port: config.SMTP_PORT,
-      secure: false,
-      tls: { rejectUnauthorized: false },
+      // Implicit TLS (port 465). On 587 this stays false and STARTTLS lifts
+      // the connection, which is what `requireTLS` then makes mandatory.
+      secure: config.SMTP_SECURE,
+      ...(auth ? { auth, requireTLS: !config.SMTP_SECURE } : {}),
+      ...(auth ? {} : { tls: { rejectUnauthorized: false } }),
     });
   }
   return transporter;

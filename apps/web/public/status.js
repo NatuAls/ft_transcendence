@@ -145,7 +145,7 @@ async function load() {
       blankAreas();
     }
     showNotice('');
-  } catch (error) {
+  } catch {
     // Sin detalle del error en pantalla: el mensaje de una excepción de red
     // puede llevar el nombre del host interno, y esta página es pública.
     summary.dataset.state = 'major_outage';
