@@ -333,6 +333,14 @@ Prometheus listen on `127.0.0.1` and are reached through an SSH tunnel.
 | Loki + Promtail | 3.4 | Container logs, searchable without SSH, with secrets masked on the way in |
 | Exporters | node 1.12, cAdvisor 0.55, postgres 0.17, redis 1.69, blackbox 0.26 | Host, containers, both databases, both caches, and HTTP probes against the two public sites |
 
+Loki and Promtail are part of how the service is run, **not of a claimed
+module**. The subject's log-management module names Elasticsearch, Logstash and
+Kibana, and this deployment does not run them: on a free ARM instance that
+already hosts two complete environments, Loki indexes labels instead of
+document bodies and reuses the Grafana that Prometheus already needs, instead
+of adding a second JVM-sized service and a second web front end to publish and
+protect. That is an operational choice, so no point is claimed for it.
+
 ### What the application itself reports
 
 The API publishes nine metrics of its own at `GET /api/metrics`, guarded by
@@ -348,7 +356,8 @@ Three endpoints complete the picture: `GET /api/health` (liveness),
 `GET /api/health/ready` (dependencies, degraded states included) and
 `GET /api/health/status`, which reports functional areas — authentication,
 tickets, attachments, real time — rather than infrastructure detail, so it can
-be shown publicly.
+be shown publicly. The status page at [`/status`](https://helpdesklite.me/status)
+is the human-readable face of that last one; see below.
 
 ### The 21 alert rules
 
@@ -369,6 +378,70 @@ produces no failures either: silence is the failure mode that looks like
 success. Alerts were provoked deliberately and the delivery verified by e-mail
 and Telegram, which is the part that cannot be shown from the configuration
 files.
+
+### Health checks, the status page and recovery
+
+Three probes, each with one job and one audience:
+
+| Probe | Who reads it | What it answers |
+|---|---|---|
+| `GET /api/health` | Docker and the deploy script | Is the process alive? Answers from memory and is never rate limited, because the container healthcheck polls it |
+| `GET /api/health/ready` | the deploy smoke test, Prometheus | Are PostgreSQL, Redis, storage and SMTP reachable, and which of them is degraded? |
+| `GET /api/health/status` | the status page, uptime checkers | Can people sign in, open tickets, attach files, chat, receive e-mail? |
+
+The last one answers twice. Without credentials it returns a traffic light per
+**functional area** — never a component name, a latency, a version or an error
+message, because those add up to a map of the infrastructure. With the
+operation token (`Authorization: Bearer $METRICS_TOKEN`) it returns the full
+view: every dependency, its latency, the deployed version and commit. The smoke
+test asserts the anonymous answer stays free of `services`, `version`, `commit`
+and `uptimeSeconds`, so the day someone widens the public payload the deploy
+fails instead of leaking.
+
+The SMTP probe runs on a 60-second timer rather than inside the request: a
+`verifyMail()` against a host that does not resolve takes about five seconds,
+and at 300 requests per minute that turned an anonymous endpoint into a cheap
+amplifier.
+
+**The status page** is at `/status`. It is a static file
+(`apps/web/public/status.html` plus `status.js`), deliberately not a route of
+the single-page application:
+
+- it does not need the React bundle, so a broken build still leaves a page up;
+- it does not need the API, so when the application is down — which is exactly
+  when somebody opens it — the page loads and says so in red instead of not
+  loading at all;
+- it needs no session and touches no database.
+
+It refreshes every 60 seconds, the same window the API caches the public
+answer for, and again whenever the tab regains focus. Status is never conveyed
+by colour alone: each row carries its own wording and symbol.
+
+The honest limit, because it will come up in the defence: if this nginx goes
+down the page goes with it, and the blackbox exporter catches that — it probes
+both public sites every 15 s and `site down` fires within two minutes. But the
+blackbox exporter runs on the same host it watches, so a **full machine**
+outage takes the alerting down with it and nothing fires. That is the
+single-server trade-off listed under Known limitations; today it is covered by
+the runbook, not by a second machine.
+
+**Backups and disaster recovery** close the module. `backup.sh` dumps
+PostgreSQL and the uploads nightly, encrypts them with AES-256 and ships them
+to Oracle Object Storage; `restore.sh` restores with integrity checks, and
+`restore.sh --drill` runs every Monday from `backup-drill.yml`, restoring the
+latest backup into a throwaway database and recording the recovery time. Both
+publish metrics, and seven of the 21 alert rules watch them — including the
+three that fire on the *absence* of a metric, because a backup job that never
+runs reports no failures either.
+
+To check the whole thing in one go:
+
+```bash
+curl -s https://helpdesklite.me/api/health/status | jq        # public traffic light
+curl -s -H "Authorization: Bearer $METRICS_TOKEN" \
+     https://helpdesklite.me/api/health/status | jq           # operator view
+curl -sI https://helpdesklite.me/status | head -1             # the page itself
+```
 
 ## Database Schema
 
@@ -501,6 +574,7 @@ deployment closes the reference instead of leaving it open, and
 | Front end (all screens) | TODO(frontend) | Sign in / register, workspace, organizations, ticket list / detail / create, people and profiles, messages, account and privacy, global admin, legal pages |
 | CI/CD pipelines | fcela-ga | Reusable CI (lint, types, tests, Trivy, gitleaks), staging/production deploys with approval gate and rollback |
 | Hosting & security hardening | fcela-ga | Oracle VM, Cloudflare, origin closed to Cloudflare ranges (VCN + iptables), fail2ban, least-privilege DB roles, security headers, rate limits |
+| Health checks & status page | fcela-ga | Liveness and readiness probes, a per-area public traffic light that hides infrastructure detail, and a status page at `/status` served as a static file so it stays up when the application does not |
 | Backups & recovery | fcela-ga | Encrypted daily backups off-site, weekly restore drills with measured RTO, production restore with integrity checks |
 | Observability & alerting | fcela-ga | Prometheus/Grafana/Loki, 21 alert rules, Telegram + e-mail, self-healing timer |
 | Operations documentation | fcela-ga | DevOps guide, runbook, audit reports and secrets inventory (kept outside the repository) |
@@ -514,10 +588,10 @@ deployment closes the reference instead of leaving it open, and
 |---|---|---|---|---|
 | TODO | Major | 2 | TODO | TODO |
 | Custom-made design system | Minor | 1 | TODO(frontend) | Semantic palette and typography plus 15 generic reusable components in `packages/ui`; responsive, keyboard and accessible states documented in `packages/ui/README.md` |
-| Public API with authentication, rate limiting and documentation | Major | 2 | TODO(backend) | 14 endpoints with `X-API-Key` (Argon2id secret shown once), per-key scopes, 60/min and 1000/h limits and organization tenancy; OpenAPI 3.0.3 with 105 operations generated from the Zod contracts, browsable at `/api/v1/docs` behind two independent doors, and a test that fails if any route is undocumented. See «Public API» above |
+| Public API with authentication, rate limiting and documentation | Major | 2 | fcela-ga | 14 endpoints with `X-API-Key` (Argon2id secret shown once), per-key scopes, 60/min and 1000/h limits and organization tenancy; OpenAPI 3.0.3 with 105 operations generated from the Zod contracts, browsable at `/api/v1/docs` behind two independent doors, and a test that fails if any route is undocumented. See «Public API» above |
 | CI/CD pipeline with automated testing and deployment | Major | 2 | fcela-ga | Seven CI jobs on every pull request, images built once per SHA on a native ARM64 runner and promoted by SHA, a production gate enforced in code (`scripts/ci/prod-gate.mjs`) because environment reviewers do not pause anything in a private repository, encrypted pre-deploy backup, smoke test and automatic rollback, and the whole pipeline reproducible locally with `make ci` / `make deploy-*`. See «Continuous Integration and Delivery» above |
 | Monitoring system with Prometheus and Grafana | Major | 2 | fcela-ga | `compose.observability.yml`: Prometheus 3.14, Grafana 13.2, Alertmanager, five exporters and blackbox probes; nine application metrics behind `METRICS_TOKEN`; 21 alert rules with runbooks, delivery verified by e-mail and Telegram. See «Observability and Alerting» above |
-| Infrastructure setup for log management (Loki / Promtail) | Minor | 1 | fcela-ga | Centralized container logs with secret masking, searchable in Grafana |
+| Health check and status page system with automated backups and disaster recovery | Minor | 1 | fcela-ga | Liveness, readiness and a public per-area traffic light (`/api/health`, `/ready`, `/status`), the last one answering with full detail only to the operation token; a status page at `/status` served as a static file so it survives both the application bundle and the API; nightly AES-256 backups to Oracle Object Storage, `restore.sh` with integrity checks and a weekly automated restore drill with the recovery time measured; seven alert rules watch backups and drills, three of them on the absence of the metric. See «Health checks, the status page and recovery» above |
 | TODO | … | … | … | … |
 | **Total** | | **TODO** | | |
 
@@ -537,6 +611,12 @@ deployment closes the reference instead of leaving it open, and
   roles, nginx security headers and rate limits.
 - Built the backup system (encrypted, verified, off-site, 14-day retention)
   and the restore tooling with weekly drills; measured RTO of a few seconds.
+- Built the health-check and status system: three probes with separate
+  audiences, a public traffic light by functional area that deliberately
+  hides component names, latencies and versions, and a status page served
+  as a static file so that neither a broken bundle nor a dead API can take
+  it down with them. The deploy smoke test fails if the anonymous answer
+  ever starts leaking internal detail.
 - Built the observability stack and alerting (Telegram + e-mail), with
   runbook annotations on every alert; added a self-healing timer after a
   15-hour outage caused by a deliberate stop that was never reverted.
@@ -556,8 +636,9 @@ deployment closes the reference instead of leaving it open, and
 
 - E-mail is captured by Mailpit in every environment: no real messages are
   sent to users (by design for a student project).
-- Single-server deployment: no high availability; recovery relies on the
-  backups and the runbook.
+- Single-server deployment: no high availability, and the monitoring runs on
+  the same machine it watches, so a full host outage is not self-alerting.
+  Recovery relies on the backups and the runbook.
 - Cloudflare IP ranges can be blocked from some Spanish networks during
   football matches (court order); see the fallback plan in the runbook.
 

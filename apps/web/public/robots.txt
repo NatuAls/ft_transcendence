@@ -4,6 +4,9 @@
 # de Cloudflare (no depende de este fichero).
 User-agent: *
 Allow: /$
+# La página de estado sí es contenido público: es la que se mira cuando el
+# servicio falla, y no hay nada privado en ella.
+Allow: /status
 Disallow: /api/
 Disallow: /socket.io/
 
