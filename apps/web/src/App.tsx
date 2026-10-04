@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
   buildHash,
   getActiveSection,
@@ -32,6 +32,9 @@ import {
 } from './features/organizations/organizationsData';
 import { AppShell } from './layout/AppShell';
 import { logout, refreshSession, type AuthResponse } from './api/auth';
+import { setUnauthorizedHandler } from './core/api/client';
+import { ToastProvider } from './core/feedback/ToastProvider';
+import { RealtimeProvider } from './core/realtime/RealtimeProvider';
 
 function App() {
   const initialViewer = previewMode ? previewSessions.agent : null;
@@ -122,6 +125,10 @@ function App() {
     }
     window.location.hash = hash;
   };
+
+  useEffect(() => {
+    setUnauthorizedHandler(() => navigate('login'));
+  }, [location.route]);
 
   async function handleSignIn(user: AuthResponse['user']) {
     const authenticatedViewer = viewerFromAuthUser(user);
@@ -241,8 +248,10 @@ function App() {
     return <main aria-live="polite">Loading...</main>;
   }
 
+  let authenticatedContent: ReactNode;
+
   if (viewer.accountState === 'SUSPENDED') {
-    return (
+    authenticatedContent = (
       <SessionStatePage
         kind="suspended"
         onPreviewIdentityChange={handlePreviewIdentityChange}
@@ -250,10 +259,11 @@ function App() {
         viewer={viewer}
       />
     );
-  }
-
-  if (viewer.globalRole !== 'GLOBAL_ADMIN' && viewer.memberships.length === 0) {
-    return (
+  } else if (
+    viewer.globalRole !== 'GLOBAL_ADMIN' &&
+    viewer.memberships.length === 0
+  ) {
+    authenticatedContent = (
       <SessionStatePage
         kind="no-organization"
         onPreviewIdentityChange={handlePreviewIdentityChange}
@@ -261,64 +271,74 @@ function App() {
         viewer={viewer}
       />
     );
+  } else {
+    const organizationOptions = organizationsForViewer(viewer);
+    const scopedViewer = scopePreviewViewer(viewer, organizationId);
+
+    authenticatedContent = (
+      <AppShell
+        activeOrganizationId={organizationId}
+        activeSection={getActiveSection(location.route)}
+        avatarUrl={avatarUrl}
+        hideMobileHeader={location.route === 'ticket-detail'}
+        onNavigate={navigate}
+        onOrganizationChange={(nextId) => {
+          selectOrganization(viewer, nextId);
+        }}
+        onPreviewIdentityChange={handlePreviewIdentityChange}
+        onSignOut={handleSignOut}
+        organizationName={organizationName}
+        organizationOptions={[
+          ...organizationOptions.map(({ id, name }) => ({ id, name })),
+          ...(organizationOptions.some(
+            (organization) => organization.id === organizationId,
+          )
+            ? []
+            : [{ id: organizationId, name: organizationName }]),
+        ]}
+        userEmail={accountProfile.email}
+        userName={accountProfile.fullName}
+        viewer={scopedViewer}
+      >
+        <WorkspacePage
+          accountProfile={accountProfile}
+          avatarUrl={avatarUrl}
+          location={location}
+          navigate={navigate}
+          onAvatarChange={setAvatarUrl}
+          onCreateTicket={handleCreateTicket}
+          onOrganizationDescriptionChange={setOrganizationDescription}
+          onOrganizationNameChange={setOrganizationName}
+          onOrganizationSelect={selectOrganizationSummary}
+          onProfileChange={(profile) => {
+            setAccountProfile(profile);
+            setViewer((current) =>
+              current ? { ...current, profile } : current,
+            );
+          }}
+          onTicketChange={(updatedTicket) =>
+            setTickets((current) =>
+              current.map((ticket) =>
+                ticket.id === updatedTicket.id ? updatedTicket : ticket,
+              ),
+            )
+          }
+          organizationDescription={organizationDescription}
+          organizationId={organizationId}
+          organizationName={organizationName}
+          tickets={tickets}
+          viewer={scopedViewer}
+        />
+      </AppShell>
+    );
   }
 
-  const organizationOptions = organizationsForViewer(viewer);
-  const scopedViewer = scopePreviewViewer(viewer, organizationId);
-
   return (
-    <AppShell
-      activeOrganizationId={organizationId}
-      activeSection={getActiveSection(location.route)}
-      avatarUrl={avatarUrl}
-      hideMobileHeader={location.route === 'ticket-detail'}
-      onNavigate={navigate}
-      onOrganizationChange={(nextId) => {
-        selectOrganization(viewer, nextId);
-      }}
-      onPreviewIdentityChange={handlePreviewIdentityChange}
-      onSignOut={handleSignOut}
-      organizationName={organizationName}
-      organizationOptions={[
-        ...organizationOptions.map(({ id, name }) => ({ id, name })),
-        ...(organizationOptions.some(
-          (organization) => organization.id === organizationId,
-        )
-          ? []
-          : [{ id: organizationId, name: organizationName }]),
-      ]}
-      userEmail={accountProfile.email}
-      userName={accountProfile.fullName}
-      viewer={scopedViewer}
-    >
-      <WorkspacePage
-        accountProfile={accountProfile}
-        avatarUrl={avatarUrl}
-        location={location}
-        navigate={navigate}
-        onAvatarChange={setAvatarUrl}
-        onCreateTicket={handleCreateTicket}
-        onOrganizationDescriptionChange={setOrganizationDescription}
-        onOrganizationNameChange={setOrganizationName}
-        onOrganizationSelect={selectOrganizationSummary}
-        onProfileChange={(profile) => {
-          setAccountProfile(profile);
-          setViewer((current) => (current ? { ...current, profile } : current));
-        }}
-        onTicketChange={(updatedTicket) =>
-          setTickets((current) =>
-            current.map((ticket) =>
-              ticket.id === updatedTicket.id ? updatedTicket : ticket,
-            ),
-          )
-        }
-        organizationDescription={organizationDescription}
-        organizationId={organizationId}
-        organizationName={organizationName}
-        tickets={tickets}
-        viewer={scopedViewer}
-      />
-    </AppShell>
+    <ToastProvider>
+      <RealtimeProvider enabled={Boolean(viewer)}>
+        {authenticatedContent}
+      </RealtimeProvider>
+    </ToastProvider>
   );
 }
 
