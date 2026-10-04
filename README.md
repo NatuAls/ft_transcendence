@@ -272,6 +272,57 @@ fresh one to paste into GitHub. The full inventory — which secret feeds what,
 how to generate each one and what breaks if it is missing — is in the team's
 DevOps guide.
 
+## Observability and Alerting
+
+The stack is deployed once per host (`compose.observability.yml`) and watches
+both environments. Nothing it exposes is published to the internet: Grafana and
+Prometheus listen on `127.0.0.1` and are reached through an SSH tunnel.
+
+| Piece | Version | What it is for |
+|---|---|---|
+| Prometheus | 3.14 | Scrapes every target every 15 s, evaluates the alert rules |
+| Alertmanager | 0.34 | Groups, silences and routes alerts to e-mail and Telegram |
+| Grafana | 13.2 | Provisioned dashboard (`helpdesk-overview`), data sources as code |
+| Loki + Promtail | 3.4 | Container logs, searchable without SSH, with secrets masked on the way in |
+| Exporters | node 1.12, cAdvisor 0.55, postgres 0.17, redis 1.69, blackbox 0.26 | Host, containers, both databases, both caches, and HTTP probes against the two public sites |
+
+### What the application itself reports
+
+The API publishes nine metrics of its own at `GET /api/metrics`, guarded by
+`METRICS_TOKEN` so the endpoint answers 404 to anybody else:
+
+`http_requests_total`, request duration, requests in flight, rate-limit
+rejections, authentication failures, dependency up/down, dependency latency,
+real-time connections and domain events. They are what makes the alerts about
+latency, sustained 5xx and rate limiting possible — Prometheus alone could not
+see any of that.
+
+Three endpoints complete the picture: `GET /api/health` (liveness),
+`GET /api/health/ready` (dependencies, degraded states included) and
+`GET /api/health/status`, which reports functional areas — authentication,
+tickets, attachments, real time — rather than infrastructure detail, so it can
+be shown publicly.
+
+### The 21 alert rules
+
+Grouped by what they protect (`config/prometheus/rules/`), every one of them
+carrying a link to its runbook entry:
+
+| Area | Rules |
+|---|---|
+| Availability | site down, API not ready, container restart loop, probe target down |
+| Behaviour under load | sustained 5xx, high latency, rate limiting firing |
+| Resources | low disk, critical disk, high memory, PostgreSQL near its connection limit, Redis out of memory |
+| Backups | backup failed, backup too old, no backup metric at all, backup suspiciously small |
+| Restore drills | drill too old, no drill metric, drill failed |
+| TLS | certificate expiring soon, certificate expiring now |
+
+The three "no metric at all" rules exist because a backup job that never runs
+produces no failures either: silence is the failure mode that looks like
+success. Alerts were provoked deliberately and the delivery verified by e-mail
+and Telegram, which is the part that cannot be shown from the configuration
+files.
+
 ## Database Schema
 
 PostgreSQL schema managed by Prisma (`apps/api/prisma/schema.prisma`, 20
@@ -329,6 +380,64 @@ Deleting a user or an organization cascades to its dependent rows
 (sessions, memberships, categories, tickets, comments, attachments);
 assignee and category references are set to `NULL`.
 
+## Public API
+
+A second entry point into the same data, meant for integrations rather than for
+the browser, and demonstrable entirely with `curl`.
+
+### Access control
+
+| | |
+|---|---|
+| Authentication | `X-API-Key`. The key is a public prefix plus a secret, and the secret is **hashed with Argon2id** and shown once, at creation |
+| Authorisation | Scopes per key: `tickets:read/write`, `comments:read/write`, `categories:read/write` |
+| Tenancy | Every key belongs to one organization and can never see another's data |
+| Rate limiting | 60 requests/minute and 1000/hour per key, on top of the global per-IP limits |
+| Audit | Key creation and revocation are recorded in `audit_logs` with the actor |
+
+Fourteen endpoints cover the full cycle — list, read, create, update and delete
+tickets, comments and categories — with pagination and filtering.
+
+### Documentation
+
+`GET /api/v1/openapi.json` serves an OpenAPI 3.0.3 document covering the
+**105 operations** of the whole API in 18 sections, and `GET /api/v1/docs`
+renders it as a browsable reference with *Try it out*. Both authentication
+schemes work from that page: bearer token for a session, `X-API-Key` for this
+API.
+
+Two decisions are worth stating, because they are what keeps the document
+honest:
+
+- **Request bodies are not written by hand.** They are the same Zod contracts
+  (`packages/contracts`) that the API validates with, converted at build time.
+  The documentation cannot drift from what the server enforces, because it *is*
+  what the server enforces.
+- **A test fails if the two disagree.** `apps/api/test/unit/openapi.test.ts`
+  walks the real routers and fails if a route is undocumented, if a documented
+  route does not exist, or if an operation is missing its id, tag, summary,
+  description, security or responses.
+
+`apps/api/ENDPOINTS.md` stays as the quick reference table and ends with a
+ten-step demonstration script, run end to end against a real database.
+
+### How the reference is protected
+
+The reference describes every route, payload and rule of the API, which is more
+useful to somebody probing the service than to anybody else. In development it
+is open; in staging and production it sits behind two independent doors:
+
+1. nginx asks for a team credential (HTTP Basic). The password file is written
+   by the deployment from a secret, with mode `600`, and mounted read-only — it
+   is in neither the repository nor any image.
+2. The API then requires proof that the request came through that nginx, or a
+   `GLOBAL_ADMIN` session for anybody hitting the API directly.
+
+A refusal is always a **404**, never a 401 or 403: a locked door tells an
+attacker there is something worth forcing. If the secret is missing the
+deployment closes the reference instead of leaving it open, and
+`DOCS_ACCESS=public` is refused in production.
+
 ## Features List
 
 <!-- TODO(each member): one line per feature you built; keep it honest. -->
@@ -358,8 +467,9 @@ assignee and category references are set to `NULL`.
 |---|---|---|---|---|
 | TODO | Major | 2 | TODO | TODO |
 | Custom-made design system | Minor | 1 | TODO(frontend) | Semantic palette and typography plus 15 generic reusable components in `packages/ui`; responsive, keyboard and accessible states documented in `packages/ui/README.md` |
+| Public API with authentication, rate limiting and documentation | Major | 2 | TODO(backend) | 14 endpoints with `X-API-Key` (Argon2id secret shown once), per-key scopes, 60/min and 1000/h limits and organization tenancy; OpenAPI 3.0.3 with 105 operations generated from the Zod contracts, browsable at `/api/v1/docs` behind two independent doors, and a test that fails if any route is undocumented. See «Public API» above |
 | CI/CD pipeline with automated testing and deployment | Major | 2 | fcela-ga | Seven CI jobs on every pull request, images built once per SHA on a native ARM64 runner and promoted by SHA, a production gate enforced in code (`scripts/ci/prod-gate.mjs`) because environment reviewers do not pause anything in a private repository, encrypted pre-deploy backup, smoke test and automatic rollback, and the whole pipeline reproducible locally with `make ci` / `make deploy-*`. See «Continuous Integration and Delivery» above |
-| Monitoring system (Prometheus / Grafana) | Minor | 1 | fcela-ga | `compose.observability.yml`: Prometheus 3, Grafana 11, Alertmanager, exporters, 21 alert rules with runbooks |
+| Monitoring system (Prometheus / Grafana) | Minor | 1 | fcela-ga | `compose.observability.yml`: Prometheus 3.14, Grafana 13.2, Alertmanager, five exporters and blackbox probes; nine application metrics behind `METRICS_TOKEN`; 21 alert rules with runbooks, delivery verified by e-mail and Telegram. See «Observability and Alerting» above |
 | Infrastructure setup for log management (Loki / Promtail) | Minor | 1 | fcela-ga | Centralized container logs with secret masking, searchable in Grafana |
 | TODO | … | … | … | … |
 | **Total** | | **TODO** | | |
