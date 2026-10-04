@@ -90,7 +90,11 @@ jobs:
           envs: ENTORNO
           script: |
             set -euo pipefail
-            latest="$(find "/opt/helpdesk/${ENTORNO}/backups" -name 'RESTORE-DRILL-*.txt' | sort | tail -1 || true)"
+            # Desde el 04/10 el informe se escribe en drills/, fuera de la
+            # copia: una copia es inmutable y su directorio es de root.
+            # Se mira también en backups/ por si queda alguno antiguo.
+            latest="$(find "/opt/helpdesk/${ENTORNO}/drills" "/opt/helpdesk/${ENTORNO}/backups" \
+              -name 'RESTORE-DRILL-*.txt' 2>/dev/null | sort | tail -1 || true)"
             if [ -n "$latest" ]; then cat "$latest"; else echo "sin informe"; fi
 
       - name: Resumen
