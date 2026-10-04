@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { SessionsPage } from '../src/features/account/SessionsPage';
 import { mockApi, reply } from './support/api';
 import { deviceSession, ids } from './support/fixtures';
@@ -51,8 +57,15 @@ describe('sessions and devices', () => {
         'Safari on iOS was signed out. It has to sign in again to come back.',
       ),
     ).toBeTruthy();
-    expect(calls.filter((call) => call.path === '/auth/sessions')).toHaveLength(
-      2,
+    // La recarga se espera, no se da por hecha. El mensaje aparece en el
+    // mismo render que dispara `reload()`, pero la petición la lanza el efecto
+    // que React vacía DESPUÉS: afirmarla aquí mismo es una carrera que gana en
+    // una máquina rápida y pierde en el runner del CI (fallo del 04/10 en la
+    // PR de develop a main, verde en local).
+    await waitFor(() =>
+      expect(
+        calls.filter((call) => call.path === '/auth/sessions'),
+      ).toHaveLength(2),
     );
   });
 
