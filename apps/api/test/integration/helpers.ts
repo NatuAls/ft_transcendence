@@ -153,10 +153,17 @@ export interface TestUser {
   refreshCookie: string;
 }
 
-/** Da de alta un usuario nuevo y devuelve su sesión ya iniciada. */
-export async function registerUser(prefix = 'it'): Promise<TestUser> {
+/**
+ * Da de alta un usuario nuevo y devuelve su sesión ya iniciada. `email`
+ * permite registrar una dirección concreta: la de un rol reservado, por
+ * ejemplo.
+ */
+export async function registerUser(
+  prefix = 'it',
+  email?: string,
+): Promise<TestUser> {
   const username = unique(prefix);
-  const email = `${username}@integration.local`;
+  email ??= `${username}@integration.local`;
   const response = await api<{
     user: { id: string };
     accessToken: string;

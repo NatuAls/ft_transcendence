@@ -39,7 +39,7 @@ export const usersPaths: Paths = {
       operationId: 'listUsers',
       summary: 'List users (platform administration)',
       description:
-        'Only for GLOBAL_ADMIN. Paginated and filterable; it is the backing list of the administration panel.',
+        'Only for GLOBAL_ADMIN. Paginated and filterable; it is the backing list of the administration panel. Each row carries `isPrimary`: the recovery administrator created at deployment, which the API refuses to suspend, demote or delete.',
       security: session,
       parameters: [
         { $ref: '#/components/parameters/Page' },

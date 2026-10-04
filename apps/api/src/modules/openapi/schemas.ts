@@ -219,6 +219,21 @@ const currentUser = object('The caller, as the server sees them.', {
       'Flattened capabilities of the caller, so the client does not have to re-derive the RBAC matrix.',
     items: str('Capability.'),
   },
+  pendingRoles: {
+    type: 'array',
+    description:
+      'Roles an administrator reserved for this address, waiting for it to be verified. Always empty once it is.',
+    items: object('Reserved role.', {
+      scope: str('Level.', { enum: ['PLATFORM', 'ORGANIZATION'] }),
+      role: str('Role.', {
+        enum: ['GLOBAL_ADMIN', 'MEMBER', 'AGENT', 'ORG_ADMIN'],
+      }),
+      organizationName: {
+        ...str('Organization, for an organization role.'),
+        nullable: true,
+      },
+    }),
+  },
   createdAt: date('Sign-up date.'),
 });
 
@@ -505,6 +520,87 @@ const healthStatus = object(
   },
 );
 
+// ---------------------------------------------------------------------------
+// Role assignment by e-mail (platform and organization level)
+// ---------------------------------------------------------------------------
+const roleGrantor = {
+  ...object('Administrator who established the link.', {
+    id: uuid('User id.'),
+    username: str('Handle.'),
+    displayName: str('Name shown in the interface.'),
+  }),
+  nullable: true,
+};
+
+const waitingForField = str(
+  '`ACCOUNT`: nobody has registered this address yet. `VERIFICATION`: an account has it, but the address has not been confirmed. The role reaches the account the moment it is.',
+  { enum: ['ACCOUNT', 'VERIFICATION'] },
+);
+
+const platformRoleReservation = object(
+  'A platform role reserved for an e-mail address that has no verified account yet.',
+  {
+    id: uuid('Reservation id.'),
+    email: str('Address the role is reserved for.', { format: 'email' }),
+    globalRole: str('Reserved platform role.', { enum: ['GLOBAL_ADMIN'] }),
+    waitingFor: waitingForField,
+    grantedBy: roleGrantor,
+    createdAt: date('When the link was established.'),
+    updatedAt: date('Last change of the reserved role.'),
+  },
+);
+
+const organizationRoleReservation = object(
+  'An organization role reserved for an e-mail address that has no verified account yet.',
+  {
+    id: uuid('Reservation id.'),
+    organizationId: uuid('Organization.'),
+    email: str('Address the role is reserved for.', { format: 'email' }),
+    role: str('Reserved organization role.', {
+      enum: ['MEMBER', 'AGENT', 'ORG_ADMIN'],
+    }),
+    waitingFor: waitingForField,
+    grantedBy: roleGrantor,
+    createdAt: date('When the link was established.'),
+    updatedAt: date('Last change of the reserved role.'),
+  },
+);
+
+const assignmentAccount = {
+  ...object('The account the role reached. Null when it was reserved.', {
+    id: uuid('User id.'),
+    username: str('Handle.'),
+    displayName: str('Name shown in the interface.'),
+  }),
+  nullable: true,
+};
+
+const outcomeField = str(
+  '`APPLIED`: a verified account had the address and its role changed now. `UNCHANGED`: it already had that role. `RESERVED`: no verified account yet; the role waits for one.',
+  { enum: ['APPLIED', 'UNCHANGED', 'RESERVED'] },
+);
+
+const platformRoleAssignment = object('Result of a platform role assignment.', {
+  outcome: outcomeField,
+  email: str('Address.', { format: 'email' }),
+  globalRole: str('Assigned platform role.', { enum: ['GLOBAL_ADMIN'] }),
+  user: assignmentAccount,
+  reservation: nullableRef('PlatformRoleReservation'),
+});
+
+const organizationRoleAssignment = object(
+  'Result of an organization role assignment.',
+  {
+    outcome: outcomeField,
+    email: str('Address.', { format: 'email' }),
+    role: str('Assigned organization role.', {
+      enum: ['MEMBER', 'AGENT', 'ORG_ADMIN'],
+    }),
+    user: assignmentAccount,
+    reservation: nullableRef('OrganizationRoleReservation'),
+  },
+);
+
 /** Everything that ends up in `components.schemas`. */
 export const componentSchemas: Record<string, JsonSchema> = {
   ApiError: apiError,
@@ -525,6 +621,10 @@ export const componentSchemas: Record<string, JsonSchema> = {
   ApiKeyCreated: apiKeyCreated,
   AuditLog: auditLog,
   HealthStatus: healthStatus,
+  PlatformRoleReservation: platformRoleReservation,
+  OrganizationRoleReservation: organizationRoleReservation,
+  PlatformRoleAssignment: platformRoleAssignment,
+  OrganizationRoleAssignment: organizationRoleAssignment,
 
   // --- request bodies, straight from the contracts -------------------------
   RegisterInput: fromContract(contracts.registerSchema),
@@ -564,4 +664,8 @@ export const componentSchemas: Record<string, JsonSchema> = {
   AdminUpdateUserInput: fromContract(contracts.adminUpdateUserSchema),
   SetGlobalRoleInput: fromContract(contracts.setGlobalRoleSchema),
   SetUserStatusInput: fromContract(contracts.setUserStatusSchema),
+  AssignPlatformRoleInput: fromContract(contracts.assignPlatformRoleSchema),
+  AssignOrganizationRoleInput: fromContract(
+    contracts.assignOrganizationRoleSchema,
+  ),
 };

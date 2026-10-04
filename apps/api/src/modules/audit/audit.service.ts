@@ -44,6 +44,10 @@ export type AuditAction =
   | 'member.invited'
   | 'member.role.changed'
   | 'member.removed'
+  // role reservations by e-mail
+  | 'role.reserved'
+  | 'role.reservation.cancelled'
+  | 'role.reservation.claimed'
   // credentials
   | 'apiKey.created'
   | 'apiKey.revoked'

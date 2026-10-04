@@ -160,6 +160,60 @@ export const organizationsPaths: Paths = {
       },
     }),
   },
+  '/organizations/{organizationId}/role-grants': {
+    get: op({
+      tag: 'Organizations',
+      operationId: 'listOrganizationRoleReservations',
+      summary: 'Organization roles waiting for an account',
+      description:
+        'ORG_ADMIN (or GLOBAL_ADMIN) only, because the rows are e-mail addresses of people who are not members yet. Each one says whether the address still needs an account or only its verification. The members themselves are `GET /organizations/{organizationId}/members`.',
+      security: session,
+      parameters: [orgId],
+      responses: {
+        '200': ok('Reservations, newest first.', {
+          type: 'array',
+          items: ref('OrganizationRoleReservation'),
+        }),
+        ...errs('401', '403', '404'),
+      },
+    }),
+    post: op({
+      tag: 'Organizations',
+      operationId: 'assignOrganizationRole',
+      summary: 'Give a role in the organization to an e-mail address',
+      description:
+        'ORG_ADMIN (or GLOBAL_ADMIN) only. If the address belongs to a **member**, their role changes now - with the same last-administrator rule as `PATCH /members/{userId}`. If it belongs to a **verified** account that is not a member, it joins now with that role. Either is `APPLIED` (200), or `UNCHANGED` when nothing had to change. Otherwise the role is **reserved** for the address (`RESERVED`, 201) and an e-mail invites the person to create the account - or confirm it - with that address; they join the organization when the address is verified, never at sign-up.',
+      security: session,
+      parameters: [orgId],
+      requestBody: body('AssignOrganizationRoleInput'),
+      responses: {
+        '200': ok(
+          'Applied to the account, or it already had the role.',
+          ref('OrganizationRoleAssignment'),
+        ),
+        '201': created(
+          'Reserved for the address.',
+          ref('OrganizationRoleAssignment'),
+        ),
+        ...errs('400', '401', '403', '404', '409'),
+      },
+    }),
+  },
+  '/organizations/{organizationId}/role-grants/{grantId}': {
+    delete: op({
+      tag: 'Organizations',
+      operationId: 'cancelOrganizationRoleReservation',
+      summary: 'Cancel an organization role reservation',
+      description:
+        'ORG_ADMIN (or GLOBAL_ADMIN) only. A reservation of another organization is a 404, like any resource of a tenant you cannot see.',
+      security: session,
+      parameters: [orgId, pathParam('grantId', 'Reservation id.')],
+      responses: {
+        '204': noContent('Reservation cancelled.'),
+        ...errs('401', '403', '404'),
+      },
+    }),
+  },
   '/organizations/{organizationId}/categories': {
     get: op({
       tag: 'Organizations',

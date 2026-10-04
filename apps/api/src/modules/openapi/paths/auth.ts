@@ -111,7 +111,8 @@ export const authPaths: Paths = {
       tag: 'Auth',
       operationId: 'verifyEmail',
       summary: 'Confirm the e-mail address',
-      description: 'Consumes the single-use token sent at sign-up.',
+      description:
+        'Consumes the single-use token sent at sign-up. It is also the moment every role an administrator reserved for this address reaches the account: platform role and organization memberships, in one transaction.',
       security: open,
       requestBody: body('VerifyEmailInput'),
       responses: {

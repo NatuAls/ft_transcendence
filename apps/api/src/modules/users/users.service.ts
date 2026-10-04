@@ -296,7 +296,17 @@ export async function listAll(query: ListUsersQuery) {
     }),
     prisma.user.count({ where }),
   ]);
-  return paginate(rows, total, query.page, query.take);
+  // `isPrimary` lets the interface hide the actions the API would refuse on
+  // the recovery account anyway (see refusePrimaryAdmin below).
+  return paginate(
+    rows.map((row) => ({
+      ...row,
+      isPrimary: isPrimaryAdminUsername(row.username),
+    })),
+    total,
+    query.page,
+    query.take,
+  );
 }
 
 /**

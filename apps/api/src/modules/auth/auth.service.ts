@@ -16,6 +16,10 @@ import { Errors } from '../../common/errors/domain-error.ts';
 import { effectivePermissions } from '../../rbac/policies.ts';
 import { createLogger } from '../../common/logger.ts';
 import {
+  claimReservations,
+  pendingRolesFor,
+} from '../roles/role-grants.service.ts';
+import {
   fakeVerifyPassword,
   hashPassword,
   verifyPassword,
@@ -105,7 +109,7 @@ export async function register(
   await sendEmailVerification(
     user.email,
     input.firstName,
-    `${ctx.origin}/verify-email?token=${token}`,
+    `${ctx.origin}/#verify-email?token=${token}`,
   );
 
   const issued = await issueTokens(user, ctx);
@@ -239,6 +243,9 @@ export async function verifyEmail(token: string): Promise<void> {
       data: { emailVerifiedAt: new Date() },
     }),
   ]);
+  // The address is now proven to belong to this account: whatever role an
+  // administrator reserved for it reaches the account here, and only here.
+  await claimReservations(row.userId);
 }
 
 /**
@@ -289,7 +296,7 @@ export async function resendVerification(
   await sendEmailVerification(
     user.email,
     user.profile?.firstName ?? 'there',
-    `${ctx.origin}/verify-email?token=${token}`,
+    `${ctx.origin}/#verify-email?token=${token}`,
   );
 }
 
@@ -442,6 +449,10 @@ export async function sessionUser(userId: string): Promise<SessionUser> {
       isGlobalAdmin: user.globalRole === 'GLOBAL_ADMIN',
       orgRole: highestRole(user.memberships.map((m) => m.role)),
     }),
+    pendingRoles: await pendingRolesFor(
+      user.email,
+      Boolean(user.emailVerifiedAt),
+    ),
   };
 }
 

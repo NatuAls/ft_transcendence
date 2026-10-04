@@ -7,6 +7,7 @@ import {
   gdprExportReadyTemplate,
   organizationInviteTemplate,
   passwordResetTemplate,
+  roleReservedTemplate,
 } from './templates.ts';
 
 const logger = createLogger('mail');
@@ -132,5 +133,13 @@ export async function sendOrganizationInvite(
     inviter,
     url,
   );
+  await send(to, subject, html, text);
+}
+
+export async function sendRoleReserved(
+  to: string,
+  input: Parameters<typeof roleReservedTemplate>[0],
+): Promise<void> {
+  const { subject, html, text } = roleReservedTemplate(input);
   await send(to, subject, html, text);
 }

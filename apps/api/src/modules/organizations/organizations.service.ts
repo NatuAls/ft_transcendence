@@ -238,28 +238,48 @@ export async function invite(
   });
   if (existing) throw Errors.alreadyMember();
 
+  return addMembership(actor, org, user, input.role, origin);
+}
+
+/** What a freshly created membership returns, and what `memberAdded` carries. */
+export const MEMBER_ADDED_SELECT = {
+  id: true,
+  role: true,
+  joinedAt: true,
+  organizationId: true,
+  user: {
+    select: {
+      id: true,
+      username: true,
+      email: true,
+      profile: { select: { displayName: true, avatarUrl: true } },
+    },
+  },
+} as const;
+
+/**
+ * Creates the membership and does everything that goes with it: the event
+ * (notification + live rooms), the membership cache and the e-mail. Shared by
+ * `invite` and by the role assignment by e-mail, so the two paths cannot
+ * drift apart. Callers have already checked the policy and that the user is
+ * not a member yet.
+ */
+export async function addMembership(
+  actor: RequestActor,
+  org: { id: string; name: string; slug: string },
+  user: { id: string; email: string },
+  role: OrgRole,
+  origin: string,
+) {
   const created = await events.runInTransaction(async (tx) => {
     const member = await tx.organizationMember.create({
       data: {
-        organizationId: id,
+        organizationId: org.id,
         userId: user.id,
-        role: input.role,
+        role,
         invitedById: actor.id,
       },
-      select: {
-        id: true,
-        role: true,
-        joinedAt: true,
-        organizationId: true,
-        user: {
-          select: {
-            id: true,
-            username: true,
-            email: true,
-            profile: { select: { displayName: true, avatarUrl: true } },
-          },
-        },
-      },
+      select: MEMBER_ADDED_SELECT,
     });
     events.emit(DomainEvents.memberAdded, {
       member,
@@ -269,12 +289,12 @@ export async function invite(
     return member;
   });
 
-  await invalidateMembership(user.id, id);
+  await invalidateMembership(user.id, org.id);
   await sendOrganizationInvite(
     user.email,
     org.name,
     actor.username,
-    `${origin}/app/organizations/${org.slug}`,
+    `${origin}/#organizations`,
   );
   return created;
 }

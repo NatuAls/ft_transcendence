@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { paginationQuerySchema, uuidSchema } from './common.ts';
 import { globalRoleSchema, localeSchema, orgRoleSchema } from './enums.ts';
+import type { PendingRole } from './roles.ts';
 
 /** User & profile contracts. */
 
@@ -78,6 +79,11 @@ export interface SessionUser extends PublicUser {
     role: z.infer<typeof orgRoleSchema>;
   }>;
   permissions: string[];
+  /**
+   * Roles an administrator reserved for this address that wait for it to be
+   * verified. Always empty once the address is verified.
+   */
+  pendingRoles: PendingRole[];
 }
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
