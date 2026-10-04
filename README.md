@@ -170,6 +170,108 @@ Backups ─encrypted─▶ Oracle Object Storage        Alerts ─▶ Telegram +
 | Observability | Prometheus, Alertmanager, Grafana, Loki + Promtail, node/cAdvisor/postgres/redis/blackbox exporters | 21 alert rules with runbooks; logs searchable without SSH |
 | Backups | `backup.sh` (AES-256, `pg_dump` + uploads) → Oracle Object Storage; `restore.sh --drill` weekly | Measured RTO (seconds), verified integrity, tested restores |
 
+## Continuous Integration and Delivery
+
+Every change travels the same path, and nothing reaches an environment without
+walking it: pull request → CI → `develop` → staging → `main` → production. The
+images are built **once** per commit and promoted by SHA, so what runs in
+production is bit-for-bit what passed the tests.
+
+### Workflows
+
+| Workflow | Runs on | What it does |
+|---|---|---|
+| `ci.yml` | every pull request (and callable from the others) | The seven jobs below. `ci-success` aggregates them into the single check that branch protection requires |
+| `deploy-staging.yml` | push to `develop` | Builds both images and deploys to staging |
+| `deploy-prod.yml` | push to `main` | Production gate first; then builds and deploys |
+| `security-audit.yml` | Mondays 04:00 UTC | Trivy against the image **actually deployed** (it resolves the SHA of the last green production deploy), `npm audit`, monthly SBOM, and a quarterly manual checklist (collaborators, secret age, SSH keys, open ports, Cloudflare ranges at the origin, expired exceptions) |
+| `backup-drill.yml` | Mondays 03:30 UTC | `restore.sh --drill` against the latest backup, with the recovery time measured |
+
+### The seven CI jobs
+
+| Job | What it checks |
+|---|---|
+| `quality` | Prettier, ESLint, TypeScript across every workspace, and a full build |
+| `unit-tests` | 106 cases (`node --test`), including a test that walks the real routers and fails if any route is missing from the OpenAPI document |
+| `integration-tests` | 58 cases against **real** PostgreSQL and Redis, with migrations applied |
+| `compose-validation` | The three Compose files parse, and no external image is pinned to a moving tag |
+| `docker-build` | Both production images build (pull requests only) |
+| `security` | gitleaks over the branch's commits, `npm audit` (critical blocks), Trivy over the tree, SBOM |
+| `ci-success` | Single required check; green only if all of the above are |
+
+Images are built on a **native ARM64 runner** (`ubuntu-24.04-arm`), which is
+what the Oracle Ampere server runs. They used to be cross-built with QEMU: fast
+with a warm cache, but a change to `package-lock.json` invalidated the `npm ci`
+layer and the emulated build could take half an hour or hang outright.
+
+### The production gate
+
+`deploy-prod.yml` does not trust branch settings for the one rule that matters,
+because **environment reviewers do not actually pause a deployment in a private
+repository without an Enterprise plan**. The rule lives in code instead
+(`scripts/ci/prod-gate.mjs`), and it asks the GitHub API for four things before
+anything is built:
+
+1. the commit reached `main` through a **merged** pull request — a direct push
+   never deploys;
+2. it carries an approval from **somebody other than the author**;
+3. that approval is on the **latest** commit of the pull request — a later push
+   invalidates it;
+4. there are no outstanding *changes requested*.
+
+A manual release (*Run workflow*) is allowed only for logins listed in the
+`PROD_APPROVERS` variable. `.github/CODEOWNERS` adds 27 infrastructure paths so
+GitHub requests the right review automatically.
+
+### What a deployment actually does
+
+`scripts/deploy/remote-deploy.sh`, over SSH as the unprivileged `deployer`
+user:
+
+1. takes an **encrypted pre-deploy backup** and uploads it off the host; if that
+   fails, the deployment stops before touching anything;
+2. writes the environment's `.env` with mode `600`, and the documentation
+   gate's password file, from the repository secrets — they never exist in the
+   repository or inside an image;
+3. **stops and removes the previous containers of that environment only**, so a
+   stack started from another checkout cannot hold the names the new one needs;
+4. starts the stack, waits for the health checks and runs a smoke test
+   (`scripts/deploy/smoke.mjs`) that verifies the deployed commit is the one
+   expected;
+5. **rolls back to the previous SHA automatically** if any of that fails,
+   dumping the API log first.
+
+A `flock` lock shared with the self-healing timer keeps the two from acting on
+the stack at the same time.
+
+### Running the whole pipeline without GitHub Actions
+
+Actions minutes can run out, and a full run should not be the only way to know
+whether something works. The same steps run on any machine with Docker:
+
+```bash
+make ci                      # the six jobs, locally
+make ci JOBS="quality unit"  # just some of them
+make deploy-staging          # build and deploy, same tags and build args
+make deploy-prod             # asks for written confirmation
+```
+
+Node and npm come from a container pinned to the versions in `.nvmrc` and
+`devEngines`, so no local installation is needed and the result matches CI.
+Two differences are deliberate: the local path does not run the production gate
+(there is nobody to approve a pull request on your laptop, hence the written
+confirmation), and the images stay on that host instead of GHCR.
+
+### Secrets
+
+No secret is ever in the repository. GitHub Actions injects them at deploy time;
+the deployment writes them to the server with mode `600` and mounts them
+read-only where a container needs them. `scripts/gen-secrets.sh` generates a
+complete set for a new environment and `scripts/ci/rotate-secrets.sh` prints a
+fresh one to paste into GitHub. The full inventory — which secret feeds what,
+how to generate each one and what breaks if it is missing — is in the team's
+DevOps guide.
+
 ## Database Schema
 
 PostgreSQL schema managed by Prisma (`apps/api/prisma/schema.prisma`, 20
@@ -256,6 +358,7 @@ assignee and category references are set to `NULL`.
 |---|---|---|---|---|
 | TODO | Major | 2 | TODO | TODO |
 | Custom-made design system | Minor | 1 | TODO(frontend) | Semantic palette and typography plus 15 generic reusable components in `packages/ui`; responsive, keyboard and accessible states documented in `packages/ui/README.md` |
+| CI/CD pipeline with automated testing and deployment | Major | 2 | fcela-ga | Seven CI jobs on every pull request, images built once per SHA on a native ARM64 runner and promoted by SHA, a production gate enforced in code (`scripts/ci/prod-gate.mjs`) because environment reviewers do not pause anything in a private repository, encrypted pre-deploy backup, smoke test and automatic rollback, and the whole pipeline reproducible locally with `make ci` / `make deploy-*`. See «Continuous Integration and Delivery» above |
 | Monitoring system (Prometheus / Grafana) | Minor | 1 | fcela-ga | `compose.observability.yml`: Prometheus 3, Grafana 11, Alertmanager, exporters, 21 alert rules with runbooks |
 | Infrastructure setup for log management (Loki / Promtail) | Minor | 1 | fcela-ga | Centralized container logs with secret masking, searchable in Grafana |
 | TODO | … | … | … | … |
