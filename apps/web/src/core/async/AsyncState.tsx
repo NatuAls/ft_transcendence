@@ -1,60 +1,61 @@
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { EmptyState, ErrorState, Skeleton } from 'ui';
-import { errorMessage } from '../api/errors';
+import { errorKey } from '../api/errors';
 import type { AsyncStatus } from './useAsync';
 
-export interface AsyncStateProps {
-  children: ReactNode;
-  /** Mensaje del estado vacío. Si no se pasa, no se trata el caso. */
-  emptyDescription?: string;
-  emptyTitle?: string;
-  error?: unknown;
-  errorTitle?: string;
-  /** true cuando la carga fue bien pero no hay nada que enseñar. */
-  isEmpty?: boolean;
-  /** Qué pintar mientras carga. Por defecto, tres líneas de esqueleto. */
-  loading?: ReactNode;
-  onRetry?: () => void;
+interface AsyncStateProps {
   status: AsyncStatus;
+  error?: unknown;
+  /** true cuando la carga fue bien pero no hay nada que mostrar. */
+  isEmpty?: boolean;
+  emptyTitle?: string;
+  /** Por qué está vacío y qué hacer: un vacío sin explicación no ayuda. */
+  emptyDescription?: string;
+  /**
+   * Titular del error cuando la pantalla puede decir algo mejor que «no se ha
+   * podido cargar» — por ejemplo «The roles could not be loaded».
+   */
+  errorTitle?: string;
+  onRetry?: () => void;
+  /** Qué pintar mientras carga (por defecto, tres líneas de esqueleto). */
+  loading?: ReactNode;
+  children: ReactNode;
 }
 
-/**
- * Decide qué se ve según el estado de la carga, y se asegura de que los
- * cuatro casos existan en todas las pantallas: cargando, error con reintento,
- * vacío con explicación, y el contenido.
- *
- * Es el componente que hace que «cargando» se vea igual en toda la
- * aplicación, que un fallo nunca deje una pantalla en blanco y que una lista
- * vacía diga por qué lo está.
- */
+/** Envuelve el contenido de una pantalla y decide qué se ve según el estado. */
 export function AsyncState({
-  children,
-  emptyDescription,
-  emptyTitle,
-  error,
-  errorTitle = 'This could not be loaded',
-  isEmpty,
-  loading,
-  onRetry,
   status,
+  error,
+  isEmpty,
+  emptyTitle,
+  emptyDescription,
+  errorTitle,
+  onRetry,
+  loading,
+  children,
 }: AsyncStateProps) {
-  if (status === 'loading') return <>{loading ?? <Skeleton lines={3} />}</>;
-
+  const { t } = useTranslation();
+  if (status === 'idle' || status === 'loading') {
+    return <>{loading ?? <Skeleton lines={3} />}</>;
+  }
   if (status === 'error') {
     return (
       <ErrorState
-        description={errorMessage(error)}
+        title={errorTitle ?? t('common.state.error')}
+        description={t(errorKey(error))}
+        actionLabel={t('common.actions.retry')}
         onAction={onRetry}
-        title={errorTitle}
       />
     );
   }
-
-  if (isEmpty && emptyTitle) {
+  if (isEmpty) {
     return (
-      <EmptyState description={emptyDescription ?? ''} title={emptyTitle} />
+      <EmptyState
+        description={emptyDescription}
+        title={emptyTitle ?? t('common.state.empty')}
+      />
     );
   }
-
   return <>{children}</>;
 }

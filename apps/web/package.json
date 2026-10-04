@@ -16,8 +16,10 @@
   },
   "dependencies": {
     "contracts": "0.0.0",
+    "i18next": "^25.6.2",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "react-i18next": "^16.3.5",
     "socket.io-client": "^4.8.3",
     "ui": "0.0.0"
   },

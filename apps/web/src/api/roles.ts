@@ -10,7 +10,7 @@ import {
   type PlatformRoleAssignment,
   type PlatformRoleReservation,
 } from 'contracts';
-import { apiRequest, jsonBody } from '../core/api/client';
+import { request } from '../core/api/client';
 
 /**
  * Role assignment by e-mail, against the API. The two screens never import
@@ -70,7 +70,7 @@ interface ApiMemberRow {
 export async function listPlatformAdministrators(): Promise<
   PlatformAdministrator[]
 > {
-  const page = await apiRequest<Paginated<ApiUserRow>>(
+  const page = await request<Paginated<ApiUserRow>>(
     '/users?globalRole=GLOBAL_ADMIN&take=100&sort=createdAt&order=asc',
   );
   return page.data.map((row) => ({
@@ -87,34 +87,34 @@ export async function listPlatformAdministrators(): Promise<
 }
 
 export function listPlatformReservations(): Promise<PlatformRoleReservation[]> {
-  return apiRequest('/admin/role-grants');
+  return request('/admin/role-grants');
 }
 
 export function assignPlatformRole(
   input: AssignPlatformRoleInput,
 ): Promise<PlatformRoleAssignment> {
-  return apiRequest('/admin/role-grants', {
+  return request('/admin/role-grants', {
     method: 'POST',
-    ...jsonBody(assignPlatformRoleSchema.parse(input)),
+    body: assignPlatformRoleSchema.parse(input),
   });
 }
 
 /** Back to a standard account. The API refuses it on yourself and on the primary administrator. */
 export async function withdrawPlatformRole(userId: string): Promise<void> {
-  await apiRequest(`/users/${userId}/role`, {
+  await request(`/users/${userId}/role`, {
     method: 'PATCH',
-    ...jsonBody({ globalRole: 'USER' }),
+    body: { globalRole: 'USER' },
   });
 }
 
 export async function cancelPlatformReservation(id: string): Promise<void> {
-  await apiRequest(`/admin/role-grants/${id}`, { method: 'DELETE' });
+  await request(`/admin/role-grants/${id}`, { method: 'DELETE' });
 }
 
 export async function listMembers(
   organizationId: string,
 ): Promise<OrganizationMemberRow[]> {
-  const rows = await apiRequest<ApiMemberRow[]>(
+  const rows = await request<ApiMemberRow[]>(
     `/organizations/${organizationId}/members`,
   );
   return rows.map((row) => ({
@@ -132,16 +132,16 @@ export async function listMembers(
 export function listOrganizationReservations(
   organizationId: string,
 ): Promise<OrganizationRoleReservation[]> {
-  return apiRequest(`/organizations/${organizationId}/role-grants`);
+  return request(`/organizations/${organizationId}/role-grants`);
 }
 
 export function assignOrganizationRole(
   organizationId: string,
   input: AssignOrganizationRoleInput,
 ): Promise<OrganizationRoleAssignment> {
-  return apiRequest(`/organizations/${organizationId}/role-grants`, {
+  return request(`/organizations/${organizationId}/role-grants`, {
     method: 'POST',
-    ...jsonBody(assignOrganizationRoleSchema.parse(input)),
+    body: assignOrganizationRoleSchema.parse(input),
   });
 }
 
@@ -150,9 +150,9 @@ export async function changeMemberRole(
   userId: string,
   role: OrgRole,
 ): Promise<void> {
-  await apiRequest(`/organizations/${organizationId}/members/${userId}`, {
+  await request(`/organizations/${organizationId}/members/${userId}`, {
     method: 'PATCH',
-    ...jsonBody({ role }),
+    body: { role },
   });
 }
 
@@ -160,7 +160,7 @@ export async function removeMember(
   organizationId: string,
   userId: string,
 ): Promise<void> {
-  await apiRequest(`/organizations/${organizationId}/members/${userId}`, {
+  await request(`/organizations/${organizationId}/members/${userId}`, {
     method: 'DELETE',
   });
 }
@@ -169,7 +169,7 @@ export async function cancelOrganizationReservation(
   organizationId: string,
   id: string,
 ): Promise<void> {
-  await apiRequest(`/organizations/${organizationId}/role-grants/${id}`, {
+  await request(`/organizations/${organizationId}/role-grants/${id}`, {
     method: 'DELETE',
   });
 }

@@ -1,20 +1,8 @@
-// =============================================================================
-//  Errores de la API, con la forma que la API garantiza.
-//
-//  `error-handler.ts` responde SIEMPRE con el mismo sobre:
-//
-//      { requestId, timestamp, path, statusCode, code, messageKey, message,
-//        details?: [{ path, code, messageKey|message }] }
-//
-//  Las tres piezas que importan a una pantalla:
-//
-//    · `code`       identificador estable del rechazo (`ORG_LAST_ADMIN`,
-//                   `GDPR_USERNAME_MISMATCH`): se puede comparar sin leer
-//                   inglés y sin romperse si cambia el texto.
-//    · `details`    un error por campo, para pintarlo bajo su input.
-//    · `requestId`  el mismo identificador que quedó en los logs del
-//                   servidor: es lo que se pide en un informe de fallo.
-// =============================================================================
+// Errores de la API con forma conocida. La API responde SIEMPRE con
+// { requestId, timestamp, path, statusCode, code, messageKey, message,
+//   details?: [{ path, code, messageKey|message }] }  (error-handler.ts).
+// messageKey empieza por "errors." y coincide con las claves de i18n, así
+// que la pantalla puede hacer t(error.messageKey) sin mapas intermedios.
 
 export interface ApiFieldError {
   path: string;
@@ -42,7 +30,7 @@ export class ApiError extends Error {
   readonly requestId: string | undefined;
 
   constructor(body: Partial<ApiErrorBody>, status: number) {
-    super(body.message ?? `The request failed (HTTP ${status}).`);
+    super(body.message ?? `HTTP ${status}`);
     this.name = 'ApiError';
     this.status = status;
     this.code = body.code ?? 'UNKNOWN';
@@ -52,10 +40,10 @@ export class ApiError extends Error {
   }
 }
 
-/** No hubo respuesta del servidor: red caída, CORS, petición abortada. */
+/** Sin respuesta del servidor (red caída, CORS, timeout). */
 export class NetworkError extends Error {
   constructor(cause: unknown) {
-    super('The server did not answer.');
+    super('network');
     this.name = 'NetworkError';
     this.cause = cause;
   }
@@ -66,27 +54,34 @@ export function isApiError(error: unknown): error is ApiError {
 }
 
 /**
- * Errores por campo listos para el formulario: `{ email: 'Not a valid …' }`.
+ * Errores por campo, listos para pintar bajo cada input.
  *
- * Mientras no haya i18n en el front se usa el texto que ya manda la API; el
- * día que lo haya, basta con cambiar esta función por `messageKey` y ninguna
- * pantalla se entera.
+ * Pasa por `describeFieldCode` para que el rechazo de la API y el del esquema
+ * compartido validado en el navegador (`fieldErrorsFromIssues`) produzcan el
+ * MISMO texto bajo el MISMO campo. Si hiciera falta la clave en crudo para
+ * traducirla, está en `error.details`.
  */
 export function fieldErrors(error: unknown): Record<string, string> {
   if (!isApiError(error)) return {};
-  const campos: Record<string, string> = {};
-  for (const detail of error.details) {
-    if (!(detail.path in campos)) {
-      campos[detail.path] = detail.message ?? describeFieldCode(detail.code);
-    }
-  }
-  return campos;
+  return Object.fromEntries(
+    error.details.map((d) => [
+      d.path,
+      describeFieldCode(d.messageKey ?? d.message ?? d.code),
+    ]),
+  );
+}
+
+/** Clave de traducción para un error cualquiera (API, red o desconocido). */
+export function errorKey(error: unknown): string {
+  if (isApiError(error)) return error.messageKey;
+  if (error instanceof NetworkError) return 'errors.common.network';
+  return 'errors.common.unexpected';
 }
 
 /**
- * Lo mismo para los fallos que detecta el navegador con el esquema compartido
- * de `packages/contracts`, para que validar antes de enviar y que lo rechace
- * la API produzcan exactamente la misma pantalla.
+ * Lo mismo que `fieldErrors`, para los fallos que detecta el navegador con el
+ * esquema compartido de `packages/contracts`: validar antes de enviar y que lo
+ * rechace la API producen así exactamente la misma pantalla.
  */
 export function fieldErrorsFromIssues(
   issues: ReadonlyArray<{ path: ReadonlyArray<PropertyKey>; message: string }>,
@@ -94,26 +89,21 @@ export function fieldErrorsFromIssues(
   const campos: Record<string, string> = {};
   for (const issue of issues) {
     const path = issue.path.map(String).join('.') || '(root)';
-    if (!(path in campos)) {
-      // Los esquemas del proyecto devuelven claves (`errors.email.invalid`)
-      // en vez de frases: no se enseña una clave a un usuario.
-      campos[path] = issue.message.startsWith('errors.')
-        ? describeFieldCode(issue.message)
-        : issue.message;
-    }
+    if (!(path in campos)) campos[path] = describeFieldCode(issue.message);
   }
   return campos;
 }
 
-/** Una frase para el puñado de claves que se repiten; si no, algo genérico. */
+/**
+ * Una frase para las claves que de verdad se repiten. Mientras las pantallas
+ * no estén traducidas, esto es lo que ve el usuario; cuando lo estén, se
+ * sustituye por `t(errorKey(error))` y ninguna pantalla se entera, porque
+ * todas pasan por aquí.
+ */
 function describeFieldCode(code: string): string {
   const frases: Record<string, string> = {
     'errors.email.invalid': 'Enter a valid e-mail address.',
     'errors.field.required': 'This field is required.',
-    // La política de contraseñas vive en `passwordSchema` y sus claves salen
-    // tanto de la API como del esquema compartido validado en el navegador:
-    // sin estas frases, los dos caminos acababan en «Check this field.», que
-    // no le dice a nadie qué tiene que corregir.
     'errors.password.tooShort': 'Use at least 10 characters.',
     'errors.password.tooLong': 'Use at most 128 characters.',
     'errors.password.needsLowercase': 'Add a lowercase letter.',
@@ -126,13 +116,14 @@ function describeFieldCode(code: string): string {
     too_small: 'This value is too short.',
     too_big: 'This value is too long.',
   };
-  return frases[code] ?? 'Check this field.';
+  if (frases[code]) return frases[code];
+  // Un mensaje que no es una clave ya viene escrito para leerse.
+  return code.startsWith('errors.') ? 'Check this field.' : code;
 }
 
 /**
- * El texto que se enseña cuando algo falla y no hay nada más específico que
- * decir. Nunca devuelve `undefined`: una pantalla no puede quedarse sin
- * explicación.
+ * El texto que se enseña cuando algo falla y no hay nada más específico. Nunca
+ * devuelve `undefined`: una pantalla no puede quedarse sin explicación.
  */
 export function errorMessage(
   error: unknown,

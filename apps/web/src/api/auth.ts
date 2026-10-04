@@ -11,7 +11,7 @@ import type { LoginInput, PendingRole, RegisterInput } from 'contracts';
 //  Las cuatro rutas que viven aquí son justo las que no necesitan lo que da el
 //  cliente: entrar, registrarse, renovar y salir no tienen sesión que renovar.
 //
-//  Todo lo demás —sin excepciones— pasa por `apiRequest`.
+//  Todo lo demás —sin excepciones— pasa por `request` de core/api/client.
 // =============================================================================
 
 // --- 1. GESTIÓN DEL TOKEN EN MEMORIA ---

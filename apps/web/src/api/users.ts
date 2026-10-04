@@ -4,7 +4,7 @@ import {
   type UpdatePreferencesInput,
   type UpdateProfileInput,
 } from 'contracts';
-import { apiRequest, jsonBody } from '../core/api/client';
+import { request } from '../core/api/client';
 
 export interface UserPreferences {
   locale: string;
@@ -26,22 +26,25 @@ export async function updateProfile(input: UpdateProfileInput): Promise<{
   avatarUrl: string | null;
 }> {
   const parsed = updateProfileSchema.parse(input);
-  return apiRequest('/users/me', { method: 'PATCH', ...jsonBody(parsed) });
+  return request('/users/me', {
+    method: 'PATCH',
+    body: parsed,
+  });
 }
 
 export async function getPreferences(
   signal?: AbortSignal,
 ): Promise<UserPreferences> {
-  return apiRequest('/users/me/preferences', { signal });
+  return request('/users/me/preferences', { signal });
 }
 
 export async function updatePreferences(
   input: UpdatePreferencesInput,
 ): Promise<UserPreferences> {
   const parsed = updatePreferencesSchema.parse(input);
-  return apiRequest('/users/me/preferences', {
+  return request('/users/me/preferences', {
     method: 'PATCH',
-    ...jsonBody(parsed),
+    body: parsed,
   });
 }
 
@@ -50,9 +53,9 @@ export async function uploadAvatar(file: File): Promise<{ avatarUrl: string }> {
   form.append('file', file);
   // FormData a propósito sin Content-Type: lo pone el navegador con su
   // boundary, y el cliente compartido ya lo respeta.
-  return apiRequest('/users/me/avatar', { method: 'PUT', body: form });
+  return request('/users/me/avatar', { method: 'PUT', body: form });
 }
 
 export async function deleteAvatar(): Promise<{ avatarUrl: null }> {
-  return apiRequest('/users/me/avatar', { method: 'DELETE' });
+  return request('/users/me/avatar', { method: 'DELETE' });
 }

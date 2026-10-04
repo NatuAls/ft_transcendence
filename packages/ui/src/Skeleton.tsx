@@ -1,31 +1,23 @@
-export interface SkeletonProps {
-  /** How many placeholder lines to draw. */
+/** Marcador de carga: bloques animados con el ancho del contenido. */
+export function Skeleton({
+  lines = 3,
+  className = '',
+}: {
   lines?: number;
   className?: string;
-}
-
-/**
- * Loading placeholder: animated blocks roughly the width of the content that
- * is coming. Preferred over a spinner for lists and panels, because it keeps
- * the layout from jumping when the data lands.
- *
- * It announces itself once ("Loading") instead of leaving a screen reader in
- * silence, and carries `aria-busy` so the region is reported as pending.
- */
-export function Skeleton({ lines = 3, className = '' }: SkeletonProps) {
+}) {
   return (
     <div
-      aria-busy="true"
-      aria-live="polite"
-      className={`grid gap-2.5 ${className}`.trim()}
       role="status"
+      aria-live="polite"
+      aria-busy="true"
+      className={`grid gap-3 ${className}`.trim()}
     >
-      {Array.from({ length: lines }, (_, line) => (
+      {Array.from({ length: lines }, (_, i) => (
         <span
-          aria-hidden="true"
-          className="h-3.5 animate-pulse rounded-sm bg-surface-secondary"
-          key={line}
-          style={{ width: `${100 - (line % 3) * 18}%` }}
+          key={i}
+          className="block h-4 animate-pulse rounded-sm bg-border"
+          style={{ width: `${100 - (i % 3) * 18}%` }}
         />
       ))}
       <span className="sr-only">Loading</span>

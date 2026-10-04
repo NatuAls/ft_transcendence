@@ -8,7 +8,7 @@ import {
   type OrgRole,
   type UpdateOrganizationInput,
 } from 'contracts';
-import { apiRequest, jsonBody } from '../core/api/client';
+import { request } from '../core/api/client';
 
 /** One organization as `GET /organizations` returns it. */
 export interface OrganizationRecord {
@@ -33,19 +33,19 @@ export interface CategoryRecord {
 
 /** Every organization of the caller; a platform administrator sees them all. */
 export function listOrganizations(): Promise<OrganizationRecord[]> {
-  return apiRequest('/organizations');
+  return request('/organizations');
 }
 
 export function getOrganization(id: string): Promise<OrganizationRecord> {
-  return apiRequest(`/organizations/${id}`);
+  return request(`/organizations/${id}`);
 }
 
 export function createOrganization(
   input: CreateOrganizationInput,
 ): Promise<OrganizationRecord> {
-  return apiRequest('/organizations', {
+  return request('/organizations', {
     method: 'POST',
-    ...jsonBody(createOrganizationSchema.parse(input)),
+    body: createOrganizationSchema.parse(input),
   });
 }
 
@@ -53,14 +53,14 @@ export function updateOrganization(
   id: string,
   input: UpdateOrganizationInput,
 ): Promise<OrganizationRecord> {
-  return apiRequest(`/organizations/${id}`, {
+  return request(`/organizations/${id}`, {
     method: 'PATCH',
-    ...jsonBody(updateOrganizationSchema.parse(input)),
+    body: updateOrganizationSchema.parse(input),
   });
 }
 
 export async function deleteOrganization(id: string): Promise<void> {
-  await apiRequest(`/organizations/${id}`, { method: 'DELETE' });
+  await request(`/organizations/${id}`, { method: 'DELETE' });
 }
 
 export interface OrganizationStats {
@@ -73,22 +73,22 @@ export interface OrganizationStats {
 
 /** Ticket counters of one organization; AGENT and above. */
 export function getOrganizationStats(id: string): Promise<OrganizationStats> {
-  return apiRequest(`/organizations/${id}/stats`);
+  return request(`/organizations/${id}/stats`);
 }
 
 export function listCategories(
   organizationId: string,
 ): Promise<CategoryRecord[]> {
-  return apiRequest(`/organizations/${organizationId}/categories`);
+  return request(`/organizations/${organizationId}/categories`);
 }
 
 export function createCategory(
   organizationId: string,
   input: CreateCategoryInput,
 ): Promise<CategoryRecord> {
-  return apiRequest(`/organizations/${organizationId}/categories`, {
+  return request(`/organizations/${organizationId}/categories`, {
     method: 'POST',
-    ...jsonBody(createCategorySchema.parse(input)),
+    body: createCategorySchema.parse(input),
   });
 }
 
@@ -97,18 +97,17 @@ export function updateCategory(
   categoryId: string,
   input: Partial<CreateCategoryInput> & { isActive?: boolean },
 ): Promise<CategoryRecord> {
-  return apiRequest(
-    `/organizations/${organizationId}/categories/${categoryId}`,
-    { method: 'PATCH', ...jsonBody(updateCategorySchema.parse(input)) },
-  );
+  return request(`/organizations/${organizationId}/categories/${categoryId}`, {
+    method: 'PATCH',
+    body: updateCategorySchema.parse(input),
+  });
 }
 
 export async function deleteCategory(
   organizationId: string,
   categoryId: string,
 ): Promise<void> {
-  await apiRequest(
-    `/organizations/${organizationId}/categories/${categoryId}`,
-    { method: 'DELETE' },
-  );
+  await request(`/organizations/${organizationId}/categories/${categoryId}`, {
+    method: 'DELETE',
+  });
 }

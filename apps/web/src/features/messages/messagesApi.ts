@@ -1,5 +1,5 @@
 import { getAccessToken } from '../../api/auth';
-import { apiRequest, jsonBody } from '../../core/api/client';
+import { request } from '../../core/api/client';
 
 export interface ChatUser {
   id: string;
@@ -41,26 +41,26 @@ export interface PaginatedMessages {
 export function listConversations(
   signal?: AbortSignal,
 ): Promise<ApiConversation[]> {
-  return apiRequest<ApiConversation[]>('/conversations', { signal });
+  return request<ApiConversation[]>('/conversations', { signal });
 }
 
 export function listMessages(
   conversationId: string,
   page = 1,
 ): Promise<PaginatedMessages> {
-  return apiRequest<PaginatedMessages>(
+  return request<PaginatedMessages>(
     `/conversations/${encodeURIComponent(conversationId)}/messages?page=${page}&take=100`,
   );
 }
 
 export function searchUsers(query: string): Promise<ChatUser[]> {
-  return apiRequest<ChatUser[]>(`/users/search?q=${encodeURIComponent(query)}`);
+  return request<ChatUser[]>(`/users/search?q=${encodeURIComponent(query)}`);
 }
 
 export function openConversation(userId: string): Promise<{ id: string }> {
-  return apiRequest<{ id: string }>('/conversations', {
+  return request<{ id: string }>('/conversations', {
     method: 'POST',
-    ...jsonBody({ userId }),
+    body: { userId },
   });
 }
 
@@ -68,19 +68,19 @@ export function sendMessage(
   conversationId: string,
   body: string,
 ): Promise<ApiMessage> {
-  return apiRequest<ApiMessage>(
+  return request<ApiMessage>(
     `/conversations/${encodeURIComponent(conversationId)}/messages`,
-    { method: 'POST', ...jsonBody({ body }) },
+    { method: 'POST', body: { body } },
   );
 }
 
 export function markConversationRead(conversationId: string): Promise<unknown> {
   // La API contesta 204 a esta ruta. El cliente propio hacía `response.json()`
   // sobre un cuerpo vacío y reventaba; el compartido devuelve `undefined`.
-  return apiRequest(
-    `/conversations/${encodeURIComponent(conversationId)}/read`,
-    { method: 'PATCH', ...jsonBody({}) },
-  );
+  return request(`/conversations/${encodeURIComponent(conversationId)}/read`, {
+    method: 'PATCH',
+    body: {},
+  });
 }
 
 export function socketOrigin(): string | undefined {

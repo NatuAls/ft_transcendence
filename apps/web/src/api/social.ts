@@ -1,4 +1,4 @@
-import { apiRequest, jsonBody } from '../core/api/client';
+import { request } from '../core/api/client';
 
 /** Someone as the social endpoints return them: public data only. */
 export interface PublicPerson {
@@ -43,17 +43,17 @@ export interface PublicProfile {
 }
 
 export function listFriends(): Promise<Friend[]> {
-  return apiRequest('/friends');
+  return request('/friends');
 }
 
 export function listFriendRequests(): Promise<FriendRequests> {
-  return apiRequest('/friends/requests');
+  return request('/friends/requests');
 }
 
 export async function sendFriendRequest(userId: string): Promise<void> {
-  await apiRequest('/friends/requests', {
+  await request('/friends/requests', {
     method: 'POST',
-    ...jsonBody({ userId }),
+    body: { userId },
   });
 }
 
@@ -61,22 +61,22 @@ export async function answerFriendRequest(
   id: string,
   action: 'ACCEPT' | 'DECLINE',
 ): Promise<void> {
-  await apiRequest(`/friends/requests/${id}`, {
+  await request(`/friends/requests/${id}`, {
     method: 'PATCH',
-    ...jsonBody({ action }),
+    body: { action },
   });
 }
 
 /** Ends a friendship, or withdraws a request you sent. */
 export async function removeFriend(userId: string): Promise<void> {
-  await apiRequest(`/friends/${userId}`, { method: 'DELETE' });
+  await request(`/friends/${userId}`, { method: 'DELETE' });
 }
 
 /** Typeahead over username and e-mail; at least two characters. */
 export function searchPeople(query: string): Promise<PublicPerson[]> {
-  return apiRequest(`/users/search?q=${encodeURIComponent(query)}`);
+  return request(`/users/search?q=${encodeURIComponent(query)}`);
 }
 
 export function getPublicProfile(username: string): Promise<PublicProfile> {
-  return apiRequest(`/users/${encodeURIComponent(username)}`);
+  return request(`/users/${encodeURIComponent(username)}`);
 }

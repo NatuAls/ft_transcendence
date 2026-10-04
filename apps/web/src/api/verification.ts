@@ -4,7 +4,7 @@ import {
   verifyEmailSchema,
   type ResetPasswordInput,
 } from 'contracts';
-import { apiRequest, jsonBody } from '../core/api/client';
+import { request } from '../core/api/client';
 
 /**
  * Consumes the link of the confirmation e-mail. Public on purpose: the link
@@ -13,15 +13,15 @@ import { apiRequest, jsonBody } from '../core/api/client';
  * for the address.
  */
 export async function verifyEmail(token: string): Promise<void> {
-  await apiRequest('/auth/verify-email', {
+  await request('/auth/verify-email', {
     method: 'POST',
-    ...jsonBody(verifyEmailSchema.parse({ token })),
+    body: verifyEmailSchema.parse({ token }),
   });
 }
 
 /** Sends a fresh link to the address of the signed-in account. */
 export async function resendVerification(): Promise<void> {
-  await apiRequest('/auth/resend-verification', { method: 'POST' });
+  await request('/auth/resend-verification', { method: 'POST' });
 }
 
 /**
@@ -31,9 +31,9 @@ export async function resendVerification(): Promise<void> {
  * casos por la misma razón.
  */
 export async function forgotPassword(email: string): Promise<void> {
-  await apiRequest('/auth/forgot-password', {
+  await request('/auth/forgot-password', {
     method: 'POST',
-    ...jsonBody(forgotPasswordSchema.parse({ email })),
+    body: forgotPasswordSchema.parse({ email }),
   });
 }
 
@@ -43,8 +43,8 @@ export async function forgotPassword(email: string): Promise<void> {
  * exigir a quien no puede entrar.
  */
 export async function resetPassword(input: ResetPasswordInput): Promise<void> {
-  await apiRequest('/auth/reset-password', {
+  await request('/auth/reset-password', {
     method: 'POST',
-    ...jsonBody(resetPasswordSchema.parse(input)),
+    body: resetPasswordSchema.parse(input),
   });
 }

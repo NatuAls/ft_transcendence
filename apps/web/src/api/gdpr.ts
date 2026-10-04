@@ -1,4 +1,4 @@
-import { apiDownload, apiRequest, jsonBody } from '../core/api/client';
+import { apiDownload, request } from '../core/api/client';
 
 export type GdprRequestType = 'EXPORT' | 'DELETE';
 
@@ -22,26 +22,26 @@ export interface GdprRequest {
 
 /** Every request this account has made, newest first. */
 export function listRequests(signal?: AbortSignal): Promise<GdprRequest[]> {
-  return apiRequest<GdprRequest[]>('/gdpr/requests', { signal });
+  return request<GdprRequest[]>('/gdpr/requests', { signal });
 }
 
 /** Starts an export. The API e-mails a confirmation token valid for 30 min. */
 export function requestExport(): Promise<GdprRequest> {
-  return apiRequest<GdprRequest>('/gdpr/export', { method: 'POST' });
+  return request<GdprRequest>('/gdpr/export', { method: 'POST' });
 }
 
 export function confirmExport(
   token: string,
 ): Promise<{ id: string; status: GdprRequestStatus }> {
-  return apiRequest('/gdpr/export/confirm', {
+  return request('/gdpr/export/confirm', {
     method: 'POST',
-    ...jsonBody({ token }),
+    body: { token },
   });
 }
 
 /** Starts a deletion. Same e-mail step; the account is still untouched. */
 export function requestDeletion(): Promise<GdprRequest> {
-  return apiRequest<GdprRequest>('/gdpr/delete', { method: 'POST' });
+  return request<GdprRequest>('/gdpr/delete', { method: 'POST' });
 }
 
 /**
@@ -53,9 +53,9 @@ export function confirmDeletion(
   token: string,
   confirmUsername: string,
 ): Promise<{ id: string; status: GdprRequestStatus }> {
-  return apiRequest('/gdpr/delete/confirm', {
+  return request('/gdpr/delete/confirm', {
     method: 'POST',
-    ...jsonBody({ token, confirmUsername }),
+    body: { token, confirmUsername },
   });
 }
 

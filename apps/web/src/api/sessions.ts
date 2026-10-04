@@ -1,4 +1,4 @@
-import { apiRequest } from '../core/api/client';
+import { request } from '../core/api/client';
 
 /** One signed-in device, as `GET /auth/sessions` returns it. */
 export interface DeviceSession {
@@ -15,15 +15,15 @@ export interface DeviceSession {
 }
 
 export function listSessions(signal?: AbortSignal): Promise<DeviceSession[]> {
-  return apiRequest('/auth/sessions', { signal });
+  return request('/auth/sessions', { signal });
 }
 
 /** Signs that device out: its next renewal is refused. */
 export async function revokeSession(id: string): Promise<void> {
-  await apiRequest(`/auth/sessions/${id}`, { method: 'DELETE' });
+  await request(`/auth/sessions/${id}`, { method: 'DELETE' });
 }
 
 /** Every device, this one included; tokens already issued stop working too. */
 export async function signOutEverywhere(): Promise<void> {
-  await apiRequest('/auth/logout-all', { method: 'POST' });
+  await request('/auth/logout-all', { method: 'POST' });
 }

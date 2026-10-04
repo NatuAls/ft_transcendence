@@ -3,7 +3,7 @@ import {
   type GlobalRole,
   type Paginated,
 } from 'contracts';
-import { apiRequest, jsonBody } from '../core/api/client';
+import { request } from '../core/api/client';
 
 /** One account as `GET /users` returns it to a platform administrator. */
 export interface PlatformUser {
@@ -38,7 +38,7 @@ export function listUsers(filters: {
   if (filters.globalRole) search.set('globalRole', filters.globalRole);
   if (filters.isActive !== undefined)
     search.set('isActive', String(filters.isActive));
-  return apiRequest(`/users?${search.toString()}`);
+  return request(`/users?${search.toString()}`);
 }
 
 export async function updateUserName(
@@ -47,14 +47,12 @@ export async function updateUserName(
 ): Promise<void> {
   const [firstName = '', ...rest] = fullName.trim().split(/\s+/);
   const lastName = rest.join(' ');
-  await apiRequest(`/users/${id}`, {
+  await request(`/users/${id}`, {
     method: 'PATCH',
-    ...jsonBody(
-      adminUpdateUserSchema.parse({
-        firstName,
-        ...(lastName ? { lastName } : {}),
-      }),
-    ),
+    body: adminUpdateUserSchema.parse({
+      firstName,
+      ...(lastName ? { lastName } : {}),
+    }),
   });
 }
 
@@ -62,9 +60,9 @@ export async function setUserStatus(
   id: string,
   isActive: boolean,
 ): Promise<void> {
-  await apiRequest(`/users/${id}/status`, {
+  await request(`/users/${id}/status`, {
     method: 'PATCH',
-    ...jsonBody({ isActive }),
+    body: { isActive },
   });
 }
 
@@ -72,13 +70,13 @@ export async function setGlobalRole(
   id: string,
   globalRole: GlobalRole,
 ): Promise<void> {
-  await apiRequest(`/users/${id}/role`, {
+  await request(`/users/${id}/role`, {
     method: 'PATCH',
-    ...jsonBody({ globalRole }),
+    body: { globalRole },
   });
 }
 
 /** Closes the account: sessions revoked, sign-in refused. */
 export async function deleteUser(id: string): Promise<void> {
-  await apiRequest(`/users/${id}`, { method: 'DELETE' });
+  await request(`/users/${id}`, { method: 'DELETE' });
 }

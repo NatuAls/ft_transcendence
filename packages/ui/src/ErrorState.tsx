@@ -1,34 +1,30 @@
 import { Button } from './Button';
 
-export interface ErrorStateProps {
-  actionLabel?: string;
-  description?: string;
-  onAction?: () => void;
+interface ErrorStateProps {
   title: string;
+  description?: string;
+  actionLabel?: string;
+  onAction?: () => void;
 }
 
-/**
- * A read that failed, with a way out. `role="alert"` so it is announced the
- * moment it replaces the content, and a retry button rather than asking the
- * person to reload the page.
- */
+/** Fallo al cargar: mensaje traducido y botón de reintento. */
 export function ErrorState({
-  actionLabel = 'Try again',
-  description,
-  onAction,
   title,
+  description,
+  actionLabel,
+  onAction,
 }: ErrorStateProps) {
   return (
     <div
-      className="grid justify-items-center gap-2 rounded-md border border-danger/30 bg-danger-surface px-6 py-10 text-center"
       role="alert"
+      className="grid justify-items-center gap-2 rounded-md border border-danger/30 bg-danger-surface px-6 py-10 text-center"
     >
-      <strong className="font-medium text-danger">{title}</strong>
+      <p className="font-medium text-ink">{title}</p>
       {description ? (
-        <p className="max-w-md text-sm leading-6 text-danger">{description}</p>
+        <p className="max-w-md text-sm leading-6 text-muted">{description}</p>
       ) : null}
-      {onAction ? (
-        <Button className="mt-2" onClick={onAction} variant="secondary">
+      {onAction && actionLabel ? (
+        <Button variant="secondary" onClick={onAction}>
           {actionLabel}
         </Button>
       ) : null}
