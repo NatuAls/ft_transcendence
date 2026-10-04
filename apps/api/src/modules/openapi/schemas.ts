@@ -179,6 +179,99 @@ const userSummary = object(
   },
 );
 
+/** The same person with live presence, wherever the interface draws the dot. */
+const userWithPresence = object(
+  'A user with live presence: friends, friend requests and conversations.',
+  {
+    id: uuid('User id.'),
+    username: str('Unique handle.'),
+    profile: object('Public profile.', {
+      displayName: { ...str('Name shown in the interface.'), nullable: true },
+      avatarUrl: {
+        ...str('Avatar URL, or null when the user never uploaded one.'),
+        nullable: true,
+      },
+      isOnline: {
+        type: 'boolean',
+        description:
+          'Connected right now. Kept by the realtime layer, which waits a few seconds after the last tab closes so a reload does not make the dot blink; the change is pushed live as `presence.changed`.',
+      },
+      lastSeenAt: {
+        ...date('Last time the user was connected.'),
+        nullable: true,
+      },
+    }),
+  },
+);
+
+/** `GET /users/{username}`: flat, and only what a profile page shows. */
+const publicProfile = object(
+  'Public profile of a user, as any signed-in user may read it.',
+  {
+    id: uuid('User id.'),
+    username: str('Handle.'),
+    displayName: str('Name shown in the interface; the username when none.'),
+    avatarUrl: {
+      ...str('Avatar URL. Null: the interface draws the initials instead.'),
+      nullable: true,
+    },
+    bio: { ...str('Free text of the profile.'), nullable: true },
+    jobTitle: { ...str('Job title.'), nullable: true },
+    isOnline: { type: 'boolean', description: 'Live presence.' },
+    lastSeenAt: { ...date('Last time connected.'), nullable: true },
+    createdAt: date('Sign-up date.'),
+    organizations: {
+      type: 'array',
+      description: 'Organizations the user belongs to, with the role in each.',
+      items: object('Organization.', {
+        id: uuid('Organization id.'),
+        name: str('Name.'),
+        slug: str('Slug.'),
+        role: str('Role there.', { enum: ['MEMBER', 'AGENT', 'ORG_ADMIN'] }),
+      }),
+    },
+    stats: object('Activity counters.', {
+      ticketsCreated: int('Tickets reported.'),
+      ticketsAssigned: int('Tickets assigned to the user.'),
+      comments: int('Comments written.'),
+    }),
+  },
+);
+
+/** A row of `GET /users`: what the administration table draws. */
+const adminUser = object('A user as the platform administration lists it.', {
+  id: uuid('User id.'),
+  username: str('Handle.'),
+  email: str('E-mail address.', { format: 'email' }),
+  globalRole: str('Platform role.', { enum: ['USER', 'GLOBAL_ADMIN'] }),
+  isActive: {
+    type: 'boolean',
+    description: 'False when suspended: the account cannot sign in.',
+  },
+  createdAt: date('Sign-up date.'),
+  lastLoginAt: { ...date('Last successful sign-in.'), nullable: true },
+  emailVerifiedAt: {
+    ...date(
+      'When the address was confirmed. Null while it is not: a role reserved for the address is still waiting for it.',
+    ),
+    nullable: true,
+  },
+  profile: object('Profile.', {
+    displayName: { ...str('Name shown in the interface.'), nullable: true },
+    avatarUrl: { ...str('Avatar URL.'), nullable: true },
+    isOnline: { type: 'boolean', description: 'Live presence.' },
+  }),
+  _count: object('Counters.', {
+    memberships: int('Organizations the user belongs to.'),
+    ticketsCreated: int('Tickets reported.'),
+  }),
+  isPrimary: {
+    type: 'boolean',
+    description:
+      'The recovery administrator created at deployment. The API refuses to suspend, demote or delete it, so the interface hides those actions.',
+  },
+});
+
 /** What `GET /auth/me` answers: flat, and with everything the session needs. */
 const currentUser = object('The caller, as the server sees them.', {
   id: uuid('User id.'),
@@ -188,10 +281,13 @@ const currentUser = object('The caller, as the server sees them.', {
     type: 'boolean',
     description: 'Whether the verification link has been followed.',
   },
-  displayName: { ...str('Name shown in the interface.'), nullable: true },
-  firstName: { ...str('First name.'), nullable: true },
-  lastName: { ...str('Last name.'), nullable: true },
-  avatarUrl: { ...str('Avatar URL.'), nullable: true },
+  displayName: str('Name shown in the interface; the username when none.'),
+  firstName: str('First name. Empty string when unknown.'),
+  lastName: str('Last name. Empty string when unknown.'),
+  avatarUrl: {
+    ...str('Avatar URL. Null: the interface draws the initials instead.'),
+    nullable: true,
+  },
   bio: { ...str('Free text of the profile.'), nullable: true },
   jobTitle: { ...str('Job title.'), nullable: true },
   locale: str('Interface language stored for this user.', {
@@ -210,6 +306,8 @@ const currentUser = object('The caller, as the server sees them.', {
       'Organizations the user belongs to, with their role in each. This is what the interface uses to decide what to show.',
     items: object('Membership.', {
       organizationId: uuid('Organization.'),
+      organizationName: str('Its name.'),
+      organizationSlug: str('Its slug.'),
       role: str('Role.', { enum: ['MEMBER', 'AGENT', 'ORG_ADMIN'] }),
     }),
   },
@@ -343,6 +441,7 @@ const organization = object('An organization (tenant).', {
   name: str('Display name.'),
   slug: str('URL-safe identifier, unique across the platform.'),
   description: { ...str('Free text.'), nullable: true },
+  createdById: { ...uuid('Who created it.'), nullable: true },
   myRole: {
     ...str(
       'Caller role inside this organization. Null for a platform admin who is not a member.',
@@ -358,14 +457,59 @@ const organization = object('An organization (tenant).', {
   }),
 });
 
-const member = object('Membership of a user in an organization.', {
-  userId: uuid('User id.'),
-  role: str('Role inside the organization.', {
-    enum: ['MEMBER', 'AGENT', 'ORG_ADMIN'],
-  }),
-  joinedAt: date('When the user joined.'),
-  user: ref('UserSummary'),
-});
+const member = object(
+  "Membership of a user in an organization. Accounts deleted by their owner are not listed: they are nobody's colleague any more.",
+  {
+    id: uuid('Membership id.'),
+    role: str('Role inside the organization.', {
+      enum: ['MEMBER', 'AGENT', 'ORG_ADMIN'],
+    }),
+    joinedAt: date('When the user joined.'),
+    organizationId: uuid(
+      'Organization. Present in the answer to adding a member.',
+    ),
+    user: object('The member.', {
+      id: uuid('User id: the `{userId}` of the member routes.'),
+      username: str('Handle.'),
+      email: str('E-mail address.', { format: 'email' }),
+      profile: object('Profile.', {
+        displayName: { ...str('Name shown in the interface.'), nullable: true },
+        avatarUrl: { ...str('Avatar URL.'), nullable: true },
+        isOnline: {
+          type: 'boolean',
+          description: 'Live presence. Only in the member list.',
+        },
+        lastSeenAt: {
+          ...date('Last time connected. Only in the member list.'),
+          nullable: true,
+        },
+      }),
+    }),
+  },
+);
+
+const organizationStats = object(
+  'Ticket counters of one organization: the numbers behind its overview.',
+  {
+    total: int('Tickets in the organization.'),
+    unassigned: int('OPEN or IN_PROGRESS tickets nobody is assigned to.'),
+    byStatus: {
+      type: 'object',
+      description: 'Tickets per status. A status with no ticket is absent.',
+      additionalProperties: { type: 'integer' },
+      example: { OPEN: 4, IN_PROGRESS: 2, RESOLVED: 7 },
+    },
+    byPriority: {
+      type: 'object',
+      description: 'Tickets per priority. A priority with no ticket is absent.',
+      additionalProperties: { type: 'integer' },
+      example: { LOW: 3, MEDIUM: 6, HIGH: 4 },
+    },
+    avgFirstResponseSeconds: int(
+      'Average time to the first agent reply, in seconds. 0 when no ticket has one yet.',
+    ),
+  },
+);
 
 const category = object('Ticket category, scoped to one organization.', {
   id: uuid('Category id.'),
@@ -399,6 +543,41 @@ const notification = object('A notification for one user.', {
   actor: nullableRef('UserSummary'),
   readAt: { ...date('When the user read it.'), nullable: true },
   createdAt: date('Creation timestamp.'),
+});
+
+const friend = object('An accepted friendship, seen from the caller.', {
+  friendshipId: uuid('Friendship id.'),
+  since: date('When the request was sent.'),
+  user: ref('UserWithPresence'),
+});
+
+const friendRequests = object('Pending requests, in both directions.', {
+  incoming: {
+    type: 'array',
+    description:
+      'Sent to the caller: answer them with `PATCH /friends/requests/{id}`.',
+    items: object('Received request.', {
+      id: uuid('Request id.'),
+      createdAt: date('Sent at.'),
+      requester: ref('UserWithPresence'),
+    }),
+  },
+  outgoing: {
+    type: 'array',
+    description: 'Sent by the caller and not answered yet.',
+    items: object('Sent request.', {
+      id: uuid('Request id.'),
+      createdAt: date('Sent at.'),
+      addressee: ref('UserWithPresence'),
+    }),
+  },
+});
+
+const friendship = object('A friendship, as it is after the change.', {
+  id: uuid('Friendship id: the `{id}` of `PATCH /friends/requests/{id}`.'),
+  status: str('State.', { enum: ['PENDING', 'ACCEPTED', 'DECLINED'] }),
+  requesterId: uuid('Who asked.'),
+  addresseeId: uuid('Who was asked.'),
 });
 
 const conversation = object('A 1-to-1 conversation.', {
@@ -479,27 +658,30 @@ const apiKeyCreated = object(
   },
 );
 
-const auditLog = object('An entry of the audit trail.', {
-  id: uuid('Entry id.'),
-  action: str('What happened.', { example: 'ticket.status.changed' }),
-  entity: str('Entity type.', { example: 'Ticket' }),
-  entityId: { ...uuid('Entity id.'), nullable: true },
-  actorId: { ...uuid('Who did it.'), nullable: true },
-  before: {
-    type: 'object',
-    description: 'State before. Never contains password hashes or tokens.',
-    additionalProperties: true,
-    nullable: true,
+const auditLog = object(
+  'An entry of the audit trail. The before and after states are stored with it (never with password hashes or tokens) but the list does not return them.',
+  {
+    id: uuid('Entry id.'),
+    action: str(
+      'What happened. Accounts: `user.created`, `user.role.changed`, `user.status.changed`, `user.password.rotated`, `user.deleted`. Organizations: `organization.created`, `organization.updated`, `organization.deleted`, `member.invited`, `member.role.changed`, `member.removed`. Roles given by e-mail: `role.reserved`, `role.reservation.cancelled`, `role.reservation.claimed`. Credentials: `apiKey.created`, `apiKey.revoked`. Privacy: `gdpr.export.confirmed`, `gdpr.delete.confirmed`.',
+      { example: 'role.reserved' },
+    ),
+    entity: str(
+      'Entity type: `User`, `Organization`, `OrganizationMember`, `PlatformRoleGrant`, `OrganizationRoleGrant`, `ApiKey` or `GdprRequest`.',
+      { example: 'PlatformRoleGrant' },
+    ),
+    entityId: { ...uuid('Entity id.'), nullable: true },
+    ip: { ...str('Source address.'), nullable: true },
+    createdAt: date('When.'),
+    actor: {
+      ...object('Who did it. Null for the system or a deleted account.', {
+        id: uuid('User id.'),
+        username: str('Handle.'),
+      }),
+      nullable: true,
+    },
   },
-  after: {
-    type: 'object',
-    description: 'State after.',
-    additionalProperties: true,
-    nullable: true,
-  },
-  ip: { ...str('Source address.'), nullable: true },
-  createdAt: date('When.'),
-});
+);
 
 const healthStatus = object(
   'Public status page payload: functional areas, never internal detail.',
@@ -606,6 +788,9 @@ export const componentSchemas: Record<string, JsonSchema> = {
   ApiError: apiError,
   PaginationMeta: paginationMeta,
   UserSummary: userSummary,
+  UserWithPresence: userWithPresence,
+  PublicProfile: publicProfile,
+  AdminUser: adminUser,
   CurrentUser: currentUser,
   Ticket: ticket,
   TicketListItem: ticketListItem,
@@ -613,8 +798,12 @@ export const componentSchemas: Record<string, JsonSchema> = {
   Attachment: attachment,
   Organization: organization,
   OrganizationMember: member,
+  OrganizationStats: organizationStats,
   Category: category,
   Notification: notification,
+  Friend: friend,
+  FriendRequests: friendRequests,
+  Friendship: friendship,
   Conversation: conversation,
   ChatMessage: message,
   ApiKey: apiKey,

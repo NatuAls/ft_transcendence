@@ -77,7 +77,7 @@ alcance.
 | DELETE | `/users/me/avatar` | sesión | Vuelve al avatar por defecto (iniciales) y borra el fichero |
 | GET | `/users/avatars/:key` | — | Público por diseño; la clave se valida contra un patrón fijo |
 | GET | `/users/:username` | sesión | Perfil público (sin correo de terceros) |
-| PATCH | `/users/:id` | GLOBAL_ADMIN | |
+| PATCH | `/users/:id` | GLOBAL_ADMIN | `{ firstName?, lastName? }`. Solo corrige el nombre: suspender va por `/status`, que tiene sus salvaguardas |
 | PATCH | `/users/:id/status` | GLOBAL_ADMIN | `{ isActive }`. Auditado |
 | PATCH | `/users/:id/role` | GLOBAL_ADMIN | `{ globalRole }`. Auditado |
 | DELETE | `/users/:id` | GLOBAL_ADMIN | Borrado lógico. Auditado |

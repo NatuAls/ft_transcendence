@@ -98,7 +98,7 @@ export const authPaths: Paths = {
       operationId: 'me',
       summary: 'Who am I',
       description:
-        'The caller identity as the server sees it: id, username, profile, global role and the organizations the user belongs to with their role in each. The web client calls it on boot to rebuild the session.',
+        'The caller identity as the server sees it: id, username, profile, global role, the organizations the user belongs to with their role in each, and `pendingRoles` - the roles an administrator reserved for this address that will arrive when it is verified. The web client calls it on boot to rebuild the session.',
       security: session,
       responses: {
         '200': ok('Caller identity.', ref('CurrentUser')),
@@ -112,12 +112,12 @@ export const authPaths: Paths = {
       operationId: 'verifyEmail',
       summary: 'Confirm the e-mail address',
       description:
-        'Consumes the single-use token sent at sign-up. It is also the moment every role an administrator reserved for this address reaches the account: platform role and organization memberships, in one transaction.',
+        'Consumes the single-use token sent at sign-up (the e-mail links to `/#verify-email?token=…`). It is also the moment every role an administrator reserved for this address reaches the account: platform role and organization memberships, in one transaction, recorded as `role.reservation.claimed`. An unknown, used or expired token is a 401.',
       security: open,
       requestBody: body('VerifyEmailInput'),
       responses: {
         '204': noContent('Address verified.'),
-        ...errs('400', '429'),
+        ...errs('400', '401', '429'),
       },
     }),
   },
@@ -187,7 +187,7 @@ export const authPaths: Paths = {
       operationId: 'listSessions',
       summary: 'Active sessions',
       description:
-        'Devices with a live refresh token: creation, last use, user agent and address. The material for a "sign out from that device" screen.',
+        'Devices with a live refresh token, most recently used first: sign-in, last use, user agent and address. One row per device even though the token rotates on every refresh. The material for the "Sessions & devices" screen.',
       security: session,
       responses: {
         '200': ok('Open sessions.', {
@@ -226,9 +226,12 @@ export const authPaths: Paths = {
       tag: 'Auth',
       operationId: 'revokeSession',
       summary: 'Revoke one session',
-      description: 'Closes that device without touching the others.',
+      description:
+        'Signs that device out without touching the others: its next `POST /auth/refresh` is refused, so it is out within the 15 minutes its access token still lives. A session of another user and one already revoked answer the same 404, so the route cannot be used to probe identifiers. To close every device, this one included, use `POST /auth/logout-all`.',
       security: session,
-      parameters: [pathParam('id', 'Session identifier.')],
+      parameters: [
+        pathParam('id', 'Session identifier (the `id` of a listed session).'),
+      ],
       responses: {
         '204': noContent('Session revoked.'),
         ...errs('401', '404'),

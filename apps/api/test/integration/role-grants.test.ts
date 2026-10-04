@@ -232,6 +232,29 @@ describe(
       assert.equal(response.status, 403);
     });
 
+    it('editar a un usuario corrige su nombre, pero no lo suspende', async (t) => {
+      if (!ready) return skip(t);
+      const person = await registerUser('rgEdited');
+      // Suspender va por PATCH /users/{id}/status, que tiene sus salvaguardas;
+      // por aquí el campo se descarta (antes acababa en un 500).
+      const edited = await api<{ firstName: string }>(
+        'PATCH',
+        `/users/${person.id}`,
+        {
+          token: admin.token,
+          body: { firstName: 'Renamed', isActive: false },
+        },
+      );
+      assert.equal(edited.status, 200);
+      assert.equal(edited.body.firstName, 'Renamed');
+      const listed = await api<{ data: Array<{ isActive: boolean }> }>(
+        'GET',
+        `/users?q=${person.username}`,
+        { token: admin.token },
+      );
+      assert.equal(listed.body.data[0]?.isActive, true, 'sigue activa');
+    });
+
     it('una reserva cancelada ya no se reclama', async (t) => {
       if (!ready) return skip(t);
       const email = freshEmail('rgCancel');

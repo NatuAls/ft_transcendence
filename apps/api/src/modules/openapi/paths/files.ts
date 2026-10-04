@@ -76,9 +76,8 @@ export const filesPaths: Paths = {
       requestBody: upload,
       responses: {
         '201': created('File attached.', ref('Attachment')),
-        '413': { $ref: '#/components/responses/BadRequest' },
-        '415': { $ref: '#/components/responses/BadRequest' },
-        ...errs('400', '401', '403', '404'),
+        // 409: the ticket already holds the maximum number of attachments.
+        ...errs('400', '401', '403', '404', '409', '413', '415'),
       },
     }),
   },
@@ -97,7 +96,7 @@ export const filesPaths: Paths = {
       requestBody: upload,
       responses: {
         '201': created('File attached.', ref('Attachment')),
-        ...errs('400', '401', '403', '404'),
+        ...errs('400', '401', '403', '404', '413', '415'),
       },
     }),
   },
