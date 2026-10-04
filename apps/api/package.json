@@ -51,6 +51,6 @@
     "@types/pg": "^8.15.6",
     "prisma": "^7.10.0",
     "socket.io-client": "^4.8.3",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.2"
   }
 }
