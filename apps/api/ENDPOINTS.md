@@ -2,7 +2,7 @@
 
 > **Referencia navegable:** `/api/v1/docs` (Swagger UI) y el documento en
 > `/api/v1/openapi.json`. Están generados desde los contratos Zod y cubren las
-> 105 rutas; esta tabla sigue siendo el resumen rápido, y el guion de
+> 111 rutas; esta tabla sigue siendo el resumen rápido, y el guion de
 > demostración está al final del fichero.
 >
 > En desarrollo se abren sin más. En **staging y producción** no están
@@ -11,7 +11,7 @@
 > cualquier otro le responde 404). Las credenciales y el interruptor
 > `DOCS_ACCESS` están en la guía DevOps del equipo.
 
-**105 rutas HTTP.** Tabla generada a partir de los routers reales de
+**111 rutas HTTP.** Tabla generada a partir de los routers reales de
 `apps/api/src/modules`, no escrita a mano. Si añades una ruta, añádela también
 aquí, en `src/modules/openapi/paths/` y en la documentación de Notion
 (*Frontend && Backend → 8. Endpoints funcionales*). El test
@@ -56,13 +56,13 @@ alcance.
 | POST | `/auth/logout` | sesión | Revoca la fila de refresh **y** el access token actual |
 | POST | `/auth/logout-all` | sesión | Revoca todas las sesiones y todos los access token vivos |
 | GET | `/auth/me` | sesión | Usuario, membresías y permisos efectivos |
-| POST | `/auth/verify-email` | — | `{ token }` |
+| POST | `/auth/verify-email` | — | `{ token }`. Es el momento en que la cuenta recibe los roles reservados para su correo |
 | POST | `/auth/resend-verification` | sesión | **Nueva.** Reemite el correo de verificación; invalida el token anterior |
 | POST | `/auth/forgot-password` | — | Responde 202 siempre, exista o no el correo |
 | POST | `/auth/reset-password` | — | `{ token, password, confirmPassword }`. Cierra todas las sesiones |
 | POST | `/auth/change-password` | sesión | Cierra todas las sesiones, incluida la que la pide |
-| GET | `/auth/sessions` | sesión | Sesiones activas del propio usuario |
-| DELETE | `/auth/sessions/:id` | sesión | Solo sobre sesiones propias |
+| GET | `/auth/sessions` | sesión | Dispositivos del propio usuario; `current` marca el que llama (por la familia de su cookie de refresco) |
+| DELETE | `/auth/sessions/:id` | sesión | Solo sobre sesiones propias; 404 si no existe o no es tuya |
 
 ## Usuarios · `/api/v1/users`
 
@@ -73,8 +73,8 @@ alcance.
 | PATCH | `/users/me` | sesión | `firstName`, `lastName`, `displayName`, `bio`, `jobTitle` |
 | GET | `/users/me/preferences` | sesión | **Nueva.** Idioma, zona horaria, tema y los cinco interruptores `notifyOn*` |
 | PATCH | `/users/me/preferences` | sesión | Devuelve el objeto completo, no solo la parte de `User` |
-| PUT | `/users/me/avatar` | sesión | `multipart/form-data`, campo `file`. Reencodado a WebP 512×512 sin EXIF |
-| DELETE | `/users/me/avatar` | sesión | |
+| PUT | `/users/me/avatar` | sesión | `multipart/form-data`, campo `file`. Reencodado a WebP 512×512 sin EXIF. Imagen dañada: 422 `FILE_IMAGE_UNREADABLE` |
+| DELETE | `/users/me/avatar` | sesión | Vuelve al avatar por defecto (iniciales) y borra el fichero |
 | GET | `/users/avatars/:key` | — | Público por diseño; la clave se valida contra un patrón fijo |
 | GET | `/users/:username` | sesión | Perfil público (sin correo de terceros) |
 | PATCH | `/users/:id` | GLOBAL_ADMIN | |
@@ -95,6 +95,9 @@ alcance.
 | POST | `/organizations/:organizationId/members` | ORG_ADMIN | `{ identifier, role }`. Auditado |
 | PATCH | `/organizations/:organizationId/members/:userId` | ORG_ADMIN | Auditado |
 | DELETE | `/organizations/:organizationId/members/:userId` | ORG_ADMIN | Auditado |
+| GET | `/organizations/:organizationId/role-grants` | ORG_ADMIN | Roles reservados a correos que aún no tienen cuenta verificada |
+| POST | `/organizations/:organizationId/role-grants` | ORG_ADMIN | `{ email, role }`. `APPLIED` (200) a una cuenta verificada o a un miembro; si no, `RESERVED` (201) hasta que se verifique ese correo. Auditado |
+| DELETE | `/organizations/:organizationId/role-grants/:grantId` | ORG_ADMIN | Cancela la reserva. Auditado |
 | POST | `/organizations/:organizationId/leave` | MEMBER | No permite dejarla sin administradores |
 | GET | `/organizations/:organizationId/categories` | MEMBER | |
 | POST | `/organizations/:organizationId/categories` | ORG_ADMIN | |
@@ -188,6 +191,9 @@ cabecera del cliente: un script renombrado a `.pdf` recibe un `415`.
 | --- | --- | --- | --- |
 | GET | `/admin/audit-logs` | GLOBAL_ADMIN | `entity`, `entityId`, `actorId`, `action`, `from`, `to` |
 | GET | `/admin/stats` | GLOBAL_ADMIN | Contadores de plataforma |
+| GET | `/admin/role-grants` | GLOBAL_ADMIN | Roles de plataforma reservados a correos sin cuenta verificada |
+| POST | `/admin/role-grants` | GLOBAL_ADMIN | `{ email, globalRole: 'GLOBAL_ADMIN' }`. `APPLIED` (200) o `RESERVED` (201). Nadie cambia su propio rol. Auditado |
+| DELETE | `/admin/role-grants/:grantId` | GLOBAL_ADMIN | Cancela la reserva. Auditado |
 
 Las acciones marcadas «Auditado» en las tablas anteriores escriben una fila en
 `audit_logs` con quién, qué, cuándo y desde qué IP. Los `before`/`after` son
@@ -242,6 +248,7 @@ igual.
 | `PAYLOAD_TOO_LARGE`, `FILE_TOO_LARGE` | 413 | Cuerpo > 1 MB o fichero por encima de `UPLOAD_MAX_BYTES` |
 | `FILE_TYPE_NOT_ALLOWED` | 415 | Los magic bytes no están en la lista blanca |
 | `TICKET_ASSIGNEE_NOT_AGENT` | 422 | El destinatario de la asignación no es agente |
+| `FILE_IMAGE_UNREADABLE` | 422 | Dice ser una imagen pero no se puede decodificar (fichero dañado) |
 | `RATE_LIMITED` | 429 | Ventana agotada. Lleva `Retry-After` |
 | `INTERNAL_ERROR` | 500 | Fallo no previsto. Sin traza, sin SQL, sin rutas de fichero |
 
@@ -293,7 +300,7 @@ OPENAPI_SERVERS="https://helpdesklite.me/api/v1|Production,https://staging.helpd
 ### Guion de demostración (10 minutos, contra datos reales)
 
 1. **Abrir** `/api/v1/docs`. Enseñar la cabecera: autenticación, sobre de
-   error, paginación y límites de peticiones. Mencionar que son 105 rutas en
+   error, paginación y límites de peticiones. Mencionar que son 111 rutas en
    11 secciones y que el buscador de arriba filtra.
 2. **Crear la clave.** En `Organizations → POST /organizations/{organizationId}/api-keys`,
    *Try it out* con un token de sesión de un `ORG_ADMIN`:

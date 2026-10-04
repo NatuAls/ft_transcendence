@@ -24,17 +24,22 @@ Key features:
 - Accounts with e-mail verification, password reset, sessions with rotating
   refresh tokens and reuse detection, progressive lockout after failed logins.
 - Organizations with three roles (`MEMBER`, `AGENT`, `ORG_ADMIN`) plus a
-  platform `GLOBAL_ADMIN`; per-organization categories and API keys.
+  platform `GLOBAL_ADMIN`; per-organization categories and API keys. Roles
+  are given **to an e-mail address**, at platform or organization level, and
+  reach the account once that address is verified.
 - Tickets with priority, category, status workflow
   (`OPEN → IN_PROGRESS → RESOLVED → CLOSED`), assignment to agents, public
   and internal comments, attachments (type-checked, image-normalized) and an
   append-only history.
-- Real-time updates and direct messages over Socket.IO; friendships; in-app
-  and e-mail notifications with per-user preferences.
+- Real-time updates and direct messages over Socket.IO; friends with live
+  online status, public profiles, revocable sessions; in-app and e-mail
+  notifications with per-user preferences.
 - Public REST API for integrations, authenticated with scoped API keys and
   rate-limited per key.
 - GDPR: data export and account deletion requests; audit log of sensitive
-  actions; legal pages (privacy policy, terms of service).
+  actions.
+- Privacy Policy and Terms of Service with real content, linked from the
+  footer of every screen.
 - User locale (English / Spanish), timezone and theme stored per account.
 - Operations: CI with tests and security scans, staging and production
   pipelines with approval gate and automatic rollback, encrypted backups
@@ -63,7 +68,7 @@ npm run dev:web                 # http://localhost:5173  (Vite)
 ```
 
 - Mailpit (captured e-mails): http://localhost:8025
-- API reference: [`apps/api/ENDPOINTS.md`](apps/api/ENDPOINTS.md) (105 routes)
+- API reference: [`apps/api/ENDPOINTS.md`](apps/api/ENDPOINTS.md) (111 routes)
 - Front/back integration notes: [`apps/web/INTEGRATION.md`](apps/web/INTEGRATION.md)
 - Frontend conventions: [`apps/web/FRONTEND_GUIDE.md`](apps/web/FRONTEND_GUIDE.md)
 - UI design system: [`packages/ui/README.md`](packages/ui/README.md)
@@ -124,6 +129,14 @@ Backups ─encrypted─▶ Oracle Object Storage        Alerts ─▶ Telegram +
   Every script was executed and verified on the server by the author; the
   decisions (what to fix, what to leave out of scope, what to ask the team)
   were taken by the author and are recorded in the audit reports.
+  For the user, organization and permission modules, Claude Code was also
+  used to implement the role assignment by e-mail (API, migration, contracts,
+  tests) and the screens that complete those modules, and to verify them in a
+  real browser against a running API, database and mail sink. The author set
+  the requirements — two independent screens, assignment by registered
+  address, the account created by the person — and reviewed the result; the
+  security decision that a reserved role is claimed on verification, not on
+  sign-up, is documented in «Users, organizations and roles».
 - **Backend:** TODO(backend).
 - **Frontend:** TODO(frontend).
 
@@ -193,7 +206,7 @@ production is bit-for-bit what passed the tests.
 |---|---|
 | `quality` | Prettier, ESLint, TypeScript across every workspace, and a full build |
 | `unit-tests` | 106 cases (`node --test`), including a test that walks the real routers and fails if any route is missing from the OpenAPI document |
-| `integration-tests` | 58 cases against **real** PostgreSQL and Redis, with migrations applied |
+| `integration-tests` | 75 cases against **real** PostgreSQL and Redis, with migrations applied |
 | `compose-validation` | The three Compose files parse, and no external image is pinned to a moving tag |
 | `docker-build` | Both production images build (pull requests only) |
 | `security` | gitleaks over the branch's commits, `npm audit` (critical blocks), Trivy over the tree, SBOM |
@@ -445,7 +458,7 @@ curl -sI https://helpdesklite.me/status | head -1             # the page itself
 
 ## Database Schema
 
-PostgreSQL schema managed by Prisma (`apps/api/prisma/schema.prisma`, 20
+PostgreSQL schema managed by Prisma (`apps/api/prisma/schema.prisma`, 22
 tables). Main entities and relationships:
 
 ```mermaid
@@ -471,6 +484,9 @@ erDiagram
     conversations ||--o{ messages : has
     users ||--o{ gdpr_requests : files
     users o|--o{ audit_logs : acts
+    organizations ||--o{ organization_role_grants : reserves
+    users o|--o{ organization_role_grants : "granted by"
+    users o|--o{ platform_role_grants : "granted by"
 ```
 
 Key fields:
@@ -495,10 +511,143 @@ Key fields:
 - `api_keys`: `prefix`, `keyHash`, `scopes`, `rateLimitPerMinute`,
   `lastUsedAt`; `audit_logs`: `actorId` / `apiKeyId`, `action`, `entity`,
   `entityId`, `before`/`after`, `ip`.
+- `platform_role_grants`: `email` (citext, unique), `globalRole`,
+  `grantedById`; `organization_role_grants`: (`organizationId`, `email`)
+  unique, `role`, `grantedById`. A role given to an **e-mail address** that
+  has no verified account yet; the row is deleted when the role is claimed or
+  cancelled, and the history stays in `audit_logs`.
 
 Deleting a user or an organization cascades to its dependent rows
 (sessions, memberships, categories, tickets, comments, attachments);
 assignee and category references are set to `NULL`.
+
+## Users, organizations and roles
+
+Three modules work on the same people, so they are described together: who
+can sign in and how they appear to others (standard user management), what
+each person may do (advanced permissions), and the tenants they work in
+(organization system).
+
+### Roles
+
+Five fixed roles on two levels, enforced by the server on every request
+(`apps/api/src/rbac/policies.ts`: one pure function decides every
+authorisation question, and the interface only hides what it would refuse).
+
+| Level | Role | What it adds |
+|---|---|---|
+| Platform | `USER` | Every account. Works inside the organizations it belongs to |
+| Platform | `GLOBAL_ADMIN` | Every account, organization and role; acts in any organization; reads the audit trail |
+| Organization | `MEMBER` | Opens tickets and follows their own |
+| Organization | `AGENT` | Every ticket of the organization: status, self-assignment, internal notes, statistics |
+| Organization | `ORG_ADMIN` | Members and roles, categories, API keys, the organization itself |
+
+The primary administrator is created at deployment from a secret
+(`BOOTSTRAP_ADMIN_USERNAME`/`_PASSWORD`) and is the one that hands out roles to
+everybody else. The API refuses to suspend, demote or delete it, and the
+screens mark it as protected.
+
+### Giving a role to an e-mail address
+
+The administrator does not create accounts: they give a role to an **address**,
+and the person creates their own account with it. Two screens, one per level:
+
+| Screen | Who | Assigns |
+|---|---|---|
+| **Platform roles** (`#platform-roles`) | `GLOBAL_ADMIN` | Platform administration |
+| **Roles & access** (`#organization-roles`) | `ORG_ADMIN` of the active organization (or a `GLOBAL_ADMIN`) | `MEMBER`, `AGENT` or `ORG_ADMIN` in that organization |
+
+What happens depends on who owns the address at that moment:
+
+| The address belongs to… | Result |
+|---|---|
+| a member of the organization | their role changes now, with the same last-administrator rule as any other change |
+| a verified account | the role is applied now (`APPLIED`) |
+| an account that already has that role | nothing changes (`UNCHANGED`) |
+| nobody, or an account whose address is not verified | the role is **reserved** for the address (`RESERVED`) and an e-mail invites the person to create the account — or confirm it — with that address |
+
+A reservation reaches the account **when the address is verified, not when
+it is registered**. Anybody can register any address, but only its owner can
+confirm it; if registering were enough, whoever typed `boss@company.com`
+first would inherit the boss's role. Until then the account sees "Confirm your
+e-mail to continue" with the roles waiting for it and a button to resend the
+link; the moment the link is followed (`#verify-email`), the platform role and
+the memberships are applied in one transaction and the page shows the access
+that has just become active.
+
+Both screens list what is waiting and why (no account yet, or address not
+confirmed), let the administrator cancel it, and record every assignment,
+claim and cancellation in the audit trail. In the demo environments the
+confirmation e-mail lands in the Mailpit of the environment unless
+`SMTP_USER` is configured (see «Privacy and data rights»).
+
+### Different screens for different roles
+
+| Screen | `MEMBER` | `AGENT` | `ORG_ADMIN` | `GLOBAL_ADMIN` |
+|---|---|---|---|---|
+| Roles & access | own role, what each role can do, whom to ask (names only) | read-only directory of who does what | assign by e-mail, change roles inline, remove members, cancel reservations | same, in any organization |
+| Organization settings | own access | workload and categories | edit or delete the organization, members, categories | same, in any organization |
+| Organizations | the ones they belong to, to switch between | same | same | every organization; create |
+| Users · Platform roles | — | — | — | full |
+
+### Administration (CRUD)
+
+- **Users** (`#admin`): list, search and filter every account; invite (a role
+  by e-mail, as above); edit the name, the platform role and the account
+  state; delete. Your own role and state and the primary administrator are
+  locked in the form, because the API refuses them anyway.
+- **Organizations** (`#organizations`, `#organization`): create one and give
+  its administration to an e-mail address in the same step; edit its name and
+  description; delete it; inside it, create and edit categories, and add,
+  re-role and remove members.
+
+### Standard user management
+
+| Requirement | Where |
+|---|---|
+| Update profile information | Account → Profile settings: name, job title, bio, time zone |
+| Upload an avatar, with a default | Same screen. Re-encoded to WebP 512×512 without EXIF; until a photo is uploaded, and after "Remove photo" (which also deletes the file), the account shows its initials |
+| Friends and their online status | People: friends with live presence and "friends since", requests received and sent, and colleagues or anybody found by search to add |
+| Profile page | `#people-profile?person=<username>`: presence or last seen, bio, organizations with the role in each, tickets opened and handled, and the friendship action that applies |
+
+Presence is real time: the app keeps one Socket.IO connection while somebody
+is signed in, and screens follow `presence.changed`. Somebody goes offline
+sixty seconds after closing their last tab, so a reload does not make them
+blink. Account → **Sessions & devices** lists every signed-in device with its
+last activity and address, marks the current one, and signs out any other
+— or all of them.
+
+### How to demonstrate it
+
+1. Sign in as the primary administrator. **Platform roles**: give platform
+   administration to an address nobody has registered → it waits, "Waiting for
+   the account".
+2. **Organizations → New organization**: create one, giving its
+   administration to another fresh address.
+3. **Roles & access** in that organization: give `AGENT` to a third fresh
+   address.
+4. In a private window, open the link of the invitation e-mail (or
+   `#register?email=…`) and create the account → "Confirm your e-mail to
+   continue", with the role waiting. Follow the confirmation link → "Your
+   access now: Support agent in …".
+5. The same screen now shows the agent's read-only view; the administrator's
+   shows the new member. Sign in as a member to see the third view.
+6. **People**: send a friend request, accept it from the other window, and
+   watch the online dot follow the other window.
+
+## Privacy Policy and Terms of Service
+
+A requirement of the mandatory part (chapter III.2), not of any module: both
+pages must be "easily accessible from the application (e.g., footer links)"
+and have real content, and failing it rejects the project.
+
+- The pages (`#privacy-policy`, `#terms`) are written against what the
+  application really stores and does: data categories, legal bases, cookies,
+  processors, retention, the rights and how to exercise them.
+- They are linked from the **footer of every screen** once signed in, from the
+  account-suspended and no-organization screens, from the sign-in and sign-up
+  pages, and from the public status page. Opened from inside the application,
+  "back" returns to the screen they were opened from.
 
 ## Privacy and data rights
 
@@ -553,7 +702,7 @@ tickets, comments and categories — with pagination and filtering.
 ### Documentation
 
 `GET /api/v1/openapi.json` serves an OpenAPI 3.0.3 document covering the
-**105 operations** of the whole API in 18 sections, and `GET /api/v1/docs`
+**110 operations** of the whole API in 11 sections, and `GET /api/v1/docs`
 renders it as a browsable reference with *Try it out*. Both authentication
 schemes work from that page: bearer token for a session, `X-API-Key` for this
 API.
@@ -604,6 +753,10 @@ deployment closes the reference instead of leaving it open, and
 | Public API | TODO(backend) | Scoped API keys, per-key rate limits |
 | GDPR export/delete, audit log | TODO(backend) · fcela-ga (screens, e-mail links and transport) | Export and deletion requests with an e-mailed code, a second factor on deletion, a background ZIP build and anonymisation of what other people depend on; the audit log records who did what |
 | Front end (all screens) | TODO(frontend) | Sign in / register, workspace, organizations, ticket list / detail / create, people and profiles, messages, account and privacy, global admin, legal pages |
+| Roles by e-mail address, platform and organization | fcela-ga | Two screens that give a role to an address; applied at once to a verified account, otherwise reserved and claimed when the address is verified (never at sign-up); the e-mail verification route that makes the claim possible; a notice of what is waiting for an unverified account |
+| Administration wired to the API | TODO(frontend) (screens) · fcela-ga (integration) | Users (list, invite, edit, suspend, change role, delete), Organizations (list, create with its first administrator), Organization settings (edit, delete, members, categories), real active organization and role-dependent views |
+| Friends, presence, profiles, sessions, avatar | TODO(backend) (API) · fcela-ga (screens, presence, sessions and avatar fixes) | Friends and requests with live online status, public profiles, a realtime connection for the whole signed-in session, devices with the current one marked and sign-out per device, the default avatar and "Remove photo" |
+| Legal footer | TODO(frontend) (pages) · fcela-ga (footer) | Privacy Policy, Terms of Service and status page linked from every screen, including the session-state screens and the status page |
 | CI/CD pipelines | fcela-ga | Reusable CI (lint, types, tests, Trivy, gitleaks), staging/production deploys with approval gate and rollback |
 | Hosting & security hardening | fcela-ga | Oracle VM, Cloudflare, origin closed to Cloudflare ranges (VCN + iptables), fail2ban, least-privilege DB roles, security headers, rate limits |
 | Health checks & status page | fcela-ga | Liveness and readiness probes, a per-area public traffic light that hides infrastructure detail, and a status page at `/status` served as a static file so it stays up when the application does not |
@@ -620,11 +773,14 @@ deployment closes the reference instead of leaving it open, and
 |---|---|---|---|---|
 | TODO | Major | 2 | TODO | TODO |
 | Custom-made design system with reusable components | Minor | 1 | arielrhea | 15 generic reusable components in `packages/ui` — the module asks for ten — built on semantic tokens rather than raw values: a `@theme` palette (canvas, surface, border, ink, muted, primary and the four feedback colours), one type scale, shared radii and a typed `Icon` set. `packages/ui/README.md` is the catalogue: every component with its API, its variants, what it is used for, and the keyboard and accessibility behaviour it guarantees. `BrandMark` is exported too but deliberately not counted, because it is product branding and not a generic component |
-| Public API with authentication, rate limiting and documentation | Major | 2 | fcela-ga | 14 endpoints with `X-API-Key` (Argon2id secret shown once), per-key scopes, 60/min and 1000/h limits and organization tenancy; OpenAPI 3.0.3 with 105 operations generated from the Zod contracts, browsable at `/api/v1/docs` behind two independent doors, and a test that fails if any route is undocumented. See «Public API» above |
+| Public API with authentication, rate limiting and documentation | Major | 2 | fcela-ga | 14 endpoints with `X-API-Key` (Argon2id secret shown once), per-key scopes, 60/min and 1000/h limits and organization tenancy; OpenAPI 3.0.3 with 110 operations generated from the Zod contracts, browsable at `/api/v1/docs` behind two independent doors, and a test that fails if any route is undocumented. See «Public API» above |
 | CI/CD pipeline with automated testing and deployment | Major | 2 | fcela-ga | Seven CI jobs on every pull request, images built once per SHA on a native ARM64 runner and promoted by SHA, a production gate enforced in code (`scripts/ci/prod-gate.mjs`) because environment reviewers do not pause anything in a private repository, encrypted pre-deploy backup, smoke test and automatic rollback, and the whole pipeline reproducible locally with `make ci` / `make deploy-*`. See «Continuous Integration and Delivery» above |
 | Monitoring system with Prometheus and Grafana | Major | 2 | fcela-ga | `compose.observability.yml`: Prometheus 3.14, Grafana 13.2, Alertmanager, five exporters and blackbox probes; nine application metrics behind `METRICS_TOKEN`; 21 alert rules with runbooks, delivery verified by e-mail and Telegram. See «Observability and Alerting» above |
 | Health check and status page system with automated backups and disaster recovery | Minor | 1 | fcela-ga | Liveness, readiness and a public per-area traffic light (`/api/health`, `/ready`, `/status`), the last one answering with full detail only to the operation token; a status page at `/status` served as a static file so it survives both the application bundle and the API; nightly AES-256 backups to Oracle Object Storage, `restore.sh` with integrity checks and a weekly automated restore drill with the recovery time measured; seven alert rules watch backups and drills, three of them on the absence of the metric. See «Health checks, the status page and recovery» above |
 | GDPR compliance features | Minor | 1 | fcela-ga | The module's four subpoints, end to end from the browser: request your data (`POST /gdpr/export`), deletion with confirmation (`POST /gdpr/delete`, needing both the e-mailed code **and** your own username typed back), export in a readable format (a ZIP of JSON built in the background and served through a short-lived authenticated download) and confirmation e-mails at every step. Content other people depend on is anonymised rather than erased, which is what the regulation allows. See «Privacy and data rights» below |
+| Standard user management and authentication | Major | 2 | TODO(backend) (API) · fcela-ga (screens and integration) | The module's four requirements, from the browser and against the API: profile editing; avatar upload re-encoded to WebP without EXIF, with the initials as default avatar and "Remove photo" that also deletes the file; friends with requests both ways and **live** online status (one Socket.IO connection for the whole signed-in session, `presence.changed` followed by the screens); a profile page with presence, organizations and activity. On top, revocable sessions with the current device marked, which the Terms of Service promise. See «Users, organizations and roles» above |
+| Advanced permissions system | Major | 2 | TODO(backend) (RBAC) · fcela-ga (roles by e-mail, screens) | Users CRUD (list, invite, edit, suspend, change role, delete) with your own account and the primary administrator locked; five fixed roles on two levels decided by one pure policy function on every request; roles given **by e-mail address** at platform and organization level, reaching the account only when the address is verified; and screens that change with the role — the same «Roles & access» route is three different screens for `MEMBER`, `AGENT` and `ORG_ADMIN`. 14 integration cases cover the assignment and the membership rules around it. See «Users, organizations and roles» above |
+| Organization system | Major | 2 | TODO(backend) (API) · fcela-ga (screens and integration) | Create (with its first administrator given by e-mail), edit and delete organizations; add users by e-mail address and remove them; the active organization taken from the API and switchable; inside it, categories created and edited, members re-roled, and per-organization statistics — every rule enforced again by the server (`orgScope`, 404 rather than 403 to outsiders, the last-administrator rule). See «Users, organizations and roles» above |
 | TODO | … | … | … | … |
 | **Total** | | **TODO** | | |
 
@@ -655,7 +811,18 @@ deployment closes the reference instead of leaving it open, and
   15-hour outage caused by a deliberate stop that was never reverted.
 - Wrote the operations runbook, the secrets inventory and three audit
   reports reconciling external reviews with the real state of the system.
-- Challenges: two repositories deploying to the same host during the
+- Completed the user, organization and permission modules end to end: roles
+  given by e-mail address at platform and organization level (two tables,
+  six routes, claim on e-mail verification), the two role screens with views
+  that change with the role, the e-mail verification route, the
+  administration screens wired to the API, friends with live presence,
+  profiles, sessions and the default avatar, and the legal footer on every
+  screen.
+- Challenges: deciding that a role reserved for an address is claimed on
+  verification and not on sign-up (otherwise registering somebody else's
+  address first would steal their role), and finding that the verification
+  link, the presence and the "current device" all depended on pieces that did
+  not exist yet; two repositories deploying to the same host during the
   hand-over, an Alertmanager that started with an empty config because a
   template path was a directory, a court-ordered block of Cloudflare IPs in
   Spain (fallback plan documented), and keeping every secret out of the
@@ -671,6 +838,10 @@ deployment closes the reference instead of leaving it open, and
   case the transport authenticates against a real relay over TLS and messages
   reach actual inboxes. The demo environments are deliberately left on Mailpit:
   a student project should not be sending mail to strangers.
+- A role reserved for an e-mail address only activates when that address is
+  verified. On the demo environments the verification message is therefore
+  read in Mailpit (through the SSH tunnel) unless `SMTP_USER` is configured;
+  locally it is at http://localhost:8025.
 - Single-server deployment: no high availability, and the monitoring runs on
   the same machine it watches, so a full host outage is not self-alerting.
   Recovery relies on the backups and the runbook.
