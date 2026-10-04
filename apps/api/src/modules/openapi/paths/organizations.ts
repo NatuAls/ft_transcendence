@@ -91,7 +91,8 @@ export const organizationsPaths: Paths = {
       tag: 'Organizations',
       operationId: 'listMembers',
       summary: 'Members',
-      description: 'Members with their role and join date.',
+      description:
+        'Any member may read it. Members with their role, join date and live presence, administrators first. Accounts deleted by their owner are left out. People invited by e-mail who have no verified account yet are not members: they are listed by `GET /organizations/{organizationId}/role-grants`.',
       security: session,
       parameters: [orgId],
       responses: {
@@ -107,7 +108,7 @@ export const organizationsPaths: Paths = {
       operationId: 'inviteMember',
       summary: 'Add a member',
       description:
-        'ORG_ADMIN only. Invites by e-mail or username and sends the notification. Adding someone twice answers 409 instead of duplicating the membership.',
+        'ORG_ADMIN only. Adds an **existing** account, found by e-mail or username, and sends the notification and the e-mail. Adding someone twice answers 409 instead of duplicating the membership. To invite an address that has no account yet, use `POST /organizations/{organizationId}/role-grants`.',
       security: session,
       parameters: [orgId],
       requestBody: body('InviteMemberInput'),
@@ -128,7 +129,21 @@ export const organizationsPaths: Paths = {
       parameters: [orgId, pathParam('userId', 'User whose role changes.')],
       requestBody: body('UpdateMemberRoleInput'),
       responses: {
-        '200': ok('Updated member.', ref('OrganizationMember')),
+        '200': ok('Updated member.', {
+          type: 'object',
+          properties: {
+            id: { type: 'string', format: 'uuid', description: 'Membership.' },
+            role: { type: 'string', enum: ['MEMBER', 'AGENT', 'ORG_ADMIN'] },
+            organizationId: { type: 'string', format: 'uuid' },
+            user: {
+              type: 'object',
+              properties: {
+                id: { type: 'string', format: 'uuid' },
+                username: { type: 'string' },
+              },
+            },
+          },
+        }),
         ...errs('400', '401', '403', '404', '409'),
       },
     }),
@@ -151,12 +166,97 @@ export const organizationsPaths: Paths = {
       operationId: 'leaveOrganization',
       summary: 'Leave the organization',
       description:
-        'Any member may leave; the last administrator may not, for the same reason as above.',
+        'Any member may leave; the last administrator may not, for the same reason as above. Here the refusal comes from the `member:leave` policy itself, so it is a 403 `RBAC_FORBIDDEN` rather than the 409 `ORG_LAST_ADMIN` of the routes above. Accounts deleted by their owner do not count as administrators.',
       security: session,
       parameters: [orgId],
       responses: {
         '204': noContent('You are no longer a member.'),
-        ...errs('401', '404', '409'),
+        ...errs('401', '403', '404'),
+      },
+    }),
+  },
+  '/organizations/{organizationId}/role-grants': {
+    get: op({
+      tag: 'Organizations',
+      operationId: 'listOrganizationRoleReservations',
+      summary: 'Organization roles waiting for an account',
+      description:
+        'ORG_ADMIN (or GLOBAL_ADMIN) only, because the rows are e-mail addresses of people who are not members yet. Each one says whether the address still needs an account or only its verification. The members themselves are `GET /organizations/{organizationId}/members`.',
+      security: session,
+      parameters: [orgId],
+      responses: {
+        '200': ok('Reservations, newest first.', {
+          type: 'array',
+          items: ref('OrganizationRoleReservation'),
+        }),
+        ...errs('401', '403', '404'),
+      },
+    }),
+    post: op({
+      tag: 'Organizations',
+      operationId: 'assignOrganizationRole',
+      summary: 'Give a role in the organization to an e-mail address',
+      description:
+        'ORG_ADMIN (or GLOBAL_ADMIN) only. If the address belongs to a **member**, their role changes now - with the same last-administrator rule as `PATCH /members/{userId}`. If it belongs to a **verified** account that is not a member, it joins now with that role. Either is `APPLIED` (200), or `UNCHANGED` when nothing had to change. Otherwise the role is **reserved** for the address (`RESERVED`, 201) and an e-mail invites the person to create the account - or confirm it - with that address; they join the organization when the address is verified, never at sign-up. Giving a role again to a reserved address updates the reservation instead of duplicating it. Written to the audit trail as `member.role.changed`, `member.invited` or `role.reserved`.',
+      security: session,
+      parameters: [orgId],
+      requestBody: body('AssignOrganizationRoleInput'),
+      responses: {
+        '200': ok(
+          'Applied to the account, or it already had the role.',
+          ref('OrganizationRoleAssignment'),
+          {
+            outcome: 'APPLIED',
+            email: 'lucia.agent@example.com',
+            role: 'AGENT',
+            user: {
+              id: '01a106fe-9dff-72f9-88a4-36321c6f0cbd',
+              username: 'lucia',
+              displayName: 'Lucía Martín',
+            },
+            reservation: null,
+          },
+        ),
+        '201': created(
+          'Reserved for the address.',
+          ref('OrganizationRoleAssignment'),
+          {
+            outcome: 'RESERVED',
+            email: 'new.hire@example.com',
+            role: 'MEMBER',
+            user: null,
+            reservation: {
+              id: '01a10712-4c1e-7b3d-a0f2-9be1d07c5a11',
+              organizationId: '01a106f0-77aa-7c51-8d0e-5f3a2c9b1e42',
+              email: 'new.hire@example.com',
+              role: 'MEMBER',
+              waitingFor: 'ACCOUNT',
+              grantedBy: {
+                id: '01a106fe-0b2c-7e11-9f40-6a5d3c2b1a00',
+                username: 'ana',
+                displayName: 'Ana García',
+              },
+              createdAt: '2026-10-04T09:30:00.000Z',
+              updatedAt: '2026-10-04T09:30:00.000Z',
+            },
+          },
+        ),
+        ...errs('400', '401', '403', '404', '409'),
+      },
+    }),
+  },
+  '/organizations/{organizationId}/role-grants/{grantId}': {
+    delete: op({
+      tag: 'Organizations',
+      operationId: 'cancelOrganizationRoleReservation',
+      summary: 'Cancel an organization role reservation',
+      description:
+        'ORG_ADMIN (or GLOBAL_ADMIN) only. The address no longer joins the organization when it is verified; recorded in the audit trail as `role.reservation.cancelled`. A reservation of another organization is a 404, like any resource of a tenant you cannot see.',
+      security: session,
+      parameters: [orgId, pathParam('grantId', 'Reservation id.')],
+      responses: {
+        '204': noContent('Reservation cancelled.'),
+        ...errs('401', '403', '404'),
       },
     }),
   },
@@ -222,27 +322,12 @@ export const organizationsPaths: Paths = {
       operationId: 'organizationStats',
       summary: 'Organization statistics',
       description:
-        'Counters by status, priority and category, plus resolution times. The data behind an analytics panel.',
+        'AGENT or ORG_ADMIN (a plain MEMBER gets 403). Tickets by status and by priority, the unassigned backlog and the average time to the first reply: the numbers behind the organization overview.',
       security: session,
       parameters: [orgId],
       responses: {
-        '200': ok('Aggregated counters.', {
-          type: 'object',
-          properties: {
-            tickets: {
-              type: 'object',
-              additionalProperties: { type: 'integer' },
-              description: 'Tickets by status.',
-            },
-            priorities: {
-              type: 'object',
-              additionalProperties: { type: 'integer' },
-            },
-            members: { type: 'integer' },
-            avgResolutionHours: { type: 'number', nullable: true },
-          },
-        }),
-        ...errs('401', '404'),
+        '200': ok('Aggregated counters.', ref('OrganizationStats')),
+        ...errs('401', '403', '404'),
       },
     }),
   },

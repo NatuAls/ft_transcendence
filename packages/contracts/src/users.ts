@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { paginationQuerySchema, uuidSchema } from './common.ts';
 import { globalRoleSchema, localeSchema, orgRoleSchema } from './enums.ts';
+import type { PendingRole } from './roles.ts';
 
 /** User & profile contracts. */
 
@@ -32,10 +33,15 @@ export const updatePreferencesSchema = z.object({
   notifyOnMessage: z.boolean().optional(),
 });
 
+/**
+ * Name corrections only. Suspension is `setUserStatusSchema` on its own route,
+ * which refuses your own account and the primary administrator; accepting
+ * `isActive` here as well offered a way around those checks (and the profile
+ * table has no such column, so it ended in a 500).
+ */
 export const adminUpdateUserSchema = z.object({
   firstName: z.string().trim().min(1).max(60).optional(),
   lastName: z.string().trim().min(1).max(60).optional(),
-  isActive: z.boolean().optional(),
 });
 
 export const setGlobalRoleSchema = z.object({ globalRole: globalRoleSchema });
@@ -78,6 +84,11 @@ export interface SessionUser extends PublicUser {
     role: z.infer<typeof orgRoleSchema>;
   }>;
   permissions: string[];
+  /**
+   * Roles an administrator reserved for this address that wait for it to be
+   * verified. Always empty once the address is verified.
+   */
+  pendingRoles: PendingRole[];
 }
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;

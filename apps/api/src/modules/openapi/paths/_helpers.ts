@@ -20,6 +20,9 @@ const ERRORS: Record<string, string> = {
   '403': 'Forbidden',
   '404': 'NotFound',
   '409': 'Conflict',
+  '413': 'PayloadTooLarge',
+  '415': 'UnsupportedMediaType',
+  '422': 'UnprocessableEntity',
   '429': 'TooManyRequests',
 };
 
@@ -59,8 +62,20 @@ export function ok(
 }
 
 /** A 201 with the created resource. */
-export function created(description: string, schema: JsonSchema): JsonSchema {
-  return { description, content: { 'application/json': { schema } } };
+export function created(
+  description: string,
+  schema: JsonSchema,
+  example?: unknown,
+): JsonSchema {
+  return {
+    description,
+    content: {
+      'application/json': {
+        schema,
+        ...(example === undefined ? {} : { example }),
+      },
+    },
+  };
 }
 
 /** A 204: the API answers these with an empty body, never with `{}`. */

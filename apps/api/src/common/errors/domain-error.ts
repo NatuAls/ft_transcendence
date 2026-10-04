@@ -191,6 +191,12 @@ export const Errors = {
       'errors.file.typeNotAllowed',
       `File type ${detected} is not allowed.`,
     ),
+  imageUnreadable: () =>
+    unprocessable(
+      'FILE_IMAGE_UNREADABLE',
+      'errors.file.imageUnreadable',
+      'The image could not be read: it is damaged or not really an image.',
+    ),
   tooManyAttachments: (max: number) =>
     conflict(
       'FILE_TOO_MANY',

@@ -107,6 +107,11 @@ services:
       # pueden ver en su interfaz por túnel SSH.
       - SMTP_HOST=${SMTP_HOST:-mailpit}
       - SMTP_PORT=${SMTP_PORT:-1025}
+      # Con SMTP_USER puesto, el transporte autentica y exige TLS, y los
+      # correos salen a buzones reales. Vacío = Mailpit, como hasta ahora.
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - SMTP_SECURE=${SMTP_SECURE:-false}
       - MAIL_FROM=${MAIL_FROM:-HelpDesk Lite <no-reply@helpdesk.local>}
       # GIT_COMMIT y BUILD_TIME NO se declaran aquí a propósito: van horneados
       # en la imagen como build-args (apps/api/Dockerfile.prod). Así

@@ -154,3 +154,43 @@ export function upload<T>(
     xhr.send(form);
   });
 }
+
+/**
+ * Descarga un fichero autenticado y lo entrega al navegador.
+ *
+ * El gemelo de `upload()`: no puede ser un enlace porque el endpoint va con
+ * token y una navegación no lleva cabeceras. Se trae el cuerpo, se envuelve en
+ * un blob y se suelta por un ancla sintética; el object URL se revoca después
+ * o el blob se queda en memoria mientras viva el documento.
+ *
+ * Lo usa la exportación del RGPD, que es el único sitio donde la API devuelve
+ * un fichero y no JSON.
+ */
+export async function apiDownload(
+  path: string,
+  defaultFilename: string,
+): Promise<void> {
+  const token = getAccessToken();
+  let response: Response;
+  try {
+    response = await fetch(buildUrl(path), {
+      credentials: 'include',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+  } catch (error) {
+    throw new NetworkError(error);
+  }
+  if (!response.ok) throw await parseError(response);
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  // La API pone el nombre real en Content-Disposition; se respeta si está.
+  link.download =
+    /filename="?([^"]+)"?/.exec(
+      response.headers.get('content-disposition') ?? '',
+    )?.[1] ?? defaultFilename;
+  link.click();
+  URL.revokeObjectURL(url);
+}

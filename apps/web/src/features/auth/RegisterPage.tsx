@@ -17,15 +17,25 @@ export interface RegisterValues {
 }
 
 interface RegisterPageProps {
+  /**
+   * Filled in from `#register?email=…`, the link of the e-mail that tells
+   * somebody a role was reserved for their address: the account has to be
+   * created with that same address for the role to reach it.
+   */
+  initialEmail?: string;
   onSignIn: () => void;
   onSubmit: (user: AuthResponse['user']) => void | Promise<void>;
 }
 
-export function RegisterPage({ onSignIn, onSubmit }: RegisterPageProps) {
+export function RegisterPage({
+  initialEmail = '',
+  onSignIn,
+  onSubmit,
+}: RegisterPageProps) {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [acceptedTerms, setAcceptedTerms] = useState(false);

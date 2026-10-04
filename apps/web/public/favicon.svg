@@ -1,0 +1,18 @@
+<!--
+  Icono del sitio. Es el mismo trazado que `BrandMark` de packages/ui, con el
+  fondo que allí pone la clase contenedora: así la pestaña y la marca dentro de
+  la aplicación son la misma cosa y no dos dibujos parecidos.
+
+  SVG y no .ico a propósito: una sola copia nítida a cualquier tamaño, y es lo
+  que entienden los navegadores de hoy. Para los que no, queda el .png de 180
+  que pide iOS y que sirve de reserva.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <rect width="48" height="48" rx="11" fill="#dce8e4" />
+  <path d="M12 24v-3.5C12 13.6 17.4 8 24 8s12 5.6 12 12.5V24" stroke="#365d63" stroke-linecap="round" stroke-width="4" />
+  <path d="M16 18h16v15H25l-6 5v-5h-3V18Z" fill="#86afa4" stroke="#183039" stroke-linejoin="round" stroke-width="2.2" />
+  <path d="M20 23h8M20 27h6" stroke="#183039" stroke-linecap="round" stroke-width="2" />
+  <rect fill="#183039" height="12" rx="3" width="6" x="8" y="21" />
+  <rect fill="#183039" height="12" rx="3" width="6" x="34" y="21" />
+  <path d="M37 31v1c0 4-3 6-7 6h-2" stroke="#183039" stroke-linecap="round" stroke-width="3" />
+</svg>

@@ -32,6 +32,24 @@ const preferences = {
   },
 } as const;
 
+/** What a profile edit answers: the profile row as it is now. */
+const profileFields = {
+  type: 'object',
+  properties: {
+    displayName: {
+      type: 'string',
+      description: 'Rebuilt from first and last name when either changes.',
+    },
+    firstName: { type: 'string' },
+    lastName: { type: 'string' },
+    bio: { type: 'string', nullable: true },
+    jobTitle: { type: 'string', nullable: true },
+    avatarUrl: { type: 'string', nullable: true },
+  },
+} as const;
+
+const userId = pathParam('user', 'User identifier.');
+
 export const usersPaths: Paths = {
   '/users': {
     get: op({
@@ -39,19 +57,36 @@ export const usersPaths: Paths = {
       operationId: 'listUsers',
       summary: 'List users (platform administration)',
       description:
-        'Only for GLOBAL_ADMIN. Paginated and filterable; it is the backing list of the administration panel.',
+        'Only for GLOBAL_ADMIN. Paginated and filterable; it is the backing list of the administration panel and of the platform roles screen (`globalRole=GLOBAL_ADMIN` lists the administrators). Accounts deleted by their owner are not listed. Each row carries `isPrimary`: the recovery administrator created at deployment, which the API refuses to suspend, demote or delete.',
       security: session,
       parameters: [
         { $ref: '#/components/parameters/Page' },
         { $ref: '#/components/parameters/Take' },
-        query('q', 'Free text over username, name and e-mail.'),
+        query('q', 'Free text over username and e-mail.', {
+          type: 'string',
+          maxLength: 120,
+        }),
+        query('globalRole', 'Only users with this platform role.', {
+          type: 'string',
+          enum: ['USER', 'GLOBAL_ADMIN'],
+        }),
         query('isActive', 'Only active or only suspended accounts.', {
           type: 'boolean',
         }),
+        query('sort', 'Column to order by.', {
+          type: 'string',
+          enum: ['createdAt', 'username', 'email', 'lastLoginAt'],
+          default: 'createdAt',
+        }),
+        query('order', 'Direction.', {
+          type: 'string',
+          enum: ['asc', 'desc'],
+          default: 'desc',
+        }),
       ],
       responses: {
-        '200': listOf('UserSummary', 'Users.'),
-        ...errs('401', '403'),
+        '200': listOf('AdminUser', 'Users.'),
+        ...errs('400', '401', '403'),
       },
     }),
   },
@@ -87,7 +122,7 @@ export const usersPaths: Paths = {
       security: session,
       requestBody: body('UpdateProfileInput'),
       responses: {
-        '200': ok('Updated profile.', ref('UserSummary')),
+        '200': ok('Updated profile.', profileFields),
         ...errs('400', '401'),
       },
     }),
@@ -124,7 +159,7 @@ export const usersPaths: Paths = {
       operationId: 'uploadAvatar',
       summary: 'Upload my avatar',
       description:
-        'Multipart upload. The image is re-encoded to WebP 512×512 and **stripped of EXIF**, so the picture cannot leak the GPS coordinates of where it was taken.',
+        'Multipart upload, at most 5 MB. The type is detected from the magic bytes, and the image is re-encoded to WebP 512×512 and **stripped of EXIF**, so the picture cannot leak the GPS coordinates of where it was taken. The previous file, if any, is deleted.',
       security: session,
       requestBody: {
         required: true,
@@ -147,9 +182,17 @@ export const usersPaths: Paths = {
       responses: {
         '200': ok('New avatar URL.', {
           type: 'object',
-          properties: { avatarUrl: { type: 'string' } },
+          properties: {
+            avatarUrl: {
+              type: 'string',
+              example: '/api/v1/users/avatars/01a106fe-9dff.webp',
+            },
+          },
         }),
-        ...errs('400', '401'),
+        // 413 `FILE_TOO_LARGE`: over 5 MB. 415 `FILE_TYPE_NOT_ALLOWED`: not a
+        // PNG, JPEG, GIF or WebP. 422 `FILE_IMAGE_UNREADABLE`: the header says
+        // image but the pixels cannot be decoded.
+        ...errs('400', '401', '413', '415', '422'),
       },
     }),
     delete: op({
@@ -157,7 +200,7 @@ export const usersPaths: Paths = {
       operationId: 'deleteAvatar',
       summary: 'Remove my avatar',
       description:
-        'Deletes the file and leaves `avatarUrl` null; the interface falls back to initials.',
+        'Deletes the file - its old URL answers 404 from then on - and leaves `avatarUrl` null, which every client draws as the default avatar: the initials of the name.',
       security: session,
       responses: {
         '200': ok('Avatar removed.', {
@@ -198,13 +241,13 @@ export const usersPaths: Paths = {
       operationId: 'getPublicProfile',
       summary: 'Public profile',
       description:
-        'The segment here is the **username**, not the id: it is the URL a person can type. Returns only public fields.',
+        'The segment here is the **username**, not the id: it is the URL a person can type. Returns only public fields - never the e-mail address - plus the organizations the user belongs to and activity counters.',
       security: session,
       parameters: [
         pathParam('user', 'Handle of the user.', { type: 'string' }),
       ],
       responses: {
-        '200': ok('Public profile.', ref('UserSummary')),
+        '200': ok('Public profile.', ref('PublicProfile')),
         ...errs('401', '404'),
       },
     }),
@@ -213,12 +256,12 @@ export const usersPaths: Paths = {
       operationId: 'adminUpdateUser',
       summary: 'Edit a user (administration)',
       description:
-        'GLOBAL_ADMIN only. The segment here is the user **id**. Every change is written to the audit trail with before and after.',
+        'GLOBAL_ADMIN only. The segment here is the user **id**. Corrects the first and last name; suspension and the platform role have their own routes below, with their own safeguards.',
       security: session,
-      parameters: [pathParam('user', 'User identifier.')],
+      parameters: [userId],
       requestBody: body('AdminUpdateUserInput'),
       responses: {
-        '200': ok('Updated user.', ref('UserSummary')),
+        '200': ok('Updated profile.', profileFields),
         ...errs('400', '401', '403', '404'),
       },
     }),
@@ -227,9 +270,9 @@ export const usersPaths: Paths = {
       operationId: 'adminDeleteUser',
       summary: 'Delete a user (administration)',
       description:
-        'GLOBAL_ADMIN only, by user **id**. For the user-initiated path with e-mail confirmation, see the GDPR endpoints.',
+        'GLOBAL_ADMIN only, by user **id**. Soft delete: the account is disabled, its sessions revoked and it disappears from lists. Refused (403) on your own account and on the primary administrator. For the user-initiated path with e-mail confirmation, see the GDPR endpoints.',
       security: session,
-      parameters: [pathParam('user', 'User identifier.')],
+      parameters: [userId],
       responses: {
         '204': noContent('User deleted.'),
         ...errs('401', '403', '404'),
@@ -242,12 +285,19 @@ export const usersPaths: Paths = {
       operationId: 'setUserStatus',
       summary: 'Activate or suspend a user',
       description:
-        'A suspended account keeps its data but can no longer sign in, and its API keys stop working immediately.',
+        'GLOBAL_ADMIN only. A suspended account keeps its data but can no longer sign in, and its API keys stop working immediately. Refused (403) on your own account and, for a suspension, on the primary administrator. Written to the audit trail.',
       security: session,
-      parameters: [pathParam('user', 'User identifier.')],
+      parameters: [userId],
       requestBody: body('SetUserStatusInput'),
       responses: {
-        '200': ok('New status.', ref('UserSummary')),
+        '200': ok('New status.', {
+          type: 'object',
+          properties: {
+            id: { type: 'string', format: 'uuid' },
+            username: { type: 'string' },
+            isActive: { type: 'boolean' },
+          },
+        }),
         ...errs('400', '401', '403', '404'),
       },
     }),
@@ -258,12 +308,19 @@ export const usersPaths: Paths = {
       operationId: 'setGlobalRole',
       summary: 'Change the platform role',
       description:
-        'USER or GLOBAL_ADMIN. This is the only dimension of role that lives outside an organization.',
+        'GLOBAL_ADMIN only. USER or GLOBAL_ADMIN: the only dimension of role that lives outside an organization. Nobody changes their own platform role, and the primary administrator cannot be demoted (403). This is how the role is **taken back**; to give it by e-mail address - also to somebody who has no account yet - use `POST /admin/role-grants`. Written to the audit trail.',
       security: session,
-      parameters: [pathParam('user', 'User identifier.')],
+      parameters: [userId],
       requestBody: body('SetGlobalRoleInput'),
       responses: {
-        '200': ok('New role.', ref('UserSummary')),
+        '200': ok('New role.', {
+          type: 'object',
+          properties: {
+            id: { type: 'string', format: 'uuid' },
+            username: { type: 'string' },
+            globalRole: { type: 'string', enum: ['USER', 'GLOBAL_ADMIN'] },
+          },
+        }),
         ...errs('400', '401', '403', '404'),
       },
     }),

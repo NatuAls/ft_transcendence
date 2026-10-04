@@ -1,6 +1,6 @@
 import { Avatar, BrandMark, Icon, IconButton, type IconName } from 'ui';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import type { AppSection, Navigate } from '../app/routes';
+import type { AppRoute, AppSection, Navigate } from '../app/routes';
 import { PreviewIdentitySelect } from '../app/PreviewIdentitySelect';
 import {
   can,
@@ -9,6 +9,7 @@ import {
   type ViewerSession,
 } from '../app/session';
 import { getInitials } from '../app/text';
+import { AppFooter } from './AppFooter';
 import { GlobalSearchDialog } from './GlobalSearchDialog';
 import { ProfileMenu } from './ProfileMenu';
 
@@ -16,6 +17,8 @@ export type { AppSection } from '../app/routes';
 
 interface AppShellProps {
   activeOrganizationId: string;
+  /** Where the legal pages opened from the footer bring the person back. */
+  activeRoute: AppRoute;
   activeSection: AppSection;
   avatarUrl?: string;
   children: ReactNode;
@@ -44,6 +47,7 @@ const workspaceNavigation: Array<{
     label: 'Organization settings',
     section: 'organization',
   },
+  { icon: 'shield', label: 'Roles & access', section: 'organization-roles' },
 ];
 
 const platformNavigation: Array<{
@@ -53,6 +57,7 @@ const platformNavigation: Array<{
 }> = [
   { icon: 'users', label: 'Users', section: 'admin' },
   { icon: 'building', label: 'Organizations', section: 'organizations' },
+  { icon: 'shield', label: 'Platform roles', section: 'platform-roles' },
 ];
 
 const mobileNavigation = workspaceNavigation
@@ -65,7 +70,9 @@ const mobileTitles: Record<AppSection, string> = {
   messages: 'Messages',
   organization: 'Organization',
   organizations: 'Organizations',
+  'organization-roles': 'Roles & access',
   people: 'People',
+  'platform-roles': 'Platform roles',
   tickets: 'Tickets',
 };
 
@@ -101,6 +108,7 @@ function NavButton({
 
 export function AppShell({
   activeOrganizationId,
+  activeRoute,
   activeSection,
   avatarUrl,
   children,
@@ -225,7 +233,7 @@ export function AppShell({
         </div>
       </aside>
 
-      <div className="min-h-dvh pl-[260px] max-[1100px]:pb-[74px] max-[1100px]:pl-0">
+      <div className="flex min-h-dvh flex-col pl-[260px] max-[1100px]:pb-[74px] max-[1100px]:pl-0">
         <header className="flex h-20 items-center justify-between border-b border-border bg-surface px-10 max-[1100px]:hidden">
           <div className="flex items-center gap-2.5">
             <div className="relative" ref={organizationPickerRef}>
@@ -242,7 +250,7 @@ export function AppShell({
                       ACTIVE ORGANIZATION
                     </small>
                     <strong className="text-sm font-medium">
-                      {organizationName}
+                      {organizationName || 'None yet'}
                     </strong>
                   </span>
                   <Icon name="chevron-down" size={15} />
@@ -253,7 +261,7 @@ export function AppShell({
                     ACTIVE ORGANIZATION
                   </small>
                   <strong className="text-sm font-medium">
-                    {organizationName}
+                    {organizationName || 'None yet'}
                   </strong>
                 </span>
               )}
@@ -350,7 +358,8 @@ export function AppShell({
             />
           </ProfileMenu>
         </header>
-        <main className="min-w-0">{children}</main>
+        <main className="min-w-0 flex-1">{children}</main>
+        <AppFooter from={activeRoute} />
         <nav
           aria-label="Mobile navigation"
           className="fixed right-0 bottom-0 left-0 z-20 hidden h-[74px] grid-cols-4 border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] max-[1100px]:grid"

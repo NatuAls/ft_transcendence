@@ -1,3 +1,4 @@
+import type { PendingRole } from 'contracts';
 import type { AuthResponse } from '../api/auth';
 import type { AccountProfile } from '../features/account/accountData';
 
@@ -60,9 +61,13 @@ export type PreviewIdentity =
 export interface ViewerSession {
   accountState: AccountState;
   avatarUrl?: string;
+  /** Whether the address was confirmed. Reserved roles wait for it. */
+  emailVerified: boolean;
   globalRole: GlobalRole;
   id: string;
   memberships: SessionMembership[];
+  /** Roles an administrator reserved for this address, waiting for confirmation. */
+  pendingRoles: PendingRole[];
   permissions: Permission[];
   previewIdentity?: PreviewIdentity;
   profile: AccountProfile;
@@ -181,6 +186,8 @@ function previewProfile(
 export const previewSessions: Record<PreviewIdentity, ViewerSession> = {
   member: {
     accountState: 'ACTIVE',
+    emailVerified: true,
+    pendingRoles: [],
     globalRole: 'USER',
     id: 'preview-member',
     memberships: [northstar('MEMBER'), helio('MEMBER')],
@@ -194,6 +201,8 @@ export const previewSessions: Record<PreviewIdentity, ViewerSession> = {
   },
   agent: {
     accountState: 'ACTIVE',
+    emailVerified: true,
+    pendingRoles: [],
     globalRole: 'USER',
     id: 'preview-agent',
     memberships: [northstar('AGENT'), orbit('MEMBER')],
@@ -207,6 +216,8 @@ export const previewSessions: Record<PreviewIdentity, ViewerSession> = {
   },
   'organization-admin': {
     accountState: 'ACTIVE',
+    emailVerified: true,
+    pendingRoles: [],
     globalRole: 'USER',
     id: 'preview-organization-admin',
     memberships: [northstar('ORG_ADMIN')],
@@ -220,6 +231,8 @@ export const previewSessions: Record<PreviewIdentity, ViewerSession> = {
   },
   'global-admin': {
     accountState: 'ACTIVE',
+    emailVerified: true,
+    pendingRoles: [],
     globalRole: 'GLOBAL_ADMIN',
     id: 'preview-global-admin',
     memberships: [],
@@ -233,6 +246,8 @@ export const previewSessions: Record<PreviewIdentity, ViewerSession> = {
   },
   suspended: {
     accountState: 'SUSPENDED',
+    emailVerified: true,
+    pendingRoles: [],
     globalRole: 'USER',
     id: 'preview-suspended',
     memberships: [northstar('MEMBER')],
@@ -246,6 +261,14 @@ export const previewSessions: Record<PreviewIdentity, ViewerSession> = {
   },
   'no-organization': {
     accountState: 'ACTIVE',
+    emailVerified: false,
+    pendingRoles: [
+      {
+        scope: 'ORGANIZATION',
+        role: 'AGENT',
+        organizationName: 'Northstar Studio',
+      },
+    ],
     globalRole: 'USER',
     id: 'preview-no-organization',
     memberships: [],
@@ -341,9 +364,11 @@ export function viewerFromAuthUser(user: AuthResponse['user']): ViewerSession {
   return {
     accountState: 'ACTIVE',
     avatarUrl: user.avatarUrl ?? undefined,
+    emailVerified: user.emailVerified,
     globalRole: user.globalRole === 'GLOBAL_ADMIN' ? 'GLOBAL_ADMIN' : 'USER',
     id: user.id,
     memberships,
+    pendingRoles: user.pendingRoles ?? [],
     permissions: user.permissions.filter(
       (permission): permission is Permission => typeof permission === 'string',
     ),

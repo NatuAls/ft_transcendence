@@ -16,6 +16,10 @@ import { Errors } from '../../common/errors/domain-error.ts';
 import { effectivePermissions } from '../../rbac/policies.ts';
 import { createLogger } from '../../common/logger.ts';
 import {
+  claimReservations,
+  pendingRolesFor,
+} from '../roles/role-grants.service.ts';
+import {
   fakeVerifyPassword,
   hashPassword,
   verifyPassword,
@@ -105,7 +109,7 @@ export async function register(
   await sendEmailVerification(
     user.email,
     input.firstName,
-    `${ctx.origin}/verify-email?token=${token}`,
+    `${ctx.origin}/#verify-email?token=${token}`,
   );
 
   const issued = await issueTokens(user, ctx);
@@ -239,6 +243,9 @@ export async function verifyEmail(token: string): Promise<void> {
       data: { emailVerifiedAt: new Date() },
     }),
   ]);
+  // The address is now proven to belong to this account: whatever role an
+  // administrator reserved for it reaches the account here, and only here.
+  await claimReservations(row.userId);
 }
 
 /**
@@ -289,7 +296,7 @@ export async function resendVerification(
   await sendEmailVerification(
     user.email,
     user.profile?.firstName ?? 'there',
-    `${ctx.origin}/verify-email?token=${token}`,
+    `${ctx.origin}/#verify-email?token=${token}`,
   );
 }
 
@@ -321,7 +328,11 @@ export async function forgotPassword(
   await sendPasswordReset(
     user.email,
     user.profile?.firstName ?? 'there',
-    `${ctx.origin}/reset-password?token=${token}`,
+    // Con `#`, como el de verificación: el front es un router de fragmento y
+    // `/reset-password` a secas no existe en ninguna tabla de rutas. Sin esto,
+    // Nginx servía index.html, el router veía el fragmento vacío y el testigo
+    // se perdía por el camino: la recuperación no se podía completar.
+    `${ctx.origin}/#reset-password?token=${token}`,
   );
 }
 
@@ -442,14 +453,28 @@ export async function sessionUser(userId: string): Promise<SessionUser> {
       isGlobalAdmin: user.globalRole === 'GLOBAL_ADMIN',
       orgRole: highestRole(user.memberships.map((m) => m.role)),
     }),
+    pendingRoles: await pendingRolesFor(
+      user.email,
+      Boolean(user.emailVerifiedAt),
+    ),
   };
 }
 
-export async function listSessions(userId: string) {
-  return prisma.userSession.findMany({
+/**
+ * The devices with a live refresh token. Every refresh rotates the token into
+ * a new row of the same family, so the live row says when the device was last
+ * used and the oldest row of its family says when it signed in. `current`
+ * marks the device making the call: the refresh cookie travels to every
+ * `/auth/*` route. It is matched by FAMILY, not by row: the web app renews its
+ * session on navigation, so this request may carry the token that a parallel
+ * refresh has just rotated - still the same device.
+ */
+export async function listSessions(userId: string, refreshToken?: string) {
+  const rows = await prisma.userSession.findMany({
     where: { userId, revokedAt: null, expiresAt: { gt: new Date() } },
     select: {
       id: true,
+      familyId: true,
       userAgent: true,
       ip: true,
       createdAt: true,
@@ -457,14 +482,44 @@ export async function listSessions(userId: string) {
     },
     orderBy: { createdAt: 'desc' },
   });
+  const firsts = rows.length
+    ? await prisma.userSession.groupBy({
+        by: ['familyId'],
+        where: { familyId: { in: rows.map((row) => row.familyId) } },
+        _min: { createdAt: true },
+      })
+    : [];
+  const signedInAt = new Map(
+    firsts.map((row) => [row.familyId, row._min.createdAt]),
+  );
+  const presented = refreshToken
+    ? await prisma.userSession.findUnique({
+        where: { refreshTokenHash: hashOneTimeToken(refreshToken) },
+        select: { familyId: true, userId: true },
+      })
+    : null;
+  const currentFamily =
+    presented?.userId === userId ? presented.familyId : null;
+  return rows.map((row) => ({
+    id: row.id,
+    userAgent: row.userAgent,
+    ip: row.ip,
+    createdAt: signedInAt.get(row.familyId) ?? row.createdAt,
+    lastUsedAt: row.createdAt,
+    expiresAt: row.expiresAt,
+    current: row.familyId === currentFamily,
+  }));
 }
 
 export async function revokeSession(
   userId: string,
   sessionId: string,
 ): Promise<void> {
-  await prisma.userSession.updateMany({
+  const { count } = await prisma.userSession.updateMany({
     where: { id: sessionId, userId, revokedAt: null },
     data: { revokedAt: new Date() },
   });
+  // Somebody else's session and a session that does not exist answer the
+  // same, so the endpoint cannot be used to probe identifiers.
+  if (count === 0) throw Errors.resourceNotFound('session');
 }

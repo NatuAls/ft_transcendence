@@ -128,10 +128,24 @@ export function ProfileMenu({
           <MenuItem icon="building" onClick={() => navigate('organizations')}>
             {showAdministration ? 'Organizations' : 'Your organizations'}
           </MenuItem>
+          <MenuItem
+            icon="shield"
+            onClick={() => navigate('organization-roles')}
+          >
+            Roles &amp; access
+          </MenuItem>
           {showAdministration ? (
-            <MenuItem icon="users" onClick={() => navigate('admin')}>
-              Platform users
-            </MenuItem>
+            <>
+              <MenuItem icon="users" onClick={() => navigate('admin')}>
+                Platform users
+              </MenuItem>
+              <MenuItem
+                icon="shield"
+                onClick={() => navigate('platform-roles')}
+              >
+                Platform roles
+              </MenuItem>
+            </>
           ) : null}
           {previewMode && previewIdentity && onPreviewIdentityChange ? (
             <div className="border-t border-border p-2.5" role="none">

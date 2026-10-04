@@ -1,4 +1,18 @@
-import type { LoginInput, RegisterInput } from 'contracts';
+import type { LoginInput, PendingRole, RegisterInput } from 'contracts';
+
+// =============================================================================
+//  ÚNICA EXCEPCIÓN al cliente compartido de core/api/client.ts.
+//
+//  Este fichero habla con la API por `fetch` directo a propósito, y es la
+//  única parte del front que lo hace. El cliente compartido llama a
+//  `refreshSession()` cuando recibe un 401; si `refreshSession()` fuese por el
+//  cliente, un 401 del propio refresco dispararía otro refresco, y así.
+//
+//  Las cuatro rutas que viven aquí son justo las que no necesitan lo que da el
+//  cliente: entrar, registrarse, renovar y salir no tienen sesión que renovar.
+//
+//  Todo lo demás —sin excepciones— pasa por `request` de core/api/client.
+// =============================================================================
 
 // --- 1. GESTIÓN DEL TOKEN EN MEMORIA ---
 let inMemoryAccessToken: string | null = null;
@@ -44,6 +58,8 @@ export interface AuthResponse {
       role: 'MEMBER' | 'AGENT' | 'ORG_ADMIN';
     }>;
     permissions: string[];
+    /** Roles reserved for this address that wait for its confirmation. */
+    pendingRoles?: PendingRole[];
   };
 }
 

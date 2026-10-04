@@ -6,6 +6,7 @@ import { getInitials } from '../../app/text';
 import { AccountHeader } from './AccountHeader';
 import type { AccountProfile } from './accountData';
 import { ProfileSettings } from './ProfileSettings';
+import { SessionsPage } from './SessionsPage';
 import {
   DeleteAccount,
   ExportReady,
@@ -15,10 +16,18 @@ import {
 
 interface AccountPageProps {
   avatarUrl?: string;
+  /**
+   * Confirmation code carried by the link in a GDPR e-mail
+   * (`#account/export-requested?token=…`). It only pre-fills the field: the
+   * API is the one that validates it.
+   */
+  confirmationToken?: string;
   onAvatarChange: (avatarUrl: string) => void;
   onNavigate: (view: AccountView) => void;
   onPrivacyPolicy: () => void;
   onProfileChange: (profile: AccountProfile) => void;
+  /** Called once the account has really been deleted: the session must end. */
+  onSignOut: () => void;
   onTerms: () => void;
   profile: AccountProfile;
   view: AccountView;
@@ -30,15 +39,16 @@ function browserTimeZone() {
 
 export function AccountPage({
   avatarUrl,
+  confirmationToken,
   onAvatarChange,
   onNavigate,
   onPrivacyPolicy,
   onProfileChange,
+  onSignOut,
   onTerms,
   profile,
   view,
 }: AccountPageProps) {
-  const [deletionText, setDeletionText] = useState('');
   const [timeZone, setTimeZone] = useState(browserTimeZone);
 
   if (view === 'home')
@@ -48,6 +58,7 @@ export function AccountPage({
         onPreferences={() => onNavigate('preferences')}
         onPrivacy={() => onNavigate('privacy')}
         onProfile={() => onNavigate('profile')}
+        onSessions={() => onNavigate('sessions')}
         profile={profile}
         timeZone={timeZone}
       />
@@ -63,6 +74,10 @@ export function AccountPage({
         profile={profile}
       />
     );
+  if (view === 'sessions')
+    return (
+      <SessionsPage onBack={() => onNavigate('home')} onSignedOut={onSignOut} />
+    );
   if (view === 'preferences')
     return (
       <PreferencesPage
@@ -76,18 +91,18 @@ export function AccountPage({
       <ExportRequested
         onBack={() => onNavigate('privacy')}
         onConfirm={() => onNavigate('export-ready')}
+        token={confirmationToken}
       />
     );
   if (view === 'export-ready')
-    return (
-      <ExportReady onBack={() => onNavigate('privacy')} profile={profile} />
-    );
+    return <ExportReady onBack={() => onNavigate('privacy')} />;
   if (view === 'delete')
     return (
       <DeleteAccount
-        deletionText={deletionText}
         onBack={() => onNavigate('privacy')}
-        onChange={setDeletionText}
+        onDeleted={onSignOut}
+        profile={profile}
+        token={confirmationToken}
       />
     );
   return (
@@ -107,6 +122,7 @@ function AccountHome({
   onPreferences,
   onPrivacy,
   onProfile,
+  onSessions,
   profile,
   timeZone,
 }: {
@@ -114,6 +130,7 @@ function AccountHome({
   onPreferences: () => void;
   onPrivacy: () => void;
   onProfile: () => void;
+  onSessions: () => void;
   profile: AccountProfile;
   timeZone: string;
 }) {
@@ -170,6 +187,20 @@ function AccountHome({
             <strong>Privacy &amp; data</strong>
             <small className="text-2xs text-muted">
               Export or delete your information
+            </small>
+          </div>
+          <b aria-hidden="true">›</b>
+        </button>
+        <button
+          className="grid grid-cols-[36px_1fr_20px] items-center gap-2.5 rounded-md border border-border bg-surface p-4 text-left hover:border-focus hover:bg-surface-secondary"
+          onClick={onSessions}
+          type="button"
+        >
+          <Icon name="logout" size={20} />
+          <div className="grid gap-1">
+            <strong>Sessions &amp; devices</strong>
+            <small className="text-2xs text-muted">
+              See where you are signed in and sign devices out
             </small>
           </div>
           <b aria-hidden="true">›</b>

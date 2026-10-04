@@ -98,7 +98,7 @@ export const authPaths: Paths = {
       operationId: 'me',
       summary: 'Who am I',
       description:
-        'The caller identity as the server sees it: id, username, profile, global role and the organizations the user belongs to with their role in each. The web client calls it on boot to rebuild the session.',
+        'The caller identity as the server sees it: id, username, profile, global role, the organizations the user belongs to with their role in each, and `pendingRoles` - the roles an administrator reserved for this address that will arrive when it is verified. The web client calls it on boot to rebuild the session.',
       security: session,
       responses: {
         '200': ok('Caller identity.', ref('CurrentUser')),
@@ -111,12 +111,13 @@ export const authPaths: Paths = {
       tag: 'Auth',
       operationId: 'verifyEmail',
       summary: 'Confirm the e-mail address',
-      description: 'Consumes the single-use token sent at sign-up.',
+      description:
+        'Consumes the single-use token sent at sign-up (the e-mail links to `/#verify-email?token=…`). It is also the moment every role an administrator reserved for this address reaches the account: platform role and organization memberships, in one transaction, recorded as `role.reservation.claimed`. An unknown, used or expired token is a 401.',
       security: open,
       requestBody: body('VerifyEmailInput'),
       responses: {
         '204': noContent('Address verified.'),
-        ...errs('400', '429'),
+        ...errs('400', '401', '429'),
       },
     }),
   },
@@ -126,12 +127,15 @@ export const authPaths: Paths = {
       operationId: 'resendVerification',
       summary: 'Send the verification e-mail again',
       description:
-        'Answers the same whether or not the address exists, so it cannot be used to find out who is registered.',
-      security: open,
-      requestBody: body('ForgotPasswordInput'),
+        "For the signed-in account only, so it cannot be used to mail somebody else or to find out who is registered: there is no body, the address is the caller's. The previous link stops working. An address that is already verified gets nothing, and the answer is the same.",
+      security: session,
       responses: {
-        '204': noContent('If the address exists, the message was sent.'),
-        ...errs('400', '429'),
+        '202': ok('Accepted: the message is on its way.', {
+          type: 'object',
+          properties: { accepted: { type: 'boolean', enum: [true] } },
+          required: ['accepted'],
+        }),
+        ...errs('401', '429'),
       },
     }),
   },
@@ -145,7 +149,15 @@ export const authPaths: Paths = {
       security: open,
       requestBody: body('ForgotPasswordInput'),
       responses: {
-        '204': noContent('If the address exists, the message was sent.'),
+        // El router responde 202 con `{ accepted: true }` (auth.router.ts).
+        // El documento decía 204, que es una respuesta que esta ruta no da
+        // nunca: lo descubrió la prueba de contrato al conectar la pantalla
+        // de recuperación el 04/10.
+        '202': ok('Accepted: if the address exists, the message was sent.', {
+          type: 'object',
+          properties: { accepted: { type: 'boolean', enum: [true] } },
+          required: ['accepted'],
+        }),
         ...errs('400', '429'),
       },
     }),
@@ -186,7 +198,7 @@ export const authPaths: Paths = {
       operationId: 'listSessions',
       summary: 'Active sessions',
       description:
-        'Devices with a live refresh token: creation, last use, user agent and address. The material for a "sign out from that device" screen.',
+        'Devices with a live refresh token, most recently used first: sign-in, last use, user agent and address. One row per device even though the token rotates on every refresh. The material for the "Sessions & devices" screen.',
       security: session,
       responses: {
         '200': ok('Open sessions.', {
@@ -195,13 +207,23 @@ export const authPaths: Paths = {
             type: 'object',
             properties: {
               id: { type: 'string', format: 'uuid' },
-              createdAt: { type: 'string', format: 'date-time' },
-              lastUsedAt: { type: 'string', format: 'date-time' },
+              createdAt: {
+                type: 'string',
+                format: 'date-time',
+                description: 'When the device signed in.',
+              },
+              lastUsedAt: {
+                type: 'string',
+                format: 'date-time',
+                description: 'Last time the device renewed its session.',
+              },
+              expiresAt: { type: 'string', format: 'date-time' },
               userAgent: { type: 'string', nullable: true },
               ip: { type: 'string', nullable: true },
               current: {
                 type: 'boolean',
-                description: 'True for the session making this call.',
+                description:
+                  'True for the session making this call, recognised by the refresh cookie that travels to every `/auth` route.',
               },
             },
           },
@@ -215,9 +237,12 @@ export const authPaths: Paths = {
       tag: 'Auth',
       operationId: 'revokeSession',
       summary: 'Revoke one session',
-      description: 'Closes that device without touching the others.',
+      description:
+        'Signs that device out without touching the others: its next `POST /auth/refresh` is refused, so it is out within the 15 minutes its access token still lives. A session of another user and one already revoked answer the same 404, so the route cannot be used to probe identifiers. To close every device, this one included, use `POST /auth/logout-all`.',
       security: session,
-      parameters: [pathParam('id', 'Session identifier.')],
+      parameters: [
+        pathParam('id', 'Session identifier (the `id` of a listed session).'),
+      ],
       responses: {
         '204': noContent('Session revoked.'),
         ...errs('401', '404'),

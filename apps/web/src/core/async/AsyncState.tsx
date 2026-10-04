@@ -10,6 +10,13 @@ interface AsyncStateProps {
   /** true cuando la carga fue bien pero no hay nada que mostrar. */
   isEmpty?: boolean;
   emptyTitle?: string;
+  /** Por qué está vacío y qué hacer: un vacío sin explicación no ayuda. */
+  emptyDescription?: string;
+  /**
+   * Titular del error cuando la pantalla puede decir algo mejor que «no se ha
+   * podido cargar» — por ejemplo «The roles could not be loaded».
+   */
+  errorTitle?: string;
   onRetry?: () => void;
   /** Qué pintar mientras carga (por defecto, tres líneas de esqueleto). */
   loading?: ReactNode;
@@ -22,6 +29,8 @@ export function AsyncState({
   error,
   isEmpty,
   emptyTitle,
+  emptyDescription,
+  errorTitle,
   onRetry,
   loading,
   children,
@@ -33,7 +42,7 @@ export function AsyncState({
   if (status === 'error') {
     return (
       <ErrorState
-        title={t('common.state.error')}
+        title={errorTitle ?? t('common.state.error')}
         description={t(errorKey(error))}
         actionLabel={t('common.actions.retry')}
         onAction={onRetry}
@@ -41,7 +50,12 @@ export function AsyncState({
     );
   }
   if (isEmpty) {
-    return <EmptyState title={emptyTitle ?? t('common.state.empty')} />;
+    return (
+      <EmptyState
+        description={emptyDescription}
+        title={emptyTitle ?? t('common.state.empty')}
+      />
+    );
   }
   return <>{children}</>;
 }

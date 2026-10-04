@@ -1,4 +1,5 @@
 import { BrandMark } from 'ui';
+import { useEffect } from 'react';
 
 // Legal content. Written against what the application really does (Prisma
 // schema, GDPR module, backups, infrastructure) so that the pages are
@@ -143,13 +144,23 @@ export function LegalPage({
   onBack,
   onNavigate,
   onSignIn,
+  signedIn = false,
 }: {
   kind: 'privacy' | 'terms';
   onBack: () => void;
   onNavigate: (k: 'privacy' | 'terms') => void;
   onSignIn: () => void;
+  /** Opened from inside the application: offer the way back, not a sign-in. */
+  signedIn?: boolean;
 }) {
   const page = content[kind];
+
+  // Opened from the footer of a long screen, the page would otherwise keep
+  // that scroll position and start halfway down: hash navigation does not
+  // reset it.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [kind]);
   return (
     <div className="min-h-dvh bg-surface">
       <header className="flex h-[72px] items-center justify-between border-b border-border px-[6vw] max-md:px-4">
@@ -165,7 +176,7 @@ export function LegalPage({
             Terms of Service
           </button>
           <button onClick={onSignIn} type="button">
-            Sign in
+            {signedIn ? 'Open HelpDesk Lite' : 'Sign in'}
           </button>
         </nav>
       </header>

@@ -305,5 +305,66 @@ describe(
         'un tercero no puede revocar la sesión de otro usuario',
       );
     });
+
+    it('marca el dispositivo actual y revoca los demás', async (t) => {
+      if (!up) return t.skip(SKIP_MESSAGE);
+      // Dos dispositivos: el del registro y un segundo inicio de sesión.
+      const owner = await registerUser('sessCur');
+      const other = await login(owner.email);
+
+      type Row = { id: string; current: boolean; lastUsedAt: string };
+      const listed = await api<Row[]>('GET', '/auth/sessions', {
+        token: owner.token,
+        cookie: owner.refreshCookie,
+      });
+      assert.equal(listed.status, 200);
+      assert.equal(listed.body.length, 2);
+      assert.equal(
+        listed.body.filter((row) => row.current).length,
+        1,
+        'la cookie de refresco identifica exactamente un dispositivo',
+      );
+      assert.ok(listed.body.every((row) => row.lastUsedAt));
+
+      const foreign = listed.body.find((row) => !row.current)!;
+      assert.equal(
+        (
+          await api('DELETE', `/auth/sessions/${foreign.id}`, {
+            token: owner.token,
+          })
+        ).status,
+        204,
+      );
+      assert.equal(
+        (
+          await api('DELETE', `/auth/sessions/${foreign.id}`, {
+            token: owner.token,
+          })
+        ).status,
+        404,
+        'una sesión ya revocada no existe para quien la pide',
+      );
+      // Una cookie ya rotada sigue identificando su dispositivo: la web
+      // renueva la sesión al navegar, a la vez que pide esta lista.
+      const rotated = await api('POST', '/auth/refresh', {
+        cookie: owner.refreshCookie,
+      });
+      assert.equal(rotated.status, 200);
+      const afterRotation = await api<Row[]>('GET', '/auth/sessions', {
+        token: owner.token,
+        cookie: owner.refreshCookie,
+      });
+      assert.equal(
+        afterRotation.body.filter((row) => row.current).length,
+        1,
+        'el dispositivo se reconoce por su familia, no por la fila exacta',
+      );
+
+      // El dispositivo revocado ya no puede renovar su sesión.
+      const refreshed = await api('POST', '/auth/refresh', {
+        cookie: other.cookie,
+      });
+      assert.equal(refreshed.status, 401);
+    });
   },
 );

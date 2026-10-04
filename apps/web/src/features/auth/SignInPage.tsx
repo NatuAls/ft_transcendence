@@ -162,6 +162,17 @@ export function SignInPage({
                 </button>
               </div>
             </div>
+            {/* La API tenía /auth/forgot-password desde el principio y esta
+                pantalla no lo enlazaba: quien olvidaba la contraseña no tenía
+                por dónde empezar. */}
+            <div className="-mt-1 flex justify-end text-xs2 md:text-xs">
+              <a
+                className="font-medium text-primary no-underline hover:underline"
+                href="#forgot-password"
+              >
+                Forgot your password?
+              </a>
+            </div>
             <Checkbox
               className="md:my-2"
               label={

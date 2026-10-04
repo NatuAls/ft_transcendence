@@ -7,6 +7,7 @@ import type {
 } from './organizationData';
 
 export function OrganizationDialog({
+  canDeleteOrganization = true,
   deleteContext,
   dialog,
   onClose,
@@ -17,6 +18,12 @@ export function OrganizationDialog({
   selectedName,
   selectedRow,
 }: {
+  /**
+   * The API lets only the ORG_ADMIN who created the organization, or a
+   * platform administrator, delete it; anybody else would confirm and get a
+   * refusal, so the button is not offered to them.
+   */
+  canDeleteOrganization?: boolean;
   deleteContext: DeleteContext;
   dialog: Exclude<OrganizationDialogKind, null>;
   onClose: () => void;
@@ -86,7 +93,8 @@ export function OrganizationDialog({
       eyebrow="ORGANIZATION"
       footer={
         <>
-          {['edit-member', 'settings'].includes(dialog) ? (
+          {dialog === 'edit-member' ||
+          (dialog === 'settings' && canDeleteOrganization) ? (
             <Button
               className="mr-auto max-md:mr-0 max-md:w-full"
               onClick={() => onDelete(dialog as Exclude<DeleteContext, null>)}

@@ -32,8 +32,10 @@ export async function updateProfile(input: UpdateProfileInput): Promise<{
   });
 }
 
-export async function getPreferences(): Promise<UserPreferences> {
-  return request('/users/me/preferences');
+export async function getPreferences(
+  signal?: AbortSignal,
+): Promise<UserPreferences> {
+  return request('/users/me/preferences', { signal });
 }
 
 export async function updatePreferences(
@@ -49,6 +51,8 @@ export async function updatePreferences(
 export async function uploadAvatar(file: File): Promise<{ avatarUrl: string }> {
   const form = new FormData();
   form.append('file', file);
+  // FormData a propósito sin Content-Type: lo pone el navegador con su
+  // boundary, y el cliente compartido ya lo respeta.
   return request('/users/me/avatar', { method: 'PUT', body: form });
 }
 
