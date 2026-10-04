@@ -22,6 +22,8 @@ import { SessionStatePage } from './app/SessionStatePage';
 import { WorkspacePage } from './app/WorkspacePage';
 import { RegisterPage } from './features/auth/RegisterPage';
 import { SignInPage } from './features/auth/SignInPage';
+import { ForgotPasswordPage } from './features/auth/ForgotPasswordPage';
+import { ResetPasswordPage } from './features/auth/ResetPasswordPage';
 import { VerifyEmailPage } from './features/auth/VerifyEmailPage';
 import { LegalPage } from './features/legal/LegalPage';
 import type { NewTicketValues } from './features/tickets/CreateTicketPage';
@@ -319,6 +321,20 @@ function App() {
       <VerifyEmailPage
         onContinue={(signedIn) => navigate(signedIn ? 'tickets' : 'login')}
         onVerified={reloadSession}
+        token={location.params.get('token') ?? ''}
+      />
+    );
+  }
+
+  if (location.route === 'forgot-password') {
+    return <ForgotPasswordPage onBack={() => navigate('login')} />;
+  }
+
+  if (location.route === 'reset-password') {
+    return (
+      <ResetPasswordPage
+        onDone={() => navigate('login')}
+        onRequestNew={() => navigate('forgot-password')}
         token={location.params.get('token') ?? ''}
       />
     );

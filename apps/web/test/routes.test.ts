@@ -56,9 +56,14 @@ describe('routes', () => {
 
   it('keeps the pages that need no session public, and nothing else', () => {
     expect([...publicRoutes].sort()).toEqual([
+      'forgot-password',
       'login',
       'privacy-policy',
       'register',
+      // Las dos de recuperación son públicas por obligación: quien llega es
+      // justamente quien no puede entrar, y el testigo del correo es la
+      // prueba que sustituye a la sesión.
+      'reset-password',
       'terms',
       'verify-email',
     ]);

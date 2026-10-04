@@ -110,6 +110,18 @@ function describeFieldCode(code: string): string {
   const frases: Record<string, string> = {
     'errors.email.invalid': 'Enter a valid e-mail address.',
     'errors.field.required': 'This field is required.',
+    // La política de contraseñas vive en `passwordSchema` y sus claves salen
+    // tanto de la API como del esquema compartido validado en el navegador:
+    // sin estas frases, los dos caminos acababan en «Check this field.», que
+    // no le dice a nadie qué tiene que corregir.
+    'errors.password.tooShort': 'Use at least 10 characters.',
+    'errors.password.tooLong': 'Use at most 128 characters.',
+    'errors.password.needsLowercase': 'Add a lowercase letter.',
+    'errors.password.needsUppercase': 'Add an uppercase letter.',
+    'errors.password.needsDigit': 'Add a digit.',
+    'errors.password.needsSymbol': 'Add a symbol, such as ! or -.',
+    'errors.password.mismatch': 'The two passwords do not match.',
+    'errors.terms.required': 'You have to accept the terms to continue.',
     invalid_type: 'This field is required.',
     too_small: 'This value is too short.',
     too_big: 'This value is too long.',

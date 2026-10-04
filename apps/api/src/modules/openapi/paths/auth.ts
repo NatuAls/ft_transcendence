@@ -149,7 +149,15 @@ export const authPaths: Paths = {
       security: open,
       requestBody: body('ForgotPasswordInput'),
       responses: {
-        '204': noContent('If the address exists, the message was sent.'),
+        // El router responde 202 con `{ accepted: true }` (auth.router.ts).
+        // El documento decía 204, que es una respuesta que esta ruta no da
+        // nunca: lo descubrió la prueba de contrato al conectar la pantalla
+        // de recuperación el 04/10.
+        '202': ok('Accepted: if the address exists, the message was sent.', {
+          type: 'object',
+          properties: { accepted: { type: 'boolean', enum: [true] } },
+          required: ['accepted'],
+        }),
         ...errs('400', '429'),
       },
     }),

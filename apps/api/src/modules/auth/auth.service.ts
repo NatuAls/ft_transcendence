@@ -328,7 +328,11 @@ export async function forgotPassword(
   await sendPasswordReset(
     user.email,
     user.profile?.firstName ?? 'there',
-    `${ctx.origin}/reset-password?token=${token}`,
+    // Con `#`, como el de verificación: el front es un router de fragmento y
+    // `/reset-password` a secas no existe en ninguna tabla de rutas. Sin esto,
+    // Nginx servía index.html, el router veía el fragmento vacío y el testigo
+    // se perdía por el camino: la recuperación no se podía completar.
+    `${ctx.origin}/#reset-password?token=${token}`,
   );
 }
 

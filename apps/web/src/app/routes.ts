@@ -39,6 +39,8 @@ export type AppRoute =
   | 'privacy-policy'
   | 'terms'
   | 'verify-email'
+  | 'forgot-password'
+  | 'reset-password'
   | 'not-found';
 
 export interface AppLocation {
@@ -77,6 +79,8 @@ const routes = new Set<AppRoute>([
   'privacy-policy',
   'terms',
   'verify-email',
+  'forgot-password',
+  'reset-password',
 ]);
 
 export function readLocation(): AppLocation {
@@ -164,6 +168,8 @@ export const publicRoutes: ReadonlySet<AppRoute> = new Set<AppRoute>([
   'privacy-policy',
   'terms',
   'verify-email',
+  'forgot-password',
+  'reset-password',
 ]);
 
 /**
