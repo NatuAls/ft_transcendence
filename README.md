@@ -1,8 +1,12 @@
-*This project has been created as part of the 42 curriculum by fcela-ga, <login2>, <login3>, <login4>.*
+*This project has been created as part of the 42 curriculum by fcela-ga,
+nalesso, elerazo-, israetor and TODO(42 login) — GitHub `arielrhea`.*
 
-<!-- DRAFT prepared by DevOps (fcela-ga). Every block marked TODO(<role>) must be
-     filled in by the person named before the defense; the infrastructure,
-     instructions and operations sections describe the code as it is. -->
+<!-- Two things are still open, and both can only be closed by the person they
+     belong to: Aren's 42 login, and the «How AI was used» line of each member.
+     The «Individual Contributions» sections are a draft taken from the commit
+     history so that nobody starts from a blank page: each person corrects
+     their own and deletes the note. Everything else describes the code as it
+     is. -->
 
 # HelpDesk Lite
 
@@ -119,7 +123,9 @@ Backups ─encrypted─▶ Oracle Object Storage        Alerts ─▶ Telegram +
 
 ### How AI was used
 
-<!-- TODO(each member): add your own usage honestly; the subject requires it. -->
+The subject asks each of us to declare this, so each bullet is written by the
+person it names. Nobody writes anybody else's: a declaration that somebody else
+drafted is not a declaration.
 
 - **DevOps (fcela-ga):** Claude Code (Anthropic) was used as a pair for the
   infrastructure work: reviewing the two external audits against the real
@@ -138,23 +144,26 @@ Backups ─encrypted─▶ Oracle Object Storage        Alerts ─▶ Telegram +
   address, the account created by the person — and reviewed the result; the
   security decision that a reserved role is claimed on verification, not on
   sign-up, is documented in «Users, organizations and roles».
-- **Backend:** TODO(backend).
-- **Frontend:** TODO(frontend).
+- **nalesso:** _to be written by Nahuel — which tools, for what, and what was
+  reviewed or rewritten by hand._
+- **arielrhea:** _to be written by Aren._
+- **elerazo-:** _to be written by Elizabeth._
+- **israetor:** _to be written by Israel._
 
 ## Team Information
 
-<!-- TODO(PM): confirm logins, roles and responsibilities. -->
+Five members. The roles below are what each person actually spent their time
+on, not a nominal split: they match the commit history of the areas named.
 
 | Member | Role(s) | Responsibilities |
 |---|---|---|
-| fcela-ga | DevOps / infrastructure | CI/CD, hosting, security hardening, backups and recovery, observability and alerting, operations documentation |
-| <login2> | TODO | TODO |
-| <login3> | TODO | TODO |
-| <login4> | TODO | TODO |
+| fcela-ga | DevOps / infrastructure · back end | The back end: data model and Prisma, the API and its structure, the public API; roles by e-mail, GDPR and the screens that complete those modules. And the whole of operations: CI/CD and both deployments, hosting and security hardening, backups and recovery, observability and alerting, operations documentation |
+| nalesso | Infrastructure · front end | The Docker setup of the whole project (images, dev and production composes) and CI/CD together with fcela-ga; the shared front-end infrastructure merged in #53 (HTTP client, async state, toasts, i18n, realtime) |
+| TODO(42 login) — GitHub `arielrhea` | Front end (lead) | The design system in `packages/ui` and the bulk of the interface: style base with semantic tokens, the screens and their responsive behaviour. The largest front-end contribution of the project |
+| elerazo- | Chat · front end | Most of the chat, screen and realtime service, the sign-in connection between front and back, and the Makefile |
+| israetor | Reviews · infrastructure | Pinned the Node version in the images, and reviewed and merged most of the pull requests, the infrastructure ones included |
 
 ## Project Management
-
-<!-- TODO(PM): meetings cadence, task board, how tasks were split. -->
 
 - Code: GitHub, feature branches (`backend`, `frontend`, `dev-ops`) merged
   into `develop` through pull requests reviewed by another member; `main`
@@ -162,8 +171,19 @@ Backups ─encrypted─▶ Oracle Object Storage        Alerts ─▶ Telegram +
   template with a merge checklist; CODEOWNERS for the infrastructure paths.
 - Documentation: Notion workspace (endpoints, integration guides) and the
   Markdown files in this repository.
-- Communication: TODO(PM) (e.g. Discord/WhatsApp, weekly sync).
-- Task tracking: TODO(PM) (e.g. Trello/GitHub Projects).
+- Communication: WhatsApp and Discord for the day to day, Slack for the
+  threads that needed to stay findable.
+- Task tracking: Trello for the board, Notion for the written material
+  (endpoints, integration guides and the meeting notes).
+- Meetings: in person at the campus and remote, with **minutes written down**,
+  progress reports and periodic audits of the state of the project. Those
+  audits are what produced the pending-work inventories that drove the last
+  weeks of the project, and the reason several defects were found before an
+  evaluator would have found them.
+- How the work was split: by area rather than by ticket, which is what the
+  commit history shows — infrastructure and API on one side, the interface on
+  the other, and the modules assigned to whoever owned the area they touched.
+  «Team Information» above names who took each one.
 
 ## Technical Stack
 
@@ -749,22 +769,25 @@ deployment closes the reference instead of leaving it open, and
 
 ## Features List
 
-<!-- TODO(each member): one line per feature you built; keep it honest. -->
+Who built what, taken from the commit history of each area rather than from
+memory.
 
 | Feature | Who | Description |
 |---|---|---|
-| Authentication & sessions | TODO(backend) | Register, e-mail verification, login with lockout, refresh rotation, logout everywhere |
-| Organizations, roles, categories, API keys | TODO(backend) | Multi-tenant model with RBAC policies |
-| Tickets, comments, attachments, history | TODO(backend) | Workflow, assignment, internal notes, upload validation |
-| Real-time & chat | TODO(backend) | Socket.IO rooms per ticket/user, direct messages, presence |
-| Notifications & e-mail | TODO(backend) | In-app + SMTP, user preferences |
-| Public API | TODO(backend) | Scoped API keys, per-key rate limits |
-| GDPR export/delete, audit log | TODO(backend) · fcela-ga (screens, e-mail links and transport) | Export and deletion requests with an e-mailed code, a second factor on deletion, a background ZIP build and anonymisation of what other people depend on; the audit log records who did what |
-| Front end (all screens) | TODO(frontend) | Sign in / register, workspace, organizations, ticket list / detail / create, people and profiles, messages, account and privacy, global admin, legal pages |
+| Authentication & sessions (API) | fcela-ga | Register, e-mail verification, login with lockout, refresh rotation, logout everywhere |
+| Organizations, roles, categories, API keys | fcela-ga | Multi-tenant model with RBAC policies |
+| Tickets, comments, attachments, history | fcela-ga | Workflow, assignment, internal notes, upload validation |
+| Real-time (socket layer) | fcela-ga | Socket.IO layer with the authenticated handshake, rooms per user, organization, ticket and conversation, presence with a reconnect grace period, and the transactional event bus that feeds it — a module never imports the socket layer. It is what every screen other than the chat runs on |
+| Chat | elerazo- | Most of it: the Messages screen and **the chat's own realtime service** on top of the socket layer. fcela-ga's part is limited to moving its API calls onto the shared client (session renewal and a 204 that used to be parsed as JSON) and the font-size units |
+| Notifications & e-mail | fcela-ga | In-app + SMTP, user preferences |
+| Public API | fcela-ga | Scoped API keys, per-key rate limits |
+| GDPR export/delete, audit log | fcela-ga | Export and deletion requests with an e-mailed code, a second factor on deletion, a background ZIP build and anonymisation of what other people depend on; the audit log records who did what |
+| Front end (all screens) | arielrhea (design system and most screens) · elerazo- · nalesso | Sign in / register, workspace, organizations, ticket list / detail / create, people and profiles, messages, account and privacy, global admin, legal pages |
 | Roles by e-mail address, platform and organization | fcela-ga | Two screens that give a role to an address; applied at once to a verified account, otherwise reserved and claimed when the address is verified (never at sign-up); the e-mail verification route that makes the claim possible; a notice of what is waiting for an unverified account |
-| Administration wired to the API | TODO(frontend) (screens) · fcela-ga (integration) | Users (list, invite, edit, suspend, change role, delete), Organizations (list, create with its first administrator), Organization settings (edit, delete, members, categories), real active organization and role-dependent views |
-| Friends, presence, profiles, sessions, avatar | TODO(backend) (API) · fcela-ga (screens, presence, sessions and avatar fixes) | Friends and requests with live online status, public profiles, a realtime connection for the whole signed-in session, devices with the current one marked and sign-out per device, the default avatar and "Remove photo" |
-| Legal footer | TODO(frontend) (pages) · fcela-ga (footer) | Privacy Policy, Terms of Service and status page linked from every screen, including the session-state screens and the status page |
+| Administration wired to the API | arielrhea (screens) · fcela-ga (integration) | Users (list, invite, edit, suspend, change role, delete), Organizations (list, create with its first administrator), Organization settings (edit, delete, members, categories), real active organization and role-dependent views |
+| Friends, presence, profiles, sessions, avatar | fcela-ga | Friends and requests with live online status, public profiles, a realtime connection for the whole signed-in session, devices with the current one marked and sign-out per device, the default avatar and "Remove photo" |
+| Legal footer | arielrhea (pages) · fcela-ga (footer) | Privacy Policy, Terms of Service and status page linked from every screen, including the session-state screens and the status page |
+| Shared front-end infrastructure | nalesso | One HTTP client with session renewal, async state with its four states, toasts, i18n (en/es/ca) and the realtime provider |
 | CI/CD pipelines | fcela-ga | Reusable CI (lint, types, tests, Trivy, gitleaks), staging/production deploys with approval gate and rollback |
 | Hosting & security hardening | fcela-ga | Oracle VM, Cloudflare, origin closed to Cloudflare ranges (VCN + iptables), fail2ban, least-privilege DB roles, security headers, rate limits |
 | Health checks & status page | fcela-ga | Liveness and readiness probes, a per-area public traffic light that hides infrastructure detail, and a status page at `/status` served as a static file so it stays up when the application does not |
@@ -774,30 +797,56 @@ deployment closes the reference instead of leaving it open, and
 
 ## Modules
 
-<!-- TODO(PM): list the chosen Major/Minor modules with points, justification,
-     implementation notes and owner. Suggested infrastructure-related entries: -->
+Thirteen modules, **22 points**. The maximum that counts is 19 (14 plus 5 of
+bonus), so the margin is deliberate: a module an evaluator rejects does not
+take the project down with it.
+
+Every row is implemented and can be demonstrated running. Where a module was
+built by more than one person, both are named.
 
 | Module | Type | Points | Owner | Implementation |
 |---|---|---|---|---|
-| TODO | Major | 2 | TODO | TODO |
 | Custom-made design system with reusable components | Minor | 1 | arielrhea | 15 generic reusable components in `packages/ui` — the module asks for ten — built on semantic tokens rather than raw values: a `@theme` palette (canvas, surface, border, ink, muted, primary and the four feedback colours), one type scale, shared radii and a typed `Icon` set. `packages/ui/README.md` is the catalogue: every component with its API, its variants, what it is used for, and the keyboard and accessibility behaviour it guarantees. `BrandMark` is exported too but deliberately not counted, because it is product branding and not a generic component |
 | Public API with authentication, rate limiting and documentation | Major | 2 | fcela-ga | 14 endpoints with `X-API-Key` (Argon2id secret shown once), per-key scopes, 60/min and 1000/h limits and organization tenancy; OpenAPI 3.0.3 with 110 operations generated from the Zod contracts, browsable at `/api/v1/docs` behind two independent doors, and a test that fails if any route is undocumented. See «Public API» above |
 | CI/CD pipeline with automated testing and deployment | Major | 2 | fcela-ga | Seven CI jobs on every pull request, images built once per SHA on a native ARM64 runner and promoted by SHA, a production gate enforced in code (`scripts/ci/prod-gate.mjs`) because environment reviewers do not pause anything in a private repository, encrypted pre-deploy backup, smoke test and automatic rollback, and the whole pipeline reproducible locally with `make ci` / `make deploy-*`. See «Continuous Integration and Delivery» above |
 | Monitoring system with Prometheus and Grafana | Major | 2 | fcela-ga | `compose.observability.yml`: Prometheus 3.14, Grafana 13.2, Alertmanager, five exporters and blackbox probes; nine application metrics behind `METRICS_TOKEN`; 21 alert rules with runbooks, delivery verified by e-mail and Telegram. See «Observability and Alerting» above |
 | Health check and status page system with automated backups and disaster recovery | Minor | 1 | fcela-ga | Liveness, readiness and a public per-area traffic light (`/api/health`, `/ready`, `/status`), the last one answering with full detail only to the operation token; a status page at `/status` served as a static file so it survives both the application bundle and the API; nightly AES-256 backups to Oracle Object Storage, `restore.sh` with integrity checks and a weekly automated restore drill with the recovery time measured; seven alert rules watch backups and drills, three of them on the absence of the metric. See «Health checks, the status page and recovery» above |
 | GDPR compliance features | Minor | 1 | fcela-ga | The module's four subpoints, end to end from the browser: request your data (`POST /gdpr/export`), deletion with confirmation (`POST /gdpr/delete`, needing both the e-mailed code **and** your own username typed back), export in a readable format (a ZIP of JSON built in the background and served through a short-lived authenticated download) and confirmation e-mails at every step. Content other people depend on is anonymised rather than erased, which is what the regulation allows. See «Privacy and data rights» below |
-| Standard user management and authentication | Major | 2 | TODO(backend) (API) · fcela-ga (screens and integration) | The module's four requirements, from the browser and against the API: profile editing; avatar upload re-encoded to WebP without EXIF, with the initials as default avatar and "Remove photo" that also deletes the file; friends with requests both ways and **live** online status (one Socket.IO connection for the whole signed-in session, `presence.changed` followed by the screens); a profile page with presence, organizations and activity. On top, revocable sessions with the current device marked, which the Terms of Service promise. See «Users, organizations and roles» above |
-| Advanced permissions system | Major | 2 | TODO(backend) (RBAC) · fcela-ga (roles by e-mail, screens) | Users CRUD (list, invite, edit, suspend, change role, delete) with your own account and the primary administrator locked; five fixed roles on two levels decided by one pure policy function on every request; roles given **by e-mail address** at platform and organization level, reaching the account only when the address is verified; and screens that change with the role — the same «Roles & access» route is three different screens for `MEMBER`, `AGENT` and `ORG_ADMIN`. 19 integration cases cover the assignment and the membership rules around it, 7 more the platform user administration, and the web tests check that each role sees its own screen and that the interface never offers what the API refuses. See «Users, organizations and roles» above |
-| Organization system | Major | 2 | TODO(backend) (API) · fcela-ga (screens and integration) | Create (with its first administrator given by e-mail), edit and delete organizations; add users by e-mail address and remove them; the active organization taken from the API and switchable; inside it, categories created and edited, members re-roled, and per-organization statistics — every rule enforced again by the server (`orgScope`, 404 rather than 403 to outsiders, the last-administrator rule). See «Users, organizations and roles» above |
-| TODO | … | … | … | … |
-| **Total** | | **TODO** | | |
+| Standard user management and authentication | Major | 2 | fcela-ga (API, friends, profile, sessions and avatar) · arielrhea (profile and account screens) | The module's four requirements, from the browser and against the API: profile editing; avatar upload re-encoded to WebP without EXIF, with the initials as default avatar and "Remove photo" that also deletes the file; friends with requests both ways and **live** online status (one Socket.IO connection for the whole signed-in session, `presence.changed` followed by the screens); a profile page with presence, organizations and activity. On top, revocable sessions with the current device marked, which the Terms of Service promise. See «Users, organizations and roles» above |
+| Advanced permissions system | Major | 2 | fcela-ga (RBAC, roles by e-mail, role screens) · arielrhea (users screen) | Users CRUD (list, invite, edit, suspend, change role, delete) with your own account and the primary administrator locked; five fixed roles on two levels decided by one pure policy function on every request; roles given **by e-mail address** at platform and organization level, reaching the account only when the address is verified; and screens that change with the role — the same «Roles & access» route is three different screens for `MEMBER`, `AGENT` and `ORG_ADMIN`. 19 integration cases cover the assignment and the membership rules around it, 7 more the platform user administration, and the web tests check that each role sees its own screen and that the interface never offers what the API refuses. See «Users, organizations and roles» above |
+| Organization system | Major | 2 | fcela-ga (API and the wiring to it) · arielrhea (organization screens) | Create (with its first administrator given by e-mail), edit and delete organizations; add users by e-mail address and remove them; the active organization taken from the API and switchable; inside it, categories created and edited, members re-roled, and per-organization statistics — every rule enforced again by the server (`orgScope`, 404 rather than 403 to outsiders, the last-administrator rule). See «Users, organizations and roles» above |
+| Use a framework for both front end and back end | Major | 2 | arielrhea (front) · fcela-ga (back) | React 19 with TypeScript and Vite 8 on the front; Express 5 on Node 24 on the back. Both typed end to end by the Zod contracts of `packages/contracts`, which are the same objects the two sides validate against |
+| Use a database ORM | Minor | 1 | fcela-ga | Prisma 7 with `@prisma/adapter-pg` and versioned migrations applied on every deploy; 22 tables with their constraints and cascades |
+| Real-time features with WebSockets | Major | 2 | fcela-ga (socket layer, rooms, presence, event bus) · elerazo- (the chat's realtime service) · nalesso (front-end provider) | Socket.IO with rooms per user, organization, ticket and conversation, and no global broadcast: one-to-one chat with unread counts, and presence held by one connection for the whole session that People and Profile follow live. Verified with two browsers: online at once, offline sixty seconds after leaving |
+| User interaction features | Major | 2 | elerazo- (chat) · fcela-ga (friendships API, friends and profile screens) | One-to-one chat; friendships with requests both ways, accept, decline and withdraw; public profiles with presence, organizations, role in each and activity; and finding people among the colleagues of the active organization or across the platform |
+| **Total** | | **22** | | |
 
 ## Individual Contributions
 
-<!-- TODO(each member): what you built, challenges and how you solved them. -->
+Each person writes their own. The four sections below are a **draft** taken
+from the commit history of each area, so that nobody starts from a blank page:
+correct them, add the challenges you hit and how you solved them, and delete
+this note.
 
-### fcela-ga — DevOps
+### fcela-ga — Back end and DevOps
 
+- Built the back end: the Prisma data model and its migrations, the structure
+  the API modules follow, and the modules themselves — authentication and
+  sessions, users, organizations and roles, tickets with their state machine,
+  full-text search, friendships and conversations, notifications, files, the
+  public API, GDPR, mail and the health probes.
+- Two pieces hold the rest together, and both are deliberately framework-free
+  so they can be tested on their own: a **single RBAC policy table**, which is
+  the one place an authorization decision is made, and a **transactional
+  domain-event bus** that buffers what happens inside a database transaction
+  and only publishes it after the commit — so a rollback never tells a client
+  about a change that did not happen. That is what lets realtime and
+  notifications stay decoupled from every other module.
+- The realtime socket layer: authenticated Socket.IO handshake, rooms per
+  user, organization, ticket and conversation, presence with a reconnect grace
+  period, and delta sync on reconnect. It is what People, Profile and the rest
+  of the screens run on; the chat has its own service on top, written by
+  elerazo-.
 - Designed and ran the delivery pipeline: reusable CI, SHA-tagged ARM64
   images on GHCR, staging on `develop`, production on `main` behind an
   approval gate (`scripts/ci/prod-gate.mjs`), pre-deploy backup and
@@ -836,9 +885,48 @@ deployment closes the reference instead of leaving it open, and
   Spain (fallback plan documented), and keeping every secret out of the
   repository and the chat while automating everything.
 
-### <login2> — TODO
-### <login3> — TODO
-### <login4> — TODO
+### nalesso — Infrastructure and shared front end
+
+*Draft from the history; Nahuel to confirm and add the challenges.*
+
+- Set up Docker for the whole project on 02/09: the development and production
+  images of both applications and the composes that separate the two
+  environments. It is what let everybody run the same stack.
+- Built the CI/CD pipeline together with fcela-ga.
+- Wrote the shared front-end infrastructure merged in PR #53: one HTTP client
+  with session renewal, the async state with its four states, toasts,
+  internationalisation in three languages and the realtime provider. It is what
+  the rest of the screens are now built on.
+
+### TODO(42 login) — GitHub `arielrhea` — Front end
+
+*Draft from the history; Aren to confirm and add the challenges.*
+
+- Built the design system in `packages/ui`: 15 generic reusable components with
+  their semantic palette, type scale, icons and the documented keyboard and
+  accessibility behaviour (`packages/ui/README.md`).
+- Migrated the application from plain CSS to Tailwind v4 with its own tokens
+  (PR #43), which is what closed the mandatory CSS requirement.
+- The bulk of the interface and its responsive behaviour across desktop, tablet
+  and phone. The largest front-end contribution of the project.
+
+### elerazo- — Front end
+
+*Draft from the history; Elizabeth to confirm and add the challenges.*
+
+- Built most of the chat: the Messages screen — conversations, messages and
+  unread counts — and its own realtime service on top of the socket layer.
+- Connected sign-in between the front end and the API, and documented it.
+- Set up the Makefile that the team has used since August.
+
+### israetor — Reviews and infrastructure
+
+*Draft from the history; Israel to confirm and add the challenges.*
+
+- Pinned the Node version in the images (24.19.0 instead of a moving tag),
+  which is what keeps a build from changing under the project without notice.
+- Reviewed and merged most of the pull requests, including the infrastructure
+  ones.
 
 ## Known limitations
 
@@ -858,4 +946,8 @@ deployment closes the reference instead of leaving it open, and
 
 ## License
 
-TODO(PM) — e.g. MIT, or "educational use only".
+**Educational use only.** This is an academic project built for the
+ft_transcendence subject at 42 Barcelona. It is published so it can be read and
+evaluated, not for reuse: no permission is granted to use it, in whole or in
+part, in any other product. The third-party dependencies keep their own
+licences.
