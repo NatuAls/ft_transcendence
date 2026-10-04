@@ -423,6 +423,23 @@ describe(
       assert.equal(response.body.code, 'ORG_LAST_ADMIN');
     });
 
+    it('una cuenta borrada deja de figurar entre los miembros', async (t) => {
+      if (!ready) return skip(t);
+      const person = await registerUser('rgDeleted');
+      await addMember(orgAdmin.token, organizationId, person.username, 'AGENT');
+      assert.equal(
+        (await api('DELETE', `/users/${person.id}`, { token: admin.token }))
+          .status,
+        204,
+      );
+      const members = await api<Array<{ user: { id: string } }>>(
+        'GET',
+        `/organizations/${organizationId}/members`,
+        { token: orgAdmin.token },
+      );
+      assert.ok(!members.body.some((row) => row.user.id === person.id));
+    });
+
     it('una reserva de otra organización no se puede cancelar desde la propia', async (t) => {
       if (!ready) return skip(t);
       const assigned = await api<Assignment>(

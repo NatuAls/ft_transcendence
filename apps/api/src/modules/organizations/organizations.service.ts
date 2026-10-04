@@ -187,7 +187,9 @@ export async function listMembers(
   await findOne(actor, membership, id);
   assertPolicy('member:read', subject(actor, membership));
   return prisma.organizationMember.findMany({
-    where: { organizationId: id },
+    // A deleted account keeps its membership row (the delete is soft), but it
+    // is nobody's colleague any more and nobody can give it a role.
+    where: { organizationId: id, user: { deletedAt: null } },
     orderBy: [{ role: 'desc' }, { joinedAt: 'asc' }],
     select: {
       id: true,
@@ -382,8 +384,10 @@ async function isLastAdmin(
       where: { organizationId_userId: { organizationId, userId } },
       select: { role: true },
     }),
+    // Only administrators who can still sign in count: a deleted account
+    // cannot run the organization.
     prisma.organizationMember.count({
-      where: { organizationId, role: 'ORG_ADMIN' },
+      where: { organizationId, role: 'ORG_ADMIN', user: { deletedAt: null } },
     }),
   ]);
   return target?.role === 'ORG_ADMIN' && adminCount <= 1;
