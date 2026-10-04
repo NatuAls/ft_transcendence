@@ -367,6 +367,7 @@ function App() {
       <SessionStatePage
         kind="suspended"
         onPreviewIdentityChange={handlePreviewIdentityChange}
+        onRecheck={reloadSession}
         onSignOut={handleSignOut}
         viewer={viewer}
       />
@@ -378,6 +379,7 @@ function App() {
       <SessionStatePage
         kind="no-organization"
         onPreviewIdentityChange={handlePreviewIdentityChange}
+        onRecheck={reloadSession}
         onSignOut={handleSignOut}
         viewer={viewer}
       />

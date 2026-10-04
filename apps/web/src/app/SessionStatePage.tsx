@@ -1,4 +1,5 @@
-import { BrandMark, Button, Icon } from 'ui';
+import { Alert, BrandMark, Button, Icon } from 'ui';
+import { useState } from 'react';
 import { PendingRolesNotice } from '../features/roles/PendingRolesNotice';
 import { LegalLinks } from '../layout/AppFooter';
 import { PreviewIdentitySelect } from './PreviewIdentitySelect';
@@ -11,15 +12,38 @@ import {
 export function SessionStatePage({
   kind,
   onPreviewIdentityChange,
+  onRecheck,
   onSignOut,
   viewer,
 }: {
   kind: 'no-organization' | 'suspended';
   onPreviewIdentityChange: (identity: PreviewIdentity) => void;
+  /**
+   * Vuelve a leer la sesión del servidor. Es lo que convierte esta pantalla
+   * en algo que se resuelve solo: en cuanto un administrador añade la
+   * dirección a su organización, la persona entra desde aquí. Sin esto, la
+   * única salida era cerrar sesión y volver a entrar, que nadie adivina.
+   */
+  onRecheck: () => Promise<ViewerSession | null>;
   onSignOut: () => void | Promise<void>;
   viewer: ViewerSession;
 }) {
   const suspended = kind === 'suspended';
+  const [checking, setChecking] = useState(false);
+  const [nothingYet, setNothingYet] = useState(false);
+
+  async function recheck() {
+    setChecking(true);
+    setNothingYet(false);
+    try {
+      // Si la pertenencia ya existe, App deja de pintar esta pantalla sola:
+      // `viewer.memberships` deja de estar vacío y el armazón toma el relevo.
+      await onRecheck();
+      setNothingYet(true);
+    } finally {
+      setChecking(false);
+    }
+  }
   // Somebody who has just registered the address an administrator reserved a
   // role for lands here: they have no organization YET. Say what is waiting
   // and what activates it, instead of "ask for an invitation" - they already
@@ -39,7 +63,7 @@ export function SessionStatePage({
               ? 'Account suspended'
               : waiting
                 ? 'Confirm your e-mail to continue'
-                : 'No active workspace'}
+                : 'You are not in an organization yet'}
           </h1>
           <p className="mx-auto mt-2 max-w-[410px] text-sm leading-6 text-muted">
             {suspended
@@ -62,13 +86,21 @@ export function SessionStatePage({
               value={viewer.previewIdentity}
             />
           ) : null}
-          <Button
-            className="mt-7"
-            onClick={() => void onSignOut()}
-            variant="secondary"
-          >
-            Sign out
-          </Button>
+          {nothingYet ? (
+            <Alert className="mt-6 text-left" tone="info">
+              {suspended
+                ? 'Your account is still suspended.'
+                : 'Nothing yet: your address is still not a member of any organization. Leave this page open and check again in a while.'}
+            </Alert>
+          ) : null}
+          <div className="mt-7 flex flex-wrap justify-center gap-2">
+            <Button disabled={checking} onClick={() => void recheck()}>
+              {checking ? 'Checking…' : 'Check again'}
+            </Button>
+            <Button onClick={() => void onSignOut()} variant="secondary">
+              Sign out
+            </Button>
+          </div>
         </section>
         <LegalLinks className="text-xs" />
       </div>
