@@ -490,7 +490,12 @@ export function MessagesPage({
             <button
               aria-label={`View ${active.name} profile`}
               className="-m-1 flex min-w-0 flex-1 items-center gap-2.5 rounded-sm border-0 bg-transparent p-1 text-left hover:bg-surface-secondary focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-focus"
-              onClick={() => onOpenProfile(active.name)}
+              onClick={() =>
+                // The profile route takes the username outside the preview.
+                onOpenProfile(
+                  previewMode ? active.name : (active.username ?? active.name),
+                )
+              }
               title={`View ${active.name} profile`}
               type="button"
             >

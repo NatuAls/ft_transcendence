@@ -35,6 +35,7 @@ import {
 import { AppShell } from './layout/AppShell';
 import { logout, refreshSession, type AuthResponse } from './api/auth';
 import { listOrganizations } from './api/organizations';
+import { connectRealtime, disconnectRealtime } from './app/realtime';
 
 const roleLabels = {
   AGENT: 'Support agent',
@@ -160,6 +161,8 @@ function App() {
       setViewer(nextViewer);
       setAccountProfile(nextViewer.profile);
       setAvatarUrl(nextViewer.avatarUrl);
+      // Present for everybody else while signed in, on any screen.
+      if (!previewMode) connectRealtime();
       const signature = accessSignature(nextViewer);
       if (options.force || signature !== loadedSignatureRef.current) {
         loadedSignatureRef.current = signature;
@@ -197,6 +200,7 @@ function App() {
     void refreshSession()
       .then(async (authData) => {
         if (!authData) {
+          disconnectRealtime();
           if (!publicRoutes.has(location.route)) {
             window.location.hash = buildHash('login');
           }
@@ -242,6 +246,7 @@ function App() {
       if (!previewMode) await logout();
     } finally {
       if (!previewMode) {
+        disconnectRealtime();
         setViewer(null);
         setAccountProfile(null);
         setAvatarUrl(undefined);

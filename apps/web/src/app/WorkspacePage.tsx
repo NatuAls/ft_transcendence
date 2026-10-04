@@ -164,15 +164,20 @@ export function WorkspacePage({
     case 'people':
       return (
         <PeoplePage
+          currentUserId={viewer.id}
           currentUserName={accountProfile.fullName}
+          onMessage={(person) => navigate('messages', { person })}
           onOpenProfile={(person) => navigate('people-profile', { person })}
+          organizationId={organizationId}
         />
       );
     case 'people-profile':
       return (
         <PublicProfilePage
+          currentUserId={viewer.id}
           key={location.params.get('person') ?? 'Maya Singh'}
           onBack={() => navigate('people')}
+          onEditOwnProfile={() => navigate('account/profile')}
           onMessage={(person) => navigate('messages', { person })}
           personName={location.params.get('person') ?? 'Maya Singh'}
         />

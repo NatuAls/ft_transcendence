@@ -14,6 +14,7 @@ export type AccountView =
   | 'profile'
   | 'preferences'
   | 'privacy'
+  | 'sessions'
   | 'export-requested'
   | 'export-ready'
   | 'delete';
@@ -65,6 +66,7 @@ const routes = new Set<AppRoute>([
   'account/profile',
   'account/preferences',
   'account/privacy',
+  'account/sessions',
   'account/export-requested',
   'account/export-ready',
   'account/delete',
