@@ -48,6 +48,23 @@ translation \`messageKey\`, an English \`message\`, the per-field \`details\`
 when the payload is invalid, and the \`requestId\` that ties the response to
 the server logs.
 
+## Roles
+
+Two levels, and nothing in between:
+
+| Level | Roles | Who hands them out |
+|---|---|---|
+| Platform | \`USER\`, \`GLOBAL_ADMIN\` | A \`GLOBAL_ADMIN\` (\`/admin/role-grants\`, \`PATCH /users/{id}/role\`). |
+| Organization | \`MEMBER\`, \`AGENT\`, \`ORG_ADMIN\` | An \`ORG_ADMIN\` of that organization (\`/organizations/{organizationId}/role-grants\`, \`/members\`). |
+
+A role is given to an **e-mail address**. When a verified account already has
+it, the role applies at once (\`APPLIED\`). When it does not, the role is
+**reserved** for the address (\`RESERVED\`) and the person is e-mailed: they
+create the account themselves, and the role reaches it when the address is
+**verified** - never at sign-up, so registering somebody else's address first
+gains nothing. \`GET /auth/me\` shows a reserved role in \`pendingRoles\`
+until then. An organization always keeps at least one \`ORG_ADMIN\`.
+
 ## Pagination
 
 Lists answer \`{ data, meta }\`. \`meta\` carries \`total\`, \`page\`, \`take\`
@@ -87,7 +104,7 @@ const TAGS = [
   {
     name: 'Organizations',
     description:
-      'Tenants: CRUD, members and roles, categories and the API keys of the public API.',
+      'Tenants: CRUD, members and their roles, roles reserved for an e-mail address until its owner signs up, categories and the API keys of the public API.',
   },
   {
     name: 'Tickets',
@@ -117,7 +134,7 @@ const TAGS = [
   {
     name: 'Admin',
     description:
-      'Platform administration: users, roles, status and the audit trail.',
+      'Platform administration: statistics, the audit trail and the platform role given by e-mail address. The user list and the per-user role and status live under Users.',
   },
   {
     name: 'Public API',
@@ -158,9 +175,9 @@ const RESPONSES: Record<string, JsonSchema> = {
     'Missing, expired or revoked credentials. With a session, renew it through `POST /auth/refresh`.',
     {
       statusCode: 401,
-      code: 'UNAUTHORIZED',
-      messageKey: 'errors.auth.sessionExpired',
-      message: 'Authentication required.',
+      code: 'AUTH_TOKEN_INVALID',
+      messageKey: 'errors.auth.tokenInvalid',
+      message: 'Token is invalid or expired.',
       requestId: '01JB2K9Z',
       timestamp: '2026-09-30T10:00:00.000Z',
       path: '/api/v1/tickets',
@@ -170,21 +187,21 @@ const RESPONSES: Record<string, JsonSchema> = {
     'Authenticated, but the role or the key scope does not allow this action.',
     {
       statusCode: 403,
-      code: 'FORBIDDEN',
-      messageKey: 'errors.common.forbidden',
-      message: 'Not allowed.',
+      code: 'RBAC_FORBIDDEN',
+      messageKey: 'errors.rbac.forbidden',
+      message: 'Your role is not allowed to administer the platform.',
       requestId: '01JB2K9Z',
       timestamp: '2026-09-30T10:00:00.000Z',
-      path: '/api/v1/tickets',
+      path: '/api/v1/admin/stats',
     },
   ),
   NotFound: errorResponse(
     'The resource does not exist **or** the caller is not a member of its organization: a non-member gets 404, never 403, so the API never confirms that a resource exists.',
     {
       statusCode: 404,
-      code: 'NOT_FOUND',
-      messageKey: 'errors.common.notFound',
-      message: 'Resource not found.',
+      code: 'TICKET_NOT_FOUND',
+      messageKey: 'errors.ticket.notFound',
+      message: 'ticket not found.',
       requestId: '01JB2K9Z',
       timestamp: '2026-09-30T10:00:00.000Z',
       path: '/api/v1/tickets/6f1c…',
@@ -202,13 +219,50 @@ const RESPONSES: Record<string, JsonSchema> = {
       path: '/api/v1/organizations',
     },
   ),
+  PayloadTooLarge: errorResponse(
+    'The body or the uploaded file is over the size limit of the endpoint.',
+    {
+      statusCode: 413,
+      code: 'FILE_TOO_LARGE',
+      messageKey: 'errors.file.tooLarge',
+      message: 'Uploaded file exceeds the size limit.',
+      requestId: '01JB2K9Z',
+      timestamp: '2026-09-30T10:00:00.000Z',
+      path: '/api/v1/users/me/avatar',
+    },
+  ),
+  UnsupportedMediaType: errorResponse(
+    'The file type, detected from its magic bytes and not from its name or its `Content-Type`, is not accepted here.',
+    {
+      statusCode: 415,
+      code: 'FILE_TYPE_NOT_ALLOWED',
+      messageKey: 'errors.file.typeNotAllowed',
+      message: 'File type application/x-sh is not allowed.',
+      requestId: '01JB2K9Z',
+      timestamp: '2026-09-30T10:00:00.000Z',
+      path: '/api/v1/users/me/avatar',
+    },
+  ),
+  UnprocessableEntity: errorResponse(
+    'Well-formed and of an accepted type, but the content cannot be processed: an image whose header is valid and whose pixels are damaged.',
+    {
+      statusCode: 422,
+      code: 'FILE_IMAGE_UNREADABLE',
+      messageKey: 'errors.file.imageUnreadable',
+      message:
+        'The image could not be read: it is damaged or not really an image.',
+      requestId: '01JB2K9Z',
+      timestamp: '2026-09-30T10:00:00.000Z',
+      path: '/api/v1/users/me/avatar',
+    },
+  ),
   InternalError: errorResponse(
     'Unexpected failure. The envelope still carries a `requestId`, which is how the matching log line is found.',
     {
       statusCode: 500,
       code: 'INTERNAL_ERROR',
-      messageKey: 'errors.common.unexpected',
-      message: 'Unexpected error.',
+      messageKey: 'errors.common.internal',
+      message: 'Unexpected server error.',
       requestId: '01JB2K9Z',
       timestamp: '2026-09-30T10:00:00.000Z',
       path: '/api/health',
@@ -220,7 +274,7 @@ const RESPONSES: Record<string, JsonSchema> = {
       statusCode: 429,
       code: 'RATE_LIMITED',
       messageKey: 'errors.common.rateLimited',
-      message: 'Too many requests.',
+      message: 'Too many requests. Retry in 42s.',
       requestId: '01JB2K9Z',
       timestamp: '2026-09-30T10:00:00.000Z',
       path: '/api/v1/auth/login',

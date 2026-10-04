@@ -1,8 +1,44 @@
 import { Avatar, Button, Dialog } from 'ui';
 import { useState } from 'react';
+import { previewMode } from '../../app/session';
 import { initialConnections, people } from './peopleData';
+import { ProfileView } from './ProfileView';
 
+/**
+ * Sample profiles in the frontend preview; `GET /users/:username` in the
+ * application, where `personName` is the username.
+ */
 export function PublicProfilePage({
+  currentUserId,
+  onBack,
+  onEditOwnProfile,
+  onMessage,
+  personName,
+}: {
+  currentUserId: string;
+  onBack: () => void;
+  onEditOwnProfile: () => void;
+  onMessage: (personName: string) => void;
+  personName: string;
+}) {
+  return previewMode ? (
+    <PreviewProfilePage
+      onBack={onBack}
+      onMessage={onMessage}
+      personName={personName}
+    />
+  ) : (
+    <ProfileView
+      currentUserId={currentUserId}
+      onBack={onBack}
+      onEditOwnProfile={onEditOwnProfile}
+      onMessage={onMessage}
+      username={personName}
+    />
+  );
+}
+
+function PreviewProfilePage({
   onBack,
   onMessage,
   personName,

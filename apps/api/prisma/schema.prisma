@@ -4,7 +4,7 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 //
-// HelpDesk Lite data model - 19 models, 12 enums.
+// HelpDesk Lite data model - 22 models, 12 enums.
 // Ported from example/apps/api/prisma/schema.prisma.
 
 generator client {
@@ -144,23 +144,25 @@ model User {
   preferences          NotificationPreference?
   sessions             UserSession[]
   verificationTokens   VerificationToken[]
-  sentFriendRequests   Friendship[]         @relation("FriendshipRequester")
-  receivedFriendReqs   Friendship[]         @relation("FriendshipAddressee")
+  sentFriendRequests   Friendship[]            @relation("FriendshipRequester")
+  receivedFriendReqs   Friendship[]            @relation("FriendshipAddressee")
   memberships          OrganizationMember[]
-  invitedMemberships   OrganizationMember[] @relation("MembershipInviter")
-  organizationsCreated Organization[]       @relation("OrganizationCreator")
-  ticketsCreated       Ticket[]             @relation("TicketAuthor")
-  ticketsAssigned      Ticket[]             @relation("TicketAssignee")
+  invitedMemberships   OrganizationMember[]    @relation("MembershipInviter")
+  organizationsCreated Organization[]          @relation("OrganizationCreator")
+  ticketsCreated       Ticket[]                @relation("TicketAuthor")
+  ticketsAssigned      Ticket[]                @relation("TicketAssignee")
   comments             TicketComment[]
   historyEntries       TicketHistory[]
   attachments          Attachment[]
   conversationMembers  ConversationMember[]
   messages             Message[]
-  notifications        Notification[]       @relation("NotificationRecipient")
-  notificationsCaused  Notification[]       @relation("NotificationActor")
+  notifications        Notification[]          @relation("NotificationRecipient")
+  notificationsCaused  Notification[]          @relation("NotificationActor")
   apiKeys              ApiKey[]
   gdprRequests         GdprRequest[]
   auditLogs            AuditLog[]
+  platformRoleGrants   PlatformRoleGrant[]     @relation("PlatformRoleGrantor")
+  orgRoleGrants        OrganizationRoleGrant[] @relation("OrganizationRoleGrantor")
 
   @@index([deletedAt])
   @@index([globalRole, isActive])
@@ -269,11 +271,12 @@ model Organization {
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
 
-  createdBy  User                 @relation("OrganizationCreator", fields: [createdById], references: [id])
+  createdBy  User                    @relation("OrganizationCreator", fields: [createdById], references: [id])
   members    OrganizationMember[]
   categories Category[]
   tickets    Ticket[]
   apiKeys    ApiKey[]
+  roleGrants OrganizationRoleGrant[]
 
   @@index([deletedAt])
   @@map("organizations")
@@ -314,6 +317,47 @@ model Category {
   @@unique([organizationId, name])
   @@index([organizationId, isActive])
   @@map("categories")
+}
+
+// ------------------------------------------------------- role reservations --
+//
+// A role an administrator has given to an E-MAIL ADDRESS, not to an account.
+// The person still has to create the account themselves; the role reaches it
+// the moment that address is verified, never before - otherwise whoever
+// registered someone else's address first would inherit their role. A row
+// lives only while it waits: when it is claimed or cancelled it is deleted,
+// and the history stays in audit_logs.
+
+/// Platform role reserved for an e-mail address (system administration).
+model PlatformRoleGrant {
+  id          String     @id @default(uuid(7)) @db.Uuid
+  email       String     @unique @db.Citext
+  globalRole  GlobalRole
+  grantedById String?    @db.Uuid
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  grantedBy User? @relation("PlatformRoleGrantor", fields: [grantedById], references: [id], onDelete: SetNull)
+
+  @@map("platform_role_grants")
+}
+
+/// Organization role reserved for an e-mail address (organization administration).
+model OrganizationRoleGrant {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  organizationId String   @db.Uuid
+  email          String   @db.Citext
+  role           OrgRole
+  grantedById    String?  @db.Uuid
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  grantedBy    User?        @relation("OrganizationRoleGrantor", fields: [grantedById], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, email])
+  @@index([email])
+  @@map("organization_role_grants")
 }
 
 // --------------------------------------------------------------- helpdesk --

@@ -208,11 +208,17 @@ export async function setAvatar(
   const dir = join(config.UPLOAD_DIR, 'avatars');
   await mkdir(dir, { recursive: true });
   const key = `${uuidv7()}.webp`;
+  // The magic bytes only say what the file claims to be. A damaged image
+  // gets that far and then fails to decode: that is the client's file, a
+  // 422 - not a 500 that reads like the server broke.
   const output = await sharp(file.buffer)
     .rotate()
     .resize(512, 512, { fit: 'cover' })
     .webp({ quality: 82 })
-    .toBuffer();
+    .toBuffer()
+    .catch(() => {
+      throw Errors.imageUnreadable();
+    });
   await writeFile(join(dir, key), output);
 
   const previous = await prisma.userProfile.findUnique({
@@ -230,11 +236,27 @@ export async function setAvatar(
   return { avatarUrl };
 }
 
+/**
+ * Back to the default avatar. The file goes too: a photo the person removed
+ * must not stay on the server, reachable by its URL by anybody who kept it.
+ */
 export async function clearAvatar(userId: string) {
+  const previous = await prisma.userProfile.findUnique({
+    where: { userId },
+    select: { avatarUrl: true },
+  });
   await prisma.userProfile.update({
     where: { userId },
     data: { avatarUrl: null },
   });
+  if (previous?.avatarUrl?.startsWith('/api/v1/users/avatars/')) {
+    const key = previous.avatarUrl.split('/').pop();
+    if (key)
+      await unlink(join(loadConfiguration().UPLOAD_DIR, 'avatars', key)).catch(
+        () => undefined,
+      );
+  }
+  events.emit(DomainEvents.accountUpdated, { userId });
   return { avatarUrl: null };
 }
 
@@ -296,7 +318,17 @@ export async function listAll(query: ListUsersQuery) {
     }),
     prisma.user.count({ where }),
   ]);
-  return paginate(rows, total, query.page, query.take);
+  // `isPrimary` lets the interface hide the actions the API would refuse on
+  // the recovery account anyway (see refusePrimaryAdmin below).
+  return paginate(
+    rows.map((row) => ({
+      ...row,
+      isPrimary: isPrimaryAdminUsername(row.username),
+    })),
+    total,
+    query.page,
+    query.take,
+  );
 }
 
 /**

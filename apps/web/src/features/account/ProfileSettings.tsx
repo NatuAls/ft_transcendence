@@ -1,9 +1,11 @@
 import { Alert, Avatar, Button, SelectField, Tabs, TextField } from 'ui';
 import {
+  deleteAvatar,
   updatePreferences,
   updateProfile,
   uploadAvatar,
 } from '../../api/users';
+import { previewMode } from '../../app/session';
 import { useRef, useState } from 'react';
 import { getInitials } from '../../app/text';
 import { AccountHeader } from './AccountHeader';
@@ -46,6 +48,28 @@ export function ProfileSettings({
 
   function updateDraft(field: keyof AccountProfile, value: string) {
     setDraft((current) => ({ ...current, [field]: value }));
+  }
+
+  /**
+   * Back to the default avatar: the initials badge every account shows until
+   * it uploads a photo. Applied at once - there is nothing to "save" about
+   * removing a picture - and the old file is deleted on the server.
+   */
+  async function removeAvatar() {
+    setFeedback('');
+    try {
+      if (!previewMode && avatarUrl) await deleteAvatar();
+      setSelectedFile(undefined);
+      setPreviewUrl(undefined);
+      onAvatarChange('');
+      setFeedbackKind('success');
+      setFeedback('Photo removed. Your initials are shown instead.');
+    } catch (error) {
+      setFeedbackKind('error');
+      setFeedback(
+        error instanceof Error ? error.message : 'Unable to remove the photo.',
+      );
+    }
   }
 
   function changeAvatar(file?: File) {
@@ -163,10 +187,17 @@ export function ProfileSettings({
             type="file"
           />
           <Button onClick={() => inputRef.current?.click()} variant="secondary">
-            Change avatar
+            {previewUrl ? 'Change avatar' : 'Upload a photo'}
           </Button>
+          {previewUrl ? (
+            <Button onClick={() => void removeAvatar()} variant="ghost">
+              Remove photo
+            </Button>
+          ) : null}
           <small className="text-2xs text-muted max-md:w-full max-md:text-center">
-            PNG, JPG, GIF or WebP · Maximum 5 MB
+            {previewUrl
+              ? 'PNG, JPG, GIF or WebP · Maximum 5 MB'
+              : 'No photo yet: your initials are your default avatar. PNG, JPG, GIF or WebP · Maximum 5 MB'}
           </small>
         </div>
         <div className="grid grid-cols-2 gap-[14px] max-md:grid-cols-1">

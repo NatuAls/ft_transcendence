@@ -42,6 +42,26 @@ skipped=$(summary_value skipped)
 cancelled=$(summary_value cancelled)
 todo=$(summary_value todo)
 
+# TAP plano, sin el resumen de node --test (el de Vitest en la web:
+# `vitest run --reporter=tap-flat`). El resumen se reconstruye a partir de las
+# líneas de resultado, y el plan `1..N` del principio hace de contraprueba: si
+# el proceso murió a medias, habrá menos resultados que los anunciados.
+if [ -z "$tests" ]; then
+  plan=$(awk '/^1\.\.[0-9]+$/ { sub(/^1\.\./, ""); value = $0 } END { print value }' "$LOG")
+  if [ -n "$plan" ]; then
+    tests=$(grep -cE '^(not )?ok [0-9]+' "$LOG" || true)
+    failed=$(grep -cE '^not ok [0-9]+' "$LOG" || true)
+    skipped=$(grep -cE '^(not )?ok [0-9]+.*# SKIP' "$LOG" || true)
+    todo=$(grep -cE '^(not )?ok [0-9]+.*# TODO' "$LOG" || true)
+    cancelled=0
+    passed=$((tests - failed - skipped - todo))
+    if [ "$tests" -ne "$plan" ]; then
+      echo "::error::[$LABEL] el plan anunciaba $plan pruebas y el informe trae $tests: la ejecución se cortó."
+      exit 1
+    fi
+  fi
+fi
+
 if [ -z "$tests" ]; then
   echo "::error::[$LABEL] $LOG no contiene un resumen TAP; ¿se ejecutó node --test con --test-reporter=tap?"
   echo "----- últimas líneas del informe -----"

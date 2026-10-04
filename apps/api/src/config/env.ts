@@ -65,6 +65,18 @@ const envSchema = z.object({
 
   SMTP_HOST: z.string().default('mailpit'),
   SMTP_PORT: z.coerce.number().int().default(1025),
+  // Credenciales del relevo de correo. Vacías = Mailpit, que acepta cualquier
+  // cosa y no sale a internet. Con SMTP_USER puesto, el transporte autentica y
+  // exige TLS: es la diferencia entre «se ve el correo por el túnel SSH» y
+  // «le llega al evaluador a su buzón».
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  // true sólo para el puerto 465 (TLS implícito). En 587, que es lo normal,
+  // se deja en false y la conexión se eleva con STARTTLS.
+  SMTP_SECURE: z
+    .string()
+    .default('false')
+    .transform((v) => v === 'true' || v === '1'),
   MAIL_FROM: z.string().default('HelpDesk Lite <no-reply@helpdesk.local>'),
 
   UPLOAD_DIR: z.string().default('/var/lib/helpdesk/uploads'),

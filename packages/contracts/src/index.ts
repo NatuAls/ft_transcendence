@@ -16,3 +16,4 @@ export * from './organizations.ts';
 export * from './tickets.ts';
 export * from './social.ts';
 export * from './platform.ts';
+export * from './roles.ts';

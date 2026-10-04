@@ -155,6 +155,41 @@ await check(
   },
 );
 
+// 7. Página de estado. Dos cosas a la vez: que el fichero se haya desplegado
+//    (sale de public/, así que un fallo del build lo dejaría fuera sin que
+//    nada más se queje) y que el semáforo público SIGA siendo público —sin
+//    detalle de infraestructura— cuando se pide sin el token de operación.
+await check('Página de estado servida (GET /status)', async () => {
+  const { status, text } = await get(`${WEB}/status`);
+  if (status !== 200) throw new Error(`esperaba 200, recibí ${status}`);
+  if (!text.includes('id="areas"')) {
+    throw new Error('la respuesta no es la página de estado');
+  }
+  if (!text.includes('src="/status.js"')) {
+    throw new Error('la página no referencia status.js');
+  }
+  return `${text.length} bytes de HTML`;
+});
+
+await check(
+  'Semáforo público sin detalle interno (GET /api/health/status)',
+  async () => {
+    const { status, json } = await get(`${WEB}/api/health/status`);
+    if (status !== 200) throw new Error(`esperaba 200, recibí ${status}`);
+    if (!Array.isArray(json?.areas) || json.areas.length === 0) {
+      throw new Error('la respuesta no trae el semáforo por áreas');
+    }
+    // Estos campos son la vista de operación: si aparecen sin token, la página
+    // pública estaría publicando el mapa de la infraestructura.
+    for (const filtrado of ['services', 'version', 'commit', 'uptimeSeconds']) {
+      if (filtrado in json) {
+        throw new Error(`la respuesta anónima incluye "${filtrado}"`);
+      }
+    }
+    return `${json.areas.length} áreas, overall = ${json.overall}`;
+  },
+);
+
 console.log('');
 if (failures > 0) {
   console.error(`SMOKE TEST FALLIDO: ${failures} comprobación(es) en rojo.\n`);

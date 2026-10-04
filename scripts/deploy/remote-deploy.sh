@@ -21,7 +21,8 @@
 #      DB_USER DB_PASSWORD DB_NAME
 #      JWT_ACCESS_SECRET JWT_REFRESH_SECRET PASSWORD_PEPPER
 #  Opcionales:
-#      CORS_ORIGINS SMTP_HOST SMTP_PORT MAIL_FROM APP_VERSION LOG_LEVEL
+#      CORS_ORIGINS SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASS SMTP_SECURE
+#      MAIL_FROM APP_VERSION LOG_LEVEL
 #      BACKUP_RETENTION_DAYS HEALTH_TIMEOUT BACKUP_ENCRYPTION_KEY RCLONE_REMOTE METRICS_TOKEN
 #      BOOTSTRAP_ADMIN_EMAIL DB_APP_USER DB_APP_PASSWORD (rol sin privilegios; ver B4)
 #      BOOTSTRAP_ADMIN_USERNAME BOOTSTRAP_ADMIN_PASSWORD BOOTSTRAP_ADMIN_DISPLAY_NAME
@@ -155,7 +156,14 @@ fi
 #    público o privado, y garantiza que compose y scripts corresponden al mismo
 #    commit que las imágenes.
 # -----------------------------------------------------------------------------
-mkdir -p "$DEPLOY_DIR/scripts/deploy" "$DEPLOY_DIR/backups"
+# `backups/metrics` y `drills/` los crea el DESPLIEGUE, no backup.sh, y por una
+# razón concreta: backup.sh corre como root dentro de un contenedor, así que
+# todo lo que crea él pertenece a root y el ensayo de restauración —que entra
+# por SSH como este usuario— no puede escribir dentro. Creándolos aquí primero,
+# los dos pueden: root escribe en cualquier sitio, este usuario sólo en lo
+# suyo.
+mkdir -p "$DEPLOY_DIR/scripts/deploy" "$DEPLOY_DIR/backups" \
+  "$DEPLOY_DIR/backups/metrics" "$DEPLOY_DIR/drills"
 cd "$DEPLOY_DIR"
 
 fetch() { # fetch <ruta-en-el-repo> <destino-local>
@@ -288,14 +296,23 @@ JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
 JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
 PASSWORD_PEPPER=${PASSWORD_PEPPER}
 CORS_ORIGINS=${CORS_ORIGINS}
-# Si no se define un servidor de correo, se dejan los mismos valores por
-# defecto que usa env.ts. El host "mailpit" no existe en este entorno, así que
-# verifyMail() falla, /api/health/ready marca el correo como "degraded" (es
-# opcional, no bloquea) y mail.service.ts se traga el error sin romper ninguna
-# petición. Resultado: la aplicación funciona, sólo que los correos de
-# verificación y de recuperación no salen a ninguna parte.
+# Correo. Dos modos, y el que manda es si hay SMTP_USER:
+#
+#   · Sin SMTP_USER se usa el servicio `mailpit` del propio compose. Los
+#     correos SE ENVÍAN y se pueden enseñar por el túnel SSH, pero no salen de
+#     la máquina. Es lo que había hasta ahora.
+#   · Con SMTP_USER el transporte autentica contra un relevo real y exige TLS,
+#     así que la verificación de correo, la recuperación de contraseña y las
+#     confirmaciones del RGPD llegan a un buzón de verdad — que es lo que pide
+#     un evaluador que quiere probarlo con su propia dirección.
+#
+# Las credenciales llegan por secreto de GitHub (<ENV>_SMTP_USER / _SMTP_PASS);
+# si faltan, el despliegue no falla: se queda en Mailpit.
 SMTP_HOST=${SMTP_HOST:-mailpit}
 SMTP_PORT=${SMTP_PORT:-1025}
+SMTP_USER=${SMTP_USER:-}
+SMTP_PASS=${SMTP_PASS:-}
+SMTP_SECURE=${SMTP_SECURE:-false}
 MAIL_FROM=${MAIL_FROM:-HelpDesk Lite <no-reply@helpdesk.local>}
 APP_VERSION=${APP_VERSION:-1.0.0}
 BACKUP_ENCRYPTION_KEY=${BACKUP_ENCRYPTION_KEY}
@@ -429,12 +446,37 @@ deploy_failed() {
 # Tampoco toca lo que sí es de este proyecto: de eso se encarga Compose, que
 # además sabe qué puede reutilizar sin tirar la base de datos.
 # -----------------------------------------------------------------------------
+# Los nombres que ESTA pila va a ocupar, preguntándoselos a Compose en vez de
+# adivinarlos con un patrón.
+#
+# La v1 buscaba cualquier contenedor que encajase en `^helpdesk-[a-z0-9]+-$ENV$`
+# y no fuese de este proyecto. Ese patrón también encaja con
+# `helpdesk-pgexporter-prod` y `helpdesk-redisexporter-prod`, que son de la pila
+# de observabilidad y de otro proyecto de Compose: cada despliegue los paraba y
+# los BORRABA. Como estaban eliminados, `restart: always` no los recuperaba, y
+# Prometheus se quedaba sin recolectar Postgres y Redis de ese entorno hasta que
+# alguien volvía a levantar la observabilidad a mano. De ahí los correos de
+# «Prometheus no puede recolectar postgres (postgres-exporter-prod:9187)» en
+# prod y en staging, que además aparecían DESPUÉS del despliegue y no durante.
+#
+# Ahora la lista sale de `compose config`: son exactamente los seis nombres que
+# declara compose.prod.yml para este entorno. Lo que no esté en esa lista no es
+# asunto de este despliegue, por mucho que se llame parecido.
+wanted_names() {
+  $COMPOSE config 2> /dev/null | awk '$1 == "container_name:" { print $2 }'
+}
+
 foreign_containers() {
-  # Nombre + proyecto de Compose de cada contenedor del entorno. Un contenedor
-  # arrancado a mano no tiene esa etiqueta, y entra igual en la comparación.
+  wanted="$(wanted_names)"
+  # Sin lista no se borra nada: es preferible que el `up` falle por un nombre
+  # ocupado, con su mensaje, a barrer contenedores por un patrón.
+  [ -n "$wanted" ] || return 0
+  # Nombre + proyecto de Compose de cada contenedor. Un contenedor arrancado a
+  # mano no tiene esa etiqueta, y entra igual en la comparación.
   docker ps -a --format '{{.Names}}\t{{.Label "com.docker.compose.project"}}' |
-    awk -F'\t' -v env="$ENV_NAME" -v proj="$COMPOSE_PROJECT" \
-      '$1 ~ "^helpdesk-[a-z0-9]+-" env "$" && $2 != proj { print $1 }'
+    awk -F'\t' -v proj="$COMPOSE_PROJECT" -v wanted="$wanted" '
+      BEGIN { n = split(wanted, list, "\n"); for (i = 1; i <= n; i++) want[list[i]] = 1 }
+      ($1 in want) && $2 != proj { print $1 }'
 }
 
 log "Comprobando contenedores previos de ${ENV_NAME}"

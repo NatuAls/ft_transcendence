@@ -19,10 +19,10 @@ export const socialPaths: Paths = {
       operationId: 'listFriends',
       summary: 'My friends',
       description:
-        'Accepted friendships with live presence, kept by the realtime layer with a socket counter so reloading a tab does not make the dot blink.',
+        'Accepted friendships, most recent first, each with the friend and their live presence. Presence is kept by the realtime layer with a socket counter so reloading a tab does not make the dot blink, and changes are pushed live as `presence.changed` on the `/rt` Socket.IO namespace.',
       security: session,
       responses: {
-        '200': ok('Friends.', { type: 'array', items: ref('UserSummary') }),
+        '200': ok('Friends.', { type: 'array', items: ref('Friend') }),
         ...errs('401'),
       },
     }),
@@ -35,13 +35,7 @@ export const socialPaths: Paths = {
       description: 'Received and sent, so one screen can show both columns.',
       security: session,
       responses: {
-        '200': ok('Requests.', {
-          type: 'object',
-          properties: {
-            incoming: { type: 'array', items: ref('UserSummary') },
-            outgoing: { type: 'array', items: ref('UserSummary') },
-          },
-        }),
+        '200': ok('Requests.', ref('FriendRequests')),
         ...errs('401'),
       },
     }),
@@ -50,11 +44,11 @@ export const socialPaths: Paths = {
       operationId: 'sendFriendRequest',
       summary: 'Send a friend request',
       description:
-        'Idempotent: asking twice does not create a second request. If the other person had already asked, the friendship is accepted on the spot.',
+        'By `userId` or `username`. There is only ever one friendship row between two people: asking again while a request is pending - in either direction - or once you are friends answers 409 `FRIEND_EXISTS`; answer the pending one instead. After a decline, the request can be sent again. Asking yourself is a 400.',
       security: session,
       requestBody: body('SendFriendRequestInput'),
       responses: {
-        '201': created('Request sent.', ref('UserSummary')),
+        '201': created('Request sent.', ref('Friendship')),
         ...errs('400', '401', '404', '409'),
       },
     }),
@@ -63,14 +57,16 @@ export const socialPaths: Paths = {
     patch: op({
       tag: 'Social',
       operationId: 'respondFriendRequest',
-      summary: 'Accept, decline or block',
+      summary: 'Accept or decline a request',
       description:
-        'Blocking also hides the blocker from searches for that user and stops new conversations.',
+        'Only the person who received the request can answer it, and only while it is pending; anything else is a 404. Accepting notifies the requester.',
       security: session,
-      parameters: [pathParam('id', 'Request.')],
+      parameters: [
+        pathParam('id', 'Request (the `id` of an `incoming` entry).'),
+      ],
       requestBody: body('RespondFriendRequestInput'),
       responses: {
-        '200': ok('Updated friendship.', ref('UserSummary')),
+        '200': ok('Updated friendship.', ref('Friendship')),
         ...errs('400', '401', '404'),
       },
     }),
@@ -81,7 +77,7 @@ export const socialPaths: Paths = {
       operationId: 'removeFriend',
       summary: 'Remove a friend',
       description:
-        'Undoes the friendship in both directions. The conversation and its messages are kept.',
+        'Undoes the friendship in both directions; it also withdraws a pending request, sent or received. The conversation and its messages are kept.',
       security: session,
       parameters: [pathParam('userId', 'Friend to remove.')],
       responses: {

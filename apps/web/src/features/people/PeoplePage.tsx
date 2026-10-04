@@ -1,5 +1,7 @@
 import { Alert, Avatar, Button, EmptyState, Icon } from 'ui';
 import { useMemo, useState } from 'react';
+import { previewMode } from '../../app/session';
+import { PeopleDirectory } from './PeopleDirectory';
 import {
   incomingRequestNames,
   initialConnections,
@@ -9,7 +11,39 @@ import {
 
 type PeopleTab = 'all' | 'colleagues' | 'requests';
 
+/**
+ * Sample people in the frontend preview; the friends, requests and presence
+ * of the API in the application.
+ */
 export function PeoplePage({
+  currentUserId,
+  currentUserName,
+  onMessage,
+  onOpenProfile,
+  organizationId,
+}: {
+  currentUserId: string;
+  currentUserName: string;
+  onMessage: (username: string) => void;
+  onOpenProfile: (personName: string) => void;
+  organizationId: string;
+}) {
+  return previewMode ? (
+    <PreviewPeoplePage
+      currentUserName={currentUserName}
+      onOpenProfile={onOpenProfile}
+    />
+  ) : (
+    <PeopleDirectory
+      currentUserId={currentUserId}
+      onMessage={onMessage}
+      onOpenProfile={onOpenProfile}
+      organizationId={organizationId}
+    />
+  );
+}
+
+function PreviewPeoplePage({
   currentUserName,
   onOpenProfile,
 }: {

@@ -39,7 +39,7 @@ There are 16 component exports, of which 15 are generic reusable components:
 | `Checkbox` | accessible label and native input props | Auth and permissions |
 | `Dialog` | title, description, footer, initial focus | Modal forms and confirmations |
 | `DropdownMenu` | labelled menu container | Account menu |
-| `EmptyState` | title, description, optional action | Empty lists/searches |
+| `EmptyState` | title, optional description/icon/action | Empty lists/searches |
 | `Icon` | typed `IconName`, optional accessible label | Consistent SVG iconography |
 | `IconButton` | typed icon, required label, `sm`/`md` | Compact actions |
 | `LoadingState` | optional label | Async message history |

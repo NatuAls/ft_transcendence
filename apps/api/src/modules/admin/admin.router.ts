@@ -1,10 +1,13 @@
 import { Router } from 'express';
-import { listAuditQuerySchema } from 'contracts';
+import { assignPlatformRoleSchema, listAuditQuerySchema } from 'contracts';
 import { prisma } from '../../database/prisma.ts';
 import { authed } from '../../common/middleware/chains.ts';
 import { requireGlobalAdmin } from '../../common/middleware/policy.ts';
 import { validate } from '../../common/middleware/validate.ts';
 import { paginate } from '../../common/utils/pagination.ts';
+import { originOf, param } from '../../common/utils/http.ts';
+import * as audit from '../audit/audit.service.ts';
+import * as roles from '../roles/role-grants.service.ts';
 
 export const adminRouter: Router = Router();
 
@@ -87,4 +90,52 @@ adminRouter.get('/stats', async (_req, res) => {
     messages,
     attachments,
   });
+});
+
+// ------------------------------------------------- platform roles by e-mail --
+// The system-level half of the role assignment: a GLOBAL_ADMIN gives the
+// platform role to an address. Applied at once to a verified account,
+// reserved otherwise until that address is verified. Taking the role back
+// from an account is PATCH /users/:id/role.
+adminRouter.get('/role-grants', async (_req, res) => {
+  res.json(await roles.listPlatformReservations());
+});
+
+adminRouter.post(
+  '/role-grants',
+  validate(assignPlatformRoleSchema),
+  async (req, res) => {
+    const { previousRole, ...result } = await roles.assignPlatformRole(
+      req.actor!,
+      req.body,
+      originOf(req),
+    );
+    const log = audit.from(req);
+    if (result.outcome === 'APPLIED') {
+      log('user.role.changed', 'User', result.user!.id, {
+        before: { globalRole: previousRole },
+        after: { globalRole: result.globalRole, via: 'role assignment' },
+      });
+    } else if (result.outcome === 'RESERVED') {
+      log('role.reserved', 'PlatformRoleGrant', result.reservation!.id, {
+        after: { email: result.email, globalRole: result.globalRole },
+      });
+    }
+    res.status(result.outcome === 'RESERVED' ? 201 : 200).json(result);
+  },
+);
+
+adminRouter.delete('/role-grants/:grantId', async (req, res) => {
+  const removed = await roles.cancelPlatformReservation(
+    param(req.params.grantId),
+  );
+  audit.from(req)(
+    'role.reservation.cancelled',
+    'PlatformRoleGrant',
+    removed.id,
+    {
+      before: { email: removed.email, globalRole: removed.globalRole },
+    },
+  );
+  res.status(204).end();
 });
