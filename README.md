@@ -272,6 +272,53 @@ fresh one to paste into GitHub. The full inventory — which secret feeds what,
 how to generate each one and what breaks if it is missing — is in the team's
 DevOps guide.
 
+### Why this is claimed as a Module of Choice (Major)
+
+The subject asks for an explicit justification for any custom module
+(chapter IV.10), so here it is.
+
+**Why we chose it.** The project runs two environments on one small ARM server,
+with four people merging into the same branch. The risk that actually
+materialises in a team project is not a bug in a feature: it is a broken
+deployment that nobody can undo, a secret committed by accident, or a change
+that reaches production without anybody having read it. None of the listed
+modules addresses that, and it is the problem we had.
+
+**What technical challenges it addresses.** Four, each solved in code rather
+than in settings:
+
+1. *A deployment that cannot be rolled back.* Every deployment takes an
+   encrypted backup first, verifies the stack afterwards with health checks and
+   a smoke test that compares the running commit against the expected one, and
+   returns to the previous image automatically if any of that fails.
+2. *Reviews that do not actually block.* GitHub's environment reviewers do not
+   pause anything in a private repository without an Enterprise plan, so the
+   rule lives in `scripts/ci/prod-gate.mjs` and is enforced against the API:
+   merged pull request, approval from somebody other than the author, on the
+   latest commit, with no outstanding changes requested.
+3. *Builds that do not match the target.* Images are built on a native ARM64
+   runner, the same architecture as the server, once per commit and promoted by
+   SHA — so what runs in production is what passed the tests, not a rebuild.
+4. *A pipeline that only exists inside a provider.* The same six jobs and both
+   deployments run on any machine with Docker (`make ci`, `make deploy-*`),
+   with Node and npm pinned to the versions in `.nvmrc` and `devEngines`. The
+   project does not stop when the Actions quota does.
+
+**How it adds value.** It is the reason the other modules can be demonstrated
+at all: staging and production are reachable, current and recoverable, and a
+mistake costs minutes instead of an evening. It also caught real defects —
+a deployment that failed silently for two weeks because an approver's login had
+a capital I written as a lowercase L, and two environments whose containers
+could take each other's names on a shared network.
+
+**Why it deserves Major status.** It is not a configuration file. It is five
+workflows, seven CI jobs, a gate written against the GitHub API, a deployment
+script with backup, lock, health checks, smoke test and rollback, two scheduled
+audits, a local runner that reproduces the whole pipeline, and a secret
+lifecycle with generation and rotation. It is the single largest piece of work
+in this repository outside the application itself, and removing it would not
+degrade the product — it would make it undeployable.
+
 ## Observability and Alerting
 
 The stack is deployed once per host (`compose.observability.yml`) and watches
@@ -469,7 +516,7 @@ deployment closes the reference instead of leaving it open, and
 | Custom-made design system | Minor | 1 | TODO(frontend) | Semantic palette and typography plus 15 generic reusable components in `packages/ui`; responsive, keyboard and accessible states documented in `packages/ui/README.md` |
 | Public API with authentication, rate limiting and documentation | Major | 2 | TODO(backend) | 14 endpoints with `X-API-Key` (Argon2id secret shown once), per-key scopes, 60/min and 1000/h limits and organization tenancy; OpenAPI 3.0.3 with 105 operations generated from the Zod contracts, browsable at `/api/v1/docs` behind two independent doors, and a test that fails if any route is undocumented. See «Public API» above |
 | CI/CD pipeline with automated testing and deployment | Major | 2 | fcela-ga | Seven CI jobs on every pull request, images built once per SHA on a native ARM64 runner and promoted by SHA, a production gate enforced in code (`scripts/ci/prod-gate.mjs`) because environment reviewers do not pause anything in a private repository, encrypted pre-deploy backup, smoke test and automatic rollback, and the whole pipeline reproducible locally with `make ci` / `make deploy-*`. See «Continuous Integration and Delivery» above |
-| Monitoring system (Prometheus / Grafana) | Minor | 1 | fcela-ga | `compose.observability.yml`: Prometheus 3.14, Grafana 13.2, Alertmanager, five exporters and blackbox probes; nine application metrics behind `METRICS_TOKEN`; 21 alert rules with runbooks, delivery verified by e-mail and Telegram. See «Observability and Alerting» above |
+| Monitoring system with Prometheus and Grafana | Major | 2 | fcela-ga | `compose.observability.yml`: Prometheus 3.14, Grafana 13.2, Alertmanager, five exporters and blackbox probes; nine application metrics behind `METRICS_TOKEN`; 21 alert rules with runbooks, delivery verified by e-mail and Telegram. See «Observability and Alerting» above |
 | Infrastructure setup for log management (Loki / Promtail) | Minor | 1 | fcela-ga | Centralized container logs with secret masking, searchable in Grafana |
 | TODO | … | … | … | … |
 | **Total** | | **TODO** | | |
