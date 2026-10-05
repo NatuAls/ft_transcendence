@@ -65,6 +65,18 @@ const envSchema = z.object({
 
   SMTP_HOST: z.string().default('mailpit'),
   SMTP_PORT: z.coerce.number().int().default(1025),
+  // Credenciales del relevo de correo. Vacías = Mailpit, que acepta cualquier
+  // cosa y no sale a internet. Con SMTP_USER puesto, el transporte autentica y
+  // exige TLS: es la diferencia entre «se ve el correo por el túnel SSH» y
+  // «le llega al evaluador a su buzón».
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  // true sólo para el puerto 465 (TLS implícito). En 587, que es lo normal,
+  // se deja en false y la conexión se eleva con STARTTLS.
+  SMTP_SECURE: z
+    .string()
+    .default('false')
+    .transform((v) => v === 'true' || v === '1'),
   MAIL_FROM: z.string().default('HelpDesk Lite <no-reply@helpdesk.local>'),
 
   UPLOAD_DIR: z.string().default('/var/lib/helpdesk/uploads'),
@@ -97,6 +109,25 @@ const envSchema = z.object({
   // Sólo actúa una vez: en cuanto hay un administrador, no vuelve a tocar
   // nada. Así se puede crear el primer admin sin entrar por psql.
   BOOTSTRAP_ADMIN_EMAIL: optionalEnv(z.string().email()),
+  // Primer administrador: además de promocionar una cuenta existente por
+  // correo, el arranque puede CREARLA si llegan usuario y contraseña. El
+  // usuario se elige a propósito no deducible (nada de "admin"), y la
+  // contraseña viaja como secreto de despliegue, nunca en el repositorio.
+  BOOTSTRAP_ADMIN_USERNAME: optionalEnv(z.string().trim().min(3).max(32)),
+  BOOTSTRAP_ADMIN_PASSWORD: optionalEnv(z.string().min(10).max(128)),
+  BOOTSTRAP_ADMIN_DISPLAY_NAME: optionalEnv(z.string().trim().min(1).max(60)),
+  // Con `1`, un despliegue vuelve a fijar la contraseña del administrador a
+  // partir del secreto. Sirve para rotarla sin entrar en la base de datos; se
+  // deja en la auditoría y hay que volver a ponerlo a 0 después.
+  BOOTSTRAP_ADMIN_ROTATE: optionalEnv(z.enum(['0', '1'])),
+
+  // Acceso a la documentación de la API (ver modules/openapi/docs-access.ts).
+  DOCS_ACCESS: optionalEnv(
+    z.enum(['gateway', 'session', 'public', 'disabled']),
+  ),
+  // Secreto compartido entre el Nginx del contenedor `web` y la API: prueba
+  // de que la petición pasó por la autenticación del proxy.
+  DOCS_GATEWAY_TOKEN: optionalEnv(z.string().min(24).max(200)),
 });
 
 export type AppConfig = z.infer<typeof envSchema>;

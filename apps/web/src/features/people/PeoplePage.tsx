@@ -1,18 +1,53 @@
-import { Avatar, Button } from 'ui';
+import { Alert, Avatar, Button, EmptyState, Icon } from 'ui';
 import { useMemo, useState } from 'react';
+import { previewMode } from '../../app/session';
+import { PeopleDirectory } from './PeopleDirectory';
 import {
   incomingRequestNames,
   initialConnections,
   initialSentRequests,
   people,
 } from './peopleData';
-import './people.css';
 
 type PeopleTab = 'all' | 'colleagues' | 'requests';
 
+/**
+ * Sample people in the frontend preview; the friends, requests and presence
+ * of the API in the application.
+ */
 export function PeoplePage({
+  currentUserId,
+  currentUserName,
+  onMessage,
+  onOpenProfile,
+  organizationId,
+}: {
+  currentUserId: string;
+  currentUserName: string;
+  onMessage: (username: string) => void;
+  onOpenProfile: (personName: string) => void;
+  organizationId: string;
+}) {
+  return previewMode ? (
+    <PreviewPeoplePage
+      currentUserName={currentUserName}
+      onOpenProfile={onOpenProfile}
+    />
+  ) : (
+    <PeopleDirectory
+      currentUserId={currentUserId}
+      onMessage={onMessage}
+      onOpenProfile={onOpenProfile}
+      organizationId={organizationId}
+    />
+  );
+}
+
+function PreviewPeoplePage({
+  currentUserName,
   onOpenProfile,
 }: {
+  currentUserName: string;
   onOpenProfile: (personName: string) => void;
 }) {
   const [tab, setTab] = useState<PeopleTab>('all');
@@ -29,6 +64,7 @@ export function PeoplePage({
   const visiblePeople = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return people.filter((person) => {
+      if (person.name === currentUserName) return false;
       const matchesQuery = `${person.name} ${person.role} ${person.team}`
         .toLowerCase()
         .includes(normalizedQuery);
@@ -37,7 +73,7 @@ export function PeoplePage({
       if (tab === 'requests') return pendingRequests.includes(person.name);
       return true;
     });
-  }, [connected, pendingRequests, query, tab]);
+  }, [connected, currentUserName, pendingRequests, query, tab]);
 
   function resolveRequest(personName: string, accept: boolean) {
     setDismissedRequests((current) => [...current, personName]);
@@ -50,11 +86,15 @@ export function PeoplePage({
   }
 
   return (
-    <div className="people-page">
+    <div className="mx-auto max-w-[1160px] p-10 max-md:px-4 max-md:py-6">
       <header>
-        <span>DIRECTORY</span>
-        <h1>People</h1>
-        <p>
+        <span className="text-xs2 tracking-[.08em] text-muted max-md:hidden">
+          DIRECTORY
+        </span>
+        <h1 className="my-2 text-[1.875rem] font-medium max-md:text-[1.375rem]">
+          People
+        </h1>
+        <p className="text-sm text-muted max-md:text-xs">
           {tab === 'requests'
             ? 'Review incoming requests and track invitations you have sent.'
             : tab === 'colleagues'
@@ -62,16 +102,20 @@ export function PeoplePage({
               : 'Find colleagues, manage connections and start a conversation.'}
         </p>
       </header>
-      <label className="people-search">
-        <span aria-hidden="true">⌕</span>
+      <label className="my-5 mt-7 flex h-[42px] w-80 items-center gap-[9px] rounded-sm border border-border bg-surface px-[13px] focus-within:border-focus focus-within:outline-3 focus-within:outline-focus max-md:my-2.5 max-md:mt-5 max-md:w-full">
+        <Icon name="search" size={16} />
         <input
+          className="min-w-0 flex-1 border-0 bg-transparent outline-0 focus-visible:!outline-none"
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search people"
           type="search"
           value={query}
         />
       </label>
-      <nav aria-label="People filters" className="people-tabs">
+      <nav
+        aria-label="People filters"
+        className="mb-5 flex gap-1 border-b border-border max-md:justify-around"
+      >
         {(
           [
             ['all', 'All people'],
@@ -81,55 +125,83 @@ export function PeoplePage({
         ).map(([value, label]) => (
           <button
             aria-current={tab === value ? 'page' : undefined}
+            className={`flex items-center gap-[7px] border-b-2 px-[18px] py-3 text-[0.8125rem] max-md:px-[7px] max-md:py-[11px] max-md:text-xs2 ${tab === value ? 'border-primary text-primary' : 'border-transparent text-muted'}`}
             key={value}
             onClick={() => setTab(value)}
             type="button"
           >
             {label}
             {value === 'requests' && (
-              <small>{pendingRequests.length} pending</small>
+              <small className="inline-flex items-center rounded-full bg-[#e9dfd0] px-[7px] py-0.5 text-3xs leading-none text-warning max-md:hidden">
+                {pendingRequests.length} pending
+              </small>
             )}
           </button>
         ))}
       </nav>
       {tab === 'requests' && (
-        <h2 className="people-section-title">Connection requests</h2>
+        <h2 className="mb-4 text-base font-medium">Connection requests</h2>
       )}
       {feedback ? (
-        <p aria-live="polite" className="people-feedback" role="status">
+        <Alert
+          aria-live="polite"
+          className="mb-[14px] !py-2.5 !text-xs2 !text-muted"
+          role="status"
+          tone="success"
+        >
           {feedback}
-        </p>
+        </Alert>
       ) : null}
-      <section className="people-grid">
+      <section className="grid grid-cols-3 gap-[14px] max-md:grid-cols-1 max-md:gap-[9px]">
         {visiblePeople.map((person) => {
           const isConnected = connected.includes(person.name);
           const isPending = sentRequests.includes(person.name);
           const incoming = tab === 'requests';
           return (
-            <article className="person-card" key={person.name}>
-              <div className="person-card__top">
-                <Avatar className="person-avatar" initials={person.initials} />
+            <article
+              className="rounded-md border border-border bg-surface p-5 max-md:grid max-md:grid-cols-[48px_1fr_auto] max-md:items-center max-md:p-[14px]"
+              key={person.name}
+            >
+              <div className="flex items-start justify-between max-md:relative">
+                <button
+                  aria-label={`View ${person.name}'s profile`}
+                  className="rounded-full"
+                  onClick={() => onOpenProfile(person.name)}
+                  type="button"
+                >
+                  <Avatar
+                    className="!size-[46px] !basis-[46px]"
+                    initials={person.initials}
+                  />
+                </button>
                 <span
-                  className={`person-presence person-presence--${person.status.toLowerCase()}`}
+                  className={`inline-flex items-center gap-[5px] text-2xs before:size-1.5 before:rounded-full before:bg-current before:content-[''] max-md:absolute max-md:-top-2 max-md:-left-1 max-md:rounded-full max-md:bg-surface max-md:px-1 max-md:py-0.5 max-md:text-4xs ${person.status === 'Online' ? 'text-success' : person.status === 'Away' ? 'text-warning' : 'text-muted'}`}
                 >
                   {person.status}
                 </span>
               </div>
-              <div className="person-card__copy">
-                <h2>{person.name}</h2>
-                <p>
+              <button
+                className="min-w-0 text-left focus-visible:rounded-sm"
+                onClick={() => onOpenProfile(person.name)}
+                type="button"
+              >
+                <h2 className="mt-[14px] mb-[5px] text-base font-medium max-md:m-0 max-md:mb-1 max-md:text-sm">
+                  {person.name}
+                </h2>
+                <p className="min-h-9 text-xs2 text-muted max-md:min-h-0 max-md:text-2xs">
                   {person.role} · {person.team}
                 </p>
-              </div>
-              <footer>
+              </button>
+              <footer className="mt-4 flex items-center justify-between border-t border-border pt-[14px] max-md:m-0 max-md:border-0 max-md:p-0 max-md:[&_.ui-button]:!min-h-[34px] max-md:[&_.ui-button]:!min-w-[75px] max-md:[&_.ui-button]:!px-[9px]">
                 <button
+                  className="text-xs2 text-primary max-md:hidden"
                   onClick={() => onOpenProfile(person.name)}
                   type="button"
                 >
                   View profile
                 </button>
                 {incoming ? (
-                  <div>
+                  <div className="flex min-w-0 gap-2 [&_.ui-button]:!min-w-0 [&_.ui-button]:!px-4 max-md:[&_.ui-button]:!min-w-[75px] max-md:[&_.ui-button]:!px-[9px]">
                     <Button
                       onClick={() => resolveRequest(person.name, false)}
                       variant="ghost"
@@ -141,9 +213,11 @@ export function PeoplePage({
                     </Button>
                   </div>
                 ) : isConnected ? (
-                  <span className="person-connection">Connected</span>
+                  <span className="rounded-sm bg-surface-secondary px-3 py-[9px] text-xs2 text-muted">
+                    Connected
+                  </span>
                 ) : isPending ? (
-                  <span className="person-connection person-connection--pending">
+                  <span className="rounded-sm bg-warning-surface px-3 py-[9px] text-xs2 text-warning">
                     Pending
                   </span>
                 ) : (
@@ -152,6 +226,7 @@ export function PeoplePage({
                       setSentRequests((current) => [...current, person.name]);
                       setFeedback(`Connection request sent to ${person.name}.`);
                     }}
+                    size="compact"
                   >
                     Connect
                   </Button>
@@ -161,26 +236,76 @@ export function PeoplePage({
           );
         })}
         {!visiblePeople.length ? (
-          <p className="people-empty">No people match this view.</p>
+          <div className="col-span-full">
+            <EmptyState
+              description="Try another search or filter."
+              title="No people match this view"
+            />
+          </div>
         ) : null}
       </section>
       {tab === 'requests' && (
-        <section className="sent-requests">
-          <h2>Sent requests</h2>
-          {people
-            .filter((person) => sentRequests.includes(person.name))
-            .map((person) => (
-              <div key={person.name}>
-                <Avatar className="person-avatar" initials={person.initials} />
-                <strong>{person.name}</strong>
-                <span>Pending</span>
-              </div>
-            ))}
+        <section className="mt-6">
+          <h2 className="mb-4 text-base font-medium">Sent requests</h2>
+          <div className="grid grid-cols-3 gap-[14px] max-md:grid-cols-1 max-md:gap-[9px]">
+            {people
+              .filter(
+                (person) =>
+                  person.name !== currentUserName &&
+                  sentRequests.includes(person.name),
+              )
+              .map((person) => (
+                <article
+                  className="rounded-md border border-border bg-surface p-5 max-md:grid max-md:grid-cols-[48px_1fr_auto] max-md:items-center max-md:p-[14px]"
+                  key={person.name}
+                >
+                  <div className="flex items-start justify-between max-md:relative">
+                    <button
+                      aria-label={`View ${person.name}'s profile`}
+                      className="rounded-full"
+                      onClick={() => onOpenProfile(person.name)}
+                      type="button"
+                    >
+                      <Avatar
+                        className="!size-[46px] !basis-[46px]"
+                        initials={person.initials}
+                      />
+                    </button>
+                    <span
+                      className={`inline-flex items-center gap-[5px] text-2xs before:size-1.5 before:rounded-full before:bg-current before:content-[''] max-md:absolute max-md:-top-2 max-md:-left-1 max-md:rounded-full max-md:bg-surface max-md:px-1 max-md:py-0.5 max-md:text-4xs ${person.status === 'Online' ? 'text-success' : person.status === 'Away' ? 'text-warning' : 'text-muted'}`}
+                    >
+                      {person.status}
+                    </span>
+                  </div>
+                  <button
+                    className="min-w-0 text-left focus-visible:rounded-sm"
+                    onClick={() => onOpenProfile(person.name)}
+                    type="button"
+                  >
+                    <h3 className="mt-[14px] mb-[5px] text-base font-medium max-md:m-0 max-md:mb-1 max-md:text-sm">
+                      {person.name}
+                    </h3>
+                    <p className="min-h-9 text-xs2 text-muted max-md:min-h-0 max-md:text-2xs">
+                      {person.role} · {person.team}
+                    </p>
+                  </button>
+                  <footer className="mt-4 flex items-center justify-between border-t border-border pt-[14px] max-md:m-0 max-md:border-0 max-md:p-0">
+                    <button
+                      className="text-xs2 text-primary max-md:hidden"
+                      onClick={() => onOpenProfile(person.name)}
+                      type="button"
+                    >
+                      View profile
+                    </button>
+                    <span className="rounded-sm bg-warning-surface px-3 py-[9px] text-xs2 text-warning">
+                      Pending
+                    </span>
+                  </footer>
+                </article>
+              ))}
+          </div>
         </section>
       )}
-      <p className="people-note">
-        Public profiles show only shared information, role and online state.
-      </p>
     </div>
   );
 }

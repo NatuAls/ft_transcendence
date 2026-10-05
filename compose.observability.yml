@@ -64,7 +64,11 @@ services:
       - prometheus_data:/prometheus
     ports:
       - '127.0.0.1:9090:9090'
-    networks: [observability, proxy-tier]
+    # backend_prod y backend_staging son necesarias: Prometheus vigila las dos
+    # APIs por su nombre de contenedor y, desde que la API ya no está en
+    # `proxy-tier` (ver compose.prod.yml), sólo se las alcanza por la red de
+    # cada entorno. `proxy-tier` se mantiene para el resto de objetivos.
+    networks: [observability, proxy-tier, backend_prod, backend_staging]
     depends_on: [alertmanager]
 
   # Renderiza la configuración de Alertmanager antes de que arranque.
@@ -188,6 +192,11 @@ services:
       - '/:/host:ro,rslave'
       - /opt/helpdesk/prod/backups/metrics:/textfile/prod:ro
       - /opt/helpdesk/staging/backups/metrics:/textfile/staging:ro
+      # Los ensayos de restauración escriben aquí y no en backups/metrics:
+      # ese directorio lo crea root desde el contenedor de copias y el ensayo
+      # entra como el usuario de despliegue. El glob de arriba los recoge.
+      - /opt/helpdesk/prod/drills:/textfile/prod-drills:ro
+      - /opt/helpdesk/staging/drills:/textfile/staging-drills:ro
     networks: [observability]
 
   # v0.55.1: Docker 29 usa el image store de containerd (overlayfs

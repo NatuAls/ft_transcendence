@@ -1,5 +1,6 @@
-import { Router, type Request } from 'express';
+import { Router } from 'express';
 import {
+  assignOrganizationRoleSchema,
   createCategorySchema,
   createOrganizationSchema,
   inviteMemberSchema,
@@ -8,22 +9,13 @@ import {
   updateOrganizationSchema,
 } from 'contracts';
 import * as orgs from './organizations.service.ts';
+import * as roles from '../roles/role-grants.service.ts';
 import * as audit from '../audit/audit.service.ts';
 import { authed } from '../../common/middleware/chains.ts';
 import { orgScope } from '../../common/middleware/org-scope.ts';
 import { validate } from '../../common/middleware/validate.ts';
-import { param } from '../../common/utils/http.ts';
+import { originOf, param } from '../../common/utils/http.ts';
 import { apiKeysRouter } from '../public-api/public-api.router.ts';
-
-function originOf(req: Request): string {
-  const proto =
-    (req.headers['x-forwarded-proto'] as string | undefined) ?? 'https';
-  const host =
-    (req.headers['x-forwarded-host'] as string | undefined) ??
-    req.headers.host ??
-    'localhost';
-  return `${proto}://${host}`;
-}
 
 export const organizationsRouter: Router = Router();
 
@@ -192,6 +184,87 @@ organizationsRouter.post(
       req.membership,
       param(req.params.organizationId),
       req.actor!.id,
+    );
+    res.status(204).end();
+  },
+);
+
+// --------------------------------------------- organization roles by e-mail --
+// The organization-level half: an ORG_ADMIN gives a role inside their
+// organization to an address. An account that is already a member changes
+// role at once; a verified account joins at once; anything else is reserved
+// until the address is verified. Reservations list addresses of people who
+// are not members, so only ORG_ADMIN (or a GLOBAL_ADMIN) reads them.
+organizationsRouter.get(
+  '/:organizationId/role-grants',
+  ...authed,
+  orgScope({ minRoles: ['ORG_ADMIN'] }),
+  async (req, res) => {
+    res.json(
+      await roles.listOrganizationReservations(
+        req.actor!,
+        req.membership,
+        param(req.params.organizationId),
+      ),
+    );
+  },
+);
+
+organizationsRouter.post(
+  '/:organizationId/role-grants',
+  ...authed,
+  orgScope({ minRoles: ['ORG_ADMIN'] }),
+  validate(assignOrganizationRoleSchema),
+  async (req, res) => {
+    const organizationId = param(req.params.organizationId);
+    const { previousRole, ...result } = await roles.assignOrganizationRole(
+      req.actor!,
+      req.membership,
+      organizationId,
+      req.body,
+      originOf(req),
+    );
+    const log = audit.from(req);
+    if (result.outcome === 'APPLIED') {
+      log(
+        previousRole ? 'member.role.changed' : 'member.invited',
+        'OrganizationMember',
+        organizationId,
+        {
+          before: previousRole ? { role: previousRole } : undefined,
+          after: {
+            userId: result.user!.id,
+            role: result.role,
+            via: 'role assignment',
+          },
+        },
+      );
+    } else if (result.outcome === 'RESERVED') {
+      log('role.reserved', 'OrganizationRoleGrant', result.reservation!.id, {
+        after: { organizationId, email: result.email, role: result.role },
+      });
+    }
+    res.status(result.outcome === 'RESERVED' ? 201 : 200).json(result);
+  },
+);
+
+organizationsRouter.delete(
+  '/:organizationId/role-grants/:grantId',
+  ...authed,
+  orgScope({ minRoles: ['ORG_ADMIN'] }),
+  async (req, res) => {
+    const organizationId = param(req.params.organizationId);
+    const removed = await roles.cancelOrganizationReservation(
+      req.actor!,
+      req.membership,
+      organizationId,
+      param(req.params.grantId),
+    );
+    audit.from(req)(
+      'role.reservation.cancelled',
+      'OrganizationRoleGrant',
+      removed.id,
+      { before: { organizationId, email: removed.email, role: removed.role } },
     );
     res.status(204).end();
   },

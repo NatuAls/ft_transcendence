@@ -73,7 +73,23 @@ fi
 
 STARTED_AT=$(date +%s)
 FAILURES=0
-REPORT="${BACKUP_PATH}/RESTORE-DRILL-$(date +%Y%m%d-%H%M%S).txt"
+
+# El ensayo NO escribe dentro de la copia, por dos razones:
+#
+#   1. Una copia es un artefacto inmutable: su MANIFEST lleva las huellas
+#      SHA-256 de lo que contiene, y dejarle dentro un informe la ensucia.
+#   2. backup.sh corre como root dentro de un contenedor (compose.prod.yml
+#      monta ./backups en /backups), así que los directorios de las copias son
+#      de root. El ensayo entra por SSH como el usuario de despliegue y NO
+#      puede escribir ahí: desde el 21/09 moría con «Permission denied» al
+#      redirigir la salida de pg_restore. Como la redirección fallaba, con
+#      `set -e` pg_restore no llegaba a ejecutarse, la base quedaba vacía, y
+#      el ensayo informaba de «la tabla users no existe» — un síntoma que no
+#      tenía nada que ver con la copia, que estaba bien.
+DRILL_DIR="${DRILL_OUTPUT_DIR:-drills}"
+mkdir -p "$DRILL_DIR" || die "no puedo crear $DRILL_DIR para los informes del ensayo"
+RESTORE_LOG="${DRILL_DIR}/.restore-$(date +%Y%m%d-%H%M%S).log"
+REPORT="${DRILL_DIR}/RESTORE-DRILL-$(date +%Y%m%d-%H%M%S).txt"
 
 log "Copia seleccionada: $BACKUP_PATH  ·  modo: $MODE"
 cat "$BACKUP_PATH/MANIFEST" 2>/dev/null || true
@@ -167,13 +183,21 @@ if [ "$MODE" = "--drill" ]; then
   if decrypt "$BACKUP_PATH/database.dump.enc" \
       | docker exec -i -e PGPASSWORD="$DRILL_PASS" "$DRILL_DB" \
           pg_restore -U "$DB_USER" -d "$DB_NAME" --clean --if-exists --no-owner --no-privileges \
-      2> "${BACKUP_PATH}/.restore.log"; then
+      2> "$RESTORE_LOG"; then
     ok "pg_restore terminó sin errores"
   else
     # pg_restore devuelve != 0 por avisos benignos (DROP de algo inexistente).
     # Se distingue el aviso del fallo real leyendo el log.
-    if grep -qiE '^pg_restore: error' "${BACKUP_PATH}/.restore.log"; then
-      bad "pg_restore ha fallado:"; tail -20 "${BACKUP_PATH}/.restore.log"
+    #
+    # Si el log NO existe, lo que ha fallado es la propia redirección y
+    # pg_restore no ha llegado a correr. Antes se caía en el `else` y se
+    # anunciaba «avisos benignos» sobre una restauración que no había
+    # ocurrido: el ensayo seguía adelante y culpaba a la copia.
+    if [ ! -f "$RESTORE_LOG" ]; then
+      bad "pg_restore no llegó a ejecutarse: no se pudo escribir $RESTORE_LOG"
+      FAILURES=$((FAILURES + 1))
+    elif grep -qiE '^pg_restore: error' "$RESTORE_LOG"; then
+      bad "pg_restore ha fallado:"; tail -20 "$RESTORE_LOG"
       FAILURES=$((FAILURES + 1))
     else
       ok "pg_restore terminó con avisos benignos"
@@ -250,7 +274,20 @@ if [ "$MODE" = "--drill" ]; then
   cat "$REPORT"
 
   # Métrica para Prometheus: alerta si el último ensayo correcto es antiguo.
-  METRICS_FILE="${BACKUP_METRICS_FILE:-/opt/helpdesk/${ENV_NAME:-prod}/backups/metrics/restore.prom}"
+  # La métrica va a drills/, NO a backups/metrics.
+  #
+  # backup.sh corre como root dentro de un contenedor y crea
+  # /backups/metrics; en el host ese directorio queda de root, y `mkdir -p`
+  # sobre un directorio que ya existe NO cambia el dueño. El ensayo entra por
+  # SSH como el usuario de despliegue, así que escribir ahí le daba
+  # «Permission denied» incluso después de mover el informe fuera de la copia:
+  # moría al final, la métrica no se actualizaba nunca y la alerta
+  # «hace más de diez días que no se ensaya una restauración» no se callaba
+  # aunque el ensayo hubiese ido bien.
+  #
+  # node-exporter lee /textfile/* con glob, así que basta con montarle este
+  # directorio como un recolector más (ver compose.observability.yml).
+  METRICS_FILE="${BACKUP_METRICS_FILE:-${DRILL_DIR}/restore.prom}"
   mkdir -p "$(dirname "$METRICS_FILE")"
   # Misma etiqueta `env` que backup.sh: prod y staging comparten node-exporter.
   l="{env=\"${ENV_NAME:-prod}\"}"

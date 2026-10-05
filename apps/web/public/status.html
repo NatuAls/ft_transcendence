@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Service status · HelpDesk Lite</title>
+    <meta
+      name="description"
+      content="Current availability of the HelpDesk Lite service areas."
+    />
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#e9ece8" />
+    <!-- El mismo icono que la aplicación: quien llega aquí desde una alerta
+         tiene que reconocer de qué servicio está leyendo el estado. -->
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="HelpDesk Lite" />
+    <meta property="og:title" content="HelpDesk Lite — Service status" />
+    <meta
+      property="og:description"
+      content="Current availability of the HelpDesk Lite service areas."
+    />
+    <meta property="og:image" content="/apple-touch-icon.png" />
+    <!--
+      Página de estado pública — tarea DevOps 9.
+
+      Se sirve como FICHERO ESTÁTICO desde el contenedor `web` (Vite copia
+      public/ a dist/ tal cual), no como una ruta de la SPA, y eso es
+      deliberado:
+
+        · No depende del bundle de React. Si el bundle se rompe en un
+          despliegue, la página de estado sigue en pie.
+        · No depende de la API. Si la API está caída —que es justo cuando
+          alguien viene a mirar— la página carga igual y pinta el fallo en
+          rojo en lugar de no cargar.
+        · No necesita sesión ni base de datos: sólo lee el semáforo público
+          de /api/health/status.
+
+      Límite honesto, por si sale en la defensa: si el que se cae es este
+      mismo Nginx, lo ve el blackbox exporter y salta la alerta «site down».
+      Si lo que se cae es la máquina entera, también se cae la pila de
+      observabilidad, que vive en ese mismo servidor: eso no se auto-alerta y
+      es el precio de un único servidor. Está dicho así en el README.
+
+      La lógica va en status.js (fichero aparte) porque la CSP del contenedor
+      es `script-src 'self'`: no se admite JavaScript en línea. Los estilos sí
+      pueden ir aquí (`style-src` concede 'unsafe-inline'), y así la página
+      entera son dos ficheros sin dependencias externas.
+
+      Los colores son los mismos tokens que usa la aplicación
+      (apps/web/src/styles/global.css) para que no parezca otra web.
+    -->
+    <style>
+      :root {
+        --canvas: #e9ece8;
+        --surface: #f6f7f3;
+        --surface-secondary: #eff2ed;
+        --border: #cfd6d0;
+        --ink: #1e2a2e;
+        --muted: #5e6b70;
+        --primary: #365d63;
+        --focus: #6a858b;
+        --success: #3f765a;
+        --success-surface: #e1ece5;
+        --warning: #805a32;
+        --warning-surface: #efe9dc;
+        --danger: #934f4f;
+        --danger-surface: #f1e3e3;
+        --info: #466d78;
+        --info-surface: #e5eef0;
+        --radius-sm: 8px;
+        --radius-md: 12px;
+        --radius-lg: 16px;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-width: 320px;
+        /* Sin font-size explícito: el texto sigue el tamaño de letra que el
+           lector tenga configurado, y las medidas de abajo van en rem. */
+        font-family:
+          Inter,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          sans-serif;
+        background: var(--canvas);
+        color: var(--ink);
+        -webkit-font-smoothing: antialiased;
+        line-height: 1.5;
+      }
+
+      main {
+        max-width: 44rem;
+        margin: 0 auto;
+        padding: 2.5rem 1rem 3rem;
+      }
+
+      /* --- Encabezado --------------------------------------------------- */
+      header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1.75rem;
+      }
+      .mark {
+        display: grid;
+        place-items: center;
+        flex: none;
+        width: 2.75rem;
+        height: 2.75rem;
+        border-radius: var(--radius-md);
+        background: rgb(134 175 164 / 25%);
+      }
+      .mark svg {
+        width: 78%;
+        height: 78%;
+      }
+      header h1 {
+        margin: 0;
+        font-size: 1.125rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      header p {
+        margin: 0;
+        font-size: 0.8125rem;
+        color: var(--muted);
+      }
+
+      /* --- Tarjetas ----------------------------------------------------- */
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 1.25rem 1.25rem 1.125rem;
+      }
+      .card + .card {
+        margin-top: 1rem;
+      }
+
+      /* --- Resumen ------------------------------------------------------ */
+      #summary {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.875rem;
+      }
+      .dot {
+        flex: none;
+        width: 0.875rem;
+        height: 0.875rem;
+        margin-top: 0.3125rem;
+        border-radius: 50%;
+        background: var(--muted);
+      }
+      #summary[data-state='operational'] .dot {
+        background: var(--success);
+        box-shadow: 0 0 0 0.25rem rgb(63 118 90 / 18%);
+      }
+      #summary[data-state='degraded'] .dot {
+        background: var(--warning);
+        box-shadow: 0 0 0 0.25rem rgb(128 90 50 / 18%);
+      }
+      #summary[data-state='major_outage'] .dot {
+        background: var(--danger);
+        box-shadow: 0 0 0 0.25rem rgb(147 79 79 / 18%);
+      }
+      #summary[data-state='loading'] .dot {
+        animation: pulse 1.4s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        50% {
+          opacity: 0.35;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #summary[data-state='loading'] .dot {
+          animation: none;
+        }
+      }
+      #headline {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      #checked {
+        margin: 0.25rem 0 0;
+        font-size: 0.8125rem;
+        color: var(--muted);
+      }
+
+      /* --- Lista de áreas ----------------------------------------------- */
+      h2 {
+        margin: 0 0 0.75rem;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+      }
+      ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      li {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.6875rem 0;
+        border-top: 1px solid var(--border);
+        font-size: 0.9375rem;
+      }
+      li:first-child {
+        border-top: 0;
+      }
+      .pill {
+        flex: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        padding: 0.1875rem 0.625rem;
+        border-radius: 999px;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        /* Sin estado conocido todavía. */
+        background: var(--surface-secondary);
+        color: var(--muted);
+      }
+      /* El color no es el único portador del significado: cada pastilla
+         lleva su texto y un símbolo. WCAG 1.4.1. */
+      .pill::before {
+        font-size: 0.6875rem;
+        line-height: 1;
+      }
+      .pill[data-state='operativo'] {
+        background: var(--success-surface);
+        color: var(--success);
+      }
+      .pill[data-state='operativo']::before {
+        content: '●';
+      }
+      .pill[data-state='rendimiento_reducido'] {
+        background: var(--warning-surface);
+        color: var(--warning);
+      }
+      .pill[data-state='rendimiento_reducido']::before {
+        content: '▲';
+      }
+      .pill[data-state='no_disponible'] {
+        background: var(--danger-surface);
+        color: var(--danger);
+      }
+      .pill[data-state='no_disponible']::before {
+        content: '■';
+      }
+      .pill[data-state='unknown']::before {
+        content: '—';
+      }
+
+      /* --- Aviso -------------------------------------------------------- */
+      #notice {
+        margin-top: 1rem;
+        padding: 0.8125rem 1rem;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border);
+        background: var(--info-surface);
+        color: var(--info);
+        font-size: 0.875rem;
+      }
+      #notice[hidden] {
+        display: none;
+      }
+
+      /* --- Pie ---------------------------------------------------------- */
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 1rem;
+        margin-top: 1.25rem;
+        font-size: 0.875rem;
+      }
+      button {
+        font: inherit;
+        padding: 0.4375rem 0.875rem;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--ink);
+        cursor: pointer;
+      }
+      button:hover {
+        background: var(--surface-secondary);
+      }
+      a {
+        color: var(--primary);
+      }
+      a:hover {
+        text-decoration-thickness: 2px;
+      }
+      :is(a, button):focus-visible {
+        outline: 2px solid var(--focus);
+        outline-offset: 2px;
+      }
+      footer {
+        margin-top: 1.75rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--border);
+        font-size: 0.8125rem;
+        color: var(--muted);
+      }
+      footer p {
+        margin: 0 0 0.5rem;
+      }
+      footer p:last-child {
+        margin-bottom: 0;
+      }
+      /* Los textos legales, alcanzables también desde aquí: esta página es
+         pública y la puede abrir quien no ha entrado nunca en la aplicación. */
+      footer nav ul {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 1.25rem;
+        margin: 0.75rem 0 0;
+      }
+      footer nav li {
+        display: block;
+        padding: 0;
+        border: 0;
+        font-size: inherit;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <span class="mark" aria-hidden="true">
+          <svg
+            fill="none"
+            viewBox="0 0 48 48"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M12 24v-3.5C12 13.6 17.4 8 24 8s12 5.6 12 12.5V24"
+              stroke="#365d63"
+              stroke-linecap="round"
+              stroke-width="4"
+            />
+            <path
+              d="M16 18h16v15H25l-6 5v-5h-3V18Z"
+              fill="#86afa4"
+              stroke="#183039"
+              stroke-linejoin="round"
+              stroke-width="2.2"
+            />
+            <path
+              d="M20 23h8M20 27h6"
+              stroke="#183039"
+              stroke-linecap="round"
+              stroke-width="2"
+            />
+            <rect fill="#183039" height="12" rx="3" width="6" x="8" y="21" />
+            <rect fill="#183039" height="12" rx="3" width="6" x="34" y="21" />
+          </svg>
+        </span>
+        <div>
+          <h1>HelpDesk Lite</h1>
+          <p>Service status</p>
+        </div>
+      </header>
+
+      <!-- Región viva: el lector de pantalla anuncia el cambio de estado sin
+           que el usuario tenga que volver a recorrer la página. -->
+      <section
+        class="card"
+        id="summary"
+        data-state="loading"
+        role="status"
+        aria-live="polite"
+      >
+        <span class="dot" aria-hidden="true"></span>
+        <div>
+          <p id="headline">Checking the service…</p>
+          <p id="checked">Reading the public health endpoint.</p>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Service areas</h2>
+        <!-- Las filas se pintan desde status.js. Las de aquí son el estado
+             inicial: los cinco nombres que devuelve hoy la API, para que la
+             página diga algo útil aunque el JavaScript no llegue a correr. -->
+        <ul id="areas">
+          <li>
+            Sign in and accounts<span class="pill" data-state="unknown"
+              >Unknown</span
+            >
+          </li>
+          <li>Tickets<span class="pill" data-state="unknown">Unknown</span></li>
+          <li>
+            Attachments<span class="pill" data-state="unknown">Unknown</span>
+          </li>
+          <li>
+            Chat and real time<span class="pill" data-state="unknown"
+              >Unknown</span
+            >
+          </li>
+          <li>
+            E-mail notifications<span class="pill" data-state="unknown"
+              >Unknown</span
+            >
+          </li>
+        </ul>
+
+        <p id="notice" hidden></p>
+
+        <div class="actions">
+          <button id="refresh" type="button">Check again</button>
+          <a href="/">Back to the application</a>
+        </div>
+      </section>
+
+      <noscript>
+        <p id="notice">
+          This page needs JavaScript to read the current state. Without it, the
+          same information is available as JSON at
+          <a href="/api/health/status">/api/health/status</a>.
+        </p>
+      </noscript>
+
+      <footer>
+        <p>
+          This page reports what you can <em>do</em> — sign in, open a ticket,
+          attach a file — and not which component is behind each area. It
+          refreshes on its own every 60 seconds.
+        </p>
+        <p>
+          It is a static file served by the web server, so it stays up when the
+          application does not. If this page itself does not load, the server is
+          unreachable.
+        </p>
+        <nav aria-label="Legal information">
+          <ul>
+            <li><a href="/#privacy-policy">Privacy Policy</a></li>
+            <li><a href="/#terms">Terms of Service</a></li>
+            <li><a href="/">HelpDesk Lite</a></li>
+          </ul>
+        </nav>
+      </footer>
+    </main>
+    <script src="/status.js" defer></script>
+  </body>
+</html>

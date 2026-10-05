@@ -65,12 +65,18 @@ export async function request(
     where: { id: userId },
     select: { email: true, profile: { select: { firstName: true } } },
   });
-  const path = type === 'EXPORT' ? 'export' : 'delete';
+  // The front end is a hash router (apps/web/src/app/routes.ts), so the link
+  // has to carry the route in the fragment. The previous one pointed at
+  // /app/settings/privacy/confirm, a path that exists nowhere: nginx served
+  // index.html, the router saw an empty hash and sent the person to the home
+  // screen with the token lost on the way.
+  const view =
+    type === 'EXPORT' ? 'account/export-requested' : 'account/delete';
   await sendGdprConfirmation(
     user.email,
     user.profile?.firstName ?? 'there',
     type,
-    `${origin}/app/settings/privacy/confirm?type=${path}&token=${token}`,
+    `${origin}/#${view}?token=${token}`,
   );
   return gdprRequest;
 }
@@ -79,6 +85,8 @@ export async function confirm(
   userId: string,
   type: 'EXPORT' | 'DELETE',
   token: string,
+  /** Needed to build the link of the "your archive is ready" e-mail. */
+  origin: string,
   confirmUsername?: string,
 ) {
   const req = await prisma.gdprRequest.findFirst({
@@ -117,7 +125,7 @@ export async function confirm(
 
   if (type === 'EXPORT') {
     // Run in the background so the HTTP request returns immediately.
-    void buildExport(userId, req.id).catch((error: unknown) =>
+    void buildExport(userId, req.id, origin).catch((error: unknown) =>
       logger.error(`export ${req.id} failed`, error),
     );
     return { id: req.id, status: 'PROCESSING' as const };
@@ -269,7 +277,11 @@ function toCsv(rows: Array<Record<string, unknown>>): string {
   ].join('\n');
 }
 
-async function buildExport(userId: string, requestId: string): Promise<void> {
+async function buildExport(
+  userId: string,
+  requestId: string,
+  origin: string,
+): Promise<void> {
   const config = loadConfiguration();
   const data = await collect(userId);
   await mkdir(exportDir(), { recursive: true });
@@ -338,7 +350,7 @@ async function buildExport(userId: string, requestId: string): Promise<void> {
   await sendGdprExportReady(
     user.email,
     user.profile?.firstName ?? 'there',
-    `/app/settings/privacy`,
+    `${origin}/#account/export-ready`,
   );
 }
 

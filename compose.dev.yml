@@ -80,6 +80,21 @@ services:
       - API_KEY_RATE_PER_HOUR=${API_KEY_RATE_PER_HOUR:-1000}
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - SEED_ON_BOOT=${SEED_ON_BOOT:-true}
+      # Lo que genera scripts/gen-secrets.sh y hasta ahora no llegaba al
+      # contenedor: sin estas líneas, el .env local tenía los valores y la API
+      # de desarrollo se comportaba como si no existieran (ni administrador ni
+      # métricas). Vacío = no definida (ver optionalEnv en config/env.ts), así
+      # que quien no tenga .env sigue igual que antes.
+      - METRICS_TOKEN=${METRICS_TOKEN:-}
+      - BOOTSTRAP_ADMIN_EMAIL=${BOOTSTRAP_ADMIN_EMAIL:-}
+      - BOOTSTRAP_ADMIN_USERNAME=${BOOTSTRAP_ADMIN_USERNAME:-}
+      - BOOTSTRAP_ADMIN_PASSWORD=${BOOTSTRAP_ADMIN_PASSWORD:-}
+      - BOOTSTRAP_ADMIN_DISPLAY_NAME=${BOOTSTRAP_ADMIN_DISPLAY_NAME:-}
+      - BOOTSTRAP_ADMIN_ROTATE=${BOOTSTRAP_ADMIN_ROTATE:-0}
+      # En desarrollo no hay proxy delante: sin valor, la documentación se
+      # sirve abierta en local y cerrada en producción.
+      - DOCS_ACCESS=${DOCS_ACCESS:-}
+      - DOCS_GATEWAY_TOKEN=${DOCS_GATEWAY_TOKEN:-}
     volumes:
       - .:/app
       - /app/node_modules

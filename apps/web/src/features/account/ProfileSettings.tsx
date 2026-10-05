@@ -1,9 +1,11 @@
-import { Avatar, Button, TextField } from 'ui';
+import { Alert, Avatar, Button, SelectField, Tabs, TextField } from 'ui';
 import {
+  deleteAvatar,
   updatePreferences,
   updateProfile,
   uploadAvatar,
 } from '../../api/users';
+import { previewMode } from '../../app/session';
 import { useRef, useState } from 'react';
 import { getInitials } from '../../app/text';
 import { AccountHeader } from './AccountHeader';
@@ -48,6 +50,28 @@ export function ProfileSettings({
     setDraft((current) => ({ ...current, [field]: value }));
   }
 
+  /**
+   * Back to the default avatar: the initials badge every account shows until
+   * it uploads a photo. Applied at once - there is nothing to "save" about
+   * removing a picture - and the old file is deleted on the server.
+   */
+  async function removeAvatar() {
+    setFeedback('');
+    try {
+      if (!previewMode && avatarUrl) await deleteAvatar();
+      setSelectedFile(undefined);
+      setPreviewUrl(undefined);
+      onAvatarChange('');
+      setFeedbackKind('success');
+      setFeedback('Photo removed. Your initials are shown instead.');
+    } catch (error) {
+      setFeedbackKind('error');
+      setFeedback(
+        error instanceof Error ? error.message : 'Unable to remove the photo.',
+      );
+    }
+  }
+
   function changeAvatar(file?: File) {
     if (!file) return;
     if (
@@ -76,22 +100,33 @@ export function ProfileSettings({
   }
 
   return (
-    <div className="account-page">
-      <button className="account-back" onClick={onBack} type="button">
+    <div className="mx-auto max-w-[1040px] p-10 max-md:px-4 max-md:py-6">
+      <button
+        className="mb-[18px] hidden text-primary max-md:block"
+        onClick={onBack}
+        type="button"
+      >
         ‹ Account
       </button>
       <AccountHeader
         description="Manage the public information connected to your account."
         title="Profile settings"
       />
-      <div className="account-tabs">
-        <span>Profile</span>
-        <button onClick={onPrivacy} type="button">
-          Privacy &amp; data
-        </button>
+      <div className="mt-[26px] border-b border-border max-md:hidden">
+        <Tabs
+          activeTab="profile"
+          items={[
+            { id: 'profile', label: 'Profile' },
+            { id: 'privacy', label: 'Privacy & data' },
+          ]}
+          label="Account sections"
+          onChange={(tab) => {
+            if (tab === 'privacy') onPrivacy();
+          }}
+        />
       </div>
       <form
-        className="profile-form"
+        className="mt-5 grid max-w-[700px] gap-5 rounded-md border border-border bg-surface p-[26px] max-md:mt-3 max-md:border-0 max-md:p-0"
         onSubmit={async (event) => {
           event.preventDefault();
           setIsSaving(true);
@@ -131,14 +166,16 @@ export function ProfileSettings({
           }
         }}
       >
-        <header>
-          <h2>Public profile</h2>
-          <p>This information is visible to other platform members.</p>
+        <header className="max-md:hidden">
+          <h2 className="text-base font-medium">Public profile</h2>
+          <p className="text-xs2 text-muted">
+            This information is visible to other platform members.
+          </p>
         </header>
-        <div className="profile-avatar-row">
+        <div className="flex items-center gap-3 max-md:flex-wrap max-md:justify-center">
           <Avatar
             alt={draft.fullName}
-            className="account-avatar"
+            className="!size-[58px] !basis-[58px]"
             initials={getInitials(draft.fullName)}
             src={previewUrl}
           />
@@ -150,11 +187,20 @@ export function ProfileSettings({
             type="file"
           />
           <Button onClick={() => inputRef.current?.click()} variant="secondary">
-            Change avatar
+            {previewUrl ? 'Change avatar' : 'Upload a photo'}
           </Button>
-          <small>PNG, JPG, GIF or WebP · Maximum 5 MB</small>
+          {previewUrl ? (
+            <Button onClick={() => void removeAvatar()} variant="ghost">
+              Remove photo
+            </Button>
+          ) : null}
+          <small className="text-2xs text-muted max-md:w-full max-md:text-center">
+            {previewUrl
+              ? 'PNG, JPG, GIF or WebP · Maximum 5 MB'
+              : 'No photo yet: your initials are your default avatar. PNG, JPG, GIF or WebP · Maximum 5 MB'}
+          </small>
         </div>
-        <div className="profile-form__split">
+        <div className="grid grid-cols-2 gap-[14px] max-md:grid-cols-1">
           <TextField
             label="First name"
             name="firstName"
@@ -173,7 +219,7 @@ export function ProfileSettings({
         <TextField
           label="Username"
           name="username"
-          className="profile-form__readonly"
+          className="[&_.ui-field__input]:cursor-not-allowed [&_.ui-field__input]:bg-[#eef0f2] [&_.ui-field__input]:text-muted"
           readOnly
           value={draft.username}
         />
@@ -181,38 +227,37 @@ export function ProfileSettings({
           label="Email address"
           name="email"
           onChange={(event) => updateDraft('email', event.target.value)}
-          className="profile-form__readonly"
+          className="[&_.ui-field__input]:cursor-not-allowed [&_.ui-field__input]:bg-[#eef0f2] [&_.ui-field__input]:text-muted"
           required
           readOnly
           type="email"
           value={draft.email}
         />
-        <div className="profile-form__split">
+        <div className="grid grid-cols-2 gap-[14px] max-md:grid-cols-1">
           <TextField
             label="Job title"
             name="jobTitle"
             onChange={(event) => updateDraft('jobTitle', event.target.value)}
             value={draft.jobTitle}
           />
-          <label className="ui-field">
-            <span className="ui-field__label">Time zone</span>
-            <select
-              className="ui-field__input"
-              name="timezone"
-              onChange={(event) => updateDraft('location', event.target.value)}
-              value={draft.location}
-            >
-              {timeZoneOptions.map((timeZone) => (
-                <option key={timeZone} value={timeZone}>
-                  {timeZone}
-                </option>
-              ))}
-            </select>
-          </label>
+          <SelectField
+            className="!h-[52px]"
+            label="Time zone"
+            name="timezone"
+            onChange={(event) => updateDraft('location', event.target.value)}
+            value={draft.location}
+          >
+            {timeZoneOptions.map((timeZone) => (
+              <option key={timeZone} value={timeZone}>
+                {timeZone}
+              </option>
+            ))}
+          </SelectField>
         </div>
-        <label className="account-textarea">
+        <label className="grid gap-2 text-sm font-medium">
           Bio
           <textarea
+            className="min-h-[90px] resize-y rounded-sm border border-border p-3 leading-[1.5] focus-visible:border-focus focus-visible:outline-3 focus-visible:outline-focus"
             maxLength={280}
             name="bio"
             onChange={(event) => updateDraft('bio', event.target.value)}
@@ -220,15 +265,20 @@ export function ProfileSettings({
           />
         </label>
         {feedback ? (
-          <p
+          <Alert
             aria-live="polite"
-            className={`account-feedback account-feedback--${feedbackKind}`}
-            role="status"
+            tone={
+              feedbackKind === 'error'
+                ? 'danger'
+                : feedbackKind === 'success'
+                  ? 'success'
+                  : 'info'
+            }
           >
             {feedback}
-          </p>
+          </Alert>
         ) : null}
-        <footer>
+        <footer className="flex justify-end gap-2 border-t border-border pt-[18px] max-md:[&_.ui-button]:w-full max-md:[&_.ui-button:first-child]:hidden">
           <Button onClick={onBack} variant="secondary">
             Cancel
           </Button>

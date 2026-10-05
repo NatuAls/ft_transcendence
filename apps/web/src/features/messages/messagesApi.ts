@@ -1,6 +1,5 @@
 import { getAccessToken } from '../../api/auth';
-
-const API_URL = import.meta.env.VITE_API_URL ?? '/api/v1';
+import { request } from '../../core/api/client';
 
 export interface ChatUser {
   id: string;
@@ -39,23 +38,10 @@ export interface PaginatedMessages {
   meta: { page: number; pages: number };
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = getAccessToken();
-  const response = await fetch(`${API_URL}${path}`, {
-    ...init,
-    headers: {
-      ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...init?.headers,
-    },
-    credentials: 'include',
-  });
-  if (!response.ok) throw new Error(`Chat request failed (${response.status})`);
-  return (await response.json()) as T;
-}
-
-export function listConversations(): Promise<ApiConversation[]> {
-  return request<ApiConversation[]>('/conversations');
+export function listConversations(
+  signal?: AbortSignal,
+): Promise<ApiConversation[]> {
+  return request<ApiConversation[]>('/conversations', { signal });
 }
 
 export function listMessages(
@@ -74,7 +60,7 @@ export function searchUsers(query: string): Promise<ChatUser[]> {
 export function openConversation(userId: string): Promise<{ id: string }> {
   return request<{ id: string }>('/conversations', {
     method: 'POST',
-    body: JSON.stringify({ userId }),
+    body: { userId },
   });
 }
 
@@ -84,14 +70,16 @@ export function sendMessage(
 ): Promise<ApiMessage> {
   return request<ApiMessage>(
     `/conversations/${encodeURIComponent(conversationId)}/messages`,
-    { method: 'POST', body: JSON.stringify({ body }) },
+    { method: 'POST', body: { body } },
   );
 }
 
 export function markConversationRead(conversationId: string): Promise<unknown> {
+  // La API contesta 204 a esta ruta. El cliente propio hacía `response.json()`
+  // sobre un cuerpo vacío y reventaba; el compartido devuelve `undefined`.
   return request(`/conversations/${encodeURIComponent(conversationId)}/read`, {
     method: 'PATCH',
-    body: JSON.stringify({}),
+    body: {},
   });
 }
 

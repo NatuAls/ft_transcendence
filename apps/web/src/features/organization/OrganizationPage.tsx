@@ -1,40 +1,200 @@
-import { Button } from 'ui';
+import { Alert, Button, IconButton, Tabs } from 'ui';
 import { useState } from 'react';
+import type { OrgRole } from 'contracts';
+import * as organizationsApi from '../../api/organizations';
+import * as rolesApi from '../../api/roles';
+import { previewMode } from '../../app/session';
 import { getInitials } from '../../app/text';
 import { OrganizationDialog } from './OrganizationDialog';
+import { errorMessage } from '../../core/api/errors';
+import { AsyncState } from '../../core/async/AsyncState';
+import { useAsync } from '../../core/async/useAsync';
 import {
-  initialCategories,
-  initialMembers,
-  initialRoles,
   labelFromEmail,
+  organizationFixture,
+  roleRowsForMembers,
 } from './organizationData';
 import type {
   DeleteContext,
   OrganizationDialogKind,
+  OrganizationFixture,
   OrganizationRow,
   OrgTab,
 } from './organizationData';
-import './organization.css';
+
+const ROLE_BY_LABEL: Record<string, OrgRole> = {
+  Agent: 'AGENT',
+  Member: 'MEMBER',
+  'Organization admin': 'ORG_ADMIN',
+};
+const LABEL_BY_ROLE: Record<OrgRole, string> = {
+  AGENT: 'Agent',
+  MEMBER: 'Member',
+  ORG_ADMIN: 'Organization admin',
+};
 
 export function OrganizationPage({
+  canManageCategories,
+  canManageMembers,
+  canManageOrganization,
+  canReadMembers,
+  canReadStats,
+  currentUserId,
+  onAccessChanged,
   onOpenCategory,
+  onOrganizationDescriptionChange,
   onOrganizationNameChange,
   onOrganizationDeleted,
+  onOrganizationsChanged,
+  organizationDescription,
+  organizationId,
   organizationName,
+  organizationRole,
 }: {
+  canManageCategories: boolean;
+  canManageMembers: boolean;
+  canManageOrganization: boolean;
+  canReadMembers: boolean;
+  canReadStats: boolean;
+  currentUserId: string;
+  onAccessChanged: () => void;
   onOpenCategory: (category: string) => void;
+  onOrganizationDescriptionChange: (description: string) => void;
   onOrganizationNameChange: (name: string) => void;
   onOrganizationDeleted: () => void;
+  onOrganizationsChanged: (preferredId?: string) => void;
+  organizationDescription: string;
+  organizationId: string;
   organizationName: string;
+  organizationRole: 'AGENT' | 'GLOBAL_ADMIN' | 'MEMBER' | 'ORG_ADMIN';
 }) {
-  const [tab, setTab] = useState<OrgTab>('members');
+  // Sample rows in the preview; the application starts empty and reads the
+  // organization from the API below.
+  const fixture: OrganizationFixture = previewMode
+    ? organizationFixture(organizationId, organizationDescription)
+    : {
+        categories: [],
+        description: organizationDescription,
+        members: [],
+        openTickets: 0,
+      };
+  const [tab, setTab] = useState<OrgTab>(
+    canReadMembers ? 'members' : 'categories',
+  );
   const [dialog, setDialog] = useState<OrganizationDialogKind>(null);
+  // Who created the organization: the API lets only them (or a platform
+  // administrator) delete it.
   const [deleteContext, setDeleteContext] = useState<DeleteContext>(null);
   const [selectedName, setSelectedName] = useState('Maya Singh');
-  const [memberRows, setMemberRows] = useState(initialMembers);
-  const [roleRows, setRoleRows] = useState(initialRoles);
-  const [categoryRows, setCategoryRows] = useState(initialCategories);
   const [feedback, setFeedback] = useState('');
+  const [failure, setFailure] = useState('');
+
+  /**
+   * Todo lo que esta pantalla lee de la API, en una sola carga: las filas que
+   * se pintan y los identificadores que necesitan las acciones. Antes salía
+   * de siete estados distintos sembrados con los datos de ejemplo, así que la
+   * aplicación real enseñaba la organización de muestra hasta que llegaba la
+   * respuesta. Ahora hay estado de carga, y los datos de ejemplo se quedan
+   * donde deben: en el modo de vista previa.
+   */
+  const view = useAsync(async () => {
+    if (previewMode || !organizationId) {
+      return {
+        categoryIds: {} as Record<string, string>,
+        categoryRows: fixture.categories,
+        createdById: null as string | null,
+        memberIds: {} as Record<string, string>,
+        memberRows: fixture.members,
+        openTickets: fixture.openTickets,
+        reservationIds: {} as Record<string, string>,
+      };
+    }
+    const [members, reservations, categories, stats, detail] =
+      await Promise.all([
+        canReadMembers ? rolesApi.listMembers(organizationId) : null,
+        canManageMembers
+          ? rolesApi.listOrganizationReservations(organizationId)
+          : null,
+        organizationsApi.listCategories(organizationId),
+        canReadStats
+          ? organizationsApi.getOrganizationStats(organizationId)
+          : null,
+        canManageOrganization
+          ? organizationsApi.getOrganization(organizationId)
+          : null,
+      ]);
+    return {
+      categoryIds: Object.fromEntries(
+        categories.map((row) => [row.name, row.id]),
+      ),
+      categoryRows: categories.map((category): OrganizationRow => {
+        const count = category._count?.tickets ?? 0;
+        return [
+          getInitials(category.name),
+          category.name,
+          category.description ?? '',
+          `${count} ${count === 1 ? 'ticket' : 'tickets'}`,
+          '',
+        ];
+      }),
+      createdById: detail?.createdById ?? null,
+      memberIds: Object.fromEntries(
+        (members ?? []).map((member) => [member.displayName, member.userId]),
+      ),
+      memberRows: [
+        ...(members ?? []).map((member): OrganizationRow => [
+          getInitials(member.displayName),
+          member.displayName,
+          member.email,
+          LABEL_BY_ROLE[member.role],
+          'Active',
+        ]),
+        ...(reservations ?? []).map((reservation): OrganizationRow => [
+          getInitials(labelFromEmail(reservation.email)),
+          reservation.email,
+          reservation.waitingFor === 'ACCOUNT'
+            ? 'Waiting for the account'
+            : 'Waiting for e-mail confirmation',
+          LABEL_BY_ROLE[reservation.role],
+          'Invited',
+        ]),
+      ],
+      openTickets: stats
+        ? (stats.byStatus.OPEN ?? 0) + (stats.byStatus.IN_PROGRESS ?? 0)
+        : fixture.openTickets,
+      reservationIds: Object.fromEntries(
+        (reservations ?? []).map((row) => [row.email, row.id]),
+      ),
+    };
+  }, [
+    canManageMembers,
+    canManageOrganization,
+    canReadMembers,
+    canReadStats,
+    organizationId,
+  ]);
+
+  const memberRows = view.data?.memberRows ?? [];
+  const categoryRows = view.data?.categoryRows ?? [];
+  const memberIds = view.data?.memberIds ?? {};
+  const reservationIds = view.data?.reservationIds ?? {};
+  const categoryIds = view.data?.categoryIds ?? {};
+  const createdById = view.data?.createdById ?? null;
+  const openTickets = view.data?.openTickets ?? fixture.openTickets;
+  const roleRows = roleRowsForMembers(memberRows);
+  const reload = view.reload;
+
+  /** Cambia las filas en local tras una acción, sin esperar a la recarga. */
+  function patchRows(
+    patch: (
+      previous: NonNullable<typeof view.data>,
+    ) => Partial<NonNullable<typeof view.data>>,
+  ) {
+    view.setData((current) =>
+      current ? { ...current, ...patch(current) } : current,
+    );
+  }
+
   const rows =
     tab === 'members' ? memberRows : tab === 'roles' ? roleRows : categoryRows;
   const selectedRow = rows.find((row) => row[1] === selectedName);
@@ -48,18 +208,147 @@ export function OrganizationPage({
     tab === 'members'
       ? `Changes apply only inside ${organizationName}.`
       : tab === 'roles'
-        ? `Configure what members can do inside ${organizationName}.`
+        ? `Review the fixed access levels used inside ${organizationName}.`
         : 'Create categories used to classify and route support requests.';
+  const tableGridClass =
+    tab === 'members'
+      ? 'grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_44px]'
+      : tab === 'categories'
+        ? canReadStats
+          ? 'grid-cols-[minmax(0,2fr)_minmax(0,1fr)_44px]'
+          : 'grid-cols-[minmax(0,1fr)_44px]'
+        : 'grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]';
+  const rowContentClass =
+    tab === 'members'
+      ? 'col-span-3 grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] max-md:[&>span:nth-child(2)]:hidden'
+      : tab === 'categories'
+        ? canReadStats
+          ? 'col-span-2 grid-cols-[minmax(0,2fr)_minmax(0,1fr)]'
+          : 'col-span-1 grid-cols-1'
+        : 'col-span-3 grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] max-md:col-span-1 max-md:[&>span:nth-child(2)]:hidden';
+  const rowMobileGridClass =
+    tab === 'roles'
+      ? 'max-md:grid-cols-1'
+      : 'max-md:grid-cols-[minmax(0,1fr)_40px]';
 
   function openCreateDialog() {
+    if (tab === 'roles') return;
     setSelectedName('');
     setDeleteContext(null);
-    setDialog(
-      tab === 'members' ? 'add-member' : tab === 'roles' ? 'role' : 'category',
-    );
+    setDialog(tab === 'members' ? 'add-member' : 'category');
   }
 
   function saveDialog(
+    kind: Exclude<OrganizationDialogKind, null>,
+    data: FormData,
+  ) {
+    if (previewMode) {
+      savePreview(kind, data);
+      return;
+    }
+    const context = deleteContext;
+    setDialog(null);
+    setDeleteContext(null);
+    setFeedback('');
+    setFailure('');
+    void saveToApi(kind, context, data);
+  }
+
+  /**
+   * The same dialogs against the API. Each branch is one call; the lists are
+   * read again afterwards, so the screen shows what the server kept and not
+   * what the browser assumed.
+   */
+  async function saveToApi(
+    kind: Exclude<OrganizationDialogKind, null>,
+    context: DeleteContext,
+    data: FormData,
+  ) {
+    const value = (name: string) => String(data.get(name) ?? '').trim();
+    const memberId = memberIds[selectedName];
+    const categoryId = categoryIds[selectedName];
+    try {
+      if (kind === 'add-member') {
+        const result = await rolesApi.assignOrganizationRole(organizationId, {
+          email: value('email'),
+          role: ROLE_BY_LABEL[value('role')] ?? 'MEMBER',
+        });
+        setFeedback(
+          result.outcome === 'RESERVED'
+            ? `Role reserved for ${result.email}: they join when they create their account with that address and confirm it.`
+            : result.outcome === 'UNCHANGED'
+              ? `${result.user?.displayName ?? result.email} already had that role.`
+              : `${result.user?.displayName ?? result.email} now has access to ${organizationName}.`,
+        );
+      } else if (kind === 'edit-member') {
+        const role = ROLE_BY_LABEL[value('role')] ?? 'MEMBER';
+        if (memberId) {
+          await rolesApi.changeMemberRole(organizationId, memberId, role);
+          if (memberId === currentUserId) onAccessChanged();
+        } else {
+          // A reservation: assigning again to the same address replaces the
+          // role it is waiting with.
+          await rolesApi.assignOrganizationRole(organizationId, {
+            email: selectedName,
+            role,
+          });
+        }
+        setFeedback(`${selectedName}'s organization access was updated.`);
+      } else if (kind === 'settings') {
+        const updated = await organizationsApi.updateOrganization(
+          organizationId,
+          {
+            description: value('description'),
+            name: value('organization-name'),
+          },
+        );
+        onOrganizationNameChange(updated.name);
+        onOrganizationDescriptionChange(updated.description ?? '');
+        onOrganizationsChanged(organizationId);
+        setFeedback('Organization details were updated.');
+      } else if (kind === 'category') {
+        const input = {
+          description: value('description') || undefined,
+          name: value('category-name'),
+        };
+        if (selectedName && categoryId) {
+          await organizationsApi.updateCategory(
+            organizationId,
+            categoryId,
+            input,
+          );
+        } else {
+          await organizationsApi.createCategory(organizationId, {
+            ...input,
+            color: '#0d6c90',
+          });
+        }
+        setFeedback(`Category “${input.name}” was saved.`);
+      } else if (context === 'edit-member') {
+        const reservationId = reservationIds[selectedName];
+        if (memberId) {
+          await rolesApi.removeMember(organizationId, memberId);
+          setFeedback(`${selectedName} was removed from the organization.`);
+        } else if (reservationId) {
+          await rolesApi.cancelOrganizationReservation(
+            organizationId,
+            reservationId,
+          );
+          setFeedback(`The reservation for ${selectedName} was cancelled.`);
+        }
+      } else if (context === 'settings') {
+        await organizationsApi.deleteOrganization(organizationId);
+        onOrganizationsChanged();
+        onOrganizationDeleted();
+        return;
+      }
+      reload();
+    } catch (error) {
+      setFailure(errorMessage(error, 'The change could not be saved.'));
+    }
+  }
+
+  function savePreview(
     kind: Exclude<OrganizationDialogKind, null>,
     data: FormData,
   ) {
@@ -67,41 +356,28 @@ export function OrganizationPage({
     if (kind === 'add-member') {
       const email = value('email');
       const name = labelFromEmail(email);
-      setMemberRows((current) => [
-        ...current,
-        [getInitials(name), name, email, value('role'), 'Invited'],
-      ]);
+      patchRows((current) => ({
+        memberRows: [
+          ...current.memberRows,
+          [getInitials(name), name, email, value('role'), 'Invited'],
+        ],
+      }));
       setFeedback(`Invitation prepared for ${email}.`);
     } else if (kind === 'edit-member') {
-      setMemberRows((current) =>
-        current.map((row) =>
+      patchRows((current) => ({
+        memberRows: current.memberRows.map((row) =>
           row[1] === selectedName
-            ? [row[0], row[1], row[2], value('role'), value('state')]
+            ? [row[0], row[1], row[2], value('role'), row[4]]
             : row,
         ),
-      );
+      }));
       setFeedback(`${selectedName}'s organization access was updated.`);
     } else if (kind === 'settings') {
       onOrganizationNameChange(value('organization-name'));
+      onOrganizationDescriptionChange(value('description'));
       setFeedback(
         'Organization details were updated in this frontend preview.',
       );
-    } else if (kind === 'role') {
-      const name = value('role-name');
-      const permissionCount = data.getAll('permissions').length;
-      const nextRow: OrganizationRow = [
-        getInitials(name),
-        name,
-        value('description'),
-        selectedRow?.[3] ?? '0 members',
-        `${permissionCount} permission${permissionCount === 1 ? '' : 's'}`,
-      ];
-      setRoleRows((current) =>
-        selectedName
-          ? current.map((row) => (row[1] === selectedName ? nextRow : row))
-          : [...current, nextRow],
-      );
-      setFeedback(`Role “${name}” was saved.`);
     } else if (kind === 'category') {
       const name = value('category-name');
       const nextRow: OrganizationRow = [
@@ -109,33 +385,21 @@ export function OrganizationPage({
         name,
         value('description'),
         selectedRow?.[3] ?? '0 tickets',
-        value('state'),
+        '',
       ];
-      setCategoryRows((current) =>
-        selectedName
-          ? current.map((row) => (row[1] === selectedName ? nextRow : row))
-          : [...current, nextRow],
-      );
+      patchRows((current) => ({
+        categoryRows: selectedName
+          ? current.categoryRows.map((row) =>
+              row[1] === selectedName ? nextRow : row,
+            )
+          : [...current.categoryRows, nextRow],
+      }));
       setFeedback(`Category “${name}” was saved.`);
     } else if (deleteContext === 'edit-member') {
-      setMemberRows((current) =>
-        current.filter((row) => row[1] !== selectedName),
-      );
+      patchRows((current) => ({
+        memberRows: current.memberRows.filter((row) => row[1] !== selectedName),
+      }));
       setFeedback(`${selectedName} was removed from the organization.`);
-    } else if (deleteContext === 'role') {
-      setRoleRows((current) =>
-        current.filter((row) => row[1] !== selectedName),
-      );
-      setFeedback(`Role “${selectedName}” was deleted.`);
-    } else if (deleteContext === 'category') {
-      setCategoryRows((current) =>
-        current.map((row) =>
-          row[1] === selectedName
-            ? [row[0], row[1], row[2], row[3], 'Archived']
-            : row,
-        ),
-      );
-      setFeedback(`Category “${selectedName}” was archived.`);
     } else if (deleteContext === 'settings') {
       onOrganizationDeleted();
     }
@@ -144,180 +408,303 @@ export function OrganizationPage({
   }
 
   return (
-    <div className="organization-page">
-      <header className="organization-heading">
+    <div className="relative mx-auto max-w-[1160px] p-10 max-md:px-4 max-md:py-6">
+      <header className="flex items-end justify-between max-md:items-start">
         <div>
-          <span>ORGANIZATION</span>
-          <h1>{organizationName}</h1>
-          <p>Manage members, roles, categories and organization settings.</p>
+          <span className="text-xs2 tracking-[.08em] text-muted max-md:hidden">
+            {canManageOrganization ? 'ORGANIZATION SETTINGS' : 'ORGANIZATION'}
+          </span>
+          <h1 className="my-2 text-[1.875rem] font-medium max-md:text-[1.375rem]">
+            {organizationName}
+          </h1>
+          <p className="text-sm text-muted max-md:hidden">
+            {canManageOrganization
+              ? organizationDescription
+              : organizationRole === 'AGENT'
+                ? 'Review ticket workload and the categories used by this organization.'
+                : 'View your access and the categories available when creating tickets.'}
+          </p>
         </div>
-        <div>
-          <span>Organization admin</span>
-          <Button
-            onClick={() => {
-              setSelectedName(organizationName);
-              setDeleteContext(null);
-              setDialog('settings');
-            }}
-            variant="secondary"
-          >
-            Edit organization
-          </Button>
+        <div className="flex items-center gap-3">
+          {canManageOrganization ? (
+            <>
+              <span className="text-xs2 text-success max-md:hidden">
+                Organization admin tools
+              </span>
+              <Button
+                className="max-md:!min-h-9 max-md:!px-2.5"
+                onClick={() => {
+                  setSelectedName(organizationName);
+                  setDeleteContext(null);
+                  setDialog('settings');
+                }}
+                variant="secondary"
+              >
+                Edit organization
+              </Button>
+            </>
+          ) : null}
         </div>
       </header>
-      <section className="organization-stats">
-        {[
-          [String(memberRows.length), 'Members'],
-          [
-            String(memberRows.filter((row) => row[3] === 'Agent').length),
-            'Support agents',
-          ],
-          ['24', 'Open tickets'],
-          [String(categoryRows.length), 'Categories'],
-        ].map(([value, label]) => (
-          <article key={label}>
-            <strong>{value}</strong>
-            <span>{label}</span>
-          </article>
-        ))}
-      </section>
-      {feedback ? (
-        <p aria-live="polite" className="organization-feedback" role="status">
-          {feedback}
-        </p>
-      ) : null}
-      <section className="organization-panel">
-        <header>
-          <div>
-            <h2>{title}</h2>
-            <p>{description}</p>
-          </div>
-          <Button onClick={openCreateDialog}>
-            {tab === 'members'
-              ? 'Add member'
-              : tab === 'roles'
-                ? 'Create role'
-                : 'Create category'}
-          </Button>
-        </header>
-        <nav aria-label="Organization settings">
-          {(['members', 'roles', 'categories'] as const).map((value) => (
-            <button
-              aria-current={tab === value ? 'page' : undefined}
-              key={value}
-              onClick={() => setTab(value)}
-              type="button"
+      {canReadStats ? (
+        <section className="my-5 mt-7 grid grid-cols-4 gap-3 max-md:my-[18px] max-md:grid-cols-2">
+          {[
+            [
+              String(memberRows.filter((row) => row[4] === 'Active').length),
+              'Members',
+            ],
+            [
+              String(
+                memberRows.filter(
+                  (row) => row[3] === 'Agent' && row[4] === 'Active',
+                ).length,
+              ),
+              'Support agents',
+            ],
+            [String(openTickets), 'Open tickets'],
+            [String(categoryRows.length), 'Categories'],
+          ].map(([value, label]) => (
+            <article
+              className="grid gap-[5px] rounded-md border border-border bg-surface p-[18px]"
+              key={label}
             >
-              {value === 'roles'
-                ? 'Access roles'
-                : value[0].toUpperCase() + value.slice(1)}
-            </button>
+              <strong className="text-[1.375rem] font-medium">{value}</strong>
+              <span className="text-xs2 text-muted">{label}</span>
+            </article>
           ))}
-        </nav>
-        <div className="organization-table" role="table">
-          <div className="organization-table__head" role="row">
-            <span>
-              {tab === 'members'
-                ? 'MEMBER'
-                : tab === 'roles'
-                  ? 'ROLE'
-                  : 'CATEGORY'}
-            </span>
-            <span>
-              {tab === 'members'
-                ? 'ROLE'
-                : tab === 'roles'
-                  ? 'MEMBERS'
-                  : 'OPEN TICKETS'}
-            </span>
-            <span>{tab === 'roles' ? 'ACCESS' : 'STATUS'}</span>
+        </section>
+      ) : (
+        <section className="my-5 mt-7 grid grid-cols-2 gap-3 max-md:my-[18px] max-md:grid-cols-1">
+          <article className="grid gap-1 rounded-md border border-border bg-surface p-[18px]">
+            <span className="text-xs2 text-muted">Your access</span>
+            <strong className="text-base font-medium">Member</strong>
+          </article>
+          <article className="grid gap-1 rounded-md border border-border bg-surface p-[18px]">
+            <span className="text-xs2 text-muted">Ticket visibility</span>
+            <strong className="text-base font-medium">Your tickets only</strong>
+          </article>
+        </section>
+      )}
+      {feedback ? (
+        <Alert
+          aria-live="polite"
+          className="-mt-1.5 mb-[18px] !py-2.5 !text-xs2 !text-muted"
+          role="status"
+          tone="success"
+        >
+          {feedback}
+        </Alert>
+      ) : null}
+      {failure ? (
+        <Alert className="-mt-1.5 mb-[18px] !py-2.5 !text-xs2" tone="danger">
+          {failure}
+        </Alert>
+      ) : null}
+      <div
+        className={`grid min-w-0 items-start gap-5 max-[900px]:block ${canReadStats ? 'grid-cols-[minmax(0,1fr)_250px]' : 'grid-cols-1'}`}
+      >
+        <section className="min-w-0 w-full overflow-hidden rounded-md border border-border bg-surface">
+          <header className="flex items-center justify-between p-5 max-md:p-4">
+            <div>
+              <h2 className="text-base font-medium">{title}</h2>
+              <p className="mt-1.5 text-xs2 text-muted max-md:hidden">
+                {description}
+              </p>
+            </div>
+            {(tab === 'members' && canManageMembers) ||
+            (tab === 'categories' && canManageCategories) ? (
+              <Button
+                className="max-md:!min-h-9 max-md:!px-2.5"
+                onClick={openCreateDialog}
+              >
+                {tab === 'members' ? 'Add member' : 'Create category'}
+              </Button>
+            ) : null}
+          </header>
+          {canReadMembers ? (
+            <div className="overflow-auto border-y border-border px-[15px] max-md:px-[5px]">
+              <Tabs
+                activeTab={tab}
+                items={[
+                  { id: 'members', label: 'Members' },
+                  { id: 'roles', label: 'Access roles' },
+                  { id: 'categories', label: 'Categories' },
+                ]}
+                label="Organization settings"
+                onChange={setTab}
+              />
+            </div>
+          ) : null}
+          <div className="organization-table" role="table">
+            <div
+              className={`grid items-center gap-3 bg-surface-secondary px-[18px] py-[11px] text-3xs text-muted max-md:hidden ${tableGridClass}`}
+              role="row"
+            >
+              <span>
+                {tab === 'members'
+                  ? 'MEMBER'
+                  : tab === 'roles'
+                    ? 'ROLE'
+                    : 'CATEGORY'}
+              </span>
+              {tab !== 'categories' || canReadStats ? (
+                <span>
+                  {tab === 'members'
+                    ? 'ROLE'
+                    : tab === 'roles'
+                      ? 'MEMBERS'
+                      : 'OPEN TICKETS'}
+                </span>
+              ) : null}
+              {tab !== 'categories' ? (
+                <span>{tab === 'roles' ? 'ACCESS' : 'STATUS'}</span>
+              ) : null}
+              {tab !== 'roles' ? <span aria-hidden="true" /> : null}
+            </div>
+            <AsyncState
+              emptyDescription={
+                tab === 'members'
+                  ? 'Add somebody by e-mail address to get started.'
+                  : 'Create one to start routing tickets.'
+              }
+              emptyTitle={
+                tab === 'members' ? 'No members yet' : 'No categories yet'
+              }
+              error={view.error}
+              errorTitle="This organization could not be read"
+              isEmpty={!rows.length}
+              onRetry={reload}
+              status={view.status}
+            >
+              {rows.map((row) => {
+                const editor = tab === 'members' ? 'edit-member' : 'category';
+                const canEdit =
+                  tab === 'members'
+                    ? canManageMembers && (row[4] === 'Active' || !previewMode)
+                    : tab === 'categories'
+                      ? canManageCategories
+                      : false;
+                const canOpen = tab === 'categories' || canEdit;
+                return (
+                  <div
+                    className={`grid border-t border-border ${tableGridClass} ${rowMobileGridClass}`}
+                    key={row[1]}
+                    role="row"
+                  >
+                    <button
+                      aria-label={
+                        tab === 'categories'
+                          ? `View tickets in ${row[1]}`
+                          : `Open ${row[1]}`
+                      }
+                      className={`grid min-h-[68px] w-full items-center gap-3 px-[18px] py-[11px] text-left enabled:hover:bg-surface-secondary disabled:cursor-default max-md:col-span-1 max-md:grid-cols-[minmax(0,1fr)_auto] max-md:p-3 ${rowContentClass}`}
+                      disabled={!canOpen}
+                      onClick={() => {
+                        setSelectedName(row[1]);
+                        if (tab === 'categories') onOpenCategory(row[1]);
+                        else if (canEdit) setDialog(editor);
+                      }}
+                      type="button"
+                    >
+                      <span className="flex items-center gap-2.5">
+                        <b className="grid size-8 place-items-center rounded-full bg-[#d8e5df] text-3xs text-primary">
+                          {row[0]}
+                        </b>
+                        <span className="grid gap-1">
+                          <strong className="text-xs">{row[1]}</strong>
+                          <small className="text-2xs text-muted max-md:max-w-[180px] max-md:overflow-hidden max-md:text-ellipsis max-md:whitespace-nowrap">
+                            {row[2]}
+                          </small>
+                        </span>
+                      </span>
+                      {tab !== 'categories' || canReadStats ? (
+                        <span className="text-2xs text-muted">{row[3]}</span>
+                      ) : null}
+                      {tab !== 'categories' ? (
+                        <span className="flex items-center gap-1.5 text-2xs text-muted">
+                          {tab === 'members' ? (
+                            <i
+                              className={`size-1.5 rounded-full ${row[4] === 'Invited' ? 'bg-warning' : 'bg-success'}`}
+                            />
+                          ) : null}
+                          {row[4] === 'Invited' ? (
+                            <>
+                              Invited
+                              <span className="max-md:hidden">
+                                {' '}
+                                · waiting for the person
+                              </span>
+                            </>
+                          ) : (
+                            row[4]
+                          )}
+                        </span>
+                      ) : null}
+                    </button>
+                    {canEdit ? (
+                      <IconButton
+                        label={`Edit ${row[1]}`}
+                        icon="more"
+                        onClick={() => {
+                          setSelectedName(row[1]);
+                          setDeleteContext(null);
+                          setDialog(editor);
+                        }}
+                        size="sm"
+                      />
+                    ) : tab !== 'roles' ? (
+                      <span aria-hidden="true" />
+                    ) : null}
+                  </div>
+                );
+              })}
+            </AsyncState>
           </div>
-          {rows.map((row) => {
-            const editor =
-              tab === 'members'
-                ? 'edit-member'
-                : tab === 'roles'
-                  ? 'role'
-                  : 'category';
-            return (
-              <div className="organization-table__row" key={row[1]} role="row">
-                <button
-                  aria-label={
-                    tab === 'categories'
-                      ? `View tickets in ${row[1]}`
-                      : `Open ${row[1]}`
-                  }
-                  className="organization-table__primary"
-                  onClick={() => {
-                    setSelectedName(row[1]);
-                    if (tab === 'categories') onOpenCategory(row[1]);
-                    else setDialog(editor);
-                  }}
-                  type="button"
-                >
-                  <span className="organization-identity">
-                    <b>{row[0]}</b>
-                    <span>
-                      <strong>{row[1]}</strong>
-                      <small>{row[2]}</small>
-                    </span>
-                  </span>
-                  <span>{row[3]}</span>
-                  <span className="organization-state">
-                    <i />
-                    {row[4]}
-                  </span>
-                </button>
-                <button
-                  aria-label={`Edit ${row[1]}`}
-                  className="organization-table__actions"
-                  onClick={() => {
-                    setSelectedName(row[1]);
-                    setDeleteContext(null);
-                    setDialog(editor);
-                  }}
-                  type="button"
-                >
-                  ⋯
-                </button>
+        </section>
+        {canReadStats ? (
+          <aside className="min-w-0 w-full rounded-md border border-border bg-surface p-5 max-[900px]:mt-4 max-md:hidden">
+            <h2 className="text-base font-medium">
+              {tab === 'roles'
+                ? 'Permission summary'
+                : tab === 'categories'
+                  ? 'Routing overview'
+                  : 'Ticket categories'}
+            </h2>
+            <p className="mt-1.5 text-xs2 text-muted">
+              {tab === 'roles'
+                ? 'How access is distributed by role.'
+                : tab === 'categories'
+                  ? 'Open workload by category.'
+                  : 'Used to route new requests.'}
+            </p>
+            {(tab === 'roles'
+              ? [
+                  ['Create tickets', '3 access roles'],
+                  ['Handle tickets', '2 access roles'],
+                  ['Manage members', '1 access role'],
+                  ['Manage categories', '1 access role'],
+                ]
+              : categoryRows.slice(0, 4).map((row) => [row[1], row[3]])
+            ).map(([label, value]) => (
+              <div
+                className="mt-[18px] grid grid-cols-[12px_1fr_auto] gap-[7px]"
+                key={label}
+              >
+                <span className="text-3xs text-brand-mint">●</span>
+                <strong className="text-2xs">{label}</strong>
+                <small className="text-2xs text-muted">{value}</small>
               </div>
-            );
-          })}
-        </div>
-      </section>
-      <aside className="organization-overview">
-        <h2>
-          {tab === 'roles'
-            ? 'Permission summary'
-            : tab === 'categories'
-              ? 'Routing overview'
-              : 'Ticket categories'}
-        </h2>
-        <p>
-          {tab === 'roles'
-            ? 'How access is distributed by role.'
-            : tab === 'categories'
-              ? 'Open workload by category.'
-              : 'Used to route new requests.'}
-        </p>
-        {(tab === 'roles'
-          ? [
-              ['Manage members', '2 access roles'],
-              ['Manage tickets', '3 access roles'],
-              ['Manage categories', '2 access roles'],
-              ['View conversations', '3 access roles'],
-            ]
-          : categoryRows.slice(0, 4).map((row) => [row[1], row[3]])
-        ).map(([label, value]) => (
-          <div key={label}>
-            <span>●</span>
-            <strong>{label}</strong>
-            <small>{value}</small>
-          </div>
-        ))}
-      </aside>
+            ))}
+          </aside>
+        ) : null}
+      </div>
       {dialog ? (
         <OrganizationDialog
+          canDeleteOrganization={
+            previewMode ||
+            organizationRole === 'GLOBAL_ADMIN' ||
+            createdById === currentUserId
+          }
           deleteContext={deleteContext}
           dialog={dialog}
           key={`${dialog}-${deleteContext ?? 'none'}`}
@@ -331,6 +718,7 @@ export function OrganizationPage({
           }}
           onSave={(data) => saveDialog(dialog, data)}
           organizationName={organizationName}
+          organizationDescription={organizationDescription}
           selectedName={selectedName}
           selectedRow={selectedRow}
         />

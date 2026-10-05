@@ -32,8 +32,10 @@ const logger = createLogger('audit');
 
 export type AuditAction =
   // account and platform
+  | 'user.created'
   | 'user.role.changed'
   | 'user.status.changed'
+  | 'user.password.rotated'
   | 'user.deleted'
   // organizations
   | 'organization.created'
@@ -42,6 +44,10 @@ export type AuditAction =
   | 'member.invited'
   | 'member.role.changed'
   | 'member.removed'
+  // role reservations by e-mail
+  | 'role.reserved'
+  | 'role.reservation.cancelled'
+  | 'role.reservation.claimed'
   // credentials
   | 'apiKey.created'
   | 'apiKey.revoked'

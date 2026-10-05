@@ -1,10 +1,52 @@
-@import 'ui/styles.css';
+@import 'tailwindcss';
+@source '../../../../packages/ui/src';
+
+@theme {
+  --color-canvas: #e9ece8;
+  --color-surface: #f6f7f3;
+  --color-surface-secondary: #eff2ed;
+  --color-border: #cfd6d0;
+  --color-ink: #1e2a2e;
+  --color-muted: #5e6b70;
+  --color-primary: #365d63;
+  --color-primary-hover: #2e5056;
+  --color-brand-mint: #86afa4;
+  --color-focus: #6a858b;
+  --color-success: #3f765a;
+  --color-warning: #805a32;
+  --color-danger: #934f4f;
+  --color-info: #466d78;
+  --color-info-surface: #e5eef0;
+  --color-success-surface: #e1ece5;
+  --color-warning-surface: #efe9dc;
+  --color-danger-surface: #f1e3e3;
+  /* Tamaños por debajo de text-xs (12px): la escala de Tailwind no llega ahí,
+     así que cada pantalla se los inventaba en píxeles absolutos. En rem siguen
+     el tamaño de letra que el lector tenga configurado en su navegador, igual
+     que ya hacen text-xs, text-sm y text-base en el resto de la interfaz.
+     Los valores son los mismos de antes: a 16px de raíz, 0.6875rem = 11px. */
+  --text-4xs: 0.5rem;
+  --text-3xs: 0.5625rem;
+  --text-2xs: 0.625rem;
+  --text-xs2: 0.6875rem;
+
+  --font-sans:
+    Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+}
 
 html,
 body,
 #root {
   margin: 0;
   min-height: 100vh;
+}
+
+html,
+body {
+  overflow-x: clip;
 }
 
 *,
@@ -16,8 +58,8 @@ body,
 body {
   min-width: 320px;
   background: var(--color-canvas);
-  color: var(--color-text-primary);
-  font-family: var(--font-family);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -36,101 +78,52 @@ button:not(:disabled) {
   cursor: pointer;
 }
 
+@keyframes auth-brand-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes auth-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.auth-brand-enter {
+  animation: auth-brand-enter 420ms ease-out both;
+}
+
+.auth-card-enter {
+  animation: auth-card-enter 460ms 80ms ease-out both;
+}
+
 a:focus-visible,
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--color-focus) 42%, transparent);
+  outline: 3px solid var(--color-focus);
   outline-offset: 2px;
 }
 
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
-.app-error {
-  display: grid;
-  width: min(560px, calc(100% - 32px));
-  min-height: 100dvh;
-  align-content: center;
-  justify-items: start;
-  gap: 14px;
-  margin: auto;
-}
-
-.app-error > span {
-  color: var(--color-text-secondary);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-}
-
-.app-error h1,
-.app-error p {
-  margin: 0;
-}
-
-.access-denied {
-  display: grid;
-  width: min(620px, calc(100% - 32px));
-  min-height: 100dvh;
-  align-content: center;
-  justify-items: start;
-  gap: 14px;
-  margin: auto;
-}
-
-.access-denied > span {
-  color: var(--color-text-secondary);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-}
-
-.access-denied h1,
-.access-denied p {
-  margin: 0;
-}
-
-.access-denied p {
-  max-width: 560px;
-  color: var(--color-text-secondary);
-  line-height: 1.6;
-}
-
-.app-error p {
-  color: var(--color-text-secondary);
-  line-height: 1.6;
-}
-
-.not-found {
-  display: grid;
-  min-height: calc(100dvh - 72px);
-  place-content: center;
-  justify-items: center;
-  padding: 32px;
-  text-align: center;
-}
-
-.not-found > span {
-  color: var(--color-primary);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-}
-
-.not-found h1 {
-  margin: 10px 0 8px;
-  font-size: clamp(28px, 5vw, 46px);
-  font-weight: 500;
-}
-
-.not-found p {
-  margin: 0 0 24px;
-  color: var(--color-text-secondary);
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }

@@ -1,11 +1,20 @@
 export type AppSection =
-  'tickets' | 'people' | 'messages' | 'organization' | 'account';
+  | 'tickets'
+  | 'people'
+  | 'messages'
+  | 'organization'
+  | 'account'
+  | 'admin'
+  | 'organizations'
+  | 'platform-roles'
+  | 'organization-roles';
 
 export type AccountView =
   | 'home'
   | 'profile'
   | 'preferences'
   | 'privacy'
+  | 'sessions'
   | 'export-requested'
   | 'export-ready'
   | 'delete';
@@ -25,8 +34,13 @@ export type AppRoute =
   | `account/${Exclude<AccountView, 'home'>}`
   | 'admin'
   | 'organizations'
+  | 'platform-roles'
+  | 'organization-roles'
   | 'privacy-policy'
   | 'terms'
+  | 'verify-email'
+  | 'forgot-password'
+  | 'reset-password'
   | 'not-found';
 
 export interface AppLocation {
@@ -54,13 +68,19 @@ const routes = new Set<AppRoute>([
   'account/profile',
   'account/preferences',
   'account/privacy',
+  'account/sessions',
   'account/export-requested',
   'account/export-ready',
   'account/delete',
   'admin',
   'organizations',
+  'platform-roles',
+  'organization-roles',
   'privacy-policy',
   'terms',
+  'verify-email',
+  'forgot-password',
+  'reset-password',
 ]);
 
 export function readLocation(): AppLocation {
@@ -120,7 +140,13 @@ export function getActiveSection(route: AppRoute): AppSection {
   )
     return 'tickets';
   if (route === 'people-profile') return 'people';
-  if (route === 'organizations') return 'organization';
+  if (
+    route === 'admin' ||
+    route === 'organizations' ||
+    route === 'platform-roles' ||
+    route === 'organization-roles'
+  )
+    return route;
   if (route.startsWith('account')) return 'account';
   if (
     route === 'tickets' ||
@@ -130,4 +156,29 @@ export function getActiveSection(route: AppRoute): AppSection {
   )
     return route;
   return 'tickets';
+}
+
+/**
+ * Routes that render outside the application shell and need no session: the
+ * entry pages, the legal pages and the e-mail confirmation link.
+ */
+export const publicRoutes: ReadonlySet<AppRoute> = new Set<AppRoute>([
+  'login',
+  'register',
+  'privacy-policy',
+  'terms',
+  'verify-email',
+  'forgot-password',
+  'reset-password',
+]);
+
+/**
+ * Where a page opened from the footer goes back to. Only a known route of the
+ * workspace is accepted: the value travels in the URL, and an arbitrary one
+ * must not decide where the app navigates.
+ */
+export function returnRoute(value: string | null): AppRoute | undefined {
+  if (!value || !routes.has(value as AppRoute)) return undefined;
+  const route = value as AppRoute;
+  return publicRoutes.has(route) ? undefined : route;
 }

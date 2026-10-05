@@ -3,7 +3,34 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
     <title>HelpDesk Lite</title>
+    <meta
+      name="description"
+      content="Help-desk for small teams: tickets with categories and priorities, organizations with roles, chat and notifications in real time."
+    />
+    <!-- Color de la barra del navegador en móvil: el mismo `canvas` de la
+         aplicación, para que no haya un salto al abrirla. -->
+    <meta name="theme-color" content="#e9ece8" />
+
+    <!-- Icono. El SVG es el que usan los navegadores actuales; el PNG de 180
+         es el que pide iOS y el que sirve de reserva donde el SVG no vale. -->
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- Adelanto del enlace cuando alguien lo comparte. `og:image` apunta al
+         icono y no a una captura: la aplicación está detrás de un acceso, así
+         que una captura real no diría nada a quien no ha entrado. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="HelpDesk Lite" />
+    <meta property="og:title" content="HelpDesk Lite" />
+    <meta
+      property="og:description"
+      content="Help-desk for small teams: tickets with categories and priorities, organizations with roles, chat and notifications in real time."
+    />
+    <meta property="og:image" content="/apple-touch-icon.png" />
+    <meta property="og:locale" content="en" />
+    <meta name="twitter:card" content="summary" />
   </head>
   <body>
     <div id="root"></div>

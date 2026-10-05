@@ -16,16 +16,20 @@ export function AuthBrandPanel({
 }: AuthBrandPanelProps) {
   return (
     <aside
-      className={`auth-brand-panel auth-brand-panel--${tone}`}
+      className={`hidden min-h-screen flex-col p-16 text-[#f7faf8] min-[1100px]:flex ${tone === 'register' ? 'bg-[#2d5b60]' : 'bg-[#183039]'}`}
       aria-label="About HelpDesk Lite"
     >
-      <BrandHeader inverse />
-      <div className="auth-brand-panel__message">
-        <h1>{title}</h1>
-        <p>{description}</p>
+      <div className="auth-brand-enter">
+        <BrandHeader inverse />
+        <div className="mt-[123px]">
+          <h1 className="text-[2.5rem] leading-[1.2] font-medium">{title}</h1>
+          <p className="mt-[47px] max-w-[420px] text-base leading-[1.2] text-[#c9d5d3]">
+            {description}
+          </p>
+        </div>
+        {insight}
       </div>
-      {insight}
-      <p className="auth-brand-panel__footer">
+      <p className="mt-auto text-xs text-[#9eb1b3]">
         Privacy-first · Accessible · Designed for focus
       </p>
     </aside>
@@ -40,8 +44,12 @@ export function BrandHeader({
   mark?: boolean;
 }) {
   return (
-    <div className={`auth-brand ${inverse ? 'auth-brand--inverse' : ''}`}>
-      {mark ? <BrandMark /> : null}
+    <div
+      className={`flex items-center gap-3 font-medium ${inverse ? 'text-xl' : 'text-[0.9375rem]'}`}
+    >
+      {mark ? (
+        <BrandMark className={inverse ? '' : '!size-9 !rounded-[10px]'} />
+      ) : null}
       <span>HelpDesk Lite</span>
     </div>
   );

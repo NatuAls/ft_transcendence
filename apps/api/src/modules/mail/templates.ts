@@ -107,3 +107,53 @@ export function organizationInviteTemplate(
     text: `${inviter} added you to ${orgName}: ${url}`,
   };
 }
+
+/**
+ * Organization names and display names are typed by users, and this is the
+ * only template that puts one in front of somebody who has no account yet:
+ * escape them, so an organization called `<a href=…>` cannot turn the message
+ * into a phishing link.
+ */
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+/**
+ * An administrator reserved a role for this ADDRESS. Two situations, two
+ * calls to action: with no account yet, create one with this same address;
+ * with an account whose address was never confirmed, confirm it. Either way
+ * nothing happens until the address is verified, and the message says so.
+ */
+export function roleReservedTemplate(input: {
+  roleLabel: string;
+  scopeLabel: string;
+  grantor: string;
+  hasAccount: boolean;
+  url: string;
+}): EmailContent {
+  const role = escapeHtml(input.roleLabel);
+  const scope = escapeHtml(input.scopeLabel);
+  const grantor = escapeHtml(input.grantor);
+  const next = input.hasAccount
+    ? 'Your account exists but this address has not been confirmed yet. Sign in and confirm it: the role is applied the moment it is verified.'
+    : 'To use it, create your HelpDesk Lite account with this same address and confirm it. The role is applied the moment the address is verified.';
+  return {
+    subject: `A role is waiting for you on HelpDesk Lite`,
+    html: layout(
+      `${role} · ${scope}`,
+      `<p>${grantor} gave this e-mail address the role <strong>${role}</strong> (${scope}).</p><p>${next}</p><p>If you were not expecting it, ignore this message: nothing changes until an account with this address is verified.</p>`,
+      {
+        label: input.hasAccount ? 'Sign in' : 'Create my account',
+        // The origin comes from the request headers, so the link is escaped
+        // like any other value that did not originate in this file.
+        url: escapeHtml(input.url),
+      },
+    ),
+    text: `${input.grantor} gave this address the role ${input.roleLabel} (${input.scopeLabel}). ${next} ${input.url}`,
+  };
+}

@@ -13,6 +13,7 @@ import { prisma } from '../../database/prisma.ts';
 import { DomainEvents, events } from '../../database/events.ts';
 import { loadConfiguration } from '../../config/env.ts';
 import { Errors } from '../../common/errors/domain-error.ts';
+import { isPrimaryAdminUsername } from '../admin/bootstrap-admin.ts';
 import { paginate } from '../../common/utils/pagination.ts';
 import { uuidv7 } from '../../common/utils/uuid.ts';
 import type { RequestActor } from '../../common/types.ts';
@@ -207,11 +208,17 @@ export async function setAvatar(
   const dir = join(config.UPLOAD_DIR, 'avatars');
   await mkdir(dir, { recursive: true });
   const key = `${uuidv7()}.webp`;
+  // The magic bytes only say what the file claims to be. A damaged image
+  // gets that far and then fails to decode: that is the client's file, a
+  // 422 - not a 500 that reads like the server broke.
   const output = await sharp(file.buffer)
     .rotate()
     .resize(512, 512, { fit: 'cover' })
     .webp({ quality: 82 })
-    .toBuffer();
+    .toBuffer()
+    .catch(() => {
+      throw Errors.imageUnreadable();
+    });
   await writeFile(join(dir, key), output);
 
   const previous = await prisma.userProfile.findUnique({
@@ -229,11 +236,27 @@ export async function setAvatar(
   return { avatarUrl };
 }
 
+/**
+ * Back to the default avatar. The file goes too: a photo the person removed
+ * must not stay on the server, reachable by its URL by anybody who kept it.
+ */
 export async function clearAvatar(userId: string) {
+  const previous = await prisma.userProfile.findUnique({
+    where: { userId },
+    select: { avatarUrl: true },
+  });
   await prisma.userProfile.update({
     where: { userId },
     data: { avatarUrl: null },
   });
+  if (previous?.avatarUrl?.startsWith('/api/v1/users/avatars/')) {
+    const key = previous.avatarUrl.split('/').pop();
+    if (key)
+      await unlink(join(loadConfiguration().UPLOAD_DIR, 'avatars', key)).catch(
+        () => undefined,
+      );
+  }
+  events.emit(DomainEvents.accountUpdated, { userId });
   return { avatarUrl: null };
 }
 
@@ -295,7 +318,38 @@ export async function listAll(query: ListUsersQuery) {
     }),
     prisma.user.count({ where }),
   ]);
-  return paginate(rows, total, query.page, query.take);
+  // `isPrimary` lets the interface hide the actions the API would refuse on
+  // the recovery account anyway (see refusePrimaryAdmin below).
+  return paginate(
+    rows.map((row) => ({
+      ...row,
+      isPrimary: isPrimaryAdminUsername(row.username),
+    })),
+    total,
+    query.page,
+    query.take,
+  );
+}
+
+/**
+ * The primary administrator is the recovery account: it is created at deploy
+ * time from a secret (see modules/admin/bootstrap-admin.ts) and it is the one
+ * that hands out roles to everybody else. Another administrator must not be
+ * able to leave the platform without it - by mistake or otherwise - so the
+ * three operations that could do so refuse to touch it. Rotating its password
+ * or retiring it is a deployment decision, not an in-app one.
+ */
+async function refusePrimaryAdmin(
+  userId: string,
+  action: string,
+): Promise<void> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { username: true },
+  });
+  if (user && isPrimaryAdminUsername(user.username)) {
+    throw Errors.forbiddenAction(`${action} the primary administrator`);
+  }
 }
 
 export async function setStatus(
@@ -305,6 +359,7 @@ export async function setStatus(
 ) {
   if (userId === actor.id)
     throw Errors.forbiddenAction('suspend your own account');
+  if (!isActive) await refusePrimaryAdmin(userId, 'suspend');
   const user = await prisma.user.update({
     where: { id: userId },
     data: { isActive },
@@ -321,6 +376,7 @@ export async function setGlobalRole(
 ) {
   if (userId === actor.id)
     throw Errors.forbiddenAction('change your own global role');
+  if (globalRole !== 'GLOBAL_ADMIN') await refusePrimaryAdmin(userId, 'demote');
   const user = await prisma.user.update({
     where: { id: userId },
     data: { globalRole },
@@ -336,6 +392,7 @@ export async function softDelete(
 ): Promise<void> {
   if (userId === actor.id)
     throw Errors.forbiddenAction('delete your own account here');
+  await refusePrimaryAdmin(userId, 'delete');
   await prisma.user.update({
     where: { id: userId },
     data: { deletedAt: new Date(), isActive: false },

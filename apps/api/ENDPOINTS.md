@@ -1,9 +1,21 @@
 # Referencia de endpoints — HelpDesk Lite API
 
-**105 rutas HTTP.** Tabla generada a partir de los routers reales de
+> **Referencia navegable:** `/api/v1/docs` (Swagger UI) y el documento en
+> `/api/v1/openapi.json`. Están generados desde los contratos Zod y cubren las
+> 111 rutas; esta tabla sigue siendo el resumen rápido, y el guion de
+> demostración está al final del fichero.
+>
+> En desarrollo se abren sin más. En **staging y producción** no están
+> expuestas: el proxy pide una contraseña de equipo y, además, la API sólo las
+> sirve a quien llega por ese proxy o presenta una sesión de administrador (a
+> cualquier otro le responde 404). Las credenciales y el interruptor
+> `DOCS_ACCESS` están en la guía DevOps del equipo.
+
+**111 rutas HTTP.** Tabla generada a partir de los routers reales de
 `apps/api/src/modules`, no escrita a mano. Si añades una ruta, añádela también
-aquí y en la documentación de Notion (*Frontend && Backend → 8. Endpoints
-funcionales*).
+aquí, en `src/modules/openapi/paths/` y en la documentación de Notion
+(*Frontend && Backend → 8. Endpoints funcionales*). El test
+`test/unit/openapi.test.ts` falla si una ruta se queda sin documentar.
 
 ## Convenciones
 
@@ -44,13 +56,13 @@ alcance.
 | POST | `/auth/logout` | sesión | Revoca la fila de refresh **y** el access token actual |
 | POST | `/auth/logout-all` | sesión | Revoca todas las sesiones y todos los access token vivos |
 | GET | `/auth/me` | sesión | Usuario, membresías y permisos efectivos |
-| POST | `/auth/verify-email` | — | `{ token }` |
+| POST | `/auth/verify-email` | — | `{ token }`. Es el momento en que la cuenta recibe los roles reservados para su correo |
 | POST | `/auth/resend-verification` | sesión | **Nueva.** Reemite el correo de verificación; invalida el token anterior |
 | POST | `/auth/forgot-password` | — | Responde 202 siempre, exista o no el correo |
 | POST | `/auth/reset-password` | — | `{ token, password, confirmPassword }`. Cierra todas las sesiones |
 | POST | `/auth/change-password` | sesión | Cierra todas las sesiones, incluida la que la pide |
-| GET | `/auth/sessions` | sesión | Sesiones activas del propio usuario |
-| DELETE | `/auth/sessions/:id` | sesión | Solo sobre sesiones propias |
+| GET | `/auth/sessions` | sesión | Dispositivos del propio usuario; `current` marca el que llama (por la familia de su cookie de refresco) |
+| DELETE | `/auth/sessions/:id` | sesión | Solo sobre sesiones propias; 404 si no existe o no es tuya |
 
 ## Usuarios · `/api/v1/users`
 
@@ -61,11 +73,11 @@ alcance.
 | PATCH | `/users/me` | sesión | `firstName`, `lastName`, `displayName`, `bio`, `jobTitle` |
 | GET | `/users/me/preferences` | sesión | **Nueva.** Idioma, zona horaria, tema y los cinco interruptores `notifyOn*` |
 | PATCH | `/users/me/preferences` | sesión | Devuelve el objeto completo, no solo la parte de `User` |
-| PUT | `/users/me/avatar` | sesión | `multipart/form-data`, campo `file`. Reencodado a WebP 512×512 sin EXIF |
-| DELETE | `/users/me/avatar` | sesión | |
+| PUT | `/users/me/avatar` | sesión | `multipart/form-data`, campo `file`. Reencodado a WebP 512×512 sin EXIF. Imagen dañada: 422 `FILE_IMAGE_UNREADABLE` |
+| DELETE | `/users/me/avatar` | sesión | Vuelve al avatar por defecto (iniciales) y borra el fichero |
 | GET | `/users/avatars/:key` | — | Público por diseño; la clave se valida contra un patrón fijo |
 | GET | `/users/:username` | sesión | Perfil público (sin correo de terceros) |
-| PATCH | `/users/:id` | GLOBAL_ADMIN | |
+| PATCH | `/users/:id` | GLOBAL_ADMIN | `{ firstName?, lastName? }`. Solo corrige el nombre: suspender va por `/status`, que tiene sus salvaguardas |
 | PATCH | `/users/:id/status` | GLOBAL_ADMIN | `{ isActive }`. Auditado |
 | PATCH | `/users/:id/role` | GLOBAL_ADMIN | `{ globalRole }`. Auditado |
 | DELETE | `/users/:id` | GLOBAL_ADMIN | Borrado lógico. Auditado |
@@ -83,6 +95,9 @@ alcance.
 | POST | `/organizations/:organizationId/members` | ORG_ADMIN | `{ identifier, role }`. Auditado |
 | PATCH | `/organizations/:organizationId/members/:userId` | ORG_ADMIN | Auditado |
 | DELETE | `/organizations/:organizationId/members/:userId` | ORG_ADMIN | Auditado |
+| GET | `/organizations/:organizationId/role-grants` | ORG_ADMIN | Roles reservados a correos que aún no tienen cuenta verificada |
+| POST | `/organizations/:organizationId/role-grants` | ORG_ADMIN | `{ email, role }`. `APPLIED` (200) a una cuenta verificada o a un miembro; si no, `RESERVED` (201) hasta que se verifique ese correo. Auditado |
+| DELETE | `/organizations/:organizationId/role-grants/:grantId` | ORG_ADMIN | Cancela la reserva. Auditado |
 | POST | `/organizations/:organizationId/leave` | MEMBER | No permite dejarla sin administradores |
 | GET | `/organizations/:organizationId/categories` | MEMBER | |
 | POST | `/organizations/:organizationId/categories` | ORG_ADMIN | |
@@ -176,6 +191,9 @@ cabecera del cliente: un script renombrado a `.pdf` recibe un `415`.
 | --- | --- | --- | --- |
 | GET | `/admin/audit-logs` | GLOBAL_ADMIN | `entity`, `entityId`, `actorId`, `action`, `from`, `to` |
 | GET | `/admin/stats` | GLOBAL_ADMIN | Contadores de plataforma |
+| GET | `/admin/role-grants` | GLOBAL_ADMIN | Roles de plataforma reservados a correos sin cuenta verificada |
+| POST | `/admin/role-grants` | GLOBAL_ADMIN | `{ email, globalRole: 'GLOBAL_ADMIN' }`. `APPLIED` (200) o `RESERVED` (201). Nadie cambia su propio rol. Auditado |
+| DELETE | `/admin/role-grants/:grantId` | GLOBAL_ADMIN | Cancela la reserva. Auditado |
 
 Las acciones marcadas «Auditado» en las tablas anteriores escriben una fila en
 `audit_logs` con quién, qué, cuándo y desde qué IP. Los `before`/`after` son
@@ -230,6 +248,7 @@ igual.
 | `PAYLOAD_TOO_LARGE`, `FILE_TOO_LARGE` | 413 | Cuerpo > 1 MB o fichero por encima de `UPLOAD_MAX_BYTES` |
 | `FILE_TYPE_NOT_ALLOWED` | 415 | Los magic bytes no están en la lista blanca |
 | `TICKET_ASSIGNEE_NOT_AGENT` | 422 | El destinatario de la asignación no es agente |
+| `FILE_IMAGE_UNREADABLE` | 422 | Dice ser una imagen pero no se puede decodificar (fichero dañado) |
 | `RATE_LIMITED` | 429 | Ventana agotada. Lleva `Retry-After` |
 | `INTERNAL_ERROR` | 500 | Fallo no previsto. Sin traza, sin SQL, sin rutas de fichero |
 
@@ -254,3 +273,67 @@ RATE_LIMIT_AUTH_PER_MIN=100000 RATE_LIMIT_GLOBAL_PER_MIN=200000 \
 
 El motivo de relajar los límites está explicado en la cabecera de
 `test/integration/helpers.ts`.
+
+---
+
+## Documentación interactiva y guion de demostración
+
+### Dónde está
+
+| Recurso | URL | Para qué |
+|---|---|---|
+| Swagger UI | `/api/v1/docs` | Leer la API y **ejecutarla** desde el navegador |
+| Documento OpenAPI 3.0.3 | `/api/v1/openapi.json` | Postman, generadores de cliente, CI de un integrador |
+
+El documento se construye en el arranque a partir de los contratos de
+`packages/contracts`: los cuerpos de petición que se ven en la página son
+**los mismos objetos Zod que valida el servidor**, así que no pueden
+desincronizarse. Las respuestas están escritas a mano en
+`src/modules/openapi/schemas.ts`, contrastadas contra la API real.
+
+`OPENAPI_SERVERS` añade entornos al desplegable de *Servers* sin tocar código:
+
+```bash
+OPENAPI_SERVERS="https://helpdesklite.me/api/v1|Production,https://staging.helpdesklite.me/api/v1|Staging"
+```
+
+### Guion de demostración (10 minutos, contra datos reales)
+
+1. **Abrir** `/api/v1/docs`. Enseñar la cabecera: autenticación, sobre de
+   error, paginación y límites de peticiones. Mencionar que son 111 rutas en
+   11 secciones y que el buscador de arriba filtra.
+2. **Crear la clave.** En `Organizations → POST /organizations/{organizationId}/api-keys`,
+   *Try it out* con un token de sesión de un `ORG_ADMIN`:
+
+   ```json
+   { "name": "Demo", "scopes": ["tickets:read", "tickets:write", "comments:write"] }
+   ```
+
+   Señalar que el campo `secret` **sólo viaja esta vez**: en la base sólo queda
+   su hash Argon2id y el prefijo.
+3. **Autorizar.** Botón *Authorize* → `apiKeyAuth` → pegar el `secret`. Queda
+   guardado entre recargas (`persistAuthorization`).
+4. **Comprobar la identidad de la clave**: `GET /public/me` devuelve la
+   organización a la que está atada y sus *scopes*.
+5. **Crear un ticket**: `POST /public/tickets`. No se le pasa organización —
+   la inyecta la clave—, y el ticket nace en `OPEN` con su referencia.
+6. **Comentarlo**: `POST /public/tickets/{id}/comments`.
+7. **Verlo en la aplicación web**: el mismo ticket aparece en la interfaz, con
+   su comentario. Es la prueba de que la API pública no es una puerta paralela:
+   llama a los mismos servicios de dominio.
+8. **Enseñar los límites**: repetir una llamada y mirar las cabeceras
+   `RateLimit-*` en la respuesta que pinta Swagger.
+9. **Enseñar un error de verdad**: crear un ticket con `title` de dos letras.
+   Devuelve `400 VALIDATION_FAILED` con `details` por campo y `requestId`, y
+   ese mismo `requestId` está en los logs.
+10. **Cerrar con el contrato**: abrir `CreateTicketInput` en *Schemas* y
+    contar que ese mínimo de 5 caracteres no se ha escrito en la
+    documentación, sale del contrato que valida el servidor.
+
+### Comprobado el 30/09/2026
+
+Ejecutado de punta a punta contra la API real (PostgreSQL y Redis en
+contenedores): registro → organización → clave → `GET /public/me` →
+`POST /public/tickets` → comentario → listado. El documento pasa
+`redocly lint` sin errores, y la página no lleva ni un `<script>` en línea,
+así que funciona con la CSP estricta de producción (`script-src 'self'`).

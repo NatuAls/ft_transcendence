@@ -1,4 +1,4 @@
-export type AdminDialogKind = 'create' | 'edit' | 'delete' | null;
+export type AdminDialogKind = 'create' | 'edit' | null;
 export type AdminUser = [string, string, string, string, string, string];
 
 export const initialUsers: AdminUser[] = [
@@ -7,7 +7,7 @@ export const initialUsers: AdminUser[] = [
     'Ana Ruiz',
     'ana@northstar.test',
     'Northstar Studio',
-    'User',
+    'Standard user',
     'Active',
   ],
   [
@@ -15,32 +15,32 @@ export const initialUsers: AdminUser[] = [
     'Mia Chen',
     'mia@northstar.test',
     'Northstar Studio',
-    'User',
+    'Standard user',
     'Active',
   ],
-  [
-    'SO',
-    'Sam Okafor',
-    'sam@helio.test',
-    'Helio Labs',
-    'Global admin',
-    'Active',
-  ],
+  ['SO', 'Sam Okafor', 'sam@helpdesk.test', '—', 'Global admin', 'Active'],
   [
     'CV',
     'Carlos Vega',
     'carlos@northstar.test',
     'Northstar Studio',
-    'User',
+    'Standard user',
     'Suspended',
   ],
-  ['NK', 'Noah Kim', 'noah@orbit.test', 'Orbit Finance', 'User', 'Active'],
+  [
+    'NK',
+    'Noah Kim',
+    'noah@orbit.test',
+    'Orbit Finance',
+    'Standard user',
+    'Active',
+  ],
   [
     'LP',
     'Lena Patel',
     'lena@northstar.test',
     'Northstar Studio',
-    'User',
+    'Standard user',
     'Active',
   ],
 ];

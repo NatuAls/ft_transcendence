@@ -96,7 +96,7 @@ jobs:
         run: npm run build
 
   # ---------------------------------------------------------------------------
-  # 2. Pruebas unitarias.
+  # 2. Pruebas unitarias: las de la API (node --test) y las de la web (Vitest).
   # ---------------------------------------------------------------------------
   unit-tests:
     name: Tests unitarios
@@ -130,12 +130,29 @@ jobs:
       - name: Verificar el informe (0 fallos, 0 saltadas, >0 ejecutadas)
         run: bash scripts/ci/check-test-report.sh test-results/unit.tap "tests unitarios"
 
+      # La web: Vitest + jsdom. Cada respuesta simulada se valida contra el
+      # documento OpenAPI de la API, y los permisos de la interfaz se cruzan
+      # con la tabla de políticas del servidor. `always()`: un fallo en la API
+      # no debe esconder el estado de la web en el mismo run.
+      - name: Ejecutar tests de la web
+        if: always()
+        run: |
+          set -o pipefail
+          mkdir -p test-results
+          npm run test:ci --workspace=apps/web | tee test-results/web.tap
+
+      - name: Verificar el informe de la web (0 fallos, 0 saltadas, >0 ejecutadas)
+        if: always()
+        run: bash scripts/ci/check-test-report.sh test-results/web.tap "tests de la web"
+
       - name: Publicar informe
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: tap-unit
-          path: test-results/unit.tap
+          path: |
+            test-results/unit.tap
+            test-results/web.tap
           if-no-files-found: warn
 
   # ---------------------------------------------------------------------------
