@@ -274,7 +274,20 @@ if [ "$MODE" = "--drill" ]; then
   cat "$REPORT"
 
   # Métrica para Prometheus: alerta si el último ensayo correcto es antiguo.
-  METRICS_FILE="${BACKUP_METRICS_FILE:-/opt/helpdesk/${ENV_NAME:-prod}/backups/metrics/restore.prom}"
+  # La métrica va a drills/, NO a backups/metrics.
+  #
+  # backup.sh corre como root dentro de un contenedor y crea
+  # /backups/metrics; en el host ese directorio queda de root, y `mkdir -p`
+  # sobre un directorio que ya existe NO cambia el dueño. El ensayo entra por
+  # SSH como el usuario de despliegue, así que escribir ahí le daba
+  # «Permission denied» incluso después de mover el informe fuera de la copia:
+  # moría al final, la métrica no se actualizaba nunca y la alerta
+  # «hace más de diez días que no se ensaya una restauración» no se callaba
+  # aunque el ensayo hubiese ido bien.
+  #
+  # node-exporter lee /textfile/* con glob, así que basta con montarle este
+  # directorio como un recolector más (ver compose.observability.yml).
+  METRICS_FILE="${BACKUP_METRICS_FILE:-${DRILL_DIR}/restore.prom}"
   mkdir -p "$(dirname "$METRICS_FILE")"
   # Misma etiqueta `env` que backup.sh: prod y staging comparten node-exporter.
   l="{env=\"${ENV_NAME:-prod}\"}"
