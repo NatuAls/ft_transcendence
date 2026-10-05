@@ -192,6 +192,11 @@ services:
       - '/:/host:ro,rslave'
       - /opt/helpdesk/prod/backups/metrics:/textfile/prod:ro
       - /opt/helpdesk/staging/backups/metrics:/textfile/staging:ro
+      # Los ensayos de restauración escriben aquí y no en backups/metrics:
+      # ese directorio lo crea root desde el contenedor de copias y el ensayo
+      # entra como el usuario de despliegue. El glob de arriba los recoge.
+      - /opt/helpdesk/prod/drills:/textfile/prod-drills:ro
+      - /opt/helpdesk/staging/drills:/textfile/staging-drills:ro
     networks: [observability]
 
   # v0.55.1: Docker 29 usa el image store de containerd (overlayfs

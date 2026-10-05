@@ -1,6 +1,18 @@
 DOCKER = docker
 COMPOSE = $(DOCKER) compose
-COMPOSE_DEV = -f compose.dev.yml
+
+# Proyecto de Compose de la pila de desarrollo, por la MISMA razón que el de
+# producción (ver abajo): los nombres de contenedor de compose.dev.yml son
+# fijos (dev_api, dev_web, dev_database...), así que dos clones del repositorio
+# en la misma máquina no pueden levantarla a la vez — pero SÍ pueden intentar
+# pararla cada uno por su lado, y ahí está la trampa: sin `-p`, el proyecto
+# sale del nombre de la carpeta, de modo que `make down-dev` desde un clon
+# distinto del que la levantó **no para nada y no dice nada**. Parece que el
+# comando no funciona; lo que ocurre es que está mirando otro proyecto.
+#
+# Se puede fijar otro con: make up-dev DEV_PROJECT=loquesea
+DEV_PROJECT ?= helpdesk-dev
+COMPOSE_DEV = -p $(DEV_PROJECT) -f compose.dev.yml
 
 # Proyecto de Compose de la pila de producción. Tiene que ser el MISMO que usa
 # scripts/deploy/remote-deploy.sh (el nombre del entorno), porque los nombres de
@@ -31,6 +43,21 @@ up-dev:
 
 down-dev:
 	@$(COMPOSE) $(COMPOSE_DEV) down
+
+down-dev-all: ## Para la pila de desarrollo venga del proyecto que venga
+	@$(COMPOSE) $(COMPOSE_DEV) down 2> /dev/null || true
+	@# Y los que levantó otro clon, que `down` no ve porque pertenecen a otro
+	@# proyecto de Compose. Se buscan por nombre, que en compose.dev.yml es
+	@# fijo, y se paran y eliminan: los VOLÚMENES no se tocan, así que la base
+	@# de datos de desarrollo sigue donde estaba.
+	@huerfanos="$$($(DOCKER) ps -a --filter 'name=^dev_' --format '{{.Names}}')"; \
+	if [ -n "$$huerfanos" ]; then \
+		printf "$(YELLOW)Parando contenedores de desarrollo de otro proyecto:$(NC)\n"; \
+		$(DOCKER) ps -a --filter 'name=^dev_' \
+			--format '  {{.Names}}  ({{.Status}})  proyecto: {{.Label "com.docker.compose.project"}}'; \
+		$(DOCKER) rm -f $$huerfanos > /dev/null; \
+	fi
+	@printf "$(GREEN)Pila de desarrollo detenida por completo.$(NC)\n"
 
 # compose.prod.yml usa imágenes de GHCR etiquetadas por SHA (no construye) y
 # recibe TLS de Nginx Proxy Manager/Cloudflare, no de certificados locales:
