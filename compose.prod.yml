@@ -162,7 +162,7 @@ services:
   # escucha en 127.0.0.1 del host: se llega por túnel SSH
   # (ssh -L 8025:127.0.0.1:8025 ...). Nada se entrega a internet.
   mailpit:
-    image: axllent/mailpit:v1.31.1
+    image: axllent/mailpit:v1.31.3
     container_name: helpdesk-mailpit-${ENV_NAME:-prod}
     restart: always
     logging: *default-logging
