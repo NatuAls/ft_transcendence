@@ -82,7 +82,7 @@ services:
   # romperían la sustitución—: se escribe tal cual en un fichero y Alertmanager
   # la lee con `smtp_auth_password_file`.
   alertmanager-config:
-    image: alpine:3.20
+    image: alpine:3.24
     container_name: helpdesk-alertmanager-config
     restart: 'no'
     logging: *default-logging
