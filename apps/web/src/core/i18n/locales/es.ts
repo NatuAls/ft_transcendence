@@ -36,6 +36,56 @@ export const es: Translation = {
       CLOSED: 'Cerrado',
     },
     priority: { LOW: 'Baja', MEDIUM: 'Media', HIGH: 'Alta' },
+    create: {
+      title: 'Crear un ticket',
+      subtitle:
+        'Describe el problema claramente para que la persona adecuada pueda ayudarte.',
+      back: 'Volver a tickets',
+      breadcrumbs: 'TICKETS / NUEVO',
+      detailsTitle: 'Detalles del ticket',
+      requiredNote: 'Todos los campos marcados con * son obligatorios.',
+      fields: {
+        subject: 'Asunto *',
+        subjectPlaceholder: 'Breve resumen del problema',
+        organization: 'Organización *',
+        category: 'Categoría',
+        categoryPlaceholder: 'Selecciona una categoría...',
+        noCategories: 'Sin categorías disponibles',
+        description: 'Descripción *',
+        descriptionPlaceholder:
+          'Explica qué pasó, qué esperabas y los pasos para reproducir el problema.',
+        priority: 'Prioridad *',
+        priorityDescriptions: {
+          low: 'Puede esperar',
+          medium: 'Requiere atención',
+          high: 'El trabajo está bloqueado',
+        },
+      },
+      actions: {
+        cancel: 'Cancelar',
+        submit: 'Crear ticket',
+        submitting: 'Creando...',
+      },
+      done: 'Ticket creado con éxito.',
+      aside: {
+        before: 'ANTES DE ENVIAR',
+        helpTitle: 'Ayúdanos a resolverlo más rápido',
+        tips: {
+          specificTitle: 'Sé específico',
+          specificText: 'Usa un asunto claro que describa el problema.',
+          contextTitle: 'Añade contexto',
+          contextText: 'Explica qué ha cambiado y a quién afecta.',
+          priorityTitle: 'Elige la prioridad',
+          priorityText: 'Usa Alta solo cuando el trabajo esté bloqueado.',
+        },
+        nextTitle: '¿Qué pasa después?',
+        steps: {
+          open: 'Abierto — Tu solicitud se une a la cola.',
+          inProgress: 'En progreso — Un agente se hace cargo.',
+          resolved: 'Resuelto — Revisas la solución propuesta.',
+        },
+      },
+    },
   },
   errors: {
     common: {

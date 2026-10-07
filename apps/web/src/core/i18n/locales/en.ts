@@ -36,6 +36,55 @@ export const en = {
       CLOSED: 'Closed',
     },
     priority: { LOW: 'Low', MEDIUM: 'Medium', HIGH: 'High' },
+    create: {
+      title: 'Create a ticket',
+      subtitle: 'Describe the issue clearly so the right person can help.',
+      back: 'Back to tickets',
+      breadcrumbs: 'TICKETS / NEW',
+      detailsTitle: 'Ticket details',
+      requiredNote: 'All fields marked * are required.',
+      fields: {
+        subject: 'Subject *',
+        subjectPlaceholder: 'Short summary of the issue',
+        organization: 'Organization *',
+        category: 'Category',
+        categoryPlaceholder: 'Select a category...',
+        noCategories: 'No categories available',
+        description: 'Description *',
+        descriptionPlaceholder:
+          'Explain what happened, what you expected and any steps that reproduce the problem.',
+        priority: 'Priority *',
+        priorityDescriptions: {
+          low: 'Can wait',
+          medium: 'Needs attention',
+          high: 'Work is blocked',
+        },
+      },
+      actions: {
+        cancel: 'Cancel',
+        submit: 'Create ticket',
+        submitting: 'Creating...',
+      },
+      done: 'Ticket created successfully.',
+      aside: {
+        before: 'BEFORE YOU SUBMIT',
+        helpTitle: 'Help us solve it faster',
+        tips: {
+          specificTitle: 'Be specific',
+          specificText: 'Use a clear subject that describes the problem.',
+          contextTitle: 'Add context',
+          contextText: 'Explain what changed and who is affected.',
+          priorityTitle: 'Choose priority',
+          priorityText: 'Use High only when work is blocked.',
+        },
+        nextTitle: 'What happens next?',
+        steps: {
+          open: 'Open — Your request joins the queue.',
+          inProgress: 'In progress — An agent takes ownership.',
+          resolved: 'Resolved — You review the proposed solution.',
+        },
+      },
+    },
   },
   // Las claves de error coinciden con el messageKey que devuelve la API:
   // t(error.messageKey) funciona sin mapas intermedios.
