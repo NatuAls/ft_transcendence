@@ -11,15 +11,11 @@ import { PeoplePage } from '../features/people/PeoplePage';
 import { PublicProfilePage } from '../features/people/PublicProfilePage';
 import { OrganizationRolesPage } from '../features/roles/OrganizationRolesPage';
 import { PlatformRolesPage } from '../features/roles/PlatformRolesPage';
-import {
-  CreateTicketPage,
-  type NewTicketValues,
-} from '../features/tickets/CreateTicketPage';
+import { CreateTicketPage } from '../features/tickets/CreateTicketPage';
 import { RelatedTicketsPage } from '../features/tickets/RelatedTicketsPage';
 import { TicketDetailPage } from '../features/tickets/TicketDetailPage';
 import { TicketListPage } from '../features/tickets/TicketListPage';
 import type { Ticket } from '../features/tickets/ticketData';
-import { organizationFixture } from '../features/organization/organizationData';
 import { NotFoundPage } from './NotFoundPage';
 import { can, type ViewerSession } from './session';
 import {
@@ -39,7 +35,6 @@ export function WorkspacePage({
   navigate,
   onAccessChanged,
   onAvatarChange,
-  onCreateTicket,
   onOrganizationDescriptionChange,
   onOrganizationNameChange,
   onOrganizationSelect,
@@ -61,7 +56,6 @@ export function WorkspacePage({
   /** The viewer's own access may have changed: read the session again. */
   onAccessChanged: () => void;
   onAvatarChange: (avatarUrl: string) => void;
-  onCreateTicket: (values: NewTicketValues) => void;
   onOrganizationDescriptionChange: (description: string) => void;
   onOrganizationNameChange: (organizationName: string) => void;
   onOrganizationSelect: (organization: OrganizationSummary) => void;
@@ -78,10 +72,6 @@ export function WorkspacePage({
   viewer: ViewerSession;
 }): ReactNode {
   const route: AppRoute = location.route;
-  const organizationData = organizationFixture(
-    organizationId,
-    organizationDescription,
-  );
   const organizationTickets = tickets.filter(
     (ticket) => ticket.organizationId === organizationId,
   );
@@ -129,18 +119,20 @@ export function WorkspacePage({
         />
       );
     case 'new-ticket':
-      return (
+      return can(viewer, 'ticket:create') ? (
         <CreateTicketPage
-          categories={organizationData.categories.map((row) => ({
-            description: row[2],
-            name: row[1],
-          }))}
+          key={organizationId}
           onCancel={() =>
             navigate('tickets', getTicketFilterParams(location.params))
           }
-          onSubmit={onCreateTicket}
+          onCreated={() =>
+            navigate('tickets', getTicketFilterParams(location.params))
+          }
           organizationName={organizationName}
+          organizationId={organizationId}
         />
+      ) : (
+        <AdminAccessDenied onBack={() => navigate('tickets')} />
       );
     case 'ticket-detail':
       return requestedTicket ? (

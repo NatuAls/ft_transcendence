@@ -8,7 +8,6 @@ import {
 import {
   buildHash,
   getActiveSection,
-  getTicketFilterParams,
   publicRoutes,
   readLocation,
   returnRoute,
@@ -32,7 +31,6 @@ import { ForgotPasswordPage } from './features/auth/ForgotPasswordPage';
 import { ResetPasswordPage } from './features/auth/ResetPasswordPage';
 import { VerifyEmailPage } from './features/auth/VerifyEmailPage';
 import { LegalPage } from './features/legal/LegalPage';
-import type { NewTicketValues } from './features/tickets/CreateTicketPage';
 import { initialTickets, type Ticket } from './features/tickets/ticketData';
 import {
   getOrganizationInitials,
@@ -286,27 +284,6 @@ function App() {
     }
   }
 
-  function handleCreateTicket(values: NewTicketValues) {
-    if (!accountProfile) return;
-    const ticketNumber =
-      244 + Math.max(0, tickets.length - initialTickets.length);
-    const ticket: Ticket = {
-      assignee: 'Unassigned',
-      category: values.category,
-      description: values.description,
-      id: `HD-${String(ticketNumber).padStart(4, '0')}`,
-      organizationId,
-      priority: values.priority,
-      requester: accountProfile.fullName,
-      status: 'Open',
-      statusTone: 'open',
-      time: 'Just now',
-      title: values.subject,
-    };
-    setTickets((current) => [ticket, ...current]);
-    navigate('tickets', getTicketFilterParams(location.params));
-  }
-
   if (location.route === 'register') {
     return (
       <RegisterPage
@@ -438,7 +415,6 @@ function App() {
           navigate={navigate}
           onAccessChanged={() => void reloadSession()}
           onAvatarChange={setAvatarUrl}
-          onCreateTicket={handleCreateTicket}
           onOrganizationDescriptionChange={setOrganizationDescription}
           onOrganizationNameChange={setOrganizationName}
           onOrganizationSelect={selectOrganizationSummary}
