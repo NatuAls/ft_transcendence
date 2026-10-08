@@ -141,7 +141,7 @@ describe('tickets · nueva creación', () => {
     fireEvent.change(screen.getByLabelText('Subject *'), {
       target: { value: 'Mi nuevo problema' },
     });
-    fireEvent.change(screen.getByLabelText('Category *'), {
+    fireEvent.change(screen.getByLabelText('Category'), {
       target: { value: CATEGORY_ID },
     });
 
@@ -201,7 +201,7 @@ describe('tickets · nueva creación', () => {
     fireEvent.change(screen.getByLabelText('Subject *'), {
       target: { value: 'Mi nuevo problema' },
     });
-    fireEvent.change(screen.getByLabelText('Category *'), {
+    fireEvent.change(screen.getByLabelText('Category'), {
       target: { value: CATEGORY_ID },
     });
     const textarea = screen.getByPlaceholderText(
