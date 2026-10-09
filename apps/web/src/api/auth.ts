@@ -1,4 +1,11 @@
-import type { LoginInput, PendingRole, RegisterInput } from 'contracts';
+import {
+  changePasswordSchema,
+  type ChangePasswordInput,
+  type LoginInput,
+  type PendingRole,
+  type RegisterInput,
+} from 'contracts';
+import { request } from '../core/api/client';
 
 // =============================================================================
 //  ÚNICA EXCEPCIÓN al cliente compartido de core/api/client.ts.
@@ -151,4 +158,12 @@ export async function register(input: RegisterInput): Promise<AuthResponse> {
   const body = await response.json();
   saveAccessToken(body.accessToken);
   return body as AuthResponse;
+}
+
+/** Change the signed-in user's password; the API revokes every session. */
+export function changePassword(input: ChangePasswordInput): Promise<void> {
+  return request<void>('/auth/change-password', {
+    method: 'POST',
+    body: changePasswordSchema.parse(input),
+  });
 }
