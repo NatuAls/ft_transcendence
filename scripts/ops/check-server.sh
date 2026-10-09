@@ -56,6 +56,20 @@ mem_pct=$(awk '/MemTotal/ {t=$2} /MemAvailable/ {a=$2} END { printf "%d", (1 - a
 if [ "$mem_pct" -ge 90 ]; then warn "memoria al ${mem_pct}%"; else pass "memoria al ${mem_pct}%"; fi
 docker info > /dev/null 2>&1 || { fail "este usuario no habla con Docker (¿grupo docker?)"; exit 1; }
 
+# Lo que Docker podría devolver al disco. Se mira AQUÍ y no cuando el disco ya
+# está al 93%: en una instancia pequeña, unas cuantas imágenes que nadie usa
+# —una prueba interrumpida, una versión vieja tras actualizar— se acumulan sin
+# hacer ruido. `docker system df` lo dice sin tocar nada.
+recuperable=$(docker system df --format '{{.Type}}\t{{.Reclaimable}}' 2> /dev/null \
+  | awk -F'\t' '{ printf "%s: %s  ", $1, $2 }')
+[ -n "$recuperable" ] && echo "  recuperable → ${recuperable}"
+colgando=$(docker images -f dangling=true -q 2> /dev/null | wc -l)
+if [ "$colgando" -gt 0 ]; then
+  warn "$colgando imagen(es) colgando (capas sueltas, p. ej. de una descarga interrumpida): docker image prune -f"
+else
+  pass "sin imágenes colgando"
+fi
+
 # -----------------------------------------------------------------------------
 section "Contenedores"
 EXPECTED=""

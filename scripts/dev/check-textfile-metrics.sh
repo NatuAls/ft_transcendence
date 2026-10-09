@@ -30,7 +30,13 @@
 # =============================================================================
 set -euo pipefail
 
-IMAGEN='prom/node-exporter:v1.12.1'
+# La misma versión que despliega la pila: si node-exporter cambiase de
+# criterio al subir de versión, esta prueba tiene que enterarse con la que de
+# verdad corre en el servidor, no con una fijada aquí hace meses.
+RAIZ_REPO=$(cd "$(dirname "$0")/../.." && pwd)
+IMAGEN=$(sed -n 's/^ *image: \(prom\/node-exporter:.*\)$/\1/p' \
+  "$RAIZ_REPO/compose.observability.yml" | head -1)
+IMAGEN="${IMAGEN:-prom/node-exporter:v1.12.1}"
 PUERTO=19100
 CONTENEDOR='helpdesk-textfile-probe'
 SERIE='helpdesk_restore_drill_last_timestamp_seconds'
