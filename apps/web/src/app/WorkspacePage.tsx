@@ -11,8 +11,7 @@ import { PeoplePage } from '../features/people/PeoplePage';
 import { PublicProfilePage } from '../features/people/PublicProfilePage';
 import { OrganizationRolesPage } from '../features/roles/OrganizationRolesPage';
 import { PlatformRolesPage } from '../features/roles/PlatformRolesPage';
-import type { NewTicketValues } from '../features/tickets/CreateTicketPage';
-import { CreateTicketScreen } from '../features/tickets/CreateTicketScreen';
+import { CreateTicketPage } from '../features/tickets/CreateTicketPage';
 import { RelatedTicketsPage } from '../features/tickets/RelatedTicketsPage';
 import { TicketDetailPage } from '../features/tickets/TicketDetailPage';
 import { TicketListPage } from '../features/tickets/TicketListPage';
@@ -36,7 +35,6 @@ export function WorkspacePage({
   navigate,
   onAccessChanged,
   onAvatarChange,
-  onCreateTicket,
   onOrganizationDescriptionChange,
   onOrganizationNameChange,
   onOrganizationSelect,
@@ -58,7 +56,6 @@ export function WorkspacePage({
   /** The viewer's own access may have changed: read the session again. */
   onAccessChanged: () => void;
   onAvatarChange: (avatarUrl: string) => void;
-  onCreateTicket: (values: NewTicketValues) => void;
   onOrganizationDescriptionChange: (description: string) => void;
   onOrganizationNameChange: (organizationName: string) => void;
   onOrganizationSelect: (organization: OrganizationSummary) => void;
@@ -122,15 +119,20 @@ export function WorkspacePage({
         />
       );
     case 'new-ticket':
-      return (
-        <CreateTicketScreen
+      return can(viewer, 'ticket:create') ? (
+        <CreateTicketPage
+          key={organizationId}
           onCancel={() =>
             navigate('tickets', getTicketFilterParams(location.params))
           }
-          onSubmit={onCreateTicket}
-          organizationId={organizationId}
+          onCreated={() =>
+            navigate('tickets', getTicketFilterParams(location.params))
+          }
           organizationName={organizationName}
+          organizationId={organizationId}
         />
+      ) : (
+        <AdminAccessDenied onBack={() => navigate('tickets')} />
       );
     case 'ticket-detail':
       return requestedTicket ? (
