@@ -202,7 +202,6 @@ jobs:
       JWT_REFRESH_SECRET: ci_refresh_secret_not_a_real_secret_0123456789
       PASSWORD_PEPPER: ci_pepper_not_a_real_secret_0123456789
       UPLOAD_DIR: /tmp/helpdesk-uploads
-      SEED_ON_BOOT: 'false'
       LOG_LEVEL: warn
       CORS_ORIGINS: http://localhost:5173
       API_BASE_URL: http://localhost:5000

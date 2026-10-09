@@ -376,6 +376,9 @@ $(read_env BOOTSTRAP_ADMIN_PASSWORD)
 ${prefix}_CORS_ORIGINS
 $(read_env CORS_ORIGINS)
 
+${prefix}_APP_PUBLIC_ORIGIN
+$(read_env APP_PUBLIC_ORIGIN)$( [ -z "$(read_env APP_PUBLIC_ORIGIN || true)" ] && printf '<-- vacío: se deduce de la petición, correcto detrás del proxy' || true )
+
 ${prefix}_SMTP_HOST
 $(read_env SMTP_HOST)
 
@@ -535,6 +538,15 @@ replace BOOTSTRAP_ADMIN_USERNAME     "$ADMIN_USER"
 replace BOOTSTRAP_ADMIN_PASSWORD     "$ADMIN_PASS"
 replace BOOTSTRAP_ADMIN_DISPLAY_NAME "Administración"
 replace BOOTSTRAP_ADMIN_ROTATE       "0"
+
+# Origen de los enlaces que viajan por correo. En desarrollo hay que decirlo:
+# la web está en el 5173 y la API en el 5000, así que deducirlo de la petición
+# daba enlaces contra el puerto de la API. En el servidor se deja vacío porque
+# detrás del proxy la web y la API comparten host.
+case "$ENV_NAME" in
+  dev) replace APP_PUBLIC_ORIGIN "http://localhost:5173" ;;
+  *)   replace APP_PUBLIC_ORIGIN "" ;;
+esac
 
 replace DOCS_GATEWAY_TOKEN "$(rand 32)"
 # En desarrollo no hay proxy delante de la API: con `gateway` la documentación

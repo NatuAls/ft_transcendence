@@ -158,3 +158,108 @@ describe(
     });
   },
 );
+
+/**
+ * El aislamiento no acaba en la organización: dentro de ella manda el rol.
+ *
+ * `GET /tickets/:id` ya comprobaba `ticket:read` contra el dueño del ticket,
+ * pero la LISTA sólo filtraba por organización. Resultado: un MEMBER recibía
+ * en `GET /tickets` los títulos de los tickets de sus compañeros —autor,
+ * referencia, estado— y sólo se topaba con el 403 al intentar abrir uno. Se
+ * vio el 08/10 comparando lo que ve cada rol en el entorno local.
+ *
+ * El caso que más fácil se rompe es el último: ser AGENT en una organización
+ * y MEMBER en otra. La respuesta tiene que traer todos los de la primera y
+ * sólo los propios de la segunda, no una cosa o la otra.
+ */
+describe(
+  'integración · dentro de la organización, el rol decide qué se lista',
+  { concurrency: false },
+  () => {
+    let up = false;
+    let admin: TestUser;
+    let miembro: TestUser;
+    let agente: TestUser;
+    let organizacion = '';
+    let ajeno = '';
+    let propio = '';
+
+    before(async () => {
+      up = await apiIsUp();
+      if (!up) return;
+      admin = await registerUser('rolAdmin');
+      miembro = await registerUser('rolMiembro');
+      agente = await registerUser('rolAgente');
+      organizacion = await createOrganization(admin.token);
+      await addMember(admin.token, organizacion, miembro.username, 'MEMBER');
+      await addMember(admin.token, organizacion, agente.username, 'AGENT');
+      ajeno = (await createTicket(admin.token, organizacion)).id;
+      propio = (await createTicket(miembro.token, organizacion)).id;
+    });
+
+    const listaDe = async (token: string) => {
+      const respuesta = await api<{ data: Array<{ id: string }> }>(
+        'GET',
+        '/tickets?take=100',
+        { token },
+      );
+      assert.equal(respuesta.status, 200);
+      return respuesta.body.data.map((fila) => fila.id);
+    };
+
+    it('un MEMBER no recibe en la lista los tickets de otros', async (t) => {
+      if (!up) return t.skip(SKIP_MESSAGE);
+      const vistos = await listaDe(miembro.token);
+      assert.ok(
+        vistos.includes(propio),
+        'tiene que seguir viendo los suyos, o la prueba no comprueba nada',
+      );
+      assert.ok(
+        !vistos.includes(ajeno),
+        'la lista le estaba dando el ticket de otra persona',
+      );
+    });
+
+    it('y lo que no lista, tampoco lo abre: las dos puertas dicen lo mismo', async (t) => {
+      if (!up) return t.skip(SKIP_MESSAGE);
+      assert.equal(
+        (await api('GET', `/tickets/${ajeno}`, { token: miembro.token }))
+          .status,
+        403,
+      );
+      assert.equal(
+        (await api('GET', `/tickets/${propio}`, { token: miembro.token }))
+          .status,
+        200,
+      );
+    });
+
+    it('un AGENT sí los ve todos: es la diferencia entre los dos roles', async (t) => {
+      if (!up) return t.skip(SKIP_MESSAGE);
+      const vistos = await listaDe(agente.token);
+      assert.ok(vistos.includes(ajeno));
+      assert.ok(vistos.includes(propio));
+    });
+
+    it('AGENT en una y MEMBER en otra: cada organización con su criterio', async (t) => {
+      if (!up) return t.skip(SKIP_MESSAGE);
+      const segunda = await createOrganization(admin.token);
+      await addMember(admin.token, segunda, agente.username, 'MEMBER');
+      const ajenoDeLaSegunda = (await createTicket(admin.token, segunda)).id;
+      const propioDeLaSegunda = (await createTicket(agente.token, segunda)).id;
+
+      const vistos = await listaDe(agente.token);
+      // En la primera es AGENT: los ve todos.
+      assert.ok(
+        vistos.includes(ajeno),
+        'perdió los de la organización en la que es AGENT',
+      );
+      // En la segunda es MEMBER: sólo los suyos.
+      assert.ok(vistos.includes(propioDeLaSegunda));
+      assert.ok(
+        !vistos.includes(ajenoDeLaSegunda),
+        'se coló un ticket ajeno de la organización en la que sólo es miembro',
+      );
+    });
+  },
+);

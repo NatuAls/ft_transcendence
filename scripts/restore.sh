@@ -145,10 +145,16 @@ if [ "$MODE" = "--drill" ]; then
   DRILL_NET="helpdesk-drill-net-$$"
   DRILL_DB="helpdesk-drill-db-$$"
   DRILL_PASS="drill_$(head -c 12 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+  # Lista de ficheros del tar de adjuntos. Antes era /tmp/drill-uploads.txt,
+  # un nombre fijo: dos ensayos a la vez (prod y staging) se pisaban, y un
+  # resto de un ensayo hecho como root dejaba al usuario de despliegue sin
+  # poder escribirla.
+  UPLOADS_LIST="$(mktemp "${TMPDIR:-/tmp}/drill-uploads.XXXXXX")"
 
   cleanup() {
     docker rm -f "$DRILL_DB" > /dev/null 2>&1 || true
     docker network rm "$DRILL_NET" > /dev/null 2>&1 || true
+    rm -f "$UPLOADS_LIST"
   }
   trap cleanup EXIT
 
@@ -236,7 +242,7 @@ if [ "$MODE" = "--drill" ]; then
   # Es la comprobación que justifica el orden dump-antes-que-uploads.
   log "Coherencia entre la base y el archivo de adjuntos"
   if [ -f "$BACKUP_PATH/uploads.tar.gz.enc" ]; then
-    decrypt "$BACKUP_PATH/uploads.tar.gz.enc" | tar -tzf - > /tmp/drill-uploads.txt 2>/dev/null \
+    decrypt "$BACKUP_PATH/uploads.tar.gz.enc" | tar -tzf - > "$UPLOADS_LIST" 2>/dev/null \
       || { bad "el archivo de adjuntos no se puede descifrar/abrir"; FAILURES=$((FAILURES + 1)); }
     keys=$(q "SELECT \"storageKey\" FROM attachments WHERE \"deletedAt\" IS NULL;")
     missing=0; total=0
@@ -244,7 +250,7 @@ if [ "$MODE" = "--drill" ]; then
       while IFS= read -r key; do
         [ -n "$key" ] || continue
         total=$((total + 1))
-        grep -qF -- "$key" /tmp/drill-uploads.txt || missing=$((missing + 1))
+        grep -qF -- "$key" "$UPLOADS_LIST" || missing=$((missing + 1))
       done <<< "$keys"
     fi
     if [ "$missing" -gt 0 ]; then
@@ -253,7 +259,6 @@ if [ "$MODE" = "--drill" ]; then
     else
       ok "los ${total} adjuntos vivos están presentes en el archivo"
     fi
-    rm -f /tmp/drill-uploads.txt
   else
     bad "no hay uploads.tar.gz.enc en esta copia"
     FAILURES=$((FAILURES + 1))
@@ -325,6 +330,26 @@ MSG
 read -r -p '  Escribe RESTAURAR para continuar: ' answer
 [ "$answer" = "RESTAURAR" ] || { echo "Cancelado."; exit 1; }
 
+log "Descifrando la copia (antes de tocar nada)"
+# El descifrado va a un fichero temporal y se comprueba POR SEPARADO: una
+# clave incorrecta o un dump corrupto abortan siempre, aunque se haya pedido
+# ignorar los errores de pg_restore.
+#
+# Va ANTES de parar la API y en el directorio del entorno, no dentro de la
+# copia. Antes se creaba en "$BACKUP_PATH", que es de root (lo crea backup.sh
+# en su contenedor): ejecutado como el usuario de despliegue, el mktemp fallaba
+# DESPUÉS de `stop api web` y la restauración abortaba con producción parada.
+PLAIN=$(mktemp "./.restore-dump.XXXXXX")
+chmod 600 "$PLAIN"
+trap 'rm -f "$PLAIN"' EXIT
+decrypt "$BACKUP_PATH/database.dump.enc" > "$PLAIN" \
+  || die "no se puede descifrar database.dump.enc (¿BACKUP_ENCRYPTION_KEY correcta?). No se ha tocado nada."
+[ -s "$PLAIN" ] || die "el dump descifrado está vacío. No se ha tocado nada."
+if [ -f "$BACKUP_PATH/uploads.tar.gz.enc" ]; then
+  decrypt "$BACKUP_PATH/uploads.tar.gz.enc" | tar -tzf - > /dev/null \
+    || die "no se puede descifrar/abrir uploads.tar.gz.enc. No se ha tocado nada."
+fi
+
 log "Copia de emergencia del estado ACTUAL (por si la restauración es el error)"
 $COMPOSE run --rm --no-deps \
   -e POSTGRES_USER="$DB_USER" -e POSTGRES_PASSWORD="$DB_PASSWORD" \
@@ -334,21 +359,6 @@ $COMPOSE run --rm --no-deps \
 
 log "Parando API y web (la base sigue en pie)"
 $COMPOSE stop api web
-
-log "Descifrando la copia (antes de tocar la base)"
-# El descifrado va a un fichero temporal y se comprueba POR SEPARADO: una
-# clave incorrecta o un dump corrupto abortan siempre, aunque se haya pedido
-# ignorar los errores de pg_restore.
-PLAIN=$(mktemp "$BACKUP_PATH/.database.dump.XXXXXX")
-chmod 600 "$PLAIN"
-trap 'rm -f "$PLAIN"' EXIT
-decrypt "$BACKUP_PATH/database.dump.enc" > "$PLAIN" \
-  || die "no se puede descifrar database.dump.enc (¿BACKUP_ENCRYPTION_KEY correcta?). La base NO se ha tocado."
-[ -s "$PLAIN" ] || die "el dump descifrado está vacío. La base NO se ha tocado."
-if [ -f "$BACKUP_PATH/uploads.tar.gz.enc" ]; then
-  decrypt "$BACKUP_PATH/uploads.tar.gz.enc" | tar -tzf - > /dev/null \
-    || die "no se puede descifrar/abrir uploads.tar.gz.enc. La base NO se ha tocado."
-fi
 
 log "Restaurando la base de datos"
 # pg_restore devuelve 1 tanto por un error real como por avisos que ignora

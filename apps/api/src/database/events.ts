@@ -92,6 +92,13 @@ export const DomainEvents = {
   memberAdded: 'member.added',
   memberUpdated: 'member.updated',
   memberRemoved: 'member.removed',
+  // Una reserva no crea pertenencia, así que no emitía `member.added` — y la
+  // pantalla de la organización SÍ pinta las reservas como filas. Resultado:
+  // añadías a alguien por correo y en la otra sesión no aparecía hasta
+  // recargar a mano. Son sus propios eventos, no un `member.*` falso: no hay
+  // ningún miembro todavía.
+  roleReserved: 'role.reserved',
+  roleReservationCancelled: 'role.reservation.cancelled',
   categoryCreated: 'category.created',
   categoryUpdated: 'category.updated',
   categoryDeleted: 'category.deleted',

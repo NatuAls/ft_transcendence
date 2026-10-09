@@ -91,17 +91,37 @@ const envSchema = z.object({
   API_KEY_RATE_PER_MIN: z.coerce.number().int().default(60),
   API_KEY_RATE_PER_HOUR: z.coerce.number().int().default(1000),
 
-  SEED_ON_BOOT: z
-    .string()
-    .default('false')
-    .transform((v) => v === 'true' || v === '1'),
-
   // Token de operación (tarea DevOps 9): habilita GET /api/metrics para
   // Prometheus y la vista detallada de /api/health/status y /api/version.
   // Opcional a propósito: sin él, /api/metrics responde 404 y la página de
   // estado sólo sirve el semáforo público. Generar con: openssl rand -hex 32.
   METRICS_TOKEN: optionalEnv(
     z.string().min(24, 'METRICS_TOKEN must be at least 24 chars'),
+  ),
+
+  // Origen público del sitio: el que se pone en los enlaces que viajan por
+  // correo (verificar la cuenta, recuperar la contraseña, el rol que espera).
+  // Por omisión se deduce de la propia petición, que es lo correcto detrás del
+  // proxy, donde la web y la API comparten host. En desarrollo NO lo es: el
+  // navegador está en el 5173 y Vite reenvía /api al 5000 con `changeOrigin`,
+  // así que la API ve `Host: localhost:5000` y los enlaces nacían apuntando al
+  // puerto de la API, por https y sin nada que los sirva. Con esta variable el
+  // enlace se escribe donde de verdad está la web.
+  // El esquema se comprueba a mano: `localhost:5173` ES una URL válida para el
+  // parser (esquema `localhost:`, camino `5173`), así que `.url()` sola la
+  // aceptaba y los enlaces seguían naciendo muertos.
+  APP_PUBLIC_ORIGIN: optionalEnv(
+    z
+      .string()
+      .trim()
+      .refine((value) => {
+        try {
+          const { protocol } = new URL(value);
+          return protocol === 'http:' || protocol === 'https:';
+        } catch {
+          return false;
+        }
+      }, 'APP_PUBLIC_ORIGIN must be an absolute URL starting with http:// or https://'),
   ),
 
   // Primer administrador (auditoría §6.3). Si se define y todavía no existe

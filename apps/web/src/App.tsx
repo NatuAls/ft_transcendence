@@ -8,7 +8,6 @@ import {
 import {
   buildHash,
   getActiveSection,
-  getTicketFilterParams,
   publicRoutes,
   readLocation,
   returnRoute,
@@ -19,11 +18,16 @@ import {
   can,
   previewMode,
   previewSessions,
-  scopePreviewViewer,
+  scopeViewerToOrganization,
   viewerFromAuthUser,
   type PreviewIdentity,
   type ViewerSession,
 } from './app/session';
+import {
+  forgetOrganization,
+  rememberedOrganization,
+  rememberOrganization,
+} from './app/activeOrganization';
 import { SessionStatePage } from './app/SessionStatePage';
 import { WorkspacePage } from './app/WorkspacePage';
 import { RegisterPage } from './features/auth/RegisterPage';
@@ -32,7 +36,6 @@ import { ForgotPasswordPage } from './features/auth/ForgotPasswordPage';
 import { ResetPasswordPage } from './features/auth/ResetPasswordPage';
 import { VerifyEmailPage } from './features/auth/VerifyEmailPage';
 import { LegalPage } from './features/legal/LegalPage';
-import type { NewTicketValues } from './features/tickets/CreateTicketPage';
 import { initialTickets, type Ticket } from './features/tickets/ticketData';
 import {
   getOrganizationInitials,
@@ -44,6 +47,8 @@ import { AppShell } from './layout/AppShell';
 import { logout, refreshSession, type AuthResponse } from './api/auth';
 import { listOrganizations } from './api/organizations';
 import { setUnauthorizedHandler } from './core/api/client';
+import { RealtimeEvents } from './core/realtime/socket';
+import { useRealtimeEvent } from './core/realtime/useRealtime';
 import { ToastProvider } from './core/feedback/ToastProvider';
 import { RealtimeProvider } from './core/realtime/RealtimeProvider';
 
@@ -134,6 +139,13 @@ function App() {
     organizationIdRef.current = organizationId;
   }, [organizationId]);
 
+  // Lo que se recuerda para la próxima recarga. En la vista previa no: su
+  // identidad se cambia con el selector de arriba y no hay nada que conservar.
+  useEffect(() => {
+    if (previewMode || !viewer?.id || !organizationId) return;
+    rememberOrganization(viewer.id, organizationId);
+  }, [organizationId, viewer?.id]);
+
   function selectFrom(
     available: OrganizationSummary[],
     nextViewer: ViewerSession,
@@ -179,10 +191,15 @@ function App() {
         loadedSignatureRef.current = signature;
         const available = await loadOrganizations(nextViewer);
         setOrganizations(available);
+        // Tras una recarga no hay estado en memoria, así que la elección sale
+        // de lo que se recordó la última vez; `selectFrom` la descarta sola si
+        // esa organización ya no está entre las suyas.
         selectFrom(
           available,
           nextViewer,
-          options.preferredId ?? organizationIdRef.current,
+          options.preferredId ||
+            organizationIdRef.current ||
+            rememberedOrganization(nextViewer.id),
         );
       }
       return nextViewer;
@@ -206,22 +223,85 @@ function App() {
     [establishSession, viewer],
   );
 
+  /**
+   * Que te metan en una organización, o te saquen, cambia el selector.
+   *
+   * El servidor avisa al socket de la persona afectada (`user:<id>`) y además
+   * le mete en la sala de la organización nueva. Sin escucharlo, la
+   * organización no salía en «Active organization» hasta recargar a mano,
+   * aunque ya tuvieras permiso para entrar. Se relee la sesión entera porque
+   * lo que cambia no es una lista: son tus propias pertenencias y, con ellas,
+   * tus permisos (R17).
+   */
+  // Función normal, no `useEffectEvent`: quien ya garantiza que el manejador
+  // es el último es `useRealtimeEvent`, que lo envuelve por dentro.
+  const esSobreMi = (payload: unknown) => {
+    const cuerpo = payload as
+      { member?: { user?: { id?: string } }; userId?: string } | undefined;
+    const afectado = cuerpo?.member?.user?.id ?? cuerpo?.userId;
+    return Boolean(afectado) && afectado === viewer?.id;
+  };
+  useRealtimeEvent(RealtimeEvents.memberAdded, (payload) => {
+    if (esSobreMi(payload)) void reloadSession();
+  });
+  useRealtimeEvent(RealtimeEvents.memberRemoved, (payload) => {
+    if (esSobreMi(payload)) void reloadSession();
+  });
+
+  /**
+   * La sesión al abrir la aplicación.
+   *
+   * Un `null` es definitivo: el servidor ha dicho que no hay sesión, y se va
+   * al inicio de sesión. Un `SessionUnreachable` no lo es: el servidor no ha
+   * contestado, y la sesión sigue viva en la cookie. Antes se confundían, así
+   * que parar y volver a arrancar la API te plantaba en la pantalla de inicio
+   * de sesión y sólo F5 recuperaba lo que ya tenías. Ahora se espera y se
+   * vuelve a probar, con una espera que crece para no castigar al servidor
+   * que está levantándose.
+   */
   useEffect(() => {
     if (previewMode) return;
-    void refreshSession()
-      .then(async (authData) => {
-        if (!authData) {
-          if (!publicRoutes.has(location.route)) {
-            window.location.hash = buildHash('login');
+    let cancelado = false;
+    let temporizador: number | undefined;
+    let intento = 0;
+
+    const probar = () => {
+      void refreshSession()
+        .then(async (authData) => {
+          if (cancelado) return;
+          if (!authData) {
+            if (!publicRoutes.has(location.route)) {
+              window.location.hash = buildHash('login');
+            }
+            return;
           }
-          return;
-        }
-        await establishSession(authData.user);
-        if (location.route === 'login' || location.route === 'register') {
-          window.location.hash = buildHash('tickets');
-        }
-      })
-      .finally(() => setSessionReady(true));
+          await establishSession(authData.user);
+          if (location.route === 'login' || location.route === 'register') {
+            window.location.hash = buildHash('tickets');
+          }
+        })
+        .catch(() => {
+          if (cancelado) return;
+          // Sin contestación: ni se cierra la sesión ni se navega. Se insiste
+          // hasta medio minuto, que es de sobra para un reinicio del
+          // contenedor.
+          intento += 1;
+          if (intento > 10) return;
+          temporizador = window.setTimeout(
+            probar,
+            Math.min(intento * 600, 5000),
+          );
+        })
+        .finally(() => {
+          if (!cancelado) setSessionReady(true);
+        });
+    };
+
+    probar();
+    return () => {
+      cancelado = true;
+      if (temporizador) window.clearTimeout(temporizador);
+    };
   }, [establishSession, location.route]);
 
   useEffect(() => {
@@ -260,6 +340,7 @@ function App() {
       if (!previewMode) await logout();
     } finally {
       if (!previewMode) {
+        if (viewer?.id) forgetOrganization(viewer.id);
         setViewer(null);
         setAccountProfile(null);
         setAvatarUrl(undefined);
@@ -284,27 +365,6 @@ function App() {
     ) {
       navigate('tickets');
     }
-  }
-
-  function handleCreateTicket(values: NewTicketValues) {
-    if (!accountProfile) return;
-    const ticketNumber =
-      244 + Math.max(0, tickets.length - initialTickets.length);
-    const ticket: Ticket = {
-      assignee: 'Unassigned',
-      category: values.category,
-      description: values.description,
-      id: `HD-${String(ticketNumber).padStart(4, '0')}`,
-      organizationId,
-      priority: values.priority,
-      requester: accountProfile.fullName,
-      status: 'Open',
-      statusTone: 'open',
-      time: 'Just now',
-      title: values.subject,
-    };
-    setTickets((current) => [ticket, ...current]);
-    navigate('tickets', getTicketFilterParams(location.params));
   }
 
   if (location.route === 'register') {
@@ -399,7 +459,7 @@ function App() {
       />
     );
   } else {
-    const scopedViewer = scopePreviewViewer(viewer, organizationId);
+    const scopedViewer = scopeViewerToOrganization(viewer, organizationId);
 
     authenticatedContent = (
       <AppShell
@@ -438,7 +498,6 @@ function App() {
           navigate={navigate}
           onAccessChanged={() => void reloadSession()}
           onAvatarChange={setAvatarUrl}
-          onCreateTicket={handleCreateTicket}
           onOrganizationDescriptionChange={setOrganizationDescription}
           onOrganizationNameChange={setOrganizationName}
           onOrganizationSelect={selectOrganizationSummary}

@@ -12,12 +12,25 @@ export function param(value: string | string[]): string {
 }
 
 /**
- * Public origin of the request, as the browser saw it. TLS terminates in the
- * proxy, so the scheme and host come from the forwarded headers; e-mails build
- * their links from this so they point at the site the person is actually on
- * (production, staging or a laptop).
+ * Public origin of the site, for the links that travel by e-mail (confirm the
+ * account, reset the password, claim a reserved role).
+ *
+ * `APP_PUBLIC_ORIGIN` wins when it is set, because only the deployment knows
+ * where the web really answers. Without it the origin is deduced from the
+ * request, which is right behind the proxy - the web and the API share the
+ * host there - but wrong in development: the browser is on 5173 and Vite
+ * forwards /api to 5000 with `changeOrigin`, so the API sees
+ * `Host: localhost:5000` and the link pointed at the API's port, over https,
+ * with nothing serving it.
  */
 export function originOf(req: Request): string {
+  // Se lee del entorno y no de `loadConfiguration()` a propósito: esto es un
+  // ayudante de cabeceras que usan rutas de todo tipo, y hacerlo depender de
+  // que TODA la configuración parsee lo convertía en algo que revienta cuando
+  // falta cualquier otra variable. Quien valida el valor es el esquema de
+  // config/env.ts, en el arranque: un origen mal escrito no despliega.
+  const configured = process.env['APP_PUBLIC_ORIGIN']?.trim();
+  if (configured) return configured.replace(/\/+$/, '');
   const proto =
     (req.headers['x-forwarded-proto'] as string | undefined) ?? 'https';
   const host =
