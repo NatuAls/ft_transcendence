@@ -132,22 +132,73 @@ $COMPOSE up -d --remove-orphans --force-recreate
 log "6. Comprobaciones"
 sleep 8
 docker ps --format '{{.Names}}\t{{.Status}}' | grep -E 'helpdesk-(alertmanager|prometheus|node-exporter|cadvisor|promtail)' || true
+
 echo "--- Alertmanager ---"
-if docker logs --since 2m helpdesk-alertmanager 2>&1 | grep -q "Completed loading of configuration file"; then
-  echo "OK: Alertmanager ha cargado la configuración."
+# Por la API y no por el registro: 0.34 dejó de escribir «Completed loading of
+# configuration file», así que el grep de antes daba un aviso con la pila
+# perfectamente sana. El estado sí dice qué configuración tiene cargada.
+estado_am=$(docker exec helpdesk-alertmanager \
+  wget -qO- http://127.0.0.1:9093/api/v2/status 2>/dev/null || true)
+if printf '%s' "$estado_am" | grep -q '"receivers"'; then
+  echo "OK: Alertmanager tiene configuración cargada."
+elif [ -n "$estado_am" ]; then
+  echo "[aviso] Alertmanager responde pero su configuración no trae receptores."
 else
-  echo "[aviso] Alertmanager no confirma la carga de configuración; revisa: docker logs helpdesk-alertmanager"
+  echo "[aviso] Alertmanager no responde todavía; revisa: docker logs helpdesk-alertmanager"
 fi
+
+# --- node-exporter, preguntándole a ÉL -------------------------------------
+# Antes esto se le preguntaba a Prometheus, que a los pocos segundos de
+# arrancar aún no ha rascado nada: devolvía una lista vacía y parecía que
+# node-exporter no leía ningún fichero, con la pila recién levantada y bien.
+echo "--- node-exporter: ficheros textfile que lee ahora mismo ---"
+ip_ne=$(docker inspect -f \
+  '{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}' \
+  helpdesk-node-exporter 2>/dev/null | awk '{print $1}')
+metricas_ne=''
+if [ -n "$ip_ne" ]; then
+  for _ in $(seq 1 20); do
+    metricas_ne=$(curl -sf --max-time 3 "http://${ip_ne}:9100/metrics" || true)
+    [ -n "$metricas_ne" ] && break
+    sleep 1
+  done
+fi
+if [ -z "$metricas_ne" ]; then
+  echo "  [aviso] no se ha podido consultar a node-exporter en ${ip_ne:-sin IP}"
+else
+  leidos=$(printf '%s\n' "$metricas_ne" | grep '^node_textfile_mtime_seconds' || true)
+  if [ -z "$leidos" ]; then
+    echo "  ninguno. Con los montajes puestos esto significa que no hay ficheros"
+    echo "  .prom todavía: el ensayo aún no ha escrito su métrica."
+  else
+    printf '%s\n' "$leidos" | sed -E 's/.*file="([^"]+)".*/  \1/'
+  fi
+  err_ne=$(printf '%s\n' "$metricas_ne" | awk '/^node_textfile_scrape_error/ {print $NF}' | head -1)
+  if [ "${err_ne:-0}" != "0" ]; then
+    echo "  [AVISO] node_textfile_scrape_error = ${err_ne}: no puede leer el árbol."
+    echo "  Suele ser permisos: corre como nobody y los directorios han de ser legibles."
+  fi
+fi
+
 echo "--- Prometheus: targets de la API y cualquier otro que no esté UP (= SondaTargetCaido) ---"
-sleep 25
+# Se espera a que Prometheus haya rascado de verdad en vez de dormir a ciegas:
+# un target en «unknown» sólo quiere decir que todavía no le ha tocado el
+# turno, y salía por pantalla como si estuviera caído.
+for _ in $(seq 1 30); do
+  pendientes=$(curl -s --max-time 3 127.0.0.1:9090/api/v1/targets 2>/dev/null \
+    | python3 -c 'import sys,json
+try: t=json.load(sys.stdin)["data"]["activeTargets"]
+except Exception: print(99); raise SystemExit
+print(sum(1 for x in t if x["health"]=="unknown"))' 2>/dev/null || echo 99)
+  [ "${pendientes:-99}" = "0" ] && break
+  sleep 2
+done
+[ "${pendientes:-99}" = "0" ] || echo "  (aún quedan targets sin rascar; lo de abajo puede estar incompleto)"
 curl -s 127.0.0.1:9090/api/v1/targets 2>/dev/null \
   | python3 -c 'import sys,json
 for t in json.load(sys.stdin)["data"]["activeTargets"]:
     if t["labels"]["job"].startswith("helpdesk-api") or t["health"] != "up":
         print(" ", t["labels"]["job"], t["labels"].get("instance",""), t["health"], t["lastError"][:90])' 2>/dev/null || true
-echo "--- node-exporter: ficheros textfile leídos ---"
-curl -s 127.0.0.1:9090/api/v1/query --data-urlencode 'query=node_textfile_mtime_seconds' 2>/dev/null \
-  | python3 -c 'import sys,json; print(" ", [r["metric"]["file"] for r in json.load(sys.stdin)["data"]["result"]])' 2>/dev/null || true
 echo "--- Último ensayo de restauración que ve Prometheus (EnsayoDeRestauracionAntiguo salta a los 10 días) ---"
 curl -s 127.0.0.1:9090/api/v1/query --data-urlencode 'query=(time() - helpdesk_restore_drill_last_timestamp_seconds) / 86400' 2>/dev/null \
   | python3 -c 'import sys,json
