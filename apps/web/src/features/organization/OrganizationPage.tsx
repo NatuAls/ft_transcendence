@@ -9,10 +9,16 @@ import { OrganizationDialog } from './OrganizationDialog';
 import { errorMessage } from '../../core/api/errors';
 import { AsyncState } from '../../core/async/AsyncState';
 import { useAsync } from '../../core/async/useAsync';
+import { RealtimeEvents } from '../../core/realtime/socket';
+import {
+  useOrganizationRoom,
+  useRealtimeEvent,
+} from '../../core/realtime/useRealtime';
 import {
   labelFromEmail,
   organizationFixture,
   roleRowsForMembers,
+  rowKey,
 } from './organizationData';
 import type {
   DeleteContext,
@@ -100,13 +106,10 @@ export function OrganizationPage({
   const view = useAsync(async () => {
     if (previewMode || !organizationId) {
       return {
-        categoryIds: {} as Record<string, string>,
         categoryRows: fixture.categories,
         createdById: null as string | null,
-        memberIds: {} as Record<string, string>,
         memberRows: fixture.members,
         openTickets: fixture.openTickets,
-        reservationIds: {} as Record<string, string>,
       };
     }
     const [members, reservations, categories, stats, detail] =
@@ -124,9 +127,6 @@ export function OrganizationPage({
           : null,
       ]);
     return {
-      categoryIds: Object.fromEntries(
-        categories.map((row) => [row.name, row.id]),
-      ),
       categoryRows: categories.map((category): OrganizationRow => {
         const count = category._count?.tickets ?? 0;
         return [
@@ -135,12 +135,14 @@ export function OrganizationPage({
           category.description ?? '',
           `${count} ${count === 1 ? 'ticket' : 'tickets'}`,
           '',
+          category.id,
         ];
       }),
       createdById: detail?.createdById ?? null,
-      memberIds: Object.fromEntries(
-        (members ?? []).map((member) => [member.displayName, member.userId]),
-      ),
+      // Cada fila con su identificador. Antes se guardaban tres diccionarios
+      // (miembros, reservas y categorías) con el TEXTO de la fila como clave,
+      // y con tres cuentas llamadas igual sólo sobrevivía la última: la
+      // pantalla acababa cambiando el rol de otra persona.
       memberRows: [
         ...(members ?? []).map((member): OrganizationRow => [
           getInitials(member.displayName),
@@ -148,6 +150,7 @@ export function OrganizationPage({
           member.email,
           LABEL_BY_ROLE[member.role],
           'Active',
+          member.userId,
         ]),
         ...(reservations ?? []).map((reservation): OrganizationRow => [
           getInitials(labelFromEmail(reservation.email)),
@@ -157,14 +160,12 @@ export function OrganizationPage({
             : 'Waiting for e-mail confirmation',
           LABEL_BY_ROLE[reservation.role],
           'Invited',
+          reservation.id,
         ]),
       ],
       openTickets: stats
         ? (stats.byStatus.OPEN ?? 0) + (stats.byStatus.IN_PROGRESS ?? 0)
         : fixture.openTickets,
-      reservationIds: Object.fromEntries(
-        (reservations ?? []).map((row) => [row.email, row.id]),
-      ),
     };
   }, [
     canManageMembers,
@@ -176,13 +177,65 @@ export function OrganizationPage({
 
   const memberRows = view.data?.memberRows ?? [];
   const categoryRows = view.data?.categoryRows ?? [];
-  const memberIds = view.data?.memberIds ?? {};
-  const reservationIds = view.data?.reservationIds ?? {};
-  const categoryIds = view.data?.categoryIds ?? {};
+  // La fila seleccionada, por su identificador y no por su texto: tres
+  // cuentas pueden llamarse igual.
+  const [selectedKey, setSelectedKey] = useState('');
   const createdById = view.data?.createdById ?? null;
   const openTickets = view.data?.openTickets ?? fixture.openTickets;
   const roleRows = roleRowsForMembers(memberRows);
   const reload = view.reload;
+
+  /**
+   * La pantalla se mantiene al día sola (R9).
+   *
+   * Sin esto, quien tenía abierta la pestaña de miembros no veía llegar a
+   * nadie hasta recargar a mano, y era fácil pensar que la persona que
+   * acababas de añadir se había perdido. Los eventos de miembros y categorías
+   * llegan a la sala `org:<id>`, así que puede llegar uno de OTRA organización
+   * a la que también perteneces: se comprueba el identificador antes de
+   * recargar. Tras una reconexión se recarga sin más, porque mientras el
+   * socket estuvo caído pudo cambiar cualquier cosa.
+   */
+  const esDeEstaOrganizacion = (payload: unknown): boolean => {
+    const cuerpo = payload as
+      | { member?: { organizationId?: string }; organizationId?: string }
+      | undefined;
+    const id = cuerpo?.member?.organizationId ?? cuerpo?.organizationId;
+    // Sin identificador no se puede descartar: más vale recargar de más.
+    return !id || id === organizationId;
+  };
+  const recargarSiEsDeAqui = (payload: unknown) => {
+    if (esDeEstaOrganizacion(payload)) reload();
+  };
+
+  // Sin esto, un administrador de plataforma no recibía NADA de la
+  // organización que estaba gestionando: las salas se reparten por
+  // pertenencia y él no pertenece a ninguna.
+  useOrganizationRoom(previewMode ? undefined : organizationId);
+
+  useRealtimeEvent(RealtimeEvents.memberAdded, recargarSiEsDeAqui);
+  useRealtimeEvent(RealtimeEvents.memberUpdated, recargarSiEsDeAqui);
+  useRealtimeEvent(RealtimeEvents.memberRemoved, (payload) => {
+    if (!esDeEstaOrganizacion(payload)) return;
+    const quitado = (payload as { userId?: string } | undefined)?.userId;
+    // Si el que sale eres tú, lo que cambia son tus permisos, no una lista
+    // (R17): que el armazón relea la sesión y decida qué puedes ver.
+    if (quitado && quitado === currentUserId) {
+      onAccessChanged();
+      return;
+    }
+    reload();
+  });
+  // Añadir a alguien por correo crea una RESERVA, no una pertenencia, así que
+  // no hay `member.added` que escuchar — y esta pantalla pinta las reservas
+  // como filas. Sin estos dos, añadías a alguien y en la otra sesión no
+  // aparecía hasta recargar a mano.
+  useRealtimeEvent(RealtimeEvents.roleReserved, recargarSiEsDeAqui);
+  useRealtimeEvent(RealtimeEvents.roleReservationCancelled, recargarSiEsDeAqui);
+  useRealtimeEvent(RealtimeEvents.categoryCreated, recargarSiEsDeAqui);
+  useRealtimeEvent(RealtimeEvents.categoryUpdated, recargarSiEsDeAqui);
+  useRealtimeEvent(RealtimeEvents.categoryDeleted, recargarSiEsDeAqui);
+  useRealtimeEvent(RealtimeEvents.connected, () => reload());
 
   /** Cambia las filas en local tras una acción, sin esperar a la recarga. */
   function patchRows(
@@ -197,7 +250,14 @@ export function OrganizationPage({
 
   const rows =
     tab === 'members' ? memberRows : tab === 'roles' ? roleRows : categoryRows;
-  const selectedRow = rows.find((row) => row[1] === selectedName);
+  const selectedRow = rows.find((row) => rowKey(row) === selectedKey);
+  // Quién es la fila elegida, sacado de ELLA y no de un diccionario por texto.
+  const selectedMemberId =
+    selectedRow?.[4] === 'Active' ? selectedRow[5] : undefined;
+  const selectedReservationId =
+    selectedRow?.[4] === 'Invited' ? selectedRow[5] : undefined;
+  const selectedCategoryId =
+    tab === 'categories' ? selectedRow?.[5] : undefined;
   const title =
     tab === 'members'
       ? 'Members and access'
@@ -234,6 +294,7 @@ export function OrganizationPage({
   function openCreateDialog() {
     if (tab === 'roles') return;
     setSelectedName('');
+    setSelectedKey('');
     setDeleteContext(null);
     setDialog(tab === 'members' ? 'add-member' : 'category');
   }
@@ -265,8 +326,8 @@ export function OrganizationPage({
     data: FormData,
   ) {
     const value = (name: string) => String(data.get(name) ?? '').trim();
-    const memberId = memberIds[selectedName];
-    const categoryId = categoryIds[selectedName];
+    const memberId = selectedMemberId;
+    const categoryId = selectedCategoryId;
     try {
       if (kind === 'add-member') {
         const result = await rolesApi.assignOrganizationRole(organizationId, {
@@ -325,7 +386,7 @@ export function OrganizationPage({
         }
         setFeedback(`Category “${input.name}” was saved.`);
       } else if (context === 'edit-member') {
-        const reservationId = reservationIds[selectedName];
+        const reservationId = selectedReservationId;
         if (memberId) {
           await rolesApi.removeMember(organizationId, memberId);
           setFeedback(`${selectedName} was removed from the organization.`);
@@ -366,8 +427,8 @@ export function OrganizationPage({
     } else if (kind === 'edit-member') {
       patchRows((current) => ({
         memberRows: current.memberRows.map((row) =>
-          row[1] === selectedName
-            ? [row[0], row[1], row[2], value('role'), row[4]]
+          rowKey(row) === selectedKey
+            ? [row[0], row[1], row[2], value('role'), row[4], row[5]]
             : row,
         ),
       }));
@@ -380,24 +441,29 @@ export function OrganizationPage({
       );
     } else if (kind === 'category') {
       const name = value('category-name');
-      const nextRow: OrganizationRow = [
+      // El identificador de la fila se conserva: es lo que la nombra, no su
+      // texto, que es justo lo que se está cambiando.
+      const nextRow = (id?: string): OrganizationRow => [
         getInitials(name),
         name,
         value('description'),
         selectedRow?.[3] ?? '0 tickets',
         '',
+        id,
       ];
       patchRows((current) => ({
-        categoryRows: selectedName
+        categoryRows: selectedKey
           ? current.categoryRows.map((row) =>
-              row[1] === selectedName ? nextRow : row,
+              rowKey(row) === selectedKey ? nextRow(row[5]) : row,
             )
-          : [...current.categoryRows, nextRow],
+          : [...current.categoryRows, nextRow()],
       }));
       setFeedback(`Category “${name}” was saved.`);
     } else if (deleteContext === 'edit-member') {
       patchRows((current) => ({
-        memberRows: current.memberRows.filter((row) => row[1] !== selectedName),
+        memberRows: current.memberRows.filter(
+          (row) => rowKey(row) !== selectedKey,
+        ),
       }));
       setFeedback(`${selectedName} was removed from the organization.`);
     } else if (deleteContext === 'settings') {
@@ -435,6 +501,7 @@ export function OrganizationPage({
                 className="max-md:!min-h-9 max-md:!px-2.5"
                 onClick={() => {
                   setSelectedName(organizationName);
+                  setSelectedKey('');
                   setDeleteContext(null);
                   setDialog('settings');
                 }}
@@ -588,7 +655,7 @@ export function OrganizationPage({
                 return (
                   <div
                     className={`grid border-t border-border ${tableGridClass} ${rowMobileGridClass}`}
-                    key={row[1]}
+                    key={rowKey(row)}
                     role="row"
                   >
                     <button
@@ -601,6 +668,7 @@ export function OrganizationPage({
                       disabled={!canOpen}
                       onClick={() => {
                         setSelectedName(row[1]);
+                        setSelectedKey(rowKey(row));
                         if (tab === 'categories') onOpenCategory(row[1]);
                         else if (canEdit) setDialog(editor);
                       }}
@@ -647,6 +715,7 @@ export function OrganizationPage({
                         icon="more"
                         onClick={() => {
                           setSelectedName(row[1]);
+                          setSelectedKey(rowKey(row));
                           setDeleteContext(null);
                           setDialog(editor);
                         }}
@@ -707,6 +776,13 @@ export function OrganizationPage({
           }
           deleteContext={deleteContext}
           dialog={dialog}
+          // El administrador de plataforma no se encierra: su alcance no es
+          // la organización, así que para él no hay nada que proteger.
+          editingSelf={
+            !previewMode &&
+            organizationRole !== 'GLOBAL_ADMIN' &&
+            selectedMemberId === currentUserId
+          }
           key={`${dialog}-${deleteContext ?? 'none'}`}
           onClose={() => {
             setDialog(null);

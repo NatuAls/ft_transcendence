@@ -11,15 +11,12 @@ import { PeoplePage } from '../features/people/PeoplePage';
 import { PublicProfilePage } from '../features/people/PublicProfilePage';
 import { OrganizationRolesPage } from '../features/roles/OrganizationRolesPage';
 import { PlatformRolesPage } from '../features/roles/PlatformRolesPage';
-import {
-  CreateTicketPage,
-  type NewTicketValues,
-} from '../features/tickets/CreateTicketPage';
+import type { NewTicketValues } from '../features/tickets/CreateTicketPage';
+import { CreateTicketScreen } from '../features/tickets/CreateTicketScreen';
 import { RelatedTicketsPage } from '../features/tickets/RelatedTicketsPage';
 import { TicketDetailPage } from '../features/tickets/TicketDetailPage';
 import { TicketListPage } from '../features/tickets/TicketListPage';
 import type { Ticket } from '../features/tickets/ticketData';
-import { organizationFixture } from '../features/organization/organizationData';
 import { NotFoundPage } from './NotFoundPage';
 import { can, type ViewerSession } from './session';
 import {
@@ -78,10 +75,6 @@ export function WorkspacePage({
   viewer: ViewerSession;
 }): ReactNode {
   const route: AppRoute = location.route;
-  const organizationData = organizationFixture(
-    organizationId,
-    organizationDescription,
-  );
   const organizationTickets = tickets.filter(
     (ticket) => ticket.organizationId === organizationId,
   );
@@ -130,15 +123,12 @@ export function WorkspacePage({
       );
     case 'new-ticket':
       return (
-        <CreateTicketPage
-          categories={organizationData.categories.map((row) => ({
-            description: row[2],
-            name: row[1],
-          }))}
+        <CreateTicketScreen
           onCancel={() =>
             navigate('tickets', getTicketFilterParams(location.params))
           }
           onSubmit={onCreateTicket}
+          organizationId={organizationId}
           organizationName={organizationName}
         />
       );

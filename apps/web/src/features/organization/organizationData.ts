@@ -2,7 +2,25 @@ export type OrgTab = 'members' | 'roles' | 'categories';
 export type OrganizationDialogKind =
   'add-member' | 'edit-member' | 'settings' | 'category' | 'delete' | null;
 export type DeleteContext = 'edit-member' | 'settings' | null;
-export type OrganizationRow = [string, string, string, string, string];
+/**
+ * Una fila de las tablas de la organización: iniciales, nombre, segunda
+ * columna, rol y estado — y, en la aplicación real, su IDENTIFICADOR.
+ *
+ * La sexta posición existe porque las cinco primeras son texto para leer, y
+ * ninguna sirve para saber de quién es la fila: tres cuentas distintas pueden
+ * llamarse igual. Cuando eso pasaba, las filas compartían clave de React
+ * —aparecían repetidas o fantasma al recargarse la lista— y, peor, las
+ * acciones se aplicaban a la cuenta equivocada, porque la pantalla buscaba el
+ * identificador por nombre. Se vio el 09/10 con tres cuentas «Felipe Cela».
+ *
+ * Los datos de muestra la omiten: ahí los nombres no se repiten.
+ */
+export type OrganizationRow = [string, string, string, string, string, string?];
+
+/** La identidad de una fila: su id si lo trae, y si no el texto que la nombra. */
+export function rowKey(row: OrganizationRow): string {
+  return row[5] ?? row[1];
+}
 
 export interface OrganizationFixture {
   categories: OrganizationRow[];
