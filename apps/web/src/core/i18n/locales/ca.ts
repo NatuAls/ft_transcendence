@@ -101,7 +101,8 @@ export const ca: Translation = {
         organization: 'Organització *',
         category: 'Categoria',
         categoryPlaceholder: 'Selecciona una categoria (opcional)...',
-        categoryUnassignedHelp: "Si tens dubtes, deixa la categoria en blanc. L'equip de suport la classificarà per tu.",
+        categoryUnassignedHelp:
+          "Si tens dubtes, deixa la categoria en blanc. L'equip de suport la classificarà per tu.",
         description: 'Descripció *',
         descriptionPlaceholder:
           'Explica què ha passat, què esperaves i els passos per reproduir el problema.',

@@ -99,7 +99,8 @@ export const en = {
         organization: 'Organization *',
         category: 'Category',
         categoryPlaceholder: 'Select a category (optional)...',
-        categoryUnassignedHelp: "If you're unsure, leave the category blank. Our support team will classify it for you.",
+        categoryUnassignedHelp:
+          "If you're unsure, leave the category blank. Our support team will classify it for you.",
         description: 'Description *',
         descriptionPlaceholder:
           'Explain what happened, what you expected and any steps that reproduce the problem.',
