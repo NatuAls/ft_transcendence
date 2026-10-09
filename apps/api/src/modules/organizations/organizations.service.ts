@@ -10,7 +10,11 @@ import { DomainEvents, events } from '../../database/events.ts';
 import { invalidateMembership, assertPolicy } from '../../rbac/rbac.ts';
 import { sendOrganizationInvite } from '../mail/mail.service.ts';
 import { Errors } from '../../common/errors/domain-error.ts';
-import type { RequestActor, RequestMembership } from '../../common/types.ts';
+import {
+  ORG_ROLE_RANK,
+  type RequestActor,
+  type RequestMembership,
+} from '../../common/types.ts';
 
 const slugify = (value: string): string =>
   value
@@ -89,6 +93,20 @@ export async function create(
   ) {
     throw Errors.slugTaken();
   }
+  // Quien crea una organización se queda dentro como su administrador, que es
+  // lo único razonable: si no, perdería al momento lo que acaba de crear.
+  //
+  // El administrador de PLATAFORMA es la excepción. Su acceso a cualquier
+  // organización es derivado del rol global —`orgScope` le deja pasar sin
+  // pertenecer—, así que apuntarle además como miembro no le da nada y sí
+  // estorba: aparecía como «Organization Admin» en los roles de acceso, donde
+  // sólo deben figurar los roles propios de la organización, y engordaba el
+  // recuento de miembros con alguien que no forma parte de ella. Su paso por
+  // una organización es puntual, no una pertenencia.
+  //
+  // La organización no se queda huérfana: la pantalla de alta exige el correo
+  // de su primer administrador y se lo asigna justo después de crearla.
+  const creadorEsDePlataforma = actor.globalRole === 'GLOBAL_ADMIN';
   return events.runInTransaction(async (tx) => {
     const org = await tx.organization.create({
       data: {
@@ -96,7 +114,9 @@ export async function create(
         slug,
         description: input.description ?? null,
         createdById: actor.id,
-        members: { create: { userId: actor.id, role: 'ORG_ADMIN' } },
+        ...(creadorEsDePlataforma
+          ? {}
+          : { members: { create: { userId: actor.id, role: 'ORG_ADMIN' } } }),
         categories: {
           create: [
             { name: 'General', color: '#0d6c90' },
@@ -310,8 +330,28 @@ export async function changeRole(
 ) {
   await findOne(actor, membership, id);
   assertPolicy('member:changeRole', subject(actor, membership));
+  // El orden importa: cuando además eres el único administrador, la razón que
+  // hay que dar es ésa, y es la que la API ya documentaba.
   if (role !== 'ORG_ADMIN' && (await isLastAdmin(id, userId)))
     throw Errors.lastAdmin();
+  // Bajarse el rol a uno mismo no tiene vuelta: cambiar roles exige ser
+  // administrador de la organización, así que quien se degrada queda dentro
+  // sin poder deshacerlo ni gestionar nada. El límite de arriba no cubría el
+  // caso y por eso parecía seguro: basta ascender a un segundo administrador
+  // para que deje de aplicar, y entonces la degradación propia pasaba sin un
+  // solo aviso. Quien quiera dejar de administrar se lo pide a otro
+  // administrador, o se va de la organización
+  // (`POST /organizations/:id/leave`). El administrador de plataforma queda
+  // fuera de la regla: su alcance no es la organización, así que no se
+  // encierra.
+  if (
+    userId === actor.id &&
+    actor.globalRole !== 'GLOBAL_ADMIN' &&
+    membership &&
+    ORG_ROLE_RANK[role] < ORG_ROLE_RANK[membership.role]
+  ) {
+    throw Errors.cannotLowerOwnRole();
+  }
 
   const member = await events.runInTransaction(async (tx) => {
     const updated = await tx.organizationMember.update({
