@@ -91,11 +91,6 @@ const envSchema = z.object({
   API_KEY_RATE_PER_MIN: z.coerce.number().int().default(60),
   API_KEY_RATE_PER_HOUR: z.coerce.number().int().default(1000),
 
-  SEED_ON_BOOT: z
-    .string()
-    .default('false')
-    .transform((v) => v === 'true' || v === '1'),
-
   // Token de operación (tarea DevOps 9): habilita GET /api/metrics para
   // Prometheus y la vista detallada de /api/health/status y /api/version.
   // Opcional a propósito: sin él, /api/metrics responde 404 y la página de

@@ -14,8 +14,14 @@
 //  mismas reglas de permisos que una persona, y si algo de eso se rompe, la
 //  siembra se rompe con ello y avisa.
 //
-//      node scripts/dev/seed-local.mjs
+//      make seed-dev                       (lo normal)
+//      node scripts/dev/seed-local.mjs     (lo mismo, sin el atajo)
 //      node scripts/dev/seed-local.mjs --salida doc/seed.txt
+//
+//  Para empezar de cero, vaciando la base: `make reset-dev`. La aplicación no
+//  siembra nada al arrancar — lo único que crea el arranque es el
+//  administrador de BOOTSTRAP_ADMIN_* del `.env`—, así que sobre una base
+//  recién creada esto es lo que la deja utilizable.
 //
 //  Las credenciales salen a un fichero (por omisión `doc/seed.txt`, que está
 //  fuera del repositorio del equipo a propósito) y NO al registro: el resumen
@@ -567,7 +573,22 @@ async function main() {
         const movido = await peticion(
           'PATCH',
           `/tickets/${creado.datos.id}/status`,
-          { token: personas.agent.token, cuerpo: { status: paso } },
+          {
+            token: personas.agent.token,
+            cuerpo: {
+              status: paso,
+              // Resolver exige un texto de al menos 20 caracteres
+              // (`changeStatusSchema`): sin él la API devuelve 400 y el
+              // ticket se queda a medio camino. Sólo se ve sembrando sobre
+              // una base vacía, porque sobre una ya poblada los tickets
+              // existen y no se tocan.
+              ...(paso === 'RESOLVED'
+                ? {
+                    resolution: `Resuelto durante la siembra de desarrollo: ${titulo}.`,
+                  }
+                : {}),
+            },
+          },
         );
         if (movido.estado !== 200) {
           aviso(
@@ -581,6 +602,38 @@ async function main() {
   }
 
   // --- 8) La salida ---------------------------------------------------------
+  // Se lee de vuelta de la API en lugar de apuntar lo que la siembra pretendía
+  // hacer: así el fichero describe lo que HAY, y si algún paso se quedó a
+  // medias se ve en el resultado en vez de quedar tapado.
+  log('  · leyendo el resultado');
+  const resumen = [];
+  for (const organizacion of ORGANIZACIONES) {
+    const id = creadas[organizacion.clave];
+    const [miembros, reservas, categoriasDe, stats] = await Promise.all([
+      peticion('GET', `/organizations/${id}/members`, { token: plataforma }),
+      peticion('GET', `/organizations/${id}/role-grants`, {
+        token: plataforma,
+      }),
+      peticion('GET', `/organizations/${id}/categories`, {
+        token: plataforma,
+      }),
+      peticion('GET', `/organizations/${id}/stats`, { token: plataforma }),
+    ]);
+    resumen.push({
+      nombre: organizacion.nombre,
+      id,
+      miembros: (miembros.datos ?? []).map(
+        (fila) =>
+          `${fila.role.padEnd(10)} ${fila.user?.email ?? fila.user?.username}`,
+      ),
+      reservas: (reservas.datos ?? []).map(
+        (fila) => `${fila.role.padEnd(10)} ${fila.email}  (pendiente)`,
+      ),
+      categorias: (categoriasDe.datos ?? []).map((fila) => fila.name),
+      tickets: stats.datos?.total ?? 0,
+    });
+  }
+
   const ahora = new Date().toISOString();
   const filas = [
     ['GLOBAL_ADMIN (del .env)', correoAdmin, claveAdmin],
@@ -599,7 +652,8 @@ async function main() {
     '# Entorno local, contraseñas de usar y tirar. Este fichero NO sube al',
     '# repositorio del equipo (doc/ está excluido a propósito).',
     '#',
-    '# Volver a generarlo:  node scripts/dev/seed-local.mjs',
+    '# Volver a generarlo ........ make seed-dev',
+    '# Empezar de cero (BORRA) .... make reset-dev',
     '',
     '## Cuentas',
     '',
@@ -610,11 +664,16 @@ async function main() {
     '',
     '## Organizaciones',
     '',
-    ...ORGANIZACIONES.map(
-      (organizacion) =>
-        `${organizacion.nombre}\n  ${creadas[organizacion.clave]}`,
-    ),
-    '',
+    ...resumen.flatMap((organizacion) => [
+      organizacion.nombre,
+      `  id ......... ${organizacion.id}`,
+      `  tickets .... ${organizacion.tickets}`,
+      `  categorías . ${organizacion.categorias.join(', ') || '(ninguna)'}`,
+      '  personas:',
+      ...organizacion.miembros.map((fila) => `    ${fila}`),
+      ...organizacion.reservas.map((fila) => `    ${fila}`),
+      '',
+    ]),
     '## Dónde probar',
     '',
     'Aplicación ............ http://localhost:5173',

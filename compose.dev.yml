@@ -79,7 +79,6 @@ services:
       - API_KEY_RATE_PER_MIN=${API_KEY_RATE_PER_MIN:-60}
       - API_KEY_RATE_PER_HOUR=${API_KEY_RATE_PER_HOUR:-1000}
       - LOG_LEVEL=${LOG_LEVEL:-info}
-      - SEED_ON_BOOT=${SEED_ON_BOOT:-true}
       # Lo que genera scripts/gen-secrets.sh y hasta ahora no llegaba al
       # contenedor: sin estas líneas, el .env local tenía los valores y la API
       # de desarrollo se comportaba como si no existieran (ni administrador ni

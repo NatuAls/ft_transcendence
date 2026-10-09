@@ -215,7 +215,7 @@ groups:
         labels: { severity: warning }
         annotations:
           summary: 'Nunca se ha ensayado una restauración de {{ $labels.env }} (o la métrica no llega)'
-          runbook: 'bash scripts/restore.sh --drill   (escribe backups/metrics/restore.prom)'
+          runbook: 'bash scripts/restore.sh --drill   (escribe drills/restore.prom)'
 
       - alert: EnsayoDeRestauracionFallido
         expr: helpdesk_restore_drill_failures > 0
