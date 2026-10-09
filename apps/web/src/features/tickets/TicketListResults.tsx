@@ -1,16 +1,39 @@
 import { Pagination, StatusBadge } from 'ui';
-import type { Ticket } from './ticketData';
+import type { TicketData } from '../../api/tickets';
+import { useTranslation } from '../../core/i18n';
 
-function Priority({ priority }: { priority: Ticket['priority'] }) {
+function Priority({ priority }: { priority: TicketData['priority'] }) {
+  const { t } = useTranslation();
   return (
     <span className="inline-flex items-center gap-[7px] text-[0.8125rem] text-ink">
       <span
         aria-hidden="true"
-        className={`size-[7px] rounded-full ${priority === 'High' ? 'bg-danger' : priority === 'Medium' ? 'bg-warning' : 'bg-success'}`}
+        className={`size-[7px] rounded-full ${
+          priority === 'HIGH'
+            ? 'bg-danger'
+            : priority === 'MEDIUM'
+              ? 'bg-warning'
+              : 'bg-success'
+        }`}
       />
-      {priority}
+      {t(`tickets.priority.${priority}`)}
     </span>
   );
+}
+
+function getStatusTone(status: string) {
+  switch (status) {
+    case 'OPEN':
+      return 'open';
+    case 'IN_PROGRESS':
+      return 'progress';
+    case 'RESOLVED':
+      return 'resolved';
+    case 'CLOSED':
+      return 'closed';
+    default:
+      return 'open';
+  }
 }
 
 function TicketCard({
@@ -18,8 +41,19 @@ function TicketCard({
   ticket,
 }: {
   onOpen: () => void;
-  ticket: Ticket;
+  ticket: TicketData;
 }) {
+  const { i18n, t } = useTranslation();
+  const assigneeName =
+    ticket.assigneeDisplayName || t('tickets.list.unassigned');
+  const initials = ticket.assigneeDisplayName
+    ? assigneeName
+        .split(' ')
+        .map((name) => name[0])
+        .join('')
+        .substring(0, 2)
+    : '?';
+
   return (
     <button
       className="hidden w-full gap-2.5 rounded-md border border-border bg-surface p-4 text-left text-ink max-md:grid"
@@ -27,22 +61,25 @@ function TicketCard({
       type="button"
     >
       <span className="flex items-center justify-between text-xs text-muted">
-        <span>#{ticket.id}</span>
-        <span>{ticket.time}</span>
+        <span>#{ticket.id.split('-')[0]}</span>
+        <span>
+          {new Intl.DateTimeFormat(i18n.language, {
+            dateStyle: 'medium',
+          }).format(new Date(ticket.createdAt))}
+        </span>
       </span>
       <strong className="text-[0.9375rem] font-medium">{ticket.title}</strong>
       <span className="flex items-center gap-3.5">
-        <StatusBadge tone={ticket.statusTone}>{ticket.status}</StatusBadge>
+        <StatusBadge tone={getStatusTone(ticket.status)}>
+          {t(`tickets.status.${ticket.status}`)}
+        </StatusBadge>
         <Priority priority={ticket.priority} />
       </span>
       <span className="flex items-center justify-start border-t border-border pt-3 text-xs text-muted">
         <span className="mr-2 grid size-[26px] place-items-center rounded-full bg-[#d8e5df] text-3xs text-primary">
-          {ticket.assignee
-            .split(' ')
-            .map((name) => name[0])
-            .join('')}
+          {initials}
         </span>
-        <span>{ticket.assignee}</span>
+        <span>{assigneeName}</span>
         <span className="ml-auto text-xl text-ink" aria-hidden="true">
           ›
         </span>
@@ -60,33 +97,33 @@ export function TicketListResults({
   pageCount,
   pageSize,
   showAllMobile,
-  visibleTickets,
 }: {
   activePage: number;
-  filteredTickets: Ticket[];
+  filteredTickets: TicketData[];
   onOpenTicket: (ticketId: string) => void;
   onPageChange: (page: number) => void;
   onShowAllMobile: () => void;
   pageCount: number;
   pageSize: number;
   showAllMobile: boolean;
-  visibleTickets: Ticket[];
 }) {
+  const { i18n, t } = useTranslation();
+
   return (
     <>
       <div className="overflow-x-auto max-md:hidden">
         <table className="w-full min-w-[820px] border-collapse text-left [&_th]:h-11 [&_th]:bg-surface-secondary [&_th]:px-5 [&_th]:text-xs [&_th]:font-medium [&_th]:text-muted [&_td]:h-[76px] [&_td]:border-t [&_td]:border-border [&_td]:px-5 [&_td]:py-3 [&_td]:text-[0.8125rem] [&_td]:text-muted [&_tbody_tr:hover]:bg-surface-secondary">
           <thead>
             <tr>
-              <th>Ticket</th>
-              <th>Status</th>
-              <th>Priority</th>
-              <th>Assignee</th>
-              <th>Updated</th>
+              <th>{t('tickets.table.ticket')}</th>
+              <th>{t('tickets.table.status')}</th>
+              <th>{t('tickets.table.priority')}</th>
+              <th>{t('tickets.table.assignee')}</th>
+              <th>{t('tickets.table.updated')}</th>
             </tr>
           </thead>
           <tbody>
-            {visibleTickets.map((ticket) => (
+            {filteredTickets.map((ticket) => (
               <tr key={ticket.id}>
                 <td>
                   <button
@@ -99,28 +136,30 @@ export function TicketListResults({
                     </strong>
                   </button>
                   <span className="block">
-                    #{ticket.id} · {ticket.category}
+                    #{ticket.id.split('-')[0]} ·{' '}
+                    {ticket.categoryName || t('tickets.list.noCategory')}
                   </span>
                 </td>
                 <td>
-                  <StatusBadge tone={ticket.statusTone}>
-                    {ticket.status}
+                  <StatusBadge tone={getStatusTone(ticket.status)}>
+                    {t(`tickets.status.${ticket.status}`)}
                   </StatusBadge>
                 </td>
                 <td>
                   <Priority priority={ticket.priority} />
                 </td>
-                <td>{ticket.assignee}</td>
-                <td>{ticket.time}</td>
+                <td>
+                  {ticket.assigneeDisplayName || t('tickets.list.unassigned')}
+                </td>
+                <td>
+                  {new Intl.DateTimeFormat(i18n.language, {
+                    dateStyle: 'medium',
+                  }).format(new Date(ticket.createdAt))}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
-        {!visibleTickets.length ? (
-          <p className="px-5 py-8 text-center text-muted">
-            No tickets match these filters.
-          </p>
-        ) : null}
       </div>
 
       <div className="hidden gap-2.5 max-md:grid">
@@ -139,26 +178,23 @@ export function TicketListResults({
             onClick={onShowAllMobile}
             type="button"
           >
-            View all {filteredTickets.length} sample tickets{' '}
+            {t('tickets.list.viewAll', { count: filteredTickets.length })}{' '}
             <span aria-hidden="true">→</span>
           </button>
-        ) : null}
-        {!filteredTickets.length ? (
-          <p className="px-5 py-8 text-center text-muted">
-            No tickets match these filters.
-          </p>
         ) : null}
       </div>
 
       <footer className="flex min-h-[70px] items-center justify-between border-t border-border px-6 py-3 text-[0.8125rem] text-muted max-md:hidden">
         <span>
-          Showing {filteredTickets.length ? (activePage - 1) * pageSize + 1 : 0}
-          –{Math.min(activePage * pageSize, filteredTickets.length)} of{' '}
-          {filteredTickets.length}
+          {t('tickets.list.showing', {
+            from: filteredTickets.length ? (activePage - 1) * pageSize + 1 : 0,
+            to: Math.min(activePage * pageSize, filteredTickets.length),
+            count: filteredTickets.length,
+          })}
         </span>
         <Pagination
           currentPage={activePage}
-          label="Ticket pages"
+          label={t('tickets.list.pages')}
           onPageChange={onPageChange}
           totalPages={pageCount}
         />
