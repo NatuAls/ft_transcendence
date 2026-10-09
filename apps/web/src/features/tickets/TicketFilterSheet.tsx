@@ -1,20 +1,11 @@
 import { Button, SelectField } from 'ui';
 import { useEffect, useRef } from 'react';
-import type { Ticket } from './ticketData';
+import type { CategoryRecord } from '../../api/organizations';
+import { useTranslation } from '../../core/i18n';
 
-export function TicketFilterSheet({
-  category,
-  onCategoryChange,
-  onClose,
-  onPriorityChange,
-  onSortChange,
-  onStatusChange,
-  priority,
-  sort,
-  status,
-  tickets,
-}: {
-  category: string;
+interface TicketFilterSheetProps {
+  activeCategories: CategoryRecord[];
+  categoryId: string;
   onCategoryChange: (value: string) => void;
   onClose: () => void;
   onPriorityChange: (value: string) => void;
@@ -23,8 +14,21 @@ export function TicketFilterSheet({
   priority: string;
   sort: string;
   status: string;
-  tickets: Ticket[];
-}) {
+}
+
+export function TicketFilterSheet({
+  activeCategories,
+  categoryId,
+  onCategoryChange,
+  onClose,
+  onPriorityChange,
+  onSortChange,
+  onStatusChange,
+  priority,
+  sort,
+  status,
+}: TicketFilterSheetProps) {
+  const { t } = useTranslation();
   const dialogRef = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
@@ -75,7 +79,7 @@ export function TicketFilterSheet({
     >
       <header>
         <button className="p-0 text-primary" onClick={onClose} type="button">
-          ← Tickets
+          ← {t('tickets.title')}
         </button>
         <h2
           className="mt-7 mb-1.5 text-[1.375rem] font-medium"
@@ -83,57 +87,60 @@ export function TicketFilterSheet({
           ref={headingRef}
           tabIndex={-1}
         >
-          Filter tickets
+          {t('tickets.filters.title')}
         </h2>
-        <p className="text-xs text-muted">
-          Combine fields to narrow the ticket list.
-        </p>
+        <p className="text-xs text-muted">{t('tickets.filters.description')}</p>
       </header>
+
       <div className="my-7 grid gap-4">
         <SelectField
-          label="Category"
+          label={t('tickets.filters.category.label')}
           onChange={(event) => onCategoryChange(event.target.value)}
-          value={category}
+          value={categoryId}
         >
-          <option value="all">All categories</option>
-          {[...new Set(tickets.map((ticket) => ticket.category))].map(
-            (value) => (
-              <option key={value}>{value}</option>
-            ),
-          )}
+          <option value="all">{t('tickets.filters.category.all')}</option>
+          {activeCategories.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.name}
+            </option>
+          ))}
         </SelectField>
+
         <SelectField
-          label="Status"
+          label={t('tickets.filters.status.label')}
           onChange={(event) => onStatusChange(event.target.value)}
           value={status}
         >
-          <option value="all">All statuses</option>
-          <option>Open</option>
-          <option>In progress</option>
-          <option>Resolved</option>
-          <option>Closed</option>
+          <option value="all">{t('tickets.filters.status.all')}</option>
+          <option value="Open">{t('tickets.status.OPEN')}</option>
+          <option value="In progress">{t('tickets.status.IN_PROGRESS')}</option>
+          <option value="Resolved">{t('tickets.status.RESOLVED')}</option>
+          <option value="Closed">{t('tickets.status.CLOSED')}</option>
         </SelectField>
+
         <SelectField
-          label="Priority"
+          label={t('tickets.filters.priority.label')}
           onChange={(event) => onPriorityChange(event.target.value)}
           value={priority}
         >
-          <option value="all">All priorities</option>
-          <option>High</option>
-          <option>Medium</option>
-          <option>Low</option>
+          <option value="all">{t('tickets.filters.priority.all')}</option>
+          <option value="High">{t('tickets.priority.HIGH')}</option>
+          <option value="Medium">{t('tickets.priority.MEDIUM')}</option>
+          <option value="Low">{t('tickets.priority.LOW')}</option>
         </SelectField>
+
         <SelectField
-          label="Sort order"
+          label={t('tickets.filters.sort.label')}
           onChange={(event) => onSortChange(event.target.value)}
           value={sort}
         >
-          <option value="newest">Newest</option>
-          <option value="oldest">Oldest</option>
+          <option value="newest">{t('tickets.filters.sort.newest')}</option>
+          <option value="oldest">{t('tickets.filters.sort.oldest')}</option>
         </SelectField>
       </div>
+
       <Button className="mt-auto" fullWidth onClick={onClose}>
-        Apply filters
+        {t('tickets.filters.apply')}
       </Button>
     </div>
   );
