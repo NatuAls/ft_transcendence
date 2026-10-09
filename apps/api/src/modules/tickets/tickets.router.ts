@@ -51,14 +51,19 @@ ticketsRouter.get(
   ...authed,
   validate(searchTicketsQuerySchema, 'query'),
   async (req, res) => {
+    // El ROL va con cada organización: dentro de una, un MEMBER sólo ve sus
+    // tickets, y se puede ser AGENT en una y MEMBER en otra.
     const memberships = await prisma.organizationMember.findMany({
       where: { userId: req.actor!.id },
-      select: { organizationId: true },
+      select: { organizationId: true, role: true },
     });
     res.json(
       await search.searchTickets(
         req.actor!,
-        memberships.map((m) => m.organizationId),
+        memberships.map((m) => ({
+          organizationId: m.organizationId,
+          role: m.role,
+        })),
         req.query as unknown as Parameters<typeof search.searchTickets>[2],
       ),
     );

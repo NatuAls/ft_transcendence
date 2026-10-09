@@ -66,10 +66,20 @@ publicApiRouter.get(
   async (req, res) => {
     const actor = req.actor!;
     res.json(
-      await search.searchTickets(actor, [orgIdOf(actor)], {
-        ...(req.query as unknown as Parameters<typeof search.searchTickets>[2]),
-        organizationId: orgIdOf(actor),
-      }),
+      // Una clave de API representa a la organización entera, no a una
+      // persona: lo que puede leer lo decide su `scope`, no un rol de
+      // pertenencia. Por eso entra como AGENT, que es «ver los tickets de la
+      // organización» sin poder gestionarla.
+      await search.searchTickets(
+        actor,
+        [{ organizationId: orgIdOf(actor), role: 'AGENT' as const }],
+        {
+          ...(req.query as unknown as Parameters<
+            typeof search.searchTickets
+          >[2]),
+          organizationId: orgIdOf(actor),
+        },
+      ),
     );
   },
 );
