@@ -44,6 +44,26 @@ up-dev:
 down-dev:
 	@$(COMPOSE) $(COMPOSE_DEV) down
 
+seed-dev: ## Siembra el entorno local y vuelca las credenciales a doc/seed.txt
+	@# La aplicación NO se siembra sola al arrancar: lo único que crea el
+	@# arranque es el administrador de BOOTSTRAP_ADMIN_* del .env. Las
+	@# organizaciones, las personas, las categorías y los tickets salen de
+	@# aquí. Se puede repetir cuantas veces haga falta: reconcilia en vez de
+	@# duplicar, y no borra nada.
+	@node scripts/dev/seed-local.mjs
+
+reset-dev: ## Vacía la base de desarrollo y vuelve a sembrarla desde cero (pide confirmación)
+	@printf "$(YELLOW)Esto BORRA la base de datos de desarrollo y todo lo que tenga.$(NC)\n"
+	@printf "Los volúmenes afectados son:\n"
+	@$(DOCKER) volume ls --format '  {{.Name}}' --filter "name=^$(DEV_PROJECT)_" || true
+	@printf "Escribe $(WHITE)borrar$(NC) para continuar: "
+	@read -r respuesta; [ "$$respuesta" = "borrar" ] || { printf "$(GREEN)Cancelado.$(NC)\n"; exit 1; }
+	@$(COMPOSE) $(COMPOSE_DEV) down --volumes
+	@$(MAKE) --no-print-directory up-dev
+	@printf "$(CYAN)Esperando a que la API responda...$(NC)\n"
+	@until curl -sf http://127.0.0.1:5000/api/health > /dev/null 2>&1; do sleep 2; done
+	@$(MAKE) --no-print-directory seed-dev
+
 down-dev-all: ## Para la pila de desarrollo venga del proyecto que venga
 	@$(COMPOSE) $(COMPOSE_DEV) down 2> /dev/null || true
 	@# Y los que levantó otro clon, que `down` no ve porque pertenecen a otro
