@@ -2,6 +2,11 @@
 // =============================================================================
 //  Siembra de desarrollo — HelpDesk Lite
 //
+//  No confundir con `scripts/ops/seed-demo.mjs`, que es otra cosa: aquél
+//  prepara los datos de demostración de la defensa y se ejecuta DENTRO del
+//  contenedor de la API en el servidor. Éste prepara la máquina de quien
+//  desarrolla, contra `make up-dev`.
+//
 //  Deja el entorno local con lo que hace falta para probar permisos a mano:
 //  tres organizaciones, los cuatro roles de organización y DOS niveles de
 //  administración de plataforma. Todo a través de la API real, no por psql:
@@ -9,8 +14,8 @@
 //  mismas reglas de permisos que una persona, y si algo de eso se rompe, la
 //  siembra se rompe con ello y avisa.
 //
-//      node scripts/dev/seed-demo.mjs
-//      node scripts/dev/seed-demo.mjs --salida doc/seed.txt
+//      node scripts/dev/seed-local.mjs
+//      node scripts/dev/seed-local.mjs --salida doc/seed.txt
 //
 //  Las credenciales salen a un fichero (por omisión `doc/seed.txt`, que está
 //  fuera del repositorio del equipo a propósito) y NO al registro: el resumen
@@ -594,7 +599,7 @@ async function main() {
     '# Entorno local, contraseñas de usar y tirar. Este fichero NO sube al',
     '# repositorio del equipo (doc/ está excluido a propósito).',
     '#',
-    '# Volver a generarlo:  node scripts/dev/seed-demo.mjs',
+    '# Volver a generarlo:  node scripts/dev/seed-local.mjs',
     '',
     '## Cuentas',
     '',
