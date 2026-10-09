@@ -391,6 +391,12 @@ export async function assignOrganizationRole(
     hasAccount: Boolean(account),
     url: nextStepUrl(origin, input.email, Boolean(account)),
   });
+  events.emit(DomainEvents.roleReserved, {
+    organizationId,
+    email: input.email,
+    role: input.role,
+    actorId: actor.id,
+  });
   if (account) await claimIfVerifiedMeanwhile(account.id);
 
   return {
@@ -428,6 +434,11 @@ export async function cancelOrganizationReservation(
   });
   if (!row) throw Errors.resourceNotFound('reservation');
   await prisma.organizationRoleGrant.delete({ where: { id } });
+  events.emit(DomainEvents.roleReservationCancelled, {
+    organizationId,
+    email: row.email,
+    actorId: actor.id,
+  });
   return row;
 }
 
