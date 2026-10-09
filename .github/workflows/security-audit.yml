@@ -154,6 +154,12 @@ jobs:
       - name: Trivy sobre la imagen
         if: steps.ref.outputs.ref != ''
         uses: aquasecurity/trivy-action@v0.36.0
+        # Las imágenes sólo existen para linux/arm64 (Ampere) y el runner es
+        # amd64: sin esto Trivy busca la variante del runner y muere con «no
+        # child with platform linux/amd64 in index». Así fallaba el job de los
+        # lunes (visto en el del 05/10) sin haber escaneado nada.
+        env:
+          TRIVY_PLATFORM: linux/arm64
         with:
           image-ref: ${{ steps.ref.outputs.ref }}
           format: table
