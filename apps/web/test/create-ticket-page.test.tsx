@@ -108,20 +108,20 @@ describe('tickets · nueva creación', () => {
     expect(campo.disabled).toBe(true);
   });
 
-  it('sin categorías activas, el desplegable queda apagado de verdad', async () => {
-    // El caso en el que `disabled` tiene que llegar al control: con la lista
-    // vacía no hay nada que elegir, y un desplegable que se abre para enseñar
-    // sólo «no hay categorías» invita a pulsarlo para nada.
+  it('sin categorías activas, permite dejar la categoría sin asignar', async () => {
     mockApi({
       [`GET /organizations/${ORG_ID}/categories`]: { status: 200, body: [] },
     });
 
     renderCreatePage();
 
-    await waitFor(() => {
-      const desplegable = screen.getByRole('combobox') as HTMLSelectElement;
-      expect(desplegable.disabled).toBe(true);
-    });
+    const desplegable = (await screen.findByRole(
+      'combobox',
+    )) as HTMLSelectElement;
+    expect(desplegable.value).toBe('');
+    expect(
+      screen.getByRole('option', { name: 'Select a category (optional)...' }),
+    ).toBeTruthy();
   });
 
   it('error al cargar categorías: lo dice y deja reintentar', async () => {
