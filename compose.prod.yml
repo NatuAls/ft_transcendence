@@ -85,6 +85,11 @@ services:
       # métricas responde 404 y la página de estado sólo sirve el semáforo
       # público. Generar con: openssl rand -hex 32
       - METRICS_TOKEN=${METRICS_TOKEN:-}
+      # Donde responde la web, para los enlaces que viajan por correo. Vacío =
+      # se deduce de la petición, que detrás del proxy es correcto porque la
+      # web y la API comparten host. Se define cuando el dominio público no
+      # coincide con el que llega en las cabeceras.
+      - APP_PUBLIC_ORIGIN=${APP_PUBLIC_ORIGIN:-}
       # Primer administrador (auditoría §6.3): si no hay ningún GLOBAL_ADMIN,
       # el arranque promociona al usuario registrado con este correo. Vacío =
       # no hace nada. La inyecta el pipeline desde la variable de repositorio

@@ -72,6 +72,58 @@ describe('tickets · nueva creación', () => {
     expect(calls[0]!.path).toBe(`/organizations/${ORG_ID}/categories`);
   });
 
+  it('no ofrece una categoría desactivada: el ticket no podría encaminarse', async () => {
+    mockApi({
+      [`GET /organizations/${ORG_ID}/categories`]: {
+        status: 200,
+        body: [
+          category('cat-1', 'Facturación'),
+          { ...category('cat-2', 'Antigua'), isActive: false },
+        ],
+      },
+    });
+
+    renderCreatePage();
+
+    expect(await screen.findByText('Facturación')).toBeTruthy();
+    expect(screen.queryByText('Antigua')).toBeNull();
+  });
+
+  it('enseña la organización y no deja cambiarla: es de sólo lectura', async () => {
+    mockApi({
+      [`GET /organizations/${ORG_ID}/categories`]: {
+        status: 200,
+        body: [category('cat-1', 'Facturación')],
+      },
+    });
+
+    renderCreatePage();
+
+    // Se ve a qué organización va el ticket, igual que la dirección de correo
+    // en el diálogo de usuarios de la plataforma, y por el mismo motivo: es un
+    // dato del contexto, no algo que se elija aquí.
+    const campo = (await screen.findByDisplayValue(
+      ORG_NAME,
+    )) as HTMLInputElement;
+    expect(campo.disabled).toBe(true);
+  });
+
+  it('sin categorías activas, el desplegable queda apagado de verdad', async () => {
+    // El caso en el que `disabled` tiene que llegar al control: con la lista
+    // vacía no hay nada que elegir, y un desplegable que se abre para enseñar
+    // sólo «no hay categorías» invita a pulsarlo para nada.
+    mockApi({
+      [`GET /organizations/${ORG_ID}/categories`]: { status: 200, body: [] },
+    });
+
+    renderCreatePage();
+
+    await waitFor(() => {
+      const desplegable = screen.getByRole('combobox') as HTMLSelectElement;
+      expect(desplegable.disabled).toBe(true);
+    });
+  });
+
   it('error al cargar categorías: lo dice y deja reintentar', async () => {
     let call = 0;
     mockApi({

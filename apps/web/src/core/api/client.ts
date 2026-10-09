@@ -80,7 +80,15 @@ export async function request<T>(
   }
 
   if (response.status === 401 && !options.retried) {
-    const session = await refreshSession();
+    // Si el servidor no contesta mientras se renueva, esto NO es un cierre de
+    // sesión: es un corte. Se devuelve como error de red para que la pantalla
+    // ofrezca reintentar, en vez de echar a nadie.
+    let session: Awaited<ReturnType<typeof refreshSession>>;
+    try {
+      session = await refreshSession();
+    } catch (error) {
+      throw new NetworkError(error);
+    }
     if (session) return request<T>(path, { ...options, retried: true });
     clearAccessToken();
     onUnauthorized();

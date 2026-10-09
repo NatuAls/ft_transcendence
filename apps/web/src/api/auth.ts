@@ -79,6 +79,31 @@ export async function logout(): Promise<void> {
   }
 }
 
+/**
+ * No se pudo hablar con el servidor para renovar la sesión.
+ *
+ * No es lo mismo que no tener sesión, y confundirlo era un fallo visible: al
+ * parar y volver a arrancar la API, el `fetch` se rechazaba, el rechazo se
+ * quedaba sin capturar y la aplicación caía a la pantalla de inicio de sesión
+ * con la sesión todavía viva en la cookie. Quedaba ahí plantada hasta que se
+ * pulsaba F5, que repetía la llamada y la recuperaba. Quien recibe esto tiene
+ * que reintentar, no cerrar la sesión.
+ */
+export class SessionUnreachable extends Error {
+  constructor(cause: unknown) {
+    super('The session could not be refreshed: the server did not answer.', {
+      cause,
+    });
+    this.name = 'SessionUnreachable';
+  }
+}
+
+/**
+ * Renueva la sesión a partir de la cookie de refresco.
+ *
+ * `null` significa UNA cosa: el servidor ha contestado que no hay sesión que
+ * renovar. Si no contesta, lanza `SessionUnreachable`.
+ */
 export function refreshSession(): Promise<AuthResponse | null> {
   if (refreshPromise) return refreshPromise;
 
@@ -96,6 +121,9 @@ export function refreshSession(): Promise<AuthResponse | null> {
       const body = (await response.json()) as AuthResponse;
       saveAccessToken(body.accessToken);
       return body;
+    })
+    .catch((cause: unknown) => {
+      throw new SessionUnreachable(cause);
     })
     .finally(() => {
       refreshPromise = null;

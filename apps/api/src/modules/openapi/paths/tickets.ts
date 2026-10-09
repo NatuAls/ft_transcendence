@@ -91,20 +91,17 @@ const searchParams = [
   query('order', 'Sort direction.', { type: 'string', enum: ['asc', 'desc'] }),
 ];
 
+// `facets` y `tookMs` viajan DENTRO de `meta`, no al lado: el servicio los pasa
+// como extras a `paginate()`, que los funde en el bloque de paginación. El
+// documento los ponía fuera y así se quedó hasta el 08/10, cuando lo vio
+// Nahuel comparando Swagger con las herramientas del navegador. No lo cazaba
+// nadie porque el contraste de la documentación contra la API de verdad
+// (`openapi-contract.test.ts`) no cubría la búsqueda de tickets; ahora sí.
 const ticketList = ok('Tickets, with pagination and facets.', {
   type: 'object',
   properties: {
     data: { type: 'array', items: ref('TicketListItem') },
-    meta: ref('PaginationMeta'),
-    facets: {
-      type: 'object',
-      description:
-        'Counters per value for the current filter: what a filter sidebar needs to show how many results each option would give.',
-      additionalProperties: {
-        type: 'object',
-        additionalProperties: { type: 'integer' },
-      },
-    },
+    meta: ref('SearchMeta'),
   },
 });
 

@@ -335,7 +335,22 @@ export function membershipForOrganization(
   return activeMembership(viewer, organizationId);
 }
 
-export function scopePreviewViewer(
+/**
+ * Los permisos de la sesión, recortados a UNA organización.
+ *
+ * `/auth/me` manda el rol más alto que la persona tiene en cualquiera de sus
+ * organizaciones, y lo dice en su propio comentario: sirve para apagar
+ * controles, no para decidir. Quien es ORG_ADMIN en una y MEMBER en otra
+ * llegaría con permisos de administrador a las dos. Aquí se vuelve a calcular
+ * con la pertenencia a la organización activa, así que al cambiar de
+ * organización los permisos cambian con ella; sin pertenencia no queda
+ * ninguno. El administrador de plataforma pasa entero: su alcance no es una
+ * organización.
+ *
+ * La API vuelve a comprobarlo todo (`orgScope`): esto decide lo que se ve, no
+ * lo que se puede.
+ */
+export function scopeViewerToOrganization(
   viewer: ViewerSession,
   organizationId: string,
 ): ViewerSession {

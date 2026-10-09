@@ -10,6 +10,11 @@ export function SelectField({
   hideLabel = false,
   id,
   label,
+  // `disabled` se extrae para apagar también la etiqueta, así que hay que
+  // volver a ponerlo en el `<select>`: al salir de `...props` dejó de llegar
+  // al control, y el campo se veía apagado pero seguía siendo pulsable. Eso
+  // desactivaba las protecciones que dependen de él — el rol y el estado del
+  // administrador principal, y tu propio rol en la organización.
   disabled,
   ...props
 }: SelectFieldProps) {
@@ -31,6 +36,7 @@ export function SelectField({
           backgroundRepeat: 'no-repeat',
           backgroundSize: '12px 8px',
         }}
+        disabled={disabled}
         id={selectId}
         {...props}
       />

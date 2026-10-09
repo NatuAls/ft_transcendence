@@ -10,6 +10,7 @@ export function OrganizationDialog({
   canDeleteOrganization = true,
   deleteContext,
   dialog,
+  editingSelf = false,
   onClose,
   onDelete,
   onSave,
@@ -26,6 +27,17 @@ export function OrganizationDialog({
   canDeleteOrganization?: boolean;
   deleteContext: DeleteContext;
   dialog: Exclude<OrganizationDialogKind, null>;
+  /**
+   * El miembro que se está editando eres tú.
+   *
+   * Bajarse el rol a uno mismo no tiene vuelta —cambiar roles exige ser
+   * administrador—, así que quien lo hacía quedaba dentro de la organización
+   * sin poder gestionar nada ni deshacerlo. La API lo rechaza
+   * (`ORG_CANNOT_LOWER_OWN_ROLE`); aquí, además, no se ofrece: ni el
+   * desplegable ni el botón de quitar, y se dice por qué. Irse de la
+   * organización es una decisión aparte, con su propia acción.
+   */
+  editingSelf?: boolean;
   onClose: () => void;
   onDelete: (context: Exclude<DeleteContext, null>) => void;
   onSave: (data: FormData) => void;
@@ -93,7 +105,7 @@ export function OrganizationDialog({
       eyebrow="ORGANIZATION"
       footer={
         <>
-          {dialog === 'edit-member' ||
+          {(dialog === 'edit-member' && !editingSelf) ||
           (dialog === 'settings' && canDeleteOrganization) ? (
             <Button
               className="mr-auto max-md:mr-0 max-md:w-full"
@@ -184,6 +196,7 @@ export function OrganizationDialog({
           <TextField disabled label="Member" value={selectedName} />
           <SelectField
             defaultValue={selectedRow?.[3]}
+            disabled={editingSelf}
             label="Organization role"
             name="role"
           >
@@ -191,6 +204,14 @@ export function OrganizationDialog({
             <option>Member</option>
             <option>Organization admin</option>
           </SelectField>
+          {editingSelf ? (
+            <Alert title="This is your own access">
+              You cannot change your own role or remove yourself from here:
+              lowering it would leave you inside the organization without the
+              access needed to undo it. Another administrator can change it for
+              you, and leaving the organization is a separate decision.
+            </Alert>
+          ) : null}
         </>
       ) : (
         <>
