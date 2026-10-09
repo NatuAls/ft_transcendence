@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type { AccountProfile } from '../features/account/accountData';
 import { AccountPage } from '../features/account/AccountPage';
+import { ChangePasswordPage } from '../features/account/ChangePasswordPage';
 import { AdminAccessDenied } from '../features/admin/AdminAccessDenied';
 import { GlobalAdminPage } from '../features/admin/GlobalAdminPage';
 import { MessagesPage } from '../features/messages/MessagesPage';
@@ -101,6 +102,13 @@ export function WorkspacePage({
         )?.role ?? 'MEMBER');
 
   switch (route) {
+    case 'account/password':
+      return (
+        <ChangePasswordPage
+          onBack={() => navigate('account')}
+          onSignOut={onSignOut}
+        />
+      );
     case 'not-found':
       return <NotFoundPage onBack={() => navigate('tickets')} />;
     case 'tickets':
