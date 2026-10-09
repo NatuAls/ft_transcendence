@@ -1,0 +1,126 @@
+# =============================================================================
+#  Pruebas de las alarmas de copias y ensayos de restauración.
+#
+#  Existen porque depurar estas alarmas a base de desplegar es insostenible:
+#  cada vuelta son minutos de despliegue, una espera a que Prometheus evalúe y
+#  un correo que puede tardar. Aquí cada escenario se comprueba en un segundo,
+#  contra el MISMO fichero de reglas que corre en el servidor.
+#
+#      promtool test rules config/prometheus/rules/tests/*.yml
+#      make test-alerts
+#
+#  Lo que esto NO cubre: que la métrica LLEGUE a Prometheus. Eso depende de
+#  node-exporter y de sus montajes, y se prueba aparte con
+#  `scripts/dev/check-textfile-metrics.sh`, que es donde se vio el fallo real.
+# =============================================================================
+rule_files:
+  - ../alerts.yml
+
+evaluation_interval: 1m
+
+tests:
+  # ---------------------------------------------------------------------------
+  - interval: 1h
+    name: un ensayo reciente no levanta ninguna alarma
+    input_series:
+      # Ensayado hace una hora, sin fallos.
+      - series: 'helpdesk_restore_drill_last_timestamp_seconds{env="prod"}'
+        values: '1759000000+0x48'
+      - series: 'helpdesk_restore_drill_last_timestamp_seconds{env="staging"}'
+        values: '1759000000+0x48'
+      - series: 'helpdesk_restore_drill_failures{env="prod"}'
+        values: '0+0x48'
+      - series: 'helpdesk_restore_drill_failures{env="staging"}'
+        values: '0+0x48'
+    alert_rule_test:
+      - eval_time: 1h
+        alertname: EnsayoDeRestauracionAntiguo
+        exp_alerts: []
+      - eval_time: 1h
+        alertname: SinMetricaDeEnsayo
+        exp_alerts: []
+      - eval_time: 1h
+        alertname: EnsayoDeRestauracionFallido
+        exp_alerts: []
+
+  # ---------------------------------------------------------------------------
+  - interval: 1h
+    name: un ensayo de hace once dias si la levanta
+    input_series:
+      # La marca de tiempo no avanza: es la del ensayo, no el reloj.
+      - series: 'helpdesk_restore_drill_last_timestamp_seconds{env="prod"}'
+        values: '0+0x300'
+      - series: 'helpdesk_restore_drill_last_timestamp_seconds{env="staging"}'
+        values: '0+0x300'
+    alert_rule_test:
+      # A las 264 horas (11 días) de la época, el ensayo tiene 11 días.
+      - eval_time: 264h
+        alertname: EnsayoDeRestauracionAntiguo
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              env: prod
+            exp_annotations:
+              summary: 'Hace más de 10 días que no se ensaya una restauración (prod)'
+              runbook: 'bash scripts/restore.sh --drill'
+          - exp_labels:
+              severity: warning
+              env: staging
+            exp_annotations:
+              summary: 'Hace más de 10 días que no se ensaya una restauración (staging)'
+              runbook: 'bash scripts/restore.sh --drill'
+
+  # ---------------------------------------------------------------------------
+  - interval: 1h
+    name: justo por debajo del umbral todavia no avisa
+    input_series:
+      - series: 'helpdesk_restore_drill_last_timestamp_seconds{env="prod"}'
+        values: '0+0x300'
+    alert_rule_test:
+      # 9 días y 23 horas: aún no.
+      - eval_time: 239h
+        alertname: EnsayoDeRestauracionAntiguo
+        exp_alerts: []
+
+  # ---------------------------------------------------------------------------
+  - interval: 1h
+    name: si falta la metrica de un entorno lo dice a las 24 horas
+    input_series:
+      # Sólo producción publica. Staging no existe.
+      - series: 'helpdesk_restore_drill_last_timestamp_seconds{env="prod"}'
+        values: '1759000000+0x48'
+    alert_rule_test:
+      # Antes de 24h la regla aún no ha cumplido su `for`.
+      - eval_time: 23h
+        alertname: SinMetricaDeEnsayo
+        exp_alerts: []
+      - eval_time: 25h
+        alertname: SinMetricaDeEnsayo
+        exp_alerts:
+          # `absent()` con matcher conserva la etiqueta, así que la alarma
+          # nombra el entorno que falta en vez de decirlo en abstracto.
+          - exp_labels:
+              severity: warning
+              env: staging
+            exp_annotations:
+              summary: 'Nunca se ha ensayado una restauración de staging (o la métrica no llega)'
+              runbook: 'bash scripts/restore.sh --drill   (escribe drills/restore.prom)'
+
+  # ---------------------------------------------------------------------------
+  - interval: 1h
+    name: un ensayo que falla es critico desde el primer momento
+    input_series:
+      - series: 'helpdesk_restore_drill_last_timestamp_seconds{env="staging"}'
+        values: '1759000000+0x48'
+      - series: 'helpdesk_restore_drill_failures{env="staging"}'
+        values: '2+0x48'
+    alert_rule_test:
+      - eval_time: 1h
+        alertname: EnsayoDeRestauracionFallido
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              env: staging
+            exp_annotations:
+              summary: 'El último ensayo de restauración de staging ha fallado 2 comprobaciones'
+              description: 'Hay copias, pero NO son restaurables. Es peor que no tener copias, porque da falsa seguridad.'

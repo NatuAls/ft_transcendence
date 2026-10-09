@@ -44,6 +44,25 @@ up-dev:
 down-dev:
 	@$(COMPOSE) $(COMPOSE_DEV) down
 
+test-alerts: ## Prueba las alarmas sin desplegar: reglas y llegada de las métricas
+	@# Depurar alarmas a base de desplegar es insostenible: cada vuelta son
+	@# minutos de despliegue, la espera a que Prometheus evalúe y un correo
+	@# que puede tardar. Esto corre en segundos contra los MISMOS ficheros
+	@# que usa el servidor.
+	@printf "$(CYAN)Sintaxis de las reglas$(NC)\n"
+	@$(DOCKER) run --rm -v "$(PWD)/config/prometheus/rules:/rules:ro" \
+		--entrypoint promtool prom/prometheus:v3.5.0 check rules /rules/alerts.yml
+	@printf "$(CYAN)Comportamiento de las alarmas$(NC)\n"
+	@# El glob se expande aquí, no dentro del contenedor, así que se traduce
+	@# cada fichero a su ruta montada.
+	@for f in config/prometheus/rules/tests/*.yml; do \
+		$(DOCKER) run --rm -v "$(PWD)/config/prometheus/rules:/rules:ro" \
+			--entrypoint promtool prom/prometheus:v3.5.0 \
+			test rules "/rules/tests/$$(basename $$f)" || exit 1; \
+	done
+	@printf "$(CYAN)Llegada de las métricas a node-exporter$(NC)\n"
+	@bash scripts/dev/check-textfile-metrics.sh
+
 seed-dev: ## Siembra el entorno local y vuelca las credenciales a doc/seed.txt
 	@# La aplicación NO se siembra sola al arrancar: lo único que crea el
 	@# arranque es el administrador de BOOTSTRAP_ADMIN_* del .env. Las
