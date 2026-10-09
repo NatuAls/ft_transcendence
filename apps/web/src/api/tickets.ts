@@ -1,34 +1,9 @@
-// ============================================================================
-//  PLANTILLA · ADAPTADOR DE API                 (guía: apps/web/guia-bloques)
-//
-//  Destino al copiarlo:  src/api/<dominio>.ts   (p. ej. src/api/tickets.ts)
-//  y cambia el import del cliente a '../core/api/client'.
-//
-//  Este fichero es el ÚNICO sitio de tu bloque que conoce rutas de la API.
-//  Las pantallas importan estas funciones; nunca escriben '/tickets/...'.
-//
-//  Reglas:
-//   1. Siempre `request()` / `upload()` del cliente compartido. Nada de
-//      `fetch`, `axios` ni sockets propios: sin el cliente, un token caducado
-//      no se renueva y el error llega sin forma.
-//   2. Lo que se ENVÍA pasa por el esquema de `contracts` (`.parse`): el
-//      navegador y el servidor validan con la MISMA regla.
-//   3. Lo que se RECIBE se describe con una interfaz copiada del Swagger
-//      (http://localhost:5000/api/v1/docs → la operación → «Responses»).
-//      Si la pantalla necesita otra forma, se traduce aquí en UNA función
-//      `toX()`, nunca dentro del componente.
-//   4. Toda lectura acepta `signal`: `useAsync` la cancela al desmontar o al
-//      cambiar de filtros, y así no se pinta una respuesta vieja.
-//
-//  Cada `TODO(BLOQUE)` es un hueco que tienes que rellenar. Cuando no quede
-//  ninguno (`grep -rn "TODO(BLOQUE)" src/`), el adaptador está terminado.
-// ============================================================================
 import {
-  // TODO(BLOQUE): tus esquemas de packages/contracts. Aquí se usan los de
-  // organización sólo para que la plantilla compile (nombre + descripción).
+  searchTicketsQuerySchema,
   createTicketSchema,
   type CreateTicketInput,
 } from 'contracts';
+import type { z } from 'zod';
 import { request } from '../core/api/client';
 
 // ---------------------------------------------------------------- tipos --
@@ -91,6 +66,58 @@ export interface NewTicketValues {
   categoryId?: string | undefined;
 }
 
+export interface TicketListItemApi {
+  id: string;
+  reference: string;
+  title: string;
+  status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
+  priority: 'LOW' | 'MEDIUM' | 'HIGH';
+  organizationId: string;
+  categoryName: string | null;
+  categoryColor: string | null;
+  authorUsername: string;
+  authorDisplayName: string;
+  assigneeUsername: string | null;
+  assigneeDisplayName: string | null;
+  commentCount: number;
+  attachmentCount: number;
+  rank: number;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+export interface TicketsListApi {
+  data: Array<TicketListItemApi>;
+  meta: {
+    total: number;
+    page: number;
+    take: number;
+    pages: number;
+    nextCursor: string | null;
+    facets: Record<string, Record<string, number>>;
+  };
+}
+
+export interface TicketData {
+  id: string;
+  title: string;
+  status: string;
+  priority: 'HIGH' | 'LOW' | 'MEDIUM';
+  organizationId: string;
+  categoryName?: string | null;
+  categoryColor?: string | null;
+  authorDisplayName: string;
+  assigneeDisplayName?: string | null;
+  createdAt: string;
+}
+
+export type TicketsData = Array<TicketData>;
+
+export type SearchTicketsFilters = Omit<
+  z.input<typeof searchTicketsQuerySchema>,
+  'organizationId'
+>;
+
 /** TODO(BLOQUE): el tipo de entrada de tu esquema (CreateTicketInput, ...). */
 export type TicketInput = CreateTicketInput;
 
@@ -98,6 +125,47 @@ export type TicketInput = CreateTicketInput;
 
 // TODO(BLOQUE): la ruta base de tu recurso, sin '/api/v1' (lo pone el cliente).
 const RUTA = '/tickets';
+
+// ------------------------------------------------------------ traducción --
+
+/** Única frontera entre la forma de la API y la de la pantalla. */
+export function toTicketData(row: TicketListItemApi): TicketData {
+  return {
+    id: row.id,
+    title: row.title,
+    status: row.status,
+    priority: row.priority,
+    organizationId: row.organizationId,
+    categoryName: row.categoryName ?? '',
+    categoryColor: row.categoryColor ?? '',
+    authorDisplayName: row.authorDisplayName,
+    assigneeDisplayName: row.assigneeDisplayName ?? '',
+    createdAt: row.createdAt,
+  };
+}
+
+// --------------------------------------------------------------- lecturas --
+
+export async function searchTickets(
+  organizationId: string,
+  filters: SearchTicketsFilters,
+  signal?: AbortSignal,
+) {
+  const parsed = searchTicketsQuerySchema.parse({ ...filters, organizationId });
+  const urlQuery = {
+    ...parsed,
+    status: parsed.status?.join(','),
+    priority: parsed.priority?.join(','),
+  };
+  const response = await request<TicketsListApi>(RUTA, {
+    query: urlQuery,
+    signal,
+  });
+  return {
+    ...response,
+    data: response.data.map(toTicketData),
+  };
+}
 
 // ------------------------------------------------------------- escrituras --
 

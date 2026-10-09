@@ -96,6 +96,7 @@ export function WorkspacePage({
     case 'tickets':
       return (
         <TicketListPage
+          key={organizationId}
           currentUserName={accountProfile.fullName}
           initialCategory={location.params.get('category') ?? ''}
           initialPage={Number(location.params.get('page') ?? '1')}
@@ -115,7 +116,7 @@ export function WorkspacePage({
             })
           }
           organizationWide={can(viewer, 'ticket:read')}
-          tickets={visibleTickets}
+          organizationId={organizationId}
         />
       );
     case 'new-ticket':
