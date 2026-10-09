@@ -25,6 +25,21 @@ export const ca: Translation = {
     account: 'Compte',
     admin: 'Administració',
   },
+  account: {
+    back: '‹ Compte',
+    password: {
+      title: 'Canvia la contrasenya',
+      description: 'Actualitza la contrasenya per protegir el compte.',
+      current: 'Contrasenya actual',
+      new: 'Contrasenya nova',
+      confirm: 'Confirma la contrasenya nova',
+      sessionWarning:
+        'Es tancarà la sessió en tots els teus dispositius, també en aquest.',
+      submit: 'Canvia la contrasenya',
+      saving: 'S’està canviant la contrasenya…',
+      success: 'La contrasenya s’ha canviat correctament.',
+    },
+  },
   tickets: {
     title: 'Tiquets',
     new: 'Tiquet nou',
@@ -49,6 +64,7 @@ export const ca: Translation = {
     auth: {
       sessionExpired: 'La sessió ha caducat. Torna a iniciar la sessió.',
       invalidCredentials: 'Correu o contrasenya incorrectes.',
+      wrongPassword: 'La contrasenya actual no és correcta.',
     },
     password: {
       required: 'La contrasenya és obligatòria.',
@@ -59,7 +75,9 @@ export const ca: Translation = {
       needsDigit: 'Afegeix un dígit.',
       needsSymbol: 'Afegeix un símbol.',
       mismatch: 'Les contrasenyes no coincideixen.',
+      mustDiffer: 'Tria una contrasenya diferent de l’actual.',
     },
+    field: { required: 'Aquest camp és obligatori.' },
     username: {
       tooShort: 'Com a mínim 3 caràcters.',
       tooLong: 'Com a màxim 32 caràcters.',
