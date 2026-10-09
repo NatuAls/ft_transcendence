@@ -86,6 +86,11 @@ services:
       # métricas). Vacío = no definida (ver optionalEnv en config/env.ts), así
       # que quien no tenga .env sigue igual que antes.
       - METRICS_TOKEN=${METRICS_TOKEN:-}
+      # Donde responde la web, para los enlaces que viajan por correo. Aquí
+      # hace falta a la fuerza: Vite reenvía /api al 5000 con `changeOrigin`,
+      # así que la API veía `Host: localhost:5000` y escribía los enlaces
+      # contra el puerto de la API, por https y sin nada que los sirva.
+      - APP_PUBLIC_ORIGIN=${APP_PUBLIC_ORIGIN:-http://localhost:5173}
       - BOOTSTRAP_ADMIN_EMAIL=${BOOTSTRAP_ADMIN_EMAIL:-}
       - BOOTSTRAP_ADMIN_USERNAME=${BOOTSTRAP_ADMIN_USERNAME:-}
       - BOOTSTRAP_ADMIN_PASSWORD=${BOOTSTRAP_ADMIN_PASSWORD:-}

@@ -1,4 +1,4 @@
-import { Router, type Request } from 'express';
+import { Router } from 'express';
 import { existsSync } from 'node:fs';
 import { gdprConfirmSchema } from 'contracts';
 import * as gdpr from './gdpr.service.ts';
@@ -6,17 +6,7 @@ import * as audit from '../audit/audit.service.ts';
 import { authed } from '../../common/middleware/chains.ts';
 import { validate } from '../../common/middleware/validate.ts';
 import { Errors } from '../../common/errors/domain-error.ts';
-import { param } from '../../common/utils/http.ts';
-
-function originOf(req: Request): string {
-  const proto =
-    (req.headers['x-forwarded-proto'] as string | undefined) ?? 'https';
-  const host =
-    (req.headers['x-forwarded-host'] as string | undefined) ??
-    req.headers.host ??
-    'localhost';
-  return `${proto}://${host}`;
-}
+import { originOf, param } from '../../common/utils/http.ts';
 
 export const gdprRouter: Router = Router();
 

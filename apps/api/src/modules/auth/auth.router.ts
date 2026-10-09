@@ -16,7 +16,7 @@ import {
 } from '../../common/middleware/rate-limit.ts';
 import { validate } from '../../common/middleware/validate.ts';
 import { Errors } from '../../common/errors/domain-error.ts';
-import { param } from '../../common/utils/http.ts';
+import { originOf, param } from '../../common/utils/http.ts';
 import { loadConfiguration } from '../../config/env.ts';
 import { verifyAccessToken } from '../../common/jwt.ts';
 
@@ -24,16 +24,16 @@ const REFRESH_COOKIE = 'hd_refresh';
 const SESSION_HINT_COOKIE = 'hd_session';
 
 function contextOf(req: Request): auth.RequestContext {
-  const proto =
-    (req.headers['x-forwarded-proto'] as string | undefined) ?? 'https';
-  const host =
-    (req.headers['x-forwarded-host'] as string | undefined) ??
-    req.headers.host ??
-    'localhost';
   return {
     userAgent: req.headers['user-agent'],
     ip: req.ip,
-    origin: `${proto}://${host}`,
+    // Por `originOf`, no deduciéndolo aquí: era la tercera copia de la misma
+    // lógica, y la que construye los enlaces de verificar la cuenta y de
+    // recuperar la contraseña. Al añadir APP_PUBLIC_ORIGIN se arreglaron las
+    // otras dos y ésta se quedó atrás, así que en desarrollo esos dos correos
+    // seguían naciendo contra el puerto de la API. `email-origin.test.ts`
+    // vigila ahora que no haya más copias.
+    origin: originOf(req),
   };
 }
 
