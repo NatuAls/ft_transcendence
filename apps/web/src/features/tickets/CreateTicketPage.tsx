@@ -35,10 +35,10 @@ export function CreateTicketPage({
   const { t } = useTranslation();
   const toast = useToast();
 
-  const categoriesQuery = useAsync(
-    () => listCategories(organizationId),
-    [organizationId],
-  );
+  const categoriesQuery = useAsync(async () => {
+    if (!organizationId) return [];
+    return listCategories(organizationId);
+  }, [organizationId]);
 
   const [description, setDescription] = useState('');
   const [priority, setPriority] =
@@ -52,7 +52,6 @@ export function CreateTicketPage({
 
   const categories = categoriesQuery.data ?? [];
   const activeCategories = categories.filter((c) => c.isActive);
-  const hasCategories = activeCategories.length > 0;
   const selectedCategory = categories.find((c) => c.id === categoryId);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -161,14 +160,10 @@ export function CreateTicketPage({
               <SelectField
                 label={t('tickets.create.fields.category')}
                 onChange={(event) => setCategoryId(event.target.value)}
-                disabled={!hasCategories}
-                required={hasCategories}
                 value={categoryId}
               >
                 <option value="">
-                  {hasCategories
-                    ? t('tickets.create.fields.categoryPlaceholder')
-                    : t('tickets.create.fields.noCategories')}
+                  {t('tickets.create.fields.categoryPlaceholder')}
                 </option>
                 {activeCategories.map((item) => (
                   <option key={item.id} value={item.id}>
@@ -177,7 +172,11 @@ export function CreateTicketPage({
                 ))}
               </SelectField>
             </div>
-            {selectedCategory?.description ? (
+            {categoryId === '' || !categoryId ? (
+              <p className="-mt-4 text-xs2 text-muted">
+                {t('tickets.create.fields.categoryUnassignedHelp')}
+              </p>
+            ) : selectedCategory?.description ? (
               <p className="-mt-4 text-xs2 text-muted">
                 {selectedCategory.description}
               </p>
