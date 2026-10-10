@@ -75,8 +75,8 @@ export function ChangePasswordPage({
   }
 
   return (
-    <div className="mx-auto max-w-[1040px] p-10 max-md:px-4 max-md:py-6">
-      {/* <Button  Test   preguntar al grupo 
+    <div className="mx-auto max-w-260 p-10 max-md:px-4 max-md:py-6">
+      {/* <Button  Test   preguntar al grupo
         className="mb-[18px] hidden max-md:inline-flex"
         onClick={onBack}
         variant="secondary"
@@ -95,7 +95,7 @@ export function ChangePasswordPage({
         </p>
       </header>
       <form
-        className="mt-6 grid max-w-[620px] gap-[18px] rounded-md border border-border bg-surface p-6 max-md:border-0 max-md:px-0"
+        className="mt-6 grid max-w-155 gap-4.5 rounded-md border border-border bg-surface p-6 max-md:border-0 max-md:px-0"
         noValidate
         onSubmit={submit}
       >
