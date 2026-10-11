@@ -25,6 +25,21 @@ export const es: Translation = {
     account: 'Cuenta',
     admin: 'Administración',
   },
+  account: {
+    back: '‹ Cuenta',
+    password: {
+      title: 'Cambiar contraseña',
+      description: 'Actualiza tu contraseña para proteger tu cuenta.',
+      current: 'Contraseña actual',
+      new: 'Nueva contraseña',
+      confirm: 'Confirmar nueva contraseña',
+      sessionWarning:
+        'Se cerrará la sesión en todos tus dispositivos, también en éste.',
+      submit: 'Cambiar contraseña',
+      saving: 'Cambiando contraseña…',
+      success: 'Contraseña cambiada correctamente.',
+    },
+  },
   tickets: {
     title: 'Tickets',
     new: 'Nuevo ticket',
@@ -154,6 +169,7 @@ export const es: Translation = {
     auth: {
       sessionExpired: 'Tu sesión ha caducado. Vuelve a iniciar sesión.',
       invalidCredentials: 'Correo o contraseña incorrectos.',
+      wrongPassword: 'La contraseña actual no es correcta.',
     },
     password: {
       required: 'La contraseña es obligatoria.',
@@ -164,7 +180,9 @@ export const es: Translation = {
       needsDigit: 'Añade un dígito.',
       needsSymbol: 'Añade un símbolo.',
       mismatch: 'Las contraseñas no coinciden.',
+      mustDiffer: 'Elige una contraseña distinta de la actual.',
     },
+    field: { required: 'Este campo es obligatorio.' },
     username: {
       tooShort: 'Al menos 3 caracteres.',
       tooLong: 'Como máximo 32 caracteres.',

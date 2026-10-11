@@ -19,6 +19,7 @@ describe('routes', () => {
     expect(location.route).toBe('verify-email');
     expect(location.params.get('token')).toBe('abc123');
     expect(at('#account/sessions').route).toBe('account/sessions');
+    expect(at('#account/password').route).toBe('account/password');
     expect(at('#platform-roles').route).toBe('platform-roles');
     expect(at('#organization-roles').route).toBe('organization-roles');
   });
@@ -75,6 +76,7 @@ describe('routes', () => {
     expect(getActiveSection('people-profile')).toBe('people');
     expect(getActiveSection('account/sessions')).toBe('account');
     expect(getAccountView('account/sessions')).toBe('sessions');
+    expect(getAccountView('account/password')).toBe('password');
     expect(getAccountView('account')).toBe('home');
   });
 });

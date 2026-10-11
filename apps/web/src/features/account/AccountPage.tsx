@@ -1,5 +1,6 @@
 import { Alert, Avatar, Button, Icon, SelectField } from 'ui';
 import { useEffect, useState } from 'react';
+import { useTranslation } from '../../core/i18n';
 import { getPreferences, updatePreferences } from '../../api/users';
 import type { AccountView } from '../../app/routes';
 import { getInitials } from '../../app/text';
@@ -56,6 +57,7 @@ export function AccountPage({
       <AccountHome
         avatarUrl={avatarUrl}
         onPreferences={() => onNavigate('preferences')}
+        onPassword={() => onNavigate('password')}
         onPrivacy={() => onNavigate('privacy')}
         onProfile={() => onNavigate('profile')}
         onSessions={() => onNavigate('sessions')}
@@ -120,6 +122,7 @@ export function AccountPage({
 function AccountHome({
   avatarUrl,
   onPreferences,
+  onPassword,
   onPrivacy,
   onProfile,
   onSessions,
@@ -128,12 +131,14 @@ function AccountHome({
 }: {
   avatarUrl?: string;
   onPreferences: () => void;
+  onPassword: () => void;
   onPrivacy: () => void;
   onProfile: () => void;
   onSessions: () => void;
   profile: AccountProfile;
   timeZone: string;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="mx-auto max-w-[1040px] p-10 max-md:px-4 max-md:py-6">
       <AccountHeader
@@ -163,6 +168,20 @@ function AccountHome({
         </Button>
       </section>
       <nav aria-label="Account settings" className="mt-4 grid gap-2.5">
+        <button
+          className="grid grid-cols-[36px_1fr_20px] items-center gap-2.5 rounded-md border border-border bg-surface p-4 text-left hover:border-focus hover:bg-surface-secondary"
+          onClick={onPassword}
+          type="button"
+        >
+          <Icon name="shield" size={20} />
+          <div className="grid gap-1">
+            <strong>{t('account.password.title')}</strong>
+            <small className="text-2xs text-muted">
+              {t('account.password.description')}
+            </small>
+          </div>
+          <b aria-hidden="true">›</b>
+        </button>
         <button
           className="grid grid-cols-[36px_1fr_20px] items-center gap-2.5 rounded-md border border-border bg-surface p-4 text-left hover:border-focus hover:bg-surface-secondary"
           onClick={onPreferences}

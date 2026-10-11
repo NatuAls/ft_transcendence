@@ -25,6 +25,21 @@ export const en = {
     account: 'Account',
     admin: 'Administration',
   },
+  account: {
+    back: '‹ Account',
+    password: {
+      title: 'Change password',
+      description: 'Update your password to keep your account secure.',
+      current: 'Current password',
+      new: 'New password',
+      confirm: 'Confirm new password',
+      sessionWarning:
+        'You will be signed out on all your devices, including this one.',
+      submit: 'Change password',
+      saving: 'Changing password…',
+      success: 'Password changed successfully.',
+    },
+  },
   tickets: {
     title: 'Tickets',
     new: 'New ticket',
@@ -151,6 +166,7 @@ export const en = {
     auth: {
       sessionExpired: 'Your session has expired. Please sign in again.',
       invalidCredentials: 'Wrong email or password.',
+      wrongPassword: 'Current password is incorrect.',
     },
     password: {
       required: 'Password is required.',
@@ -161,7 +177,9 @@ export const en = {
       needsDigit: 'Add a digit.',
       needsSymbol: 'Add a symbol.',
       mismatch: 'Passwords do not match.',
+      mustDiffer: 'Choose a password different from your current one.',
     },
+    field: { required: 'This field is required.' },
     username: {
       tooShort: 'At least 3 characters.',
       tooLong: 'At most 32 characters.',
