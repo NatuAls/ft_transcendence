@@ -68,6 +68,7 @@ function canAccessConversation(
   return (
     actor.globalRole === 'GLOBAL_ADMIN' ||
     membership?.role === 'ORG_ADMIN' ||
+    membership?.role === 'AGENT' ||
     ticket.createdBy.id === actor.id ||
     ticket.assignedTo?.id === actor.id
   );
