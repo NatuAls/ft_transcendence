@@ -10,6 +10,23 @@ export interface Conversation {
   time: string;
 }
 
+/**
+ * La identidad de una conversación.
+ *
+ * NO su nombre: el nombre es `displayName ?? username` de la otra persona, y
+ * dos cuentas distintas pueden llamarse igual. Cuando eso pasaba, la lista las
+ * fundía en una —al abrir la segunda se descartaba la primera—, al pulsar una
+ * se resolvía la otra, y el mensaje salía por la conversación equivocada.
+ * Se vio el 09/10 con tres cuentas «Felipe Cela».
+ *
+ * El id de la conversación es lo más preciso y lo traen tanto la API como los
+ * datos de muestra. `userId` cubre el hueco de una conversación recién abierta
+ * que todavía no lo tenga, y el nombre queda sólo como último recurso.
+ */
+export function conversationKey(conversation: Conversation): string {
+  return conversation.id ?? conversation.userId ?? conversation.name;
+}
+
 // Deterministic preview fixtures. Production mode still loads the API data.
 export const initialConversations: Conversation[] = [
   {

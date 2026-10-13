@@ -1,6 +1,18 @@
 DOCKER = docker
 COMPOSE = $(DOCKER) compose
-COMPOSE_DEV = -f compose.dev.yml
+
+# Proyecto de Compose de la pila de desarrollo, por la MISMA razón que el de
+# producción (ver abajo): los nombres de contenedor de compose.dev.yml son
+# fijos (dev_api, dev_web, dev_database...), así que dos clones del repositorio
+# en la misma máquina no pueden levantarla a la vez — pero SÍ pueden intentar
+# pararla cada uno por su lado, y ahí está la trampa: sin `-p`, el proyecto
+# sale del nombre de la carpeta, de modo que `make down-dev` desde un clon
+# distinto del que la levantó **no para nada y no dice nada**. Parece que el
+# comando no funciona; lo que ocurre es que está mirando otro proyecto.
+#
+# Se puede fijar otro con: make up-dev DEV_PROJECT=loquesea
+DEV_PROJECT ?= helpdesk-dev
+COMPOSE_DEV = -p $(DEV_PROJECT) -f compose.dev.yml
 
 # Proyecto de Compose de la pila de producción. Tiene que ser el MISMO que usa
 # scripts/deploy/remote-deploy.sh (el nombre del entorno), porque los nombres de
@@ -31,6 +43,106 @@ up-dev:
 
 down-dev:
 	@$(COMPOSE) $(COMPOSE_DEV) down
+
+# Imágenes que necesitan las pruebas de alarmas. Se LEEN del compose de
+# observabilidad en vez de fijarse aquí: validar las reglas con un promtool de
+# otra versión que la que las evalúa en el servidor quita todo el valor a que
+# salgan en verde, y fijarlas en dos sitios garantiza que un día se separen.
+#
+# Se descargan en un paso aparte (`make test-alerts-pull`) para que
+# `make test-alerts` no se ponga a bajar 250 MB sin avisar: en el servidor eso
+# es disco que no sobra.
+OBS_COMPOSE = compose.observability.yml
+PROM_IMAGE = $(shell sed -n 's/^ *image: \(prom\/prometheus:.*\)$$/\1/p' $(OBS_COMPOSE) | head -1)
+NODE_EXPORTER_IMAGE = $(shell sed -n 's/^ *image: \(prom\/node-exporter:.*\)$$/\1/p' $(OBS_COMPOSE) | head -1)
+ALERT_TEST_IMAGES = $(PROM_IMAGE) $(NODE_EXPORTER_IMAGE)
+
+# Herramienta de DESARROLLO. En el servidor no pinta nada: levanta
+# contenedores de usar y tirar y descarga imágenes que la pila no necesita.
+# La guarda se salta con: make test-alerts EN_EL_SERVIDOR=si
+define aviso_servidor
+	@if [ -d /opt/helpdesk ] && [ "$(EN_EL_SERVIDOR)" != "si" ]; then \
+		printf "$(YELLOW)Esto es una herramienta de desarrollo y esta máquina parece el servidor$(NC)\n"; \
+		printf "(existe /opt/helpdesk). Descarga imágenes y levanta contenedores de\n"; \
+		printf "usar y tirar que la pila no necesita.\n\n"; \
+		printf "Para revisar el servidor:   $(WHITE)sudo bash scripts/ops/check-server.sh$(NC)\n"; \
+		printf "Si aun así quieres seguir:  $(WHITE)make $@ EN_EL_SERVIDOR=si$(NC)\n"; \
+		exit 1; \
+	fi
+endef
+
+test-alerts-pull: ## Descarga las imágenes que usan las pruebas de alarmas
+	$(aviso_servidor)
+	@for img in $(ALERT_TEST_IMAGES); do \
+		printf "$(CYAN)%s$(NC)\n" "$$img"; \
+		$(DOCKER) pull "$$img" || exit 1; \
+	done
+	@printf "$(GREEN)Listo. Ahora: make test-alerts$(NC)\n"
+
+test-alerts: ## Prueba las alarmas sin desplegar (necesita test-alerts-pull una vez)
+	$(aviso_servidor)
+	@# Depurar alarmas a base de desplegar es insostenible: cada vuelta son
+	@# minutos de despliegue, la espera a que Prometheus evalúe y un correo
+	@# que puede tardar. Esto corre en segundos contra los MISMOS ficheros
+	@# que usa el servidor.
+	@#
+	@# No descarga nada: si falta una imagen lo dice y para. Descargar a
+	@# mitad de una prueba sorprende, y en una máquina pequeña molesta.
+	@for img in $(ALERT_TEST_IMAGES); do \
+		$(DOCKER) image inspect "$$img" > /dev/null 2>&1 || { \
+			printf "$(YELLOW)Falta la imagen %s$(NC)\n" "$$img"; \
+			printf "Descárgalas una vez con: $(WHITE)make test-alerts-pull$(NC)\n"; \
+			exit 1; \
+		}; \
+	done
+	@printf "$(CYAN)Sintaxis de las reglas$(NC)\n"
+	@$(DOCKER) run --rm -v "$(PWD)/config/prometheus/rules:/rules:ro" \
+		--entrypoint promtool $(PROM_IMAGE) check rules /rules/alerts.yml
+	@printf "$(CYAN)Comportamiento de las alarmas$(NC)\n"
+	@# El glob se expande aquí, no dentro del contenedor, así que se traduce
+	@# cada fichero a su ruta montada.
+	@for f in config/prometheus/rules/tests/*.yml; do \
+		$(DOCKER) run --rm -v "$(PWD)/config/prometheus/rules:/rules:ro" \
+			--entrypoint promtool $(PROM_IMAGE) \
+			test rules "/rules/tests/$$(basename $$f)" || exit 1; \
+	done
+	@printf "$(CYAN)Llegada de las métricas a node-exporter$(NC)\n"
+	@bash scripts/dev/check-textfile-metrics.sh
+
+seed-dev: ## Siembra el entorno local y vuelca las credenciales a doc/seed.txt
+	@# La aplicación NO se siembra sola al arrancar: lo único que crea el
+	@# arranque es el administrador de BOOTSTRAP_ADMIN_* del .env. Las
+	@# organizaciones, las personas, las categorías y los tickets salen de
+	@# aquí. Se puede repetir cuantas veces haga falta: reconcilia en vez de
+	@# duplicar, y no borra nada.
+	@node scripts/dev/seed-local.mjs
+
+reset-dev: ## Vacía la base de desarrollo y vuelve a sembrarla desde cero (pide confirmación)
+	@printf "$(YELLOW)Esto BORRA la base de datos de desarrollo y todo lo que tenga.$(NC)\n"
+	@printf "Los volúmenes afectados son:\n"
+	@$(DOCKER) volume ls --format '  {{.Name}}' --filter "name=^$(DEV_PROJECT)_" || true
+	@printf "Escribe $(WHITE)borrar$(NC) para continuar: "
+	@read -r respuesta; [ "$$respuesta" = "borrar" ] || { printf "$(GREEN)Cancelado.$(NC)\n"; exit 1; }
+	@$(COMPOSE) $(COMPOSE_DEV) down --volumes
+	@$(MAKE) --no-print-directory up-dev
+	@printf "$(CYAN)Esperando a que la API responda...$(NC)\n"
+	@until curl -sf http://127.0.0.1:5000/api/health > /dev/null 2>&1; do sleep 2; done
+	@$(MAKE) --no-print-directory seed-dev
+
+down-dev-all: ## Para la pila de desarrollo venga del proyecto que venga
+	@$(COMPOSE) $(COMPOSE_DEV) down 2> /dev/null || true
+	@# Y los que levantó otro clon, que `down` no ve porque pertenecen a otro
+	@# proyecto de Compose. Se buscan por nombre, que en compose.dev.yml es
+	@# fijo, y se paran y eliminan: los VOLÚMENES no se tocan, así que la base
+	@# de datos de desarrollo sigue donde estaba.
+	@huerfanos="$$($(DOCKER) ps -a --filter 'name=^dev_' --format '{{.Names}}')"; \
+	if [ -n "$$huerfanos" ]; then \
+		printf "$(YELLOW)Parando contenedores de desarrollo de otro proyecto:$(NC)\n"; \
+		$(DOCKER) ps -a --filter 'name=^dev_' \
+			--format '  {{.Names}}  ({{.Status}})  proyecto: {{.Label "com.docker.compose.project"}}'; \
+		$(DOCKER) rm -f $$huerfanos > /dev/null; \
+	fi
+	@printf "$(GREEN)Pila de desarrollo detenida por completo.$(NC)\n"
 
 # compose.prod.yml usa imágenes de GHCR etiquetadas por SHA (no construye) y
 # recibe TLS de Nginx Proxy Manager/Cloudflare, no de certificados locales:
@@ -91,7 +203,7 @@ fclean:
 	else \
 		printf "$(YELLOW)Deep clean cancelled.$(NC)\n"; \
 	fi
-
+#test
 prune-global:
 	@printf "$(RED)WARNING! This will delete ALL images and empty containers from YOUR COMPUTER.$(NC)\n"
 	@read -p "Should the global purge continue? [y/N]: " ans; \

@@ -27,9 +27,11 @@ export function OrganizationsPage({
   const platformView = viewer.globalRole === 'GLOBAL_ADMIN';
   const [create, setCreate] = useState(false);
   // The preview keeps its own sample list; the application uses the one the
-  // session loaded from the API.
+  // session loaded from the API. The sample list is only built in the preview:
+  // outside it the catalogue is keyed by sample identifiers, so asking it about
+  // a real organization drops it.
   const [previewOrganizations, setPreviewOrganizations] = useState(() =>
-    organizationsForViewer(viewer),
+    previewMode ? organizationsForViewer(viewer) : [],
   );
   const organizations = previewMode ? previewOrganizations : liveOrganizations;
   const [submitting, setSubmitting] = useState(false);

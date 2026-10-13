@@ -201,7 +201,7 @@ on, not a nominal split: they match the commit history of the areas named.
 | Web server | nginx (front end) + Nginx Proxy Manager | Static assets with cache and security headers; one entry point per environment |
 | Infrastructure | Docker Compose, Oracle Cloud (ARM Ampere), Cloudflare | Free ARM instance; Cloudflare hides the origin and terminates TLS for visitors |
 | CI/CD | GitHub Actions, GHCR, Trivy, gitleaks, Dependabot | Tests + scans on every PR; images built once and promoted by SHA |
-| Observability | Prometheus, Alertmanager, Grafana, Loki + Promtail, node/cAdvisor/postgres/redis/blackbox exporters | 21 alert rules with runbooks; logs searchable without SSH |
+| Observability | Prometheus, Alertmanager, Grafana, Loki + Promtail, node/cAdvisor/postgres/redis/blackbox exporters | 23 alert rules with runbooks; logs searchable without SSH |
 | Backups | `backup.sh` (AES-256, `pg_dump` + uploads) → Oracle Object Storage; `restore.sh --drill` weekly | Measured RTO (seconds), verified integrity, tested restores |
 
 ## Continuous Integration and Delivery
@@ -393,14 +393,14 @@ tickets, attachments, real time — rather than infrastructure detail, so it can
 be shown publicly. The status page at [`/status`](https://helpdesklite.me/status)
 is the human-readable face of that last one; see below.
 
-### The 21 alert rules
+### The 23 alert rules
 
 Grouped by what they protect (`config/prometheus/rules/`), every one of them
 carrying a link to its runbook entry:
 
 | Area | Rules |
 |---|---|
-| Availability | site down, API not ready, container restart loop, probe target down |
+| Availability | site down, API not ready, container restart loop, probe target down, exporter cannot reach PostgreSQL, exporter cannot reach Redis |
 | Behaviour under load | sustained 5xx, high latency, rate limiting firing |
 | Resources | low disk, critical disk, high memory, PostgreSQL near its connection limit, Redis out of memory |
 | Backups | backup failed, backup too old, no backup metric at all, backup suspiciously small |
@@ -462,11 +462,12 @@ the runbook, not by a second machine.
 **Backups and disaster recovery** close the module. `backup.sh` dumps
 PostgreSQL and the uploads nightly, encrypts them with AES-256 and ships them
 to Oracle Object Storage; `restore.sh` restores with integrity checks, and
-`restore.sh --drill` runs every Monday from `backup-drill.yml`, restoring the
-latest backup into a throwaway database and recording the recovery time. Both
-publish metrics, and seven of the 21 alert rules watch them — including the
-three that fire on the *absence* of a metric, because a backup job that never
-runs reports no failures either.
+`restore.sh --drill` runs every Monday from `backup-drill.yml`, for production
+and staging one after the other, restoring the latest backup into a throwaway
+database and recording the recovery time. Both publish metrics, and seven of
+the 23 alert rules watch them — including the three that fire on the
+*absence* of a metric, because a backup job that never runs reports no
+failures either.
 
 To check the whole thing in one go:
 
@@ -792,7 +793,7 @@ memory.
 | Hosting & security hardening | fcela-ga | Oracle VM, Cloudflare, origin closed to Cloudflare ranges (VCN + iptables), fail2ban, least-privilege DB roles, security headers, rate limits |
 | Health checks & status page | fcela-ga | Liveness and readiness probes, a per-area public traffic light that hides infrastructure detail, and a status page at `/status` served as a static file so it stays up when the application does not |
 | Backups & recovery | fcela-ga | Encrypted daily backups off-site, weekly restore drills with measured RTO, production restore with integrity checks |
-| Observability & alerting | fcela-ga | Prometheus/Grafana/Loki, 21 alert rules, Telegram + e-mail, self-healing timer |
+| Observability & alerting | fcela-ga | Prometheus/Grafana/Loki, 23 alert rules, Telegram + e-mail, self-healing timer |
 | Operations documentation | fcela-ga | DevOps guide, runbook, audit reports and secrets inventory (kept outside the repository) |
 
 ## Modules
@@ -809,7 +810,7 @@ built by more than one person, both are named.
 | Custom-made design system with reusable components | Minor | 1 | arielrhea | 15 generic reusable components in `packages/ui` — the module asks for ten — built on semantic tokens rather than raw values: a `@theme` palette (canvas, surface, border, ink, muted, primary and the four feedback colours), one type scale, shared radii and a typed `Icon` set. `packages/ui/README.md` is the catalogue: every component with its API, its variants, what it is used for, and the keyboard and accessibility behaviour it guarantees. `BrandMark` is exported too but deliberately not counted, because it is product branding and not a generic component |
 | Public API with authentication, rate limiting and documentation | Major | 2 | fcela-ga | 14 endpoints with `X-API-Key` (Argon2id secret shown once), per-key scopes, 60/min and 1000/h limits and organization tenancy; OpenAPI 3.0.3 with 110 operations generated from the Zod contracts, browsable at `/api/v1/docs` behind two independent doors, and a test that fails if any route is undocumented. See «Public API» above |
 | CI/CD pipeline with automated testing and deployment | Major | 2 | fcela-ga | Seven CI jobs on every pull request, images built once per SHA on a native ARM64 runner and promoted by SHA, a production gate enforced in code (`scripts/ci/prod-gate.mjs`) because environment reviewers do not pause anything in a private repository, encrypted pre-deploy backup, smoke test and automatic rollback, and the whole pipeline reproducible locally with `make ci` / `make deploy-*`. See «Continuous Integration and Delivery» above |
-| Monitoring system with Prometheus and Grafana | Major | 2 | fcela-ga | `compose.observability.yml`: Prometheus 3.14, Grafana 13.2, Alertmanager, five exporters and blackbox probes; nine application metrics behind `METRICS_TOKEN`; 21 alert rules with runbooks, delivery verified by e-mail and Telegram. See «Observability and Alerting» above |
+| Monitoring system with Prometheus and Grafana | Major | 2 | fcela-ga | `compose.observability.yml`: Prometheus 3.14, Grafana 13.2, Alertmanager, five exporters and blackbox probes; nine application metrics behind `METRICS_TOKEN`; 23 alert rules with runbooks, delivery verified by e-mail and Telegram. See «Observability and Alerting» above |
 | Health check and status page system with automated backups and disaster recovery | Minor | 1 | fcela-ga | Liveness, readiness and a public per-area traffic light (`/api/health`, `/ready`, `/status`), the last one answering with full detail only to the operation token; a status page at `/status` served as a static file so it survives both the application bundle and the API; nightly AES-256 backups to Oracle Object Storage, `restore.sh` with integrity checks and a weekly automated restore drill with the recovery time measured; seven alert rules watch backups and drills, three of them on the absence of the metric. See «Health checks, the status page and recovery» above |
 | GDPR compliance features | Minor | 1 | fcela-ga | The module's four subpoints, end to end from the browser: request your data (`POST /gdpr/export`), deletion with confirmation (`POST /gdpr/delete`, needing both the e-mailed code **and** your own username typed back), export in a readable format (a ZIP of JSON built in the background and served through a short-lived authenticated download) and confirmation e-mails at every step. Content other people depend on is anonymised rather than erased, which is what the regulation allows. See «Privacy and data rights» below |
 | Standard user management and authentication | Major | 2 | fcela-ga (API, friends, profile, sessions and avatar) · arielrhea (profile and account screens) | The module's four requirements, from the browser and against the API: profile editing; avatar upload re-encoded to WebP without EXIF, with the initials as default avatar and "Remove photo" that also deletes the file; friends with requests both ways and **live** online status (one Socket.IO connection for the whole signed-in session, `presence.changed` followed by the screens); a profile page with presence, organizations and activity. On top, revocable sessions with the current device marked, which the Terms of Service promise. See «Users, organizations and roles» above |

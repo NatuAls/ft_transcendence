@@ -20,6 +20,22 @@ export function useRealtimeEvent(
   useEffect(() => onRealtime(event, (payload) => onEvent(payload)), [event]);
 }
 
+/**
+ * Se suscribe a la sala de la organización activa mientras la pantalla esté
+ * abierta. Para un miembro no cambia nada —ya entró al conectar—; es lo que
+ * hace que el administrador de plataforma reciba los eventos de la
+ * organización que está gestionando sin pertenecer a ella.
+ */
+export function useOrganizationRoom(organizationId: string | undefined) {
+  useEffect(() => {
+    if (!organizationId) return;
+    void rooms.subscribeOrganization(organizationId);
+    return () => {
+      rooms.unsubscribeOrganization(organizationId);
+    };
+  }, [organizationId]);
+}
+
 /** Se suscribe a la sala de un ticket mientras la pantalla de detalle esté abierta. */
 export function useTicketRoom(ticketId: string | undefined) {
   useEffect(() => {

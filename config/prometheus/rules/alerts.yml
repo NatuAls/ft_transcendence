@@ -48,6 +48,28 @@ groups:
         labels: { severity: warning }
         annotations:
           summary: 'Prometheus no puede recolectar {{ $labels.job }} ({{ $labels.instance }})'
+          runbook: 'curl -s 127.0.0.1:9090/api/v1/targets da el lastError. Exportador borrado -> sudo bash scripts/ops/sync-observability.sh. helpdesk-api con 401 -> el token de config/prometheus/metrics_token_<env> no es el METRICS_TOKEN del .env (el mismo script lo rehace).'
+
+      # El exportador responde (up == 1, SondaTargetCaido no lo ve) pero no
+      # llega a lo que vigila: contraseña cambiada en el .env del entorno y no
+      # en el de observabilidad, o el contenedor fuera de la red del entorno.
+      # Sin estas dos, PostgresConexionesAlLimite y RedisSinMemoria se quedan
+      # sin datos en silencio.
+      - alert: ExportadorSinPostgres
+        expr: pg_up == 0
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: 'postgres-exporter de {{ $labels.env }} no consigue conectarse a PostgreSQL'
+          runbook: 'docker logs --tail 50 helpdesk-pgexporter-{{ $labels.env }}; comparar <ENV>_DB_PASSWORD de /opt/helpdesk/observability/.env con el .env del entorno.'
+
+      - alert: ExportadorSinRedis
+        expr: redis_up == 0
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: 'redis-exporter de {{ $labels.env }} no consigue conectarse a Redis'
+          runbook: 'docker logs --tail 50 helpdesk-redisexporter-{{ $labels.env }}; docker network inspect {{ $labels.env }}_backend_network'
 
   # -------------------------------------------------------- errores y carga --
   - name: errores
@@ -193,7 +215,7 @@ groups:
         labels: { severity: warning }
         annotations:
           summary: 'Nunca se ha ensayado una restauración de {{ $labels.env }} (o la métrica no llega)'
-          runbook: 'bash scripts/restore.sh --drill   (escribe backups/metrics/restore.prom)'
+          runbook: 'bash scripts/restore.sh --drill   (escribe drills/restore.prom)'
 
       - alert: EnsayoDeRestauracionFallido
         expr: helpdesk_restore_drill_failures > 0

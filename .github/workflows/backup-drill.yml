@@ -13,6 +13,14 @@ name: Ensayo de restauración
 #  Se ejecuta los lunes a las 05:30 (Europe/Madrid = 03:30 UTC), antes de que
 #  nadie use el sistema, y se puede lanzar a mano desde la pestaña Actions.
 #
+#  El programado ensaya LOS DOS entornos, uno detrás de otro. Hasta el 09/10
+#  sólo ensayaba prod (`inputs.entorno || 'prod'`: en un `schedule` no hay
+#  inputs), así que EnsayoDeRestauracionAntiguo de staging sonaba siempre a
+#  los diez días del último ensayo lanzado a mano. A mano se elige uno.
+#
+#  OJO: el programado corre sobre la rama por defecto (main). El restore.sh
+#  que ejecuta es el de main, no el de develop.
+#
 #  Si falla, falla ruidosamente: el job termina en rojo y Prometheus además
 #  levanta EnsayoDeRestauracionFallido a partir del fichero de métricas que
 #  deja el propio script.
@@ -36,22 +44,29 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: backup-drill-${{ inputs.entorno || 'prod' }}
-  cancel-in-progress: false
-
 jobs:
   ensayo:
-    name: Restaurar la última copia en un entorno aislado
+    name: Restaurar la última copia en un entorno aislado (${{ matrix.entorno }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      # De uno en uno: cada ensayo levanta un PostgreSQL con 2 GB de tmpfs en
+      # la misma instancia ARM que sirve los dos entornos.
+      max-parallel: 1
+      matrix:
+        entorno: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', inputs.entorno) || '["prod","staging"]') }}
+    # Por entorno: un ensayo de prod no espera a uno de staging.
+    concurrency:
+      group: backup-drill-${{ matrix.entorno }}
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
 
       - name: Ejecutar el ensayo en el servidor
         uses: appleboy/ssh-action@v1.2.5
         env:
-          ENTORNO: ${{ inputs.entorno || 'prod' }}
+          ENTORNO: ${{ matrix.entorno }}
           COPIA: ${{ inputs.copia }}
           GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -82,7 +97,7 @@ jobs:
         if: always()
         uses: appleboy/ssh-action@v1.2.5
         env:
-          ENTORNO: ${{ inputs.entorno || 'prod' }}
+          ENTORNO: ${{ matrix.entorno }}
         with:
           host: ${{ secrets.ORACLE_HOST }}
           username: deployer
@@ -101,12 +116,12 @@ jobs:
         if: always()
         run: |
           {
-            echo "## Ensayo de restauración — ${{ inputs.entorno || 'prod' }}"
+            echo "## Ensayo de restauración — ${{ matrix.entorno }}"
             echo ""
             echo "| | |"
             echo "|---|---|"
             echo "| Resultado | ${{ job.status }} |"
             echo "| Fecha | $(date -u +'%Y-%m-%d %H:%M UTC') |"
             echo ""
-            echo "El detalle (RTO medido, filas por tabla, coherencia de adjuntos) está en el log del paso anterior y en \`backups/RESTORE-DRILL-*.txt\` del servidor."
+            echo "El detalle (RTO medido, filas por tabla, coherencia de adjuntos) está en el log del paso anterior y en \`drills/RESTORE-DRILL-*.txt\` del servidor."
           } >> "$GITHUB_STEP_SUMMARY"

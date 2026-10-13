@@ -545,5 +545,81 @@ describe(
         { token: asker.token },
       );
     });
+
+    /**
+     * La búsqueda de tickets no estaba aquí, y por eso el documento se pasó
+     * meses diciendo que `facets` colgaba al lado de `meta` cuando el servicio
+     * lo pasa como extra a `paginate()` y acaba DENTRO de `meta`, junto a
+     * `tookMs` —que el documento ni mencionaba—. Lo vio Nahuel el 08/10
+     * comparando Swagger con las herramientas del navegador, no una prueba.
+     *
+     * Se recorre con y sin facetas, porque el bloque sólo aparece cuando hay
+     * algo que contar, y con las dos paginaciones.
+     */
+    it('búsqueda de tickets: paginación, facetas y lo que tarda', async (t) => {
+      if (!ready) return skip(t);
+      const dueno = await registerUser('ocSearch');
+      const organizacion = await conforms<{ id: string }>(
+        201,
+        'POST',
+        '/organizations',
+        '/organizations',
+        { token: dueno.token, body: { name: `Org ${unique('ocs')}` } },
+      );
+      const token = dueno.token;
+
+      // Vacía: el documento tiene que admitir también que no haya nada.
+      await conforms(200, 'GET', '/tickets', '/tickets', { token });
+
+      const categorias = await api<Array<{ id: string }>>(
+        'GET',
+        `/organizations/${organizacion.body.id}/categories`,
+        { token },
+      );
+      for (const titulo of ['Primera incidencia', 'Segunda incidencia']) {
+        await conforms(201, 'POST', '/tickets', '/tickets', {
+          token,
+          body: {
+            organizationId: organizacion.body.id,
+            title: `${titulo} ${unique('t')}`,
+            description:
+              'Descripción con longitud suficiente para pasar la validación del contrato.',
+            priority: 'MEDIUM',
+            categoryId: categorias.body[0]?.id,
+          },
+        });
+      }
+
+      // Con contenido: aquí es donde aparecen `facets` y `tookMs`.
+      const buscada = await conforms<{
+        meta: { facets?: unknown; tookMs?: number };
+      }>(200, 'GET', '/tickets', '/tickets?take=30', { token });
+      assert.ok(
+        buscada.body.meta.facets,
+        'la búsqueda devolvió sin facetas: la prueba pasaría sin comprobar nada',
+      );
+      assert.equal(
+        typeof buscada.body.meta.tookMs,
+        'number',
+        '`tookMs` tiene que venir dentro de `meta`',
+      );
+      assert.ok(
+        !Object.hasOwn(buscada.body as object, 'facets'),
+        '`facets` no va al lado de `meta`: va dentro',
+      );
+
+      // Filtrada, ordenada y por cursor: los otros caminos del mismo endpoint.
+      await conforms(200, 'GET', '/tickets', '/tickets?status=OPEN', { token });
+      await conforms(
+        200,
+        'GET',
+        '/tickets',
+        '/tickets?q=incidencia&sort=createdAt&order=desc',
+        { token },
+      );
+      await conforms(200, 'GET', '/tickets', '/tickets?take=1&cursor=', {
+        token,
+      });
+    });
   },
 );

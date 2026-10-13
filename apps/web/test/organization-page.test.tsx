@@ -125,3 +125,54 @@ describe('organization settings', () => {
     expect(within(dialog).getByRole('button', { name: 'Delete' })).toBeTruthy();
   });
 });
+
+/**
+ * Nadie se encierra a sí mismo fuera de su propia organización.
+ *
+ * Pasó el 07/10 probando en local. Cambiar roles exige ser administrador de la
+ * organización, así que una degradación propia NO TIENE VUELTA: quien se la
+ * aplica queda dentro, sin poder gestionar nada y sin poder deshacerlo. El
+ * límite del último administrador no cubría el caso —basta ascender a un
+ * segundo administrador para que deje de aplicar—, y la pantalla ofrecía el
+ * cambio sin un solo aviso.
+ *
+ * La API lo rechaza con `ORG_CANNOT_LOWER_OWN_ROLE`. Aquí se fija que la
+ * pantalla, además, no lo ofrezca: cobrar el error después es peor que no
+ * dejar pulsar.
+ */
+describe('tu propio acceso en la organización', () => {
+  async function abrirMiFila(
+    organizationRole: 'ORG_ADMIN' | 'GLOBAL_ADMIN' = 'ORG_ADMIN',
+  ) {
+    api(ids.admin);
+    renderPage(organizationRole);
+    // `currentUserId` es `ids.admin`, que en la lista es Ana García: su fila
+    // soy yo.
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Open Ana García' }),
+    );
+    return screen.findByRole('dialog');
+  }
+
+  /** El desplegable del rol, para preguntarle si está bloqueado. */
+  const selectorDeRol = (dialog: HTMLElement) =>
+    within(dialog).getByRole('combobox', {
+      name: 'Organization role',
+    }) as HTMLSelectElement;
+
+  it('no deja cambiarte el rol a ti mismo, y dice por qué', async () => {
+    const dialog = await abrirMiFila();
+    expect(selectorDeRol(dialog).disabled).toBe(true);
+    expect(within(dialog).getByText(/your own access/i)).toBeTruthy();
+  });
+
+  it('no ofrece quitarte a ti mismo desde la gestión de miembros', async () => {
+    const dialog = await abrirMiFila();
+    expect(within(dialog).queryByRole('button', { name: 'Remove' })).toBeNull();
+  });
+
+  it('el administrador de plataforma no se encierra: a él no se le limita', async () => {
+    const dialog = await abrirMiFila('GLOBAL_ADMIN');
+    expect(selectorDeRol(dialog).disabled).toBe(false);
+  });
+});

@@ -119,18 +119,27 @@ export const publicApiPaths: Paths = {
         ),
       ],
       responses: {
+        // Mismo buscador que la aplicación, así que mismo bloque `meta`: con
+        // `tookMs` y `facets` DENTRO. Declaraba la paginación a secas.
         '200': ok(
           'Tickets of the organization.',
           {
             type: 'object',
             properties: {
               data: { type: 'array', items: ref('TicketListItem') },
-              meta: ref('PaginationMeta'),
+              meta: ref('SearchMeta'),
             },
           },
           {
             data: [ticketRowExample],
-            meta: { total: 1, page: 1, take: 20, pages: 1 },
+            meta: {
+              total: 1,
+              page: 1,
+              take: 20,
+              pages: 1,
+              tookMs: 9,
+              facets: { status: { OPEN: 1 }, priority: { MEDIUM: 1 } },
+            },
           },
         ),
         ...errs('400', '401', '403'),

@@ -145,18 +145,50 @@ const apiError = object(
   ],
 );
 
+const paginationProperties = {
+  total: int('Rows matching the filter, ignoring pagination.'),
+  page: int('Current page, 1-based.'),
+  take: int('Page size actually applied (never above 100).'),
+  pages: int('Number of pages for the current `take`.'),
+  nextCursor: {
+    ...str(
+      'Opaque cursor for the next page, when the endpoint supports cursor pagination.',
+    ),
+    nullable: true,
+  },
+};
+
 const paginationMeta = object(
   'Pagination block returned by every list endpoint.',
+  paginationProperties,
+);
+
+/**
+ * El mismo bloque, más lo que añade la búsqueda.
+ *
+ * Se construye a partir de las propiedades de la paginación en lugar de
+ * componerse con `allOf` porque `allOf` y `additionalProperties` no se llevan
+ * bien: cada rama rechaza los campos de la otra, y el contraste contra la API
+ * de verdad daba por indocumentado todo el bloque.
+ *
+ * `facets` y `tookMs` van DENTRO de `meta`, que es donde los deja
+ * `paginate()`: el servicio se los pasa como extras y el ayudante los funde
+ * con la paginación. El documento los ponía al lado de `meta` y así se quedó
+ * hasta el 08/10.
+ */
+const searchMeta = object(
+  'Pagination block of a search, with how long it took and the facet counters.',
   {
-    total: int('Rows matching the filter, ignoring pagination.'),
-    page: int('Current page, 1-based.'),
-    take: int('Page size actually applied (never above 100).'),
-    pages: int('Number of pages for the current `take`.'),
-    nextCursor: {
-      ...str(
-        'Opaque cursor for the next page, when the endpoint supports cursor pagination.',
-      ),
-      nullable: true,
+    ...paginationProperties,
+    tookMs: int('How long the search took on the server, in milliseconds.'),
+    facets: {
+      type: 'object',
+      description:
+        'Counters per value for the current filter: what a filter sidebar needs to show how many results each option would give.',
+      additionalProperties: {
+        type: 'object',
+        additionalProperties: { type: 'integer' },
+      },
     },
   },
 );
@@ -787,6 +819,7 @@ const organizationRoleAssignment = object(
 export const componentSchemas: Record<string, JsonSchema> = {
   ApiError: apiError,
   PaginationMeta: paginationMeta,
+  SearchMeta: searchMeta,
   UserSummary: userSummary,
   UserWithPresence: userWithPresence,
   PublicProfile: publicProfile,

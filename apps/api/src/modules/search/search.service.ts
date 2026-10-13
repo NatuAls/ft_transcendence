@@ -4,6 +4,8 @@ import { prisma } from '../../database/prisma.ts';
 import { paginate, type Paginated } from '../../common/utils/pagination.ts';
 import { Errors } from '../../common/errors/domain-error.ts';
 import type { RequestActor } from '../../common/types.ts';
+import type { OrgRole } from 'contracts';
+import { evaluatePolicy } from '../../rbac/policies.ts';
 
 interface FacetRow {
   status: string;
@@ -39,11 +41,18 @@ export interface TicketSearchResult {
  * fragment is parameterised through Prisma.sql; no user input is ever
  * concatenated into SQL.
  */
+/** Una organización del buscador: a cuál, y con qué rol se entra. */
+export interface SearchScope {
+  organizationId: string;
+  role: OrgRole;
+}
+
 export async function searchTickets(
   actor: RequestActor,
-  allowedOrganizationIds: string[],
+  scopes: SearchScope[],
   query: SearchTicketsQuery,
 ): Promise<Paginated<TicketSearchResult> & { meta: { facets?: unknown } }> {
+  const allowedOrganizationIds = scopes.map((scope) => scope.organizationId);
   const started = Date.now();
   const where: Prisma.Sql[] = [];
 
@@ -77,6 +86,33 @@ export async function searchTickets(
     where.push(
       Prisma.sql`t."organizationId" IN (${Prisma.join(allowedOrganizationIds.map((id) => Prisma.sql`${id}::uuid`))})`,
     );
+  }
+
+  // El aislamiento no acaba en la organización: dentro de ella, un MEMBER sólo
+  // ve SUS tickets. `GET /tickets/:id` ya lo comprobaba —`assertPolicy
+  // ('ticket:read', …, { ownerId })`— pero la LISTA no, así que un miembro
+  // recibía los títulos de los tickets de sus compañeros y sólo se topaba con
+  // el 403 al abrir uno. Visto el 08/10 comparando lo que ve cada rol.
+  //
+  // Se calcula por organización, no para toda la consulta: se puede ser AGENT
+  // en una y MEMBER en otra, y entonces la respuesta tiene que mezclar los
+  // tickets de la primera con los propios de la segunda.
+  if (!isGlobalAdmin) {
+    const sinLecturaCompleta = scopes
+      .filter(
+        (scope) =>
+          !evaluatePolicy(
+            'ticket:read',
+            { userId: actor.id, isGlobalAdmin: false, orgRole: scope.role },
+            {},
+          ).allowed,
+      )
+      .map((scope) => scope.organizationId);
+    for (const organizationId of sinLecturaCompleta) {
+      where.push(
+        Prisma.sql`(t."organizationId" <> ${organizationId}::uuid OR t."createdById" = ${actor.id}::uuid)`,
+      );
+    }
   }
 
   if (query.status?.length) {

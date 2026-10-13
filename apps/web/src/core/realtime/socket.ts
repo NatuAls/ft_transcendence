@@ -28,6 +28,11 @@ export const RealtimeEvents = {
   memberAdded: 'member.added',
   memberUpdated: 'member.updated',
   memberRemoved: 'member.removed',
+  // Una reserva no crea pertenencia, así que no hay `member.added`: tiene sus
+  // propios eventos. La pantalla de la organización pinta las reservas junto a
+  // los miembros, y sin esto no aparecían hasta recargar a mano.
+  roleReserved: 'role.reserved',
+  roleReservationCancelled: 'role.reservation.cancelled',
   categoryCreated: 'category.created',
   categoryUpdated: 'category.updated',
   categoryDeleted: 'category.deleted',
@@ -105,7 +110,8 @@ export function onRealtime(
 }
 
 async function subscribe(
-  event: 'ticket.subscribe' | 'conversation.subscribe',
+  event:
+    'ticket.subscribe' | 'conversation.subscribe' | 'organization.subscribe',
   body: Record<string, string>,
 ) {
   const s = connectRealtime();
@@ -120,6 +126,19 @@ async function subscribe(
 }
 
 export const rooms = {
+  /**
+   * La sala de la organización que se está mirando.
+   *
+   * Los miembros ya entran en las suyas al conectar, así que para ellos es una
+   * confirmación sin efecto. Hace falta por el administrador de plataforma,
+   * que no pertenece a ninguna organización y por eso no recibía ni un evento
+   * mientras gestionaba una: ni miembros, ni categorías, ni reservas.
+   */
+  subscribeOrganization: (organizationId: string) =>
+    subscribe('organization.subscribe', { organizationId }),
+  unsubscribeOrganization: (organizationId: string): void => {
+    connectRealtime().emit('organization.unsubscribe', { organizationId });
+  },
   subscribeTicket: (ticketId: string) =>
     subscribe('ticket.subscribe', { ticketId }),
   unsubscribeTicket: (ticketId: string): void => {

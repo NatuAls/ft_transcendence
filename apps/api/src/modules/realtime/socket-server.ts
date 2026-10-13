@@ -17,6 +17,14 @@ export interface SocketUser {
   id: string;
   username: string;
   organizationIds: string[];
+  /**
+   * Un administrador de plataforma no pertenece a ninguna organización, pero
+   * puede entrar en todas. Sin esto no podía unirse a la sala de la que está
+   * mirando, así que no recibía ni un evento: ni miembros, ni categorías, ni
+   * nada. Se guarda aquí para poder volver a comprobarlo al suscribirse, que
+   * es una decisión de autorización.
+   */
+  isGlobalAdmin: boolean;
 }
 
 export interface RealtimeServer {
@@ -99,7 +107,7 @@ export function createSocketServer(httpServer: HttpServer): RealtimeServer {
         // not be able to open a new realtime connection either.
         const account = await prisma.user.findUnique({
           where: { id: payload.sub },
-          select: { isActive: true, deletedAt: true },
+          select: { isActive: true, deletedAt: true, globalRole: true },
         });
         if (!account || account.deletedAt || !account.isActive)
           throw new Error('account disabled');
@@ -112,6 +120,7 @@ export function createSocketServer(httpServer: HttpServer): RealtimeServer {
           id: payload.sub,
           username: payload.username,
           organizationIds: memberships.map((m) => m.organizationId),
+          isGlobalAdmin: account.globalRole === 'GLOBAL_ADMIN',
         };
         sockets.set(client.id, user);
 
@@ -154,6 +163,64 @@ export function createSocketServer(httpServer: HttpServer): RealtimeServer {
         void (async () => {
           const user = sockets.get(client.id);
           if (user) await touchPresence(user.id);
+          ack?.({ ok: true });
+        })();
+      },
+    );
+
+    /**
+     * La sala de la organización que se está mirando.
+     *
+     * Los miembros entran en sus salas al conectar, así que para ellos esto no
+     * cambia nada. Es para el administrador de plataforma, que no pertenece a
+     * ninguna y por eso no recibía nada mientras gestionaba una: desde su
+     * pantalla la aplicación pide la sala de la organización activa, y la deja
+     * al salir. Como en los tickets, el permiso se vuelve a comprobar aquí: la
+     * pertenencia a una sala es una decisión de autorización, no una
+     * preferencia del cliente.
+     */
+    client.on(
+      'organization.subscribe',
+      (
+        body: { organizationId?: string },
+        ack?: (res: { ok: boolean }) => void,
+      ) => {
+        void (async () => {
+          const user = sockets.get(client.id);
+          if (!user || !body?.organizationId) return ack?.({ ok: false });
+          const permitido =
+            user.organizationIds.includes(body.organizationId) ||
+            user.isGlobalAdmin;
+          if (!permitido) return ack?.({ ok: false });
+          const organization = await prisma.organization.findFirst({
+            where: { id: body.organizationId, deletedAt: null },
+            select: { id: true },
+          });
+          if (!organization) return ack?.({ ok: false });
+          await client.join(`org:${body.organizationId}`);
+          ack?.({ ok: true });
+        })();
+      },
+    );
+
+    client.on(
+      'organization.unsubscribe',
+      (
+        body: { organizationId?: string },
+        ack?: (res: { ok: true }) => void,
+      ) => {
+        void (async () => {
+          const user = sockets.get(client.id);
+          // Un miembro no sale de su propia sala: entró al conectar y los
+          // eventos de su organización le siguen interesando en cualquier
+          // pantalla.
+          if (
+            body?.organizationId &&
+            user &&
+            !user.organizationIds.includes(body.organizationId)
+          ) {
+            await client.leave(`org:${body.organizationId}`);
+          }
           ack?.({ ok: true });
         })();
       },

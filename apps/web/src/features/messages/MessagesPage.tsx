@@ -2,6 +2,7 @@ import { Avatar, Button, Dialog, Icon, IconButton, LoadingState } from 'ui';
 import { io, type Socket } from 'socket.io-client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  conversationKey,
   initialConversations,
   newConversationCandidates,
   type Conversation,
@@ -56,9 +57,14 @@ export function MessagesPage({
   const [conversations, setConversations] = useState<Conversation[]>(
     previewMode ? initialConversations : [],
   );
+  // Guarda la IDENTIDAD de la conversación, no su nombre: dos cuentas
+  // distintas pueden llamarse igual. En la aplicación real empieza vacía y la
+  // fija la carga, que es quien sabe qué conversación corresponde a la
+  // persona que venía en la dirección.
   const [selected, setSelected] = useState<string | null>(
-    initialPerson ??
-      (previewMode ? (previewInitialConversation?.name ?? null) : null),
+    previewMode && previewInitialConversation
+      ? conversationKey(previewInitialConversation)
+      : null,
   );
   const [message, setMessage] = useState('');
   const [query, setQuery] = useState('');
@@ -82,9 +88,8 @@ export function MessagesPage({
   const socketAuthenticatedRef = useRef(false);
   const threadBodyRef = useRef<HTMLDivElement | null>(null);
   const scrollToLatestRef = useRef(false);
-  const activeName = selected ?? '';
   const active = conversations.find(
-    (conversation) => conversation.name === activeName,
+    (conversation) => conversationKey(conversation) === selected,
   ) ??
     conversations[0] ?? {
       initials: '?',
@@ -129,7 +134,7 @@ export function MessagesPage({
           const matching = loaded.find((conversation) =>
             [conversation.name, conversation.username].includes(initialPerson),
           );
-          if (matching) setSelected(matching.name);
+          if (matching) setSelected(conversationKey(matching));
         }
       })
       .catch((error: unknown) => console.error('Unable to load chat', error));
@@ -366,9 +371,11 @@ export function MessagesPage({
       };
       setConversations((current) => [
         item,
-        ...current.filter((existing) => existing.name !== item.name),
+        ...current.filter(
+          (existing) => conversationKey(existing) !== conversationKey(item),
+        ),
       ]);
-      setSelected(item.name);
+      setSelected(conversationKey(item));
       setRemoteMessages([]);
       setMessagesConversationId(item.id ?? null);
       setNewConversationOpen(false);
@@ -390,9 +397,11 @@ export function MessagesPage({
       };
       setConversations((current) => [
         item,
-        ...current.filter((existing) => existing.id !== item.id),
+        ...current.filter(
+          (existing) => conversationKey(existing) !== conversationKey(item),
+        ),
       ]);
-      setSelected(item.name);
+      setSelected(conversationKey(item));
       setNewConversationOpen(false);
       setCandidateQuery('');
     } catch (error) {
@@ -438,10 +447,10 @@ export function MessagesPage({
           <div className="min-h-0 overflow-y-auto">
             {visibleConversations.map((conversation) => (
               <button
-                className={`grid h-[82px] w-full grid-cols-[34px_1fr_auto] items-center gap-2.5 border-t border-border px-4 py-3 text-left max-md:h-[104px] max-md:px-2 ${active.name === conversation.name ? 'bg-surface-secondary' : ''}`}
-                key={conversation.name}
+                className={`grid h-[82px] w-full grid-cols-[34px_1fr_auto] items-center gap-2.5 border-t border-border px-4 py-3 text-left max-md:h-[104px] max-md:px-2 ${conversationKey(active) === conversationKey(conversation) ? 'bg-surface-secondary' : ''}`}
+                key={conversationKey(conversation)}
                 onClick={() => {
-                  setSelected(conversation.name);
+                  setSelected(conversationKey(conversation));
                   if (previewMode) {
                     setRemoteMessages(
                       conversation.id === 'preview-conversation-maya'

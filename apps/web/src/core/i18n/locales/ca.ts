@@ -91,6 +91,110 @@ export const ca: Translation = {
       CLOSED: 'Tancat',
     },
     priority: { LOW: 'Baixa', MEDIUM: 'Mitjana', HIGH: 'Alta' },
+    list: {
+      greeting: 'Bon dia, {{name}}',
+      attention_one: '{{count}} tiquet necessita atenció',
+      attention_other: '{{count}} tiquets necessiten atenció',
+      description: {
+        organization:
+          'Segueix les sol·licituds de la teva organització i fes avançar la feina.',
+        personal: 'Segueix les sol·licituds que has creat i el seu progrés.',
+      },
+      summary: 'Resum de tiquets',
+      categoryFilter: 'Filtre de categoria',
+      backToCategories: 'Tornar a categories',
+      clearFilter: 'Netejar filtre',
+      allTickets: 'Tots els tiquets',
+      yourTickets: 'Els teus tiquets',
+      results_one: '{{count}} resultat',
+      results_other: '{{count}} resultats',
+      searchLabel: 'Cercar tiquets',
+      searchPlaceholder: 'Cerca per títol o descripció',
+      empty: {
+        title: 'Encara no hi ha tiquets',
+        description:
+          'Crea el teu primer tiquet per començar a seguir sol·licituds.',
+        filteredDescription:
+          'Prova d’ajustar o netejar la cerca i els filtres per veure més resultats.',
+      },
+      errorTitle: 'No s’han pogut carregar els tiquets',
+      unassigned: 'Sense assignar',
+      noCategory: 'Sense categoria',
+      viewAll_one: 'Veure el tiquet',
+      viewAll_other: 'Veure els {{count}} tiquets',
+      showing: 'Mostrant {{from}}–{{to}} de {{count}}',
+      pages: 'Pàgines de tiquets',
+    },
+    table: {
+      ticket: 'Tiquet',
+      status: 'Estat',
+      priority: 'Prioritat',
+      assignee: 'Assignat a',
+      updated: 'Actualitzat',
+    },
+    filters: {
+      title: 'Filtrar tiquets',
+      description: 'Combina camps per acotar la llista de tiquets.',
+      apply: 'Aplicar filtres',
+      more: 'Més filtres',
+      status: { label: 'Estat', all: 'Tots els estats' },
+      priority: { label: 'Prioritat', all: 'Totes les prioritats' },
+      category: { label: 'Categoria', all: 'Totes les categories' },
+      sort: { label: 'Ordenació', newest: 'Més nous', oldest: 'Més antics' },
+    },
+    create: {
+      title: 'Crear un tiquet',
+      subtitle:
+        'Descriu el problema clarament perquè la persona adequada et pugui ajudar.',
+      back: 'Tornar a tiquets',
+      breadcrumbs: 'TIQUETS / NOU',
+      detailsTitle: 'Detalls del tiquet',
+      requiredNote: 'Tots els camps marcats amb * són obligatoris.',
+      fields: {
+        subject: 'Assumpte *',
+        subjectPlaceholder: 'Breu resum del problema',
+        organization: 'Organització *',
+        category: 'Categoria',
+        categoryPlaceholder: 'Selecciona una categoria (opcional)...',
+        categoryUnassignedHelp:
+          "Si tens dubtes, deixa la categoria en blanc. L'equip de suport la classificarà per tu.",
+        description: 'Descripció *',
+        descriptionPlaceholder:
+          'Explica què ha passat, què esperaves i els passos per reproduir el problema.',
+        priority: 'Prioritat *',
+        priorityDescriptions: {
+          low: 'Pot esperar',
+          medium: 'Requereix atenció',
+          high: 'El treball està bloquejat',
+        },
+      },
+      actions: {
+        cancel: 'Cancel·lar',
+        submit: 'Crear tiquet',
+        submitting: 'Creant...',
+      },
+      done: 'Tiquet creat amb èxit.',
+      aside: {
+        before: "ABANS D'ENVIAR",
+        helpTitle: 'Ajuda’ns a resoldre-ho més ràpid',
+        tips: {
+          specificTitle: 'Sigues específic',
+          specificText:
+            'Fes servir un assumpte clar que descrigui el problema.',
+          contextTitle: 'Afegeix context',
+          contextText: 'Explica què ha canviat i a qui afecta.',
+          priorityTitle: 'Tria la prioritat',
+          priorityText:
+            'Fes servir Alta només quan el treball estigui bloquejat.',
+        },
+        nextTitle: 'Què passa després?',
+        steps: {
+          open: 'Obert — La teva sol·licitud s’uneix a la cua.',
+          inProgress: 'En progrés — Un agent se’n fa càrrec.',
+          resolved: 'Resolt — Reavises la solució proposada.',
+        },
+      },
+    },
   },
   errors: {
     common: {

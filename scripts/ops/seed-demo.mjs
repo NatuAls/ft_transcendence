@@ -1,6 +1,9 @@
 // =============================================================================
 //  Datos de demostración para la defensa.                     (auditoría N40)
 //
+//  No confundir con `scripts/dev/seed-local.mjs`, que siembra la máquina de
+//  quien desarrolla. Éste va contra el servidor.
+//
 //  Crea, por la API pública (nada de SQL a mano): una organización, cuatro
 //  cuentas con roles distintos y ocho tickets en estados variados con
 //  comentarios, notas internas, asignaciones y resoluciones. Lo mismo que

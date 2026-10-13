@@ -171,6 +171,17 @@ export const Errors = {
       'errors.org.lastAdmin',
       'An organization must keep at least one administrator.',
     ),
+  // Bajarse el rol a uno mismo no tiene vuelta: para cambiar roles hace falta
+  // ser administrador, así que quien se degrada queda dentro de la
+  // organización sin poder deshacerlo ni gestionar nada. Pasó el 07/10 en
+  // desarrollo: ascender a otro administrador dejaba de aplicar el límite del
+  // último administrador y la pantalla permitía el cambio sin avisar.
+  cannotLowerOwnRole: () =>
+    conflict(
+      'ORG_CANNOT_LOWER_OWN_ROLE',
+      'errors.org.cannotLowerOwnRole',
+      'You cannot lower your own role: another administrator has to do it, or you can leave the organization.',
+    ),
   categoryNameTaken: () =>
     conflict(
       'CATEGORY_NAME_TAKEN',

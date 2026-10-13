@@ -74,6 +74,18 @@ export function attachEventBridge({ io, sockets }: RealtimeServer): void {
     }));
   }
 
+  // Las reservas van a la sala de la organización como cualquier otro cambio
+  // de su lista de personas: la pantalla las pinta junto a los miembros.
+  for (const event of [
+    DomainEvents.roleReserved,
+    DomainEvents.roleReservationCancelled,
+  ]) {
+    relay<{ organizationId: string }>(event, (p) => ({
+      rooms: [`org:${p.organizationId}`],
+      body: p,
+    }));
+  }
+
   // memberAdded/memberRemoved don't just relay: SocketUser.organizationIds is
   // cached at connection time and used to authorise ticket.subscribe/sync, so
   // a membership change has to patch that cache (and the socket's actual room
