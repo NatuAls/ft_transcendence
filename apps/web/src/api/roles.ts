@@ -113,9 +113,11 @@ export async function cancelPlatformReservation(id: string): Promise<void> {
 
 export async function listMembers(
   organizationId: string,
+  signal?: AbortSignal,
 ): Promise<OrganizationMemberRow[]> {
   const rows = await request<ApiMemberRow[]>(
     `/organizations/${organizationId}/members`,
+    { signal },
   );
   return rows.map((row) => ({
     avatarUrl: row.user.profile?.avatarUrl ?? null,
