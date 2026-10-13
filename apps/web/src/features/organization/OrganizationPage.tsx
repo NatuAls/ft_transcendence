@@ -47,6 +47,7 @@ export function OrganizationPage({
   canReadStats,
   currentUserId,
   onAccessChanged,
+  isPlatformAdmin = false,
   onOpenCategory,
   onOrganizationDescriptionChange,
   onOrganizationNameChange,
@@ -64,7 +65,14 @@ export function OrganizationPage({
   canReadStats: boolean;
   currentUserId: string;
   onAccessChanged: () => void;
-  onOpenCategory: (category: string) => void;
+  /**
+   * Quien mira es administrador de plataforma. Lo decide `can()` en el
+   * armazón, no esta pantalla comparando el texto del rol: la guía del bloque
+   * lo prohíbe (§5) y lo único que justificaba aquí `organizationRole` era el
+   * texto descriptivo.
+   */
+  isPlatformAdmin?: boolean;
+  onOpenCategory: (categoryId: string) => void;
   onOrganizationDescriptionChange: (description: string) => void;
   onOrganizationNameChange: (name: string) => void;
   onOrganizationDeleted: () => void;
@@ -163,9 +171,12 @@ export function OrganizationPage({
           reservation.id,
         ]),
       ],
-      openTickets: stats
-        ? (stats.byStatus.OPEN ?? 0) + (stats.byStatus.IN_PROGRESS ?? 0)
-        : fixture.openTickets,
+      // Sólo OPEN, igual que la tarjeta «Open» de la lista de tickets. Antes
+      // sumaba también IN_PROGRESS: los datos eran los mismos, pero la misma
+      // palabra contaba dos conjuntos distintos en dos pantallas — 7 aquí
+      // (6 abiertos + 1 en curso) contra 6 allí —, y parecía un error de
+      // cálculo. Quien quiera el desglose lo tiene en la lista.
+      openTickets: stats ? (stats.byStatus.OPEN ?? 0) : fixture.openTickets,
     };
   }, [
     canManageMembers,
@@ -669,7 +680,13 @@ export function OrganizationPage({
                       onClick={() => {
                         setSelectedName(row[1]);
                         setSelectedKey(rowKey(row));
-                        if (tab === 'categories') onOpenCategory(row[1]);
+                        // El ID, no el nombre: la lista de tickets filtra por
+                        // `categoryId` contra la API, y con el nombre ésta
+                        // respondía 400 («Could not load tickets»). Las filas
+                        // de muestra no traen ID y caen al nombre, que es lo
+                        // que entiende la lista de la vista previa.
+                        if (tab === 'categories')
+                          onOpenCategory(row[5] ?? row[1]);
                         else if (canEdit) setDialog(editor);
                       }}
                       type="button"
@@ -770,9 +787,7 @@ export function OrganizationPage({
       {dialog ? (
         <OrganizationDialog
           canDeleteOrganization={
-            previewMode ||
-            organizationRole === 'GLOBAL_ADMIN' ||
-            createdById === currentUserId
+            previewMode || isPlatformAdmin || createdById === currentUserId
           }
           deleteContext={deleteContext}
           dialog={dialog}
@@ -780,7 +795,7 @@ export function OrganizationPage({
           // la organización, así que para él no hay nada que proteger.
           editingSelf={
             !previewMode &&
-            organizationRole !== 'GLOBAL_ADMIN' &&
+            !isPlatformAdmin &&
             selectedMemberId === currentUserId
           }
           key={`${dialog}-${deleteContext ?? 'none'}`}

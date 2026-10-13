@@ -208,7 +208,11 @@ export function WorkspacePage({
           canReadStats={can(viewer, 'stats:read')}
           currentUserId={viewer.id}
           onAccessChanged={onAccessChanged}
-          onOpenCategory={(category) => navigate('tickets', { category })}
+          // Plataforma = quien puede repartir roles de plataforma.
+          isPlatformAdmin={can(viewer, 'user:setGlobalRole')}
+          onOpenCategory={(categoryId) =>
+            navigate('tickets', { category: categoryId })
+          }
           onOrganizationDeleted={() => navigate('organizations')}
           onOrganizationsChanged={onOrganizationsChanged}
           onOrganizationDescriptionChange={onOrganizationDescriptionChange}
