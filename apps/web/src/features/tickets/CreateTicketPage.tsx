@@ -182,7 +182,7 @@ export function CreateTicketPage({
               className="my-[14px] grid grid-cols-[24px_1fr] gap-2.5"
               key={title}
             >
-              <b className="grid size-[22px] place-items-center rounded-full bg-[#dce8e3] text-xs2 text-primary">
+              <b className="grid size-[22px] place-items-center rounded-full bg-success-surface text-xs2 text-primary">
                 {index + 1}
               </b>
               <p className="grid gap-[5px]">
@@ -205,7 +205,7 @@ export function CreateTicketPage({
               className="flex items-center gap-2.5 text-2xs text-muted"
               key={step}
             >
-              <b className="grid size-[22px] place-items-center rounded-full bg-[#dce8e3] text-xs2 text-primary">
+              <b className="grid size-[22px] place-items-center rounded-full bg-success-surface text-xs2 text-primary">
                 {index + 1}
               </b>
               {step}

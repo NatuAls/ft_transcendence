@@ -193,7 +193,7 @@ export function OrganizationsPage({
             className="grid grid-cols-[56px_1fr_auto] items-center gap-4 rounded-md border border-border bg-surface p-5 max-md:grid-cols-[48px_1fr]"
             key={organization.id}
           >
-            <span className="grid size-12 place-items-center rounded-md bg-[#d8e5df] text-primary">
+            <span className="grid size-12 place-items-center rounded-md bg-surface-secondary text-primary">
               {organization.initials}
             </span>
             <div>

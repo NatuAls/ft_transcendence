@@ -36,7 +36,7 @@ function TicketCard({
         <Priority priority={ticket.priority} />
       </span>
       <span className="flex items-center justify-start border-t border-border pt-3 text-xs text-muted">
-        <span className="mr-2 grid size-[26px] place-items-center rounded-full bg-[#d8e5df] text-3xs text-primary">
+        <span className="mr-2 grid size-[26px] place-items-center rounded-full bg-surface-secondary text-3xs text-primary">
           {ticket.assignee
             .split(' ')
             .map((name) => name[0])

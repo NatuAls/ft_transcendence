@@ -150,7 +150,7 @@ export function AppShell({
 
   return (
     <div className="min-h-dvh bg-canvas max-[1100px]:bg-surface">
-      <aside className="fixed inset-y-0 left-0 z-20 flex w-[260px] flex-col bg-[#183039] px-5 pt-7 pb-5 text-surface max-[1100px]:hidden">
+      <aside className="fixed inset-y-0 left-0 z-20 flex w-[260px] flex-col bg-[#183039] px-5 pt-7 pb-5 text-aside-text max-[1100px]:hidden">
         <button
           className="flex items-center gap-3 px-2 pb-10 text-left text-lg font-medium"
           onClick={() => onNavigate('tickets')}
