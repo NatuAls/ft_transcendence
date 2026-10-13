@@ -57,6 +57,22 @@ function subject(actor: RequestActor, membership?: RequestMembership) {
   };
 }
 
+function canAccessConversation(
+  actor: RequestActor,
+  membership: RequestMembership | undefined,
+  ticket: {
+    createdBy: { id: string };
+    assignedTo: { id: string } | null;
+  },
+) {
+  return (
+    actor.globalRole === 'GLOBAL_ADMIN' ||
+    membership?.role === 'ORG_ADMIN' ||
+    ticket.createdBy.id === actor.id ||
+    ticket.assignedTo?.id === actor.id
+  );
+}
+
 export async function create(
   actor: RequestActor,
   membership: RequestMembership | undefined,
@@ -396,7 +412,9 @@ export async function listComments(
   membership: RequestMembership | undefined,
   ticketId: string,
 ) {
-  await findOne(actor, membership, ticketId);
+  const ticket = await findOne(actor, membership, ticketId);
+  if (!canAccessConversation(actor, membership, ticket))
+    throw Errors.forbiddenAction('access this ticket conversation');
   const canSeeInternal = canPolicy(
     'ticket:viewInternalNotes',
     subject(actor, membership),
@@ -441,6 +459,8 @@ export async function addComment(
   input: CreateCommentInput,
 ) {
   const ticket = await findOne(actor, membership, ticketId);
+  if (!canAccessConversation(actor, membership, ticket))
+    throw Errors.forbiddenAction('access this ticket conversation');
   assertPolicy('comment:create', subject(actor, membership));
   if (input.isInternal)
     assertPolicy('comment:createInternal', subject(actor, membership));

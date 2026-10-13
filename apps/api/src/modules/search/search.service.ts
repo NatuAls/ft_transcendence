@@ -8,8 +8,8 @@ import type { OrgRole } from 'contracts';
 import { evaluatePolicy } from '../../rbac/policies.ts';
 
 interface FacetRow {
-  status: string;
-  priority: string;
+  status: string | null;
+  priority: string | null;
   count: bigint;
 }
 
@@ -219,17 +219,22 @@ export async function searchTickets(
     LIMIT ${query.take} OFFSET ${offset}
   `);
 
-  // Facets AND the total in ONE extra query. The empty grouping set `()` is
-  // the plain `count(*)` over the same predicate, so the dedicated count query
-  // that used to live here was a second full evaluation of the WHERE clause
-  // for no new information. That matters on the full-text path: when the query
-  // term matches most of the table the planner falls back to a sequential
-  // scan and re-computes `to_tsvector` per row, so dropping one pass takes a
-  // measurable third off the request.
+  // Facets and the total in one extra query. Priority facets intentionally
+  // exclude resolved and closed tickets because the list's priority summary
+  // represents work that still needs attention.
   const facetRows = await prisma.$queryRaw<FacetRow[]>(Prisma.sql`
-    SELECT t."status"::text AS status, t."priority"::text AS priority, count(*)::bigint AS count
+    SELECT t."status"::text AS status, NULL::text AS priority, count(*)::bigint AS count
     FROM tickets t ${whereSql}
-    GROUP BY GROUPING SETS ((t."status"), (t."priority"), ())
+    GROUP BY t."status"
+    UNION ALL
+    SELECT NULL::text AS status, t."priority"::text AS priority, count(*)::bigint AS count
+    FROM tickets t
+    ${whereSql}
+    ${where.length ? Prisma.sql`AND` : Prisma.sql`WHERE`} t."status" NOT IN ('RESOLVED', 'CLOSED')
+    GROUP BY t."priority"
+    UNION ALL
+    SELECT NULL::text AS status, NULL::text AS priority, count(*)::bigint AS count
+    FROM tickets t ${whereSql}
   `);
 
   const facets = {
