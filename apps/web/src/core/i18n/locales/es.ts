@@ -32,6 +32,46 @@ export const es: Translation = {
   },
   account: {
     back: '‹ Cuenta',
+    home: {
+      profileTitle: 'Configuración del perfil',
+      description: 'Gestiona tus datos personales y tu privacidad.',
+      editProfile: 'Editar perfil',
+      user: 'Usuario',
+      settingsLabel: 'Configuración de la cuenta',
+      preferences: {
+        title: 'Preferencias',
+        description:
+          'Elige cómo se muestran las fechas y se programan las notificaciones.',
+        summary: 'Zona horaria · {{timezone}}',
+      },
+      privacy: {
+        title: 'Privacidad y datos',
+        description: 'Exporta o elimina tu información',
+      },
+      sessions: {
+        title: 'Sesiones y dispositivos',
+        description: 'Consulta dónde has iniciado sesión y cierra dispositivos',
+      },
+    },
+    preferences: {
+      title: 'Preferencias',
+      description:
+        'Elige cómo se muestran las fechas y se programan las notificaciones.',
+      language: 'Idioma',
+      languages: { en: 'English', es: 'Español', ca: 'Català' },
+      timezone: 'Zona horaria',
+      timezoneHelp:
+        'El navegador ha detectado {{timezone}}. Esta opción controla las marcas de tiempo de los tickets y la programación futura de notificaciones.',
+      theme: 'Tema',
+      themes: { light: 'Claro', dark: 'Oscuro', system: 'Sistema' },
+      notifications: 'Notificaciones',
+      notifyOnTicketUpdate: 'Actualizaciones de tickets',
+      notifyOnComment: 'Comentarios',
+      notifyOnMention: 'Menciones',
+      notifyOnMessage: 'Mensajes',
+      notifyOnFriendship: 'Solicitudes de amistad',
+      saved: 'Preferencia guardada correctamente.',
+    },
     password: {
       title: 'Cambiar contraseña',
       description: 'Actualiza tu contraseña para proteger tu cuenta.',

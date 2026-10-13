@@ -566,7 +566,7 @@ export function TicketDetailPage({
                         {t('tickets.detail.requester')}
                       </h3>
                       <div className="flex items-center gap-2.5 text-xs">
-                        <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#e9e2d8] text-2xs text-[#6e573c]">
+                        <span className="grid size-8 shrink-0 place-items-center rounded-full bg-warning-surface text-2xs text-warning">
                           {ticket.authorDisplayName
                             .split(' ')
                             .map((part) => part[0])

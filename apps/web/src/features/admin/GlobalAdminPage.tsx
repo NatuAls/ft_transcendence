@@ -397,7 +397,7 @@ export function GlobalAdminPage({
             type="button"
           >
             <span className="flex items-center gap-2.5">
-              <b className="grid size-8 place-items-center rounded-full bg-[#d8e5df] text-3xs text-primary">
+              <b className="grid size-8 place-items-center rounded-full bg-surface-secondary text-3xs text-primary">
                 {user[0]}
               </b>
               <span className="grid">

@@ -219,7 +219,7 @@ export function ProfileSettings({
         <TextField
           label="Username"
           name="username"
-          className="[&_.ui-field__input]:cursor-not-allowed [&_.ui-field__input]:bg-[#eef0f2] [&_.ui-field__input]:text-muted"
+          className="[&_.ui-field__input]:cursor-not-allowed [&_.ui-field__input]:bg-surface-secondary [&_.ui-field__input]:text-muted"
           readOnly
           value={draft.username}
         />
@@ -227,7 +227,7 @@ export function ProfileSettings({
           label="Email address"
           name="email"
           onChange={(event) => updateDraft('email', event.target.value)}
-          className="[&_.ui-field__input]:cursor-not-allowed [&_.ui-field__input]:bg-[#eef0f2] [&_.ui-field__input]:text-muted"
+          className="[&_.ui-field__input]:cursor-not-allowed [&_.ui-field__input]:bg-surface-secondary [&_.ui-field__input]:text-muted"
           required
           readOnly
           type="email"

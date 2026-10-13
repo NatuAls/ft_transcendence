@@ -190,7 +190,7 @@ export function RegisterPage({
           </header>
 
           <form
-            className="grid gap-4 [&_.ui-field__label]:text-muted md:[&_.ui-field__label]:text-ink [&_.ui-field__input]:h-12 [&_.ui-field__input]:border-transparent [&_.ui-field__input]:bg-white md:[&_.ui-field__input]:h-[52px] md:[&_.ui-field__input]:border-border md:[&_.ui-field__input]:bg-[#f7faf8]"
+            className="grid gap-4 [&_.ui-field__label]:text-muted md:[&_.ui-field__label]:text-ink [&_.ui-field__input]:h-12 [&_.ui-field__input]:border-transparent [&_.ui-field__input]:bg-surface md:[&_.ui-field__input]:h-[52px] md:[&_.ui-field__input]:border-border md:[&_.ui-field__input]:bg-surface"
             onSubmit={handleSubmit}
           >
             <TextField

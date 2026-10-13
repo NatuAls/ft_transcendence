@@ -132,7 +132,7 @@ function PreviewPeoplePage({
           >
             {label}
             {value === 'requests' && (
-              <small className="inline-flex items-center rounded-full bg-[#e9dfd0] px-[7px] py-0.5 text-3xs leading-none text-warning max-md:hidden">
+              <small className="inline-flex items-center rounded-full bg-warning-surface px-[7px] py-0.5 text-3xs leading-none text-warning max-md:hidden">
                 {pendingRequests.length} pending
               </small>
             )}
