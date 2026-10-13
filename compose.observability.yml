@@ -264,7 +264,7 @@ services:
 
   # ------------------------------------------------------------------- logs --
   loki:
-    image: grafana/loki:3.4.2
+    image: grafana/loki:3.7.8
     container_name: helpdesk-loki
     restart: always
     logging: *default-logging
