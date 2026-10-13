@@ -21,6 +21,15 @@ export function fromApiLocale(locale: string | undefined | null): Language {
   return (LANGUAGES as readonly string[]).includes(l) ? (l as Language) : 'en';
 }
 
+export function hasStoredLanguage(): boolean {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return Boolean(stored && (LANGUAGES as readonly string[]).includes(stored));
+  } catch {
+    return false;
+  }
+}
+
 function detectLanguage(): Language {
   let stored: string | null = null;
   try {

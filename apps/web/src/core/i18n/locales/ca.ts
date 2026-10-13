@@ -27,6 +27,46 @@ export const ca: Translation = {
   },
   account: {
     back: '‹ Compte',
+    home: {
+      profileTitle: 'Configuració del perfil',
+      description: 'Gestiona les teves dades personals i la privacitat.',
+      editProfile: 'Edita el perfil',
+      user: 'Usuari',
+      settingsLabel: 'Configuració del compte',
+      preferences: {
+        title: 'Preferències',
+        description:
+          'Tria com es mostren les dates i es programen les notificacions.',
+        summary: 'Zona horària · {{timezone}}',
+      },
+      privacy: {
+        title: 'Privacitat i dades',
+        description: 'Exporta o elimina la teva informació',
+      },
+      sessions: {
+        title: 'Sessions i dispositius',
+        description: 'Consulta on has iniciat sessió i tanca dispositius',
+      },
+    },
+    preferences: {
+      title: 'Preferències',
+      description:
+        'Tria com es mostren les dates i es programen les notificacions.',
+      language: 'Idioma',
+      languages: { en: 'English', es: 'Español', ca: 'Català' },
+      timezone: 'Zona horària',
+      timezoneHelp:
+        'El navegador ha detectat {{timezone}}. Aquesta opció controla les marques de temps dels tiquets i la programació futura de notificacions.',
+      theme: 'Tema',
+      themes: { light: 'Clar', dark: 'Fosc', system: 'Sistema' },
+      notifications: 'Notificacions',
+      notifyOnTicketUpdate: 'Actualitzacions de tiquets',
+      notifyOnComment: 'Comentaris',
+      notifyOnMention: 'Mencions',
+      notifyOnMessage: 'Missatges',
+      notifyOnFriendship: 'Sol·licituds d’amistat',
+      saved: 'Preferència desada correctament.',
+    },
     password: {
       title: 'Canvia la contrasenya',
       description: 'Actualitza la contrasenya per protegir el compte.',
