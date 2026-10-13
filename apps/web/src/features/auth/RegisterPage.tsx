@@ -3,6 +3,7 @@ import { registerSchema } from 'contracts';
 import { Alert, Button, Checkbox, TextField } from 'ui';
 import { AuthBrandPanel, BrandHeader } from './AuthBrand';
 import { register, type AuthResponse } from '../../api/auth';
+import { useTranslation } from '../../core/i18n';
 
 export interface RegisterValues {
   firstName: string;
@@ -32,6 +33,7 @@ export function RegisterPage({
   onSignIn,
   onSubmit,
 }: RegisterPageProps) {
+  const { t } = useTranslation();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [username, setUsername] = useState('');
@@ -90,7 +92,7 @@ export function RegisterPage({
       locale: browserLocale,
     });
     if (!parsed.success) {
-      setError('Please check the form fields.');
+      setError(t('errors.common.validationFailed'));
       return;
     }
 
@@ -103,9 +105,11 @@ export function RegisterPage({
       void onSubmit(authData.user);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message);
+        setError(
+          err.message.startsWith('errors.') ? t(err.message) : err.message,
+        );
       } else {
-        setError('An unexpected error occurred.');
+        setError(t('errors.common.unexpected'));
       }
     } finally {
       setIsSubmitting(false);

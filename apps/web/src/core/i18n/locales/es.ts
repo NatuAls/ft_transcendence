@@ -16,6 +16,11 @@ export const es: Translation = {
       error: 'Algo ha salido mal',
     },
     language: 'Idioma',
+    notFound: {
+      title: 'Página no encontrada',
+      description: 'La dirección no coincide con ninguna página disponible.',
+      back: 'Volver a tickets',
+    },
   },
   nav: {
     tickets: 'Tickets',
@@ -60,6 +65,12 @@ export const es: Translation = {
           'Sigue las solicitudes de tu organización y haz avanzar el trabajo.',
         personal: 'Sigue las solicitudes que has creado y su progreso.',
       },
+      stats: {
+        open: 'Abiertos',
+        inProgress: 'En curso',
+        resolved: 'Resueltos',
+        highPriority: 'Prioridad alta',
+      },
       summary: 'Resumen de tickets',
       categoryFilter: 'Filtro de categoría',
       backToCategories: 'Volver a categorías',
@@ -79,6 +90,8 @@ export const es: Translation = {
       errorTitle: 'No se han podido cargar los tickets',
       unassigned: 'Sin asignar',
       noCategory: 'Sin categoría',
+      createdBy: 'Creado por {{name}}',
+      assignedTo: 'Asignado a {{name}}',
       viewAll_one: 'Ver el ticket',
       viewAll_other: 'Ver los {{count}} tickets',
       showing: 'Mostrando {{from}}–{{to}} de {{count}}',
@@ -90,6 +103,90 @@ export const es: Translation = {
       priority: 'Prioridad',
       assignee: 'Asignado a',
       updated: 'Actualizado',
+      createdBy: 'Creado por',
+    },
+    detail: {
+      back: 'Volver a tickets',
+      title: 'Detalle del ticket',
+      actions: 'Acciones del ticket',
+      updated: 'Actualizado {{date}}',
+      reopen: 'Reabrir ticket',
+      confirmClose: 'Confirmar y cerrar',
+      closeTicket: 'Confirmar resolución',
+      closeDescription:
+        'Revisa la resolución propuesta antes de cerrar este ticket.',
+      noResolution: 'No se ha proporcionado ninguna resolución.',
+      requester: 'Solicitante',
+      details: 'Detalles del ticket',
+      conversation: 'Conversación',
+      conversationRestricted:
+        'Solo el creador, el soporte asignado o un administrador de la organización pueden acceder a esta conversación.',
+      loadingConversation: 'Cargando conversación…',
+      conversationFailed: 'No se ha podido cargar la conversación.',
+      reply: 'Responder',
+      replyPlaceholder: 'Escribe una respuesta…',
+      sendReply: 'Enviar respuesta',
+      send: 'Enviar',
+      status: 'Estado',
+      priority: 'Prioridad',
+      category: 'Categoría',
+      organization: 'Organización',
+      created: 'Creado',
+      assignment: 'Asignación',
+      assignmentDescription: 'Asignación actual del ticket.',
+      assignee: 'Asignado a',
+      ticketClosed: 'Ticket cerrado',
+      closedDescription:
+        'El solicitante confirmó la resolución. La conversación sigue disponible como referencia.',
+      adminReassignOnly:
+        'Solo los administradores pueden reasignar este ticket.',
+      agentOptions: 'Opciones del agente',
+      agentOptionsDescription:
+        'Actualiza la prioridad y la categoría del ticket.',
+      resolutionDescription:
+        'Añade una resolución antes de marcar este ticket como resuelto.',
+      resolutionEyebrow: 'RESOLUCIÓN',
+      saving: 'Guardando…',
+      markResolved: 'Marcar como resuelto',
+      resolveTicket: 'Resolver ticket',
+      resolution: 'Resolución',
+      resolutionPlaceholder:
+        'Describe cómo se resolvió el problema (al menos 20 caracteres).',
+      actionsDescription: 'Acciones disponibles para el ticket {{id}}.',
+      eyebrow: 'TICKET',
+      returnToTickets: 'Volver a tickets',
+      copyId: 'Copiar ID del ticket',
+      loadError: 'No se ha podido cargar el ticket',
+      notFound: 'Ticket no encontrado',
+      notFoundDescription: 'Es posible que este ticket se haya eliminado.',
+      assignToMe: 'Asignarme el ticket',
+      issueDescription: 'Descripción del problema',
+      closedReadOnly:
+        'Este ticket es de solo lectura mientras está cerrado. Reábrelo antes de añadir otra respuesta.',
+      newLineHint: 'Mayús + Intro para una nueva línea',
+      feedback: {
+        replyAdded: 'Respuesta añadida.',
+        replyFailed: 'No se ha podido añadir la respuesta. Inténtalo de nuevo.',
+        priorityUpdated: 'Prioridad actualizada.',
+        priorityFailed:
+          'No se ha podido actualizar la prioridad. Inténtalo de nuevo.',
+        assigneeUpdated: 'Asignación actualizada.',
+        assigneeFailed:
+          'No se ha podido actualizar la asignación. Inténtalo de nuevo.',
+        categoryUpdated: 'Categoría actualizada.',
+        categoryFailed:
+          'No se ha podido actualizar la categoría. Inténtalo de nuevo.',
+        closed: 'Ticket cerrado.',
+        resolved: 'Ticket marcado como resuelto.',
+        reopened: 'Ticket reabierto.',
+        statusFailed:
+          'No se ha podido actualizar el estado. Inténtalo de nuevo.',
+        assignedToMe: 'Ticket asignado y movido a “En curso”.',
+        assignToMeFailed:
+          'No se ha podido asignar el ticket. Inténtalo de nuevo.',
+        idCopied: 'ID del ticket copiado.',
+        copyUnavailable: 'No se puede copiar en este navegador. ID: {{id}}.',
+      },
     },
     filters: {
       title: 'Filtrar tickets',
@@ -170,6 +267,13 @@ export const es: Translation = {
       sessionExpired: 'Tu sesión ha caducado. Vuelve a iniciar sesión.',
       invalidCredentials: 'Correo o contraseña incorrectos.',
       wrongPassword: 'La contraseña actual no es correcta.',
+      serverUnavailable:
+        'El servidor no está disponible temporalmente. Inténtalo de nuevo.',
+      requestFailed: 'La petición ha fallado. Inténtalo de nuevo.',
+      emptyLoginResponse:
+        'El servidor devolvió una respuesta de inicio de sesión vacía. Inténtalo de nuevo.',
+      emptyRegistrationResponse:
+        'El servidor devolvió una respuesta de registro vacía. Inténtalo de nuevo.',
     },
     password: {
       required: 'La contraseña es obligatoria.',
