@@ -249,7 +249,7 @@ export function TicketDetailPage({
           <section className="flex flex-col gap-4 rounded-md border border-border bg-surface p-[26px] max-md:border-0 max-md:px-0 max-md:py-2">
             <h2 className="mb-[7px] text-base font-medium">Conversation</h2>
             <article className="flex gap-3">
-              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#d8e5df] text-2xs text-primary">
+              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-surface-secondary text-2xs text-primary">
                 MS
               </span>
               <div className="max-w-[78%] max-md:max-w-[82%]">
@@ -264,11 +264,11 @@ export function TicketDetailPage({
             </article>
             <article className="flex justify-end gap-3">
               <div className="max-w-[78%] max-md:max-w-[82%]">
-                <p className="mt-2 rounded-[4px_12px_12px] bg-[#e1ece8] px-4 py-[13px] text-xs leading-[1.5] max-md:text-2xs">
+                <p className="mt-2 rounded-[4px_12px_12px] bg-success-surface px-4 py-[13px] text-xs leading-[1.5] max-md:text-2xs">
                   Thank you. It affects both Chrome and Firefox.
                 </p>
               </div>
-              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#e9e2d8] text-2xs text-[#6e573c]">
+              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-warning-surface text-2xs text-warning">
                 JL
               </span>
             </article>
@@ -281,11 +281,11 @@ export function TicketDetailPage({
                   <small className="text-xs2 text-muted">
                     {currentUserName} · Now
                   </small>
-                  <p className="mt-2 rounded-[4px_12px_12px] bg-[#e1ece8] px-4 py-[13px] text-xs leading-[1.5] max-md:text-2xs">
+                  <p className="mt-2 rounded-[4px_12px_12px] bg-success-surface px-4 py-[13px] text-xs leading-[1.5] max-md:text-2xs">
                     {text}
                   </p>
                 </div>
-                <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#e9e2d8] text-2xs text-[#6e573c]">
+                <span className="grid size-8 shrink-0 place-items-center rounded-full bg-warning-surface text-2xs text-warning">
                   {getInitials(currentUserName)}
                 </span>
               </article>
@@ -362,7 +362,7 @@ export function TicketDetailPage({
               Requester
             </h3>
             <div className="flex items-center gap-2.5 text-xs">
-              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#e9e2d8] text-2xs text-[#6e573c]">
+              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-warning-surface text-2xs text-warning">
                 {requesterName
                   .split(' ')
                   .map((part) => part[0])

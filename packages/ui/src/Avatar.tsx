@@ -18,7 +18,7 @@ export function Avatar({
   return (
     <span
       aria-label={alt || undefined}
-      className={`ui-avatar relative inline-grid size-12 shrink-0 place-items-center rounded-full bg-[#d8e5df] text-xs leading-none font-medium text-[#29484e] [container-type:inline-size] ${className}`.trim()}
+      className={`ui-avatar relative inline-grid size-12 shrink-0 place-items-center rounded-full bg-surface-secondary text-xs leading-none font-medium text-primary [container-type:inline-size] ${className}`.trim()}
       role={alt ? 'img' : undefined}
       {...props}
     >

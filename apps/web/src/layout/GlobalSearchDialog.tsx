@@ -95,13 +95,13 @@ export function GlobalSearchDialog({
       onClose={onClose}
       title="Search HelpDesk Lite"
     >
-      <div className="grid h-[50px] grid-cols-[24px_1fr_auto] items-center gap-2 rounded-sm border border-border bg-[#f7faf8] px-[14px] focus-within:border-focus focus-within:outline-3 focus-within:outline-focus">
+      <div className="grid h-[50px] grid-cols-[24px_1fr_auto] items-center gap-2 rounded-sm border border-border bg-surface px-[14px] focus-within:border-focus focus-within:outline-3 focus-within:outline-focus">
         <label className="sr-only" htmlFor="global-search-input">
           Search
         </label>
         <Icon name="search" size={18} />
         <input
-          className="h-full min-w-0 border-0 bg-transparent outline-0 focus-visible:!outline-none"
+          className="h-full min-w-0 border-0 bg-transparent outline-0 focus-visible:outline-none!"
           id="global-search-input"
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search by title, ID, person or setting"

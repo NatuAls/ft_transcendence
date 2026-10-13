@@ -27,6 +27,44 @@ export const en = {
   },
   account: {
     back: '‹ Account',
+    home: {
+      profileTitle: 'Profile settings',
+      description: 'Manage your personal details and privacy.',
+      editProfile: 'Edit profile',
+      user: 'User',
+      settingsLabel: 'Account settings',
+      preferences: {
+        title: 'Preferences',
+        description: 'Choose how dates and notification schedules are shown.',
+        summary: 'Time zone · {{timezone}}',
+      },
+      privacy: {
+        title: 'Privacy & data',
+        description: 'Export or delete your information',
+      },
+      sessions: {
+        title: 'Sessions & devices',
+        description: 'See where you are signed in and sign devices out',
+      },
+    },
+    preferences: {
+      title: 'Preferences',
+      description: 'Choose how dates and notification schedules are shown.',
+      language: 'Language',
+      languages: { en: 'English', es: 'Español', ca: 'Català' },
+      timezone: 'Time zone',
+      timezoneHelp:
+        'The browser detected {{timezone}}. This setting controls ticket timestamps and future notification schedules.',
+      theme: 'Theme',
+      themes: { light: 'Light', dark: 'Dark', system: 'System' },
+      notifications: 'Notifications',
+      notifyOnTicketUpdate: 'Ticket updates',
+      notifyOnComment: 'Comments',
+      notifyOnMention: 'Mentions',
+      notifyOnMessage: 'Messages',
+      notifyOnFriendship: 'Friend requests',
+      saved: 'Preference saved successfully.',
+    },
     password: {
       title: 'Change password',
       description: 'Update your password to keep your account secure.',

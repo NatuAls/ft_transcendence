@@ -553,7 +553,7 @@ export function MessagesPage({
               >
                 <div className="grid gap-[5px]">
                   <p
-                    className={`rounded-[4px_12px_12px] bg-surface-secondary p-[13px] text-xs2 leading-[1.5] ${item.sender.id === userId ? 'rounded-[12px_4px_12px_12px] bg-[#dce9e4]' : ''}`}
+                    className={`rounded-[4px_12px_12px] bg-surface-secondary p-[13px] text-xs2 leading-[1.5] ${item.sender.id === userId ? 'rounded-[12px_4px_12px_12px] bg-success-surface' : ''}`}
                   >
                     {item.body}
                   </p>

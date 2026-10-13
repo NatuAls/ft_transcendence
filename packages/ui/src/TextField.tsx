@@ -28,7 +28,7 @@ export function TextField({
         {label}
       </label>
       <input
-        className={`ui-field__input h-[52px] w-full min-w-0 rounded-[10px] border bg-[#f7faf8] px-4 text-sm leading-[1.2] text-ink placeholder:text-[#849397] focus:border-focus focus:outline-none focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:text-muted ${disabled ? 'pointer-events-none caret-transparent select-none !outline-none' : ''} ${error ? 'border-danger' : 'border-border'}`}
+        className={`ui-field__input h-[52px] w-full min-w-0 rounded-[10px] border bg-surface px-4 text-sm leading-[1.2] text-ink placeholder:text-muted focus:border-focus focus:outline-none focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-focus ${error ? 'border-danger' : 'border-border'}`}
         id={inputId}
         disabled={disabled}
         aria-invalid={Boolean(error)}

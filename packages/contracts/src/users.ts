@@ -31,6 +31,7 @@ export const updatePreferencesSchema = z.object({
   notifyOnComment: z.boolean().optional(),
   notifyOnMention: z.boolean().optional(),
   notifyOnMessage: z.boolean().optional(),
+  notifyOnFriendship: z.boolean().optional(),
 });
 
 /**

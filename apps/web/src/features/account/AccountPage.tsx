@@ -1,13 +1,28 @@
-import { Alert, Avatar, Button, Icon, SelectField } from 'ui';
+import { Avatar, Button, Checkbox, Icon, SelectField } from 'ui';
 import { useEffect, useState } from 'react';
-import { useTranslation } from '../../core/i18n';
-import { getPreferences, updatePreferences } from '../../api/users';
+import type { UpdatePreferencesInput } from 'contracts';
+import {
+  currentLanguage,
+  setLanguage,
+  toApiLocale,
+  useTranslation,
+  type Language,
+} from '../../core/i18n';
+import {
+  getPreferences,
+  updatePreferences,
+  type UserPreferences,
+} from '../../api/users';
 import type { AccountView } from '../../app/routes';
 import { getInitials } from '../../app/text';
 import { AccountHeader } from './AccountHeader';
 import type { AccountProfile } from './accountData';
 import { ProfileSettings } from './ProfileSettings';
 import { SessionsPage } from './SessionsPage';
+import { AsyncState } from '../../core/async/AsyncState';
+import { useAsync } from '../../core/async/useAsync';
+import { useToast } from '../../core/feedback/useToast';
+import { applyTheme } from '../../core/theme';
 import {
   DeleteAccount,
   ExportReady,
@@ -142,8 +157,8 @@ function AccountHome({
   return (
     <div className="mx-auto max-w-[1040px] p-10 max-md:px-4 max-md:py-6">
       <AccountHeader
-        description="Manage your personal details and privacy."
-        title="Profile settings"
+        description={t('account.home.description')}
+        title={t('account.home.profileTitle')}
       />
       <section className="mt-7 flex items-center gap-4 rounded-md border border-border bg-surface p-[22px] max-md:p-4 max-md:[&_.ui-button]:!min-h-9 max-md:[&_.ui-button]:!px-2.5">
         <Avatar
@@ -156,7 +171,7 @@ function AccountHome({
           <h2 className="mb-1 text-lg font-medium">{profile.fullName}</h2>
           <p className="truncate text-xs text-muted">{profile.email}</p>
           <small className="text-2xs text-muted">
-            {profile.jobTitle || 'User'}
+            {profile.jobTitle || t('account.home.user')}
           </small>
         </div>
         <Button
@@ -164,10 +179,13 @@ function AccountHome({
           onClick={onProfile}
           variant="secondary"
         >
-          Edit profile
+          {t('account.home.editProfile')}
         </Button>
       </section>
-      <nav aria-label="Account settings" className="mt-4 grid gap-2.5">
+      <nav
+        aria-label={t('account.home.settingsLabel')}
+        className="mt-4 grid gap-2.5"
+      >
         <button
           className="grid grid-cols-[36px_1fr_20px] items-center gap-2.5 rounded-md border border-border bg-surface p-4 text-left hover:border-focus hover:bg-surface-secondary"
           onClick={onPassword}
@@ -189,9 +207,9 @@ function AccountHome({
         >
           <Icon name="ticket" size={20} />
           <div className="grid gap-1">
-            <strong>Preferences</strong>
+            <strong>{t('account.home.preferences.title')}</strong>
             <small className="text-2xs text-muted">
-              Time zone · {timeZone}
+              {t('account.home.preferences.summary', { timezone: timeZone })}
             </small>
           </div>
           <b aria-hidden="true">›</b>
@@ -203,9 +221,9 @@ function AccountHome({
         >
           <Icon name="shield" size={20} />
           <div className="grid gap-1">
-            <strong>Privacy &amp; data</strong>
+            <strong>{t('account.home.privacy.title')}</strong>
             <small className="text-2xs text-muted">
-              Export or delete your information
+              {t('account.home.privacy.description')}
             </small>
           </div>
           <b aria-hidden="true">›</b>
@@ -217,9 +235,9 @@ function AccountHome({
         >
           <Icon name="logout" size={20} />
           <div className="grid gap-1">
-            <strong>Sessions &amp; devices</strong>
+            <strong>{t('account.home.sessions.title')}</strong>
             <small className="text-2xs text-muted">
-              See where you are signed in and sign devices out
+              {t('account.home.sessions.description')}
             </small>
           </div>
           <b aria-hidden="true">›</b>
@@ -238,24 +256,100 @@ function PreferencesPage({
   onChange: (value: string) => void;
   timeZone: string;
 }) {
-  const [isSaving, setIsSaving] = useState(false);
-  const [feedback, setFeedback] = useState('');
+  const { t } = useTranslation();
+  const toast = useToast();
+  const preferences = useAsync(getPreferences, []);
+  const [saving, setSaving] = useState<PreferenceField | 'language' | null>(
+    null,
+  );
+  const data = preferences.data;
+  const preferenceTimeZone = data?.timezone;
+  const preferenceTheme = data?.theme;
 
   useEffect(() => {
-    void getPreferences()
-      .then((preferences) => onChange(preferences.timezone))
-      .catch(() => setFeedback('Unable to load your preferences.'));
-  }, [onChange]);
+    if (preferenceTimeZone) onChange(preferenceTimeZone);
+  }, [onChange, preferenceTimeZone]);
+
+  useEffect(() => {
+    if (preferenceTheme) applyTheme(preferenceTheme);
+  }, [preferenceTheme]);
 
   const options = Array.from(
     new Set([
-      timeZone,
+      data?.timezone ?? timeZone,
       'UTC',
       'Europe/Madrid',
       'Europe/Paris',
       'America/New_York',
     ]),
   );
+
+  async function savePreference(
+    field: PreferenceField,
+    value: UserPreferences[PreferenceField],
+    previous: UserPreferences,
+  ) {
+    setSaving(field);
+    if (field === 'timezone') onChange(String(value));
+    if (field === 'theme') applyTheme(String(value));
+    preferences.setData((current) =>
+      current ? { ...current, [field]: value } : current,
+    );
+    try {
+      const saved = await updatePreferences({
+        [field]: value,
+      } as UpdatePreferencesInput);
+      preferences.setData(() => saved);
+      toast.success(t('account.preferences.saved'));
+    } catch (error) {
+      preferences.setData((current) =>
+        current ? { ...current, [field]: previous[field] } : current,
+      );
+      if (field === 'timezone') onChange(previous.timezone);
+      if (field === 'theme') applyTheme(previous.theme);
+      toast.error(error);
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  async function changeLanguage(language: Language) {
+    if (!data || saving) return;
+    const previousLanguage = currentLanguage();
+    const previousLocale = data.locale;
+    const apiLocale = toApiLocale(language);
+    setSaving('language');
+    await setLanguage(language);
+    preferences.setData((current) =>
+      current ? { ...current, locale: apiLocale } : current,
+    );
+    if (apiLocale === 'CA') {
+      toast.success(t('account.preferences.saved'));
+      setSaving(null);
+      return;
+    }
+    try {
+      const saved = await updatePreferences({ locale: apiLocale });
+      preferences.setData(() => saved);
+      toast.success(t('account.preferences.saved'));
+    } catch (error) {
+      await setLanguage(previousLanguage);
+      preferences.setData((current) =>
+        current ? { ...current, locale: previousLocale } : current,
+      );
+      toast.error(error);
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  const notificationFields = [
+    'notifyOnTicketUpdate',
+    'notifyOnComment',
+    'notifyOnMention',
+    'notifyOnMessage',
+    'notifyOnFriendship',
+  ] as const;
   return (
     <div className="mx-auto max-w-[1040px] p-10 max-md:px-4 max-md:py-6">
       <button
@@ -263,56 +357,102 @@ function PreferencesPage({
         onClick={onBack}
         type="button"
       >
-        ‹ Account
+        {t('account.back')}
       </button>
       <AccountHeader
-        description="Choose how dates and notification schedules are shown."
-        title="Preferences"
+        description={t('account.preferences.description')}
+        title={t('account.preferences.title')}
       />
-      <section className="mt-6 grid max-w-[620px] gap-[18px] rounded-md border border-border bg-surface p-6 max-md:border-0 max-md:p-0">
-        <SelectField
-          label="Time zone"
-          onChange={(event) => onChange(event.target.value)}
-          value={timeZone}
-        >
-          {options.map((option) => (
-            <option key={option}>{option}</option>
-          ))}
-        </SelectField>
-        <p className="text-xs leading-[1.5] text-muted">
-          The browser detected <strong>{browserTimeZone()}</strong>. This
-          setting controls ticket timestamps and future notification schedules.
-        </p>
-        {feedback ? (
-          <Alert
-            tone={feedback.includes('successfully') ? 'success' : 'danger'}
-          >
-            {feedback}
-          </Alert>
+      <AsyncState
+        error={preferences.error}
+        onRetry={preferences.reload}
+        status={preferences.status}
+      >
+        {data ? (
+          <section className="mt-6 grid max-w-[620px] gap-[18px] rounded-md border border-border bg-surface p-6 max-md:border-0 max-md:p-0">
+            <SelectField
+              disabled={saving !== null}
+              label={t('account.preferences.language')}
+              onChange={(event) =>
+                void changeLanguage(event.target.value as Language)
+              }
+              value={currentLanguage()}
+            >
+              <option value="en">
+                {t('account.preferences.languages.en')}
+              </option>
+              <option value="es">
+                {t('account.preferences.languages.es')}
+              </option>
+              <option value="ca">
+                {t('account.preferences.languages.ca')}
+              </option>
+            </SelectField>
+            <SelectField
+              disabled={saving !== null}
+              label={t('account.preferences.theme')}
+              onChange={(event) =>
+                void savePreference('theme', event.target.value, data)
+              }
+              value={data.theme}
+            >
+              <option value="light">
+                {t('account.preferences.themes.light')}
+              </option>
+              <option value="dark">
+                {t('account.preferences.themes.dark')}
+              </option>
+              <option value="system">
+                {t('account.preferences.themes.system')}
+              </option>
+            </SelectField>
+            <SelectField
+              disabled={saving !== null}
+              label={t('account.preferences.timezone')}
+              onChange={(event) =>
+                void savePreference('timezone', event.target.value, data)
+              }
+              value={data.timezone}
+            >
+              {options.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </SelectField>
+            <p className="text-xs leading-[1.5] text-muted">
+              {t('account.preferences.timezoneHelp', {
+                timezone: browserTimeZone(),
+              })}
+            </p>
+            <fieldset className="grid gap-3 border-0 p-0">
+              <legend className="mb-1 text-sm font-medium text-ink">
+                {t('account.preferences.notifications')}
+              </legend>
+              {notificationFields.map((field) => (
+                <Checkbox
+                  checked={data[field]}
+                  disabled={saving !== null}
+                  key={field}
+                  label={t(`account.preferences.${field}`)}
+                  onChange={(event) =>
+                    void savePreference(field, event.target.checked, data)
+                  }
+                />
+              ))}
+            </fieldset>
+          </section>
         ) : null}
-        <Button
-          className="justify-self-end max-md:w-full"
-          disabled={isSaving}
-          onClick={async () => {
-            setIsSaving(true);
-            setFeedback('');
-            try {
-              await updatePreferences({ timezone: timeZone });
-              setFeedback('Preference saved successfully.');
-            } catch (error) {
-              setFeedback(
-                error instanceof Error
-                  ? error.message
-                  : 'Unable to save your preference.',
-              );
-            } finally {
-              setIsSaving(false);
-            }
-          }}
-        >
-          {isSaving ? 'Saving...' : 'Save preference'}
-        </Button>
-      </section>
+      </AsyncState>
     </div>
   );
 }
+
+type PreferenceField =
+  | 'timezone'
+  | 'theme'
+  | 'notifyOnTicketUpdate'
+  | 'notifyOnComment'
+  | 'notifyOnMention'
+  | 'notifyOnMessage'
+  | 'notifyOnFriendship';

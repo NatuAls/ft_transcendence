@@ -51,6 +51,9 @@ import { RealtimeEvents } from './core/realtime/socket';
 import { useRealtimeEvent } from './core/realtime/useRealtime';
 import { ToastProvider } from './core/feedback/ToastProvider';
 import { RealtimeProvider } from './core/realtime/RealtimeProvider';
+import { fromApiLocale, hasStoredLanguage, setLanguage } from './core/i18n';
+import { applyTheme } from './core/theme';
+import { getPreferences } from './api/users';
 
 const roleLabels = {
   AGENT: 'Support agent',
@@ -179,6 +182,12 @@ function App() {
       user: AuthResponse['user'],
       options: { force?: boolean; preferredId?: string } = {},
     ) => {
+      if (!hasStoredLanguage()) {
+        await setLanguage(fromApiLocale(user.locale));
+      }
+      void getPreferences()
+        .then(({ theme }) => applyTheme(theme))
+        .catch(() => {});
       const nextViewer = viewerFromAuthUser(user);
       setViewer(nextViewer);
       setAccountProfile(nextViewer.profile);
