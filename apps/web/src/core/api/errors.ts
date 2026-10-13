@@ -86,12 +86,25 @@ export function errorKey(error: unknown): string {
  * rechace la API producen así exactamente la misma pantalla.
  */
 export function fieldErrorsFromIssues(
-  issues: ReadonlyArray<{ path: ReadonlyArray<PropertyKey>; message: string }>,
+  issues: ReadonlyArray<{
+    code?: string;
+    message: string;
+    path: ReadonlyArray<PropertyKey>;
+  }>,
 ): Record<string, string> {
   const campos: Record<string, string> = {};
   for (const issue of issues) {
     const path = issue.path.map(String).join('.') || '(root)';
-    if (!(path in campos)) campos[path] = describeFieldCode(issue.message);
+    if (!(path in campos))
+      campos[path] = describeFieldCode(
+        // El mensaje propio de un esquema compartido es una clave `errors.*`.
+        // Cuando el esquema no trae uno —`min(3)` a secas—, Zod deja una
+        // frase técnica en inglés («Too small: expected string to have >=3
+        // characters») y lo que de verdad dice está en el código.
+        issue.message.startsWith('errors.')
+          ? issue.message
+          : (issue.code ?? issue.message),
+      );
   }
   return campos;
 }
@@ -116,6 +129,16 @@ const CODIGOS_DE_ZOD: Record<string, string> = {
   invalid_type: 'errors.field.required',
   too_small: 'errors.field.tooShort',
   too_big: 'errors.field.tooLong',
+  // Los demás códigos de Zod no tienen una frase mejor que la genérica, pero
+  // tienen que estar: un código que no está aquí se enseñaría tal cual.
+  custom: 'errors.field.invalid',
+  invalid_element: 'errors.field.invalid',
+  invalid_format: 'errors.field.invalid',
+  invalid_key: 'errors.field.invalid',
+  invalid_union: 'errors.field.invalid',
+  invalid_value: 'errors.field.invalid',
+  not_multiple_of: 'errors.field.invalid',
+  unrecognized_keys: 'errors.field.invalid',
 };
 
 function describeFieldCode(code: string): string {
