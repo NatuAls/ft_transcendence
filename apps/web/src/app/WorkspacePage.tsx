@@ -201,6 +201,14 @@ export function WorkspacePage({
       return (
         <OrganizationPage
           key={organizationId}
+          // Irse es de quien pertenece: el administrador de plataforma que
+          // entra sin ser miembro no tiene de dónde salir.
+          canLeave={
+            can(viewer, 'member:leave') &&
+            viewer.memberships.some(
+              (membership) => membership.organizationId === organizationId,
+            )
+          }
           canManageCategories={can(viewer, 'category:write')}
           canManageMembers={can(viewer, 'member:invite')}
           canManageOrganization={can(viewer, 'organization:update')}
@@ -213,6 +221,7 @@ export function WorkspacePage({
           onOpenCategory={(categoryId) =>
             navigate('tickets', { category: categoryId })
           }
+          onLeft={() => navigate('organizations')}
           onOrganizationDeleted={() => navigate('organizations')}
           onOrganizationsChanged={onOrganizationsChanged}
           onOrganizationDescriptionChange={onOrganizationDescriptionChange}
@@ -226,6 +235,7 @@ export function WorkspacePage({
     case 'organizations':
       return (
         <OrganizationsPage
+          isPlatformAdmin={can(viewer, 'user:setGlobalRole')}
           onOpen={(organization) => {
             onOrganizationSelect(organization);
             navigate('organization');

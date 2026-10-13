@@ -57,6 +57,11 @@ type Feedback = { text: string; tone: 'success' | 'info' | 'danger' } | null;
  *
  * The screen only decides what to SHOW. Every action is decided again by the
  * API (`orgScope` + the policy table), whatever the browser sends.
+ *
+ * Whether you manage comes from `can()` in the shell (`canManage`), never
+ * from comparing role names here. `viewerRole` only says which role to
+ * DESCRIBE — its name, its row in the table — and which read-only view fits
+ * it; the roster the agent view lists is one every member may read anyway.
  */
 export function OrganizationRolesPage({
   canManage,

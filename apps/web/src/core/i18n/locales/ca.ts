@@ -528,6 +528,20 @@ export const ca: Translation = {
         text: 'No pots canviar el teu propi rol ni treure’t des d’aquí: rebaixar-lo et deixaria dins de l’organització sense l’accés necessari per desfer-ho. Un altre administrador el pot canviar per tu, i sortir de l’organització és una decisió a part.',
       },
     },
+    leave: {
+      title: 'Surt de {{organization}}',
+      description:
+        'Perds a l’acte l’accés als seus tiquets. El teu compte no es veu afectat, i un administrador et pot tornar a donar un rol.',
+      lastAdmin:
+        'Ets el seu únic administrador. Abans de sortir, fes administrador un altre membre: una organització sempre en conserva un.',
+      button: 'Surt de l’organització',
+      confirmTitle: 'Vols sortir de {{organization}}?',
+      confirmDescription:
+        'Perds a l’acte l’accés a {{organization}} i als seus tiquets. Els tiquets oberts que tinguis assignats tornen a la cua sense assignar. El teu compte no es veu afectat.',
+      stay: 'Em quedo',
+      leaving: 'S’està sortint…',
+      done: 'Has sortit de {{organization}}.',
+    },
     access: {
       title: 'Rols i accés',
       summary: 'Resum',

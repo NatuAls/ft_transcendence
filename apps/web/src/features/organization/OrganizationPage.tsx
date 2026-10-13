@@ -1,4 +1,4 @@
-import { Alert, Button, IconButton, Tabs } from 'ui';
+import { Alert, Button, Dialog, IconButton, Tabs } from 'ui';
 import { useState } from 'react';
 import { orgRoleSchema, type OrgRole } from 'contracts';
 import * as organizationsApi from '../../api/organizations';
@@ -7,9 +7,10 @@ import { previewMode } from '../../app/session';
 import { getInitials } from '../../app/text';
 import { organizationRoleLabel } from '../roles/rolesGateway';
 import { OrganizationDialog } from './OrganizationDialog';
-import { errorKey } from '../../core/api/errors';
+import { errorKey, isApiError } from '../../core/api/errors';
 import { AsyncState } from '../../core/async/AsyncState';
 import { useAsync } from '../../core/async/useAsync';
+import { useToast } from '../../core/feedback/useToast';
 import { useTranslation } from '../../core/i18n';
 import { RealtimeEvents } from '../../core/realtime/socket';
 import {
@@ -52,6 +53,7 @@ interface TableRow {
 }
 
 export function OrganizationPage({
+  canLeave = false,
   canManageCategories,
   canManageMembers,
   canManageOrganization,
@@ -60,6 +62,7 @@ export function OrganizationPage({
   currentUserId,
   onAccessChanged,
   isPlatformAdmin = false,
+  onLeft = () => {},
   onOpenCategory,
   onOrganizationDescriptionChange,
   onOrganizationNameChange,
@@ -70,6 +73,11 @@ export function OrganizationPage({
   organizationName,
   organizationRole,
 }: {
+  /**
+   * You belong to this organization and may leave it. A platform
+   * administrator who is not a member has nothing to leave.
+   */
+  canLeave?: boolean;
   canManageCategories: boolean;
   canManageMembers: boolean;
   canManageOrganization: boolean;
@@ -84,6 +92,8 @@ export function OrganizationPage({
    * texto descriptivo.
    */
   isPlatformAdmin?: boolean;
+  /** You left it: the shell takes you somewhere you still belong. */
+  onLeft?: () => void;
   onOpenCategory: (categoryId: string) => void;
   onOrganizationDescriptionChange: (description: string) => void;
   onOrganizationNameChange: (name: string) => void;
@@ -95,6 +105,7 @@ export function OrganizationPage({
   organizationRole: 'AGENT' | 'GLOBAL_ADMIN' | 'MEMBER' | 'ORG_ADMIN';
 }) {
   const { t } = useTranslation();
+  const toast = useToast();
   // Sample rows in the preview; the application starts empty and reads the
   // organization from the API below.
   const fixture: OrganizationFixture = previewMode
@@ -115,6 +126,8 @@ export function OrganizationPage({
   const [selectedName, setSelectedName] = useState('');
   const [feedback, setFeedback] = useState('');
   const [failure, setFailure] = useState('');
+  const [confirmingLeave, setConfirmingLeave] = useState(false);
+  const [leaving, setLeaving] = useState(false);
 
   /**
    * Todo lo que esta pantalla lee de la API, en una sola carga: las filas que
@@ -202,6 +215,15 @@ export function OrganizationPage({
   const openTickets = view.data?.openTickets ?? fixture.openTickets;
   const roleRows = roleRowsForMembers(memberRows);
   const reload = view.reload;
+  // El último administrador no puede irse: la API lo rechaza, y la pantalla
+  // lo dice antes de que lo intente en vez de ofrecer algo que se negará.
+  // Sólo se sabe con la lista de miembros, que es justo la que ve quien
+  // administra; nadie más puede ser el último administrador.
+  const administrators = memberRows.filter(
+    (row) => row.waitingFor === null && row.role === 'ORG_ADMIN',
+  );
+  const onlyAdministrator =
+    administrators.length === 1 && administrators[0]!.id === currentUserId;
 
   /**
    * La pantalla se mantiene al día sola (R9).
@@ -469,6 +491,32 @@ export function OrganizationPage({
       reload();
     } catch (error) {
       setFailure(t(errorKey(error)));
+    }
+  }
+
+  async function leave() {
+    setLeaving(true);
+    setFailure('');
+    try {
+      if (!previewMode)
+        await organizationsApi.leaveOrganization(organizationId);
+      toast.success(
+        t('organization.leave.done', { organization: organizationName }),
+      );
+      onOrganizationsChanged();
+      onLeft();
+    } catch (error) {
+      // A un miembro, la API sólo le niega la salida si es el último
+      // administrador: la política `member:leave` responde 403 sin más
+      // detalle. Se explica con el motivo, no con «tu rol no lo permite».
+      setFailure(
+        isApiError(error) && error.code === 'RBAC_FORBIDDEN'
+          ? t('organization.leave.lastAdmin')
+          : t(errorKey(error)),
+      );
+      setConfirmingLeave(false);
+    } finally {
+      setLeaving(false);
     }
   }
 
@@ -885,6 +933,64 @@ export function OrganizationPage({
           </aside>
         ) : null}
       </div>
+      {canLeave ? (
+        <section className="mt-5 flex items-center justify-between gap-4 rounded-md border border-border bg-surface p-5 max-md:grid max-md:p-4">
+          <div className="min-w-0">
+            <h2 className="text-base font-medium">
+              {t('organization.leave.title', {
+                organization: organizationName,
+              })}
+            </h2>
+            <p className="mt-1.5 text-xs2 text-muted">
+              {onlyAdministrator
+                ? t('organization.leave.lastAdmin')
+                : t('organization.leave.description')}
+            </p>
+          </div>
+          <Button
+            className="shrink-0"
+            disabled={onlyAdministrator}
+            onClick={() => setConfirmingLeave(true)}
+            variant="secondary"
+          >
+            {t('organization.leave.button')}
+          </Button>
+        </section>
+      ) : null}
+      {confirmingLeave ? (
+        <Dialog
+          description={t('organization.leave.confirmDescription', {
+            organization: organizationName,
+          })}
+          eyebrow={t('organization.eyebrow')}
+          footer={
+            <>
+              <Button
+                disabled={leaving}
+                onClick={() => setConfirmingLeave(false)}
+                variant="secondary"
+              >
+                {t('organization.leave.stay')}
+              </Button>
+              <Button disabled={leaving} type="submit" variant="destructive">
+                {leaving
+                  ? t('organization.leave.leaving')
+                  : t('organization.leave.button')}
+              </Button>
+            </>
+          }
+          onClose={() => {
+            if (!leaving) setConfirmingLeave(false);
+          }}
+          onSubmit={(event) => {
+            event.preventDefault();
+            void leave();
+          }}
+          title={t('organization.leave.confirmTitle', {
+            organization: organizationName,
+          })}
+        />
+      ) : null}
       {dialog ? (
         <OrganizationDialog
           canDeleteOrganization={

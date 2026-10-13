@@ -535,6 +535,20 @@ export const es: Translation = {
         text: 'No puedes cambiar tu propio rol ni quitarte desde aquí: bajarlo te dejaría dentro de la organización sin el acceso necesario para deshacerlo. Otro administrador puede cambiarlo por ti, y salir de la organización es una decisión aparte.',
       },
     },
+    leave: {
+      title: 'Salir de {{organization}}',
+      description:
+        'Pierdes en el acto el acceso a sus tickets. Tu cuenta no se ve afectada, y un administrador puede volver a darte un rol.',
+      lastAdmin:
+        'Eres su único administrador. Antes de salir, haz administrador a otro miembro: una organización siempre conserva uno.',
+      button: 'Salir de la organización',
+      confirmTitle: '¿Salir de {{organization}}?',
+      confirmDescription:
+        'Pierdes en el acto el acceso a {{organization}} y a sus tickets. Los tickets abiertos que tengas asignados vuelven a la cola sin asignar. Tu cuenta no se ve afectada.',
+      stay: 'Quedarme',
+      leaving: 'Saliendo…',
+      done: 'Has salido de {{organization}}.',
+    },
     access: {
       title: 'Roles y acceso',
       summary: 'Resumen',

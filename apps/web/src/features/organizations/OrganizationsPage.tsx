@@ -15,11 +15,17 @@ import {
 } from './organizationsData';
 
 export function OrganizationsPage({
+  isPlatformAdmin = false,
   onOpen,
   onOrganizationsChanged,
   organizations: liveOrganizations,
   viewer,
 }: {
+  /**
+   * The platform view: every organization, and creating new ones. Decided by
+   * `can()` in the shell, not here by comparing the text of a role.
+   */
+  isPlatformAdmin?: boolean;
   onOpen: (organization: OrganizationSummary) => void;
   /** An organization was created: read the list again and switch to it. */
   onOrganizationsChanged: (preferredId?: string) => void;
@@ -28,7 +34,7 @@ export function OrganizationsPage({
   viewer: ViewerSession;
 }) {
   const { t } = useTranslation();
-  const platformView = viewer.globalRole === 'GLOBAL_ADMIN';
+  const platformView = isPlatformAdmin;
   const [create, setCreate] = useState(false);
   // The preview keeps its own sample list; the application uses the one the
   // session loaded from the API. The sample list is only built in the preview:

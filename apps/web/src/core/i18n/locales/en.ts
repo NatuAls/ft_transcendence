@@ -523,6 +523,20 @@ export const en = {
         text: 'You cannot change your own role or remove yourself from here: lowering it would leave you inside the organization without the access needed to undo it. Another administrator can change it for you, and leaving the organization is a separate decision.',
       },
     },
+    leave: {
+      title: 'Leave {{organization}}',
+      description:
+        'You lose access to its tickets right away. Your account is not affected, and an administrator can give you a role again.',
+      lastAdmin:
+        'You are its only administrator. Before leaving, make another member an administrator: an organization always keeps one.',
+      button: 'Leave organization',
+      confirmTitle: 'Leave {{organization}}?',
+      confirmDescription:
+        'You lose access to {{organization}} and its tickets right away. Open tickets assigned to you go back to the unassigned queue. Your account is not affected.',
+      stay: 'Stay',
+      leaving: 'Leaving…',
+      done: 'You left {{organization}}.',
+    },
     // «Roles & access»: la pantalla de roles de la organización y las piezas
     // que comparte con la de roles de plataforma.
     access: {

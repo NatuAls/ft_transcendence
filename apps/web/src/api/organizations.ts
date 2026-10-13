@@ -63,6 +63,15 @@ export async function deleteOrganization(id: string): Promise<void> {
   await request(`/organizations/${id}`, { method: 'DELETE' });
 }
 
+/**
+ * Stop being a member. The open tickets assigned to you go back to the
+ * unassigned queue. The API refuses the last administrator with a 403
+ * (`RBAC_FORBIDDEN`): the `member:leave` policy itself says no.
+ */
+export async function leaveOrganization(id: string): Promise<void> {
+  await request(`/organizations/${id}/leave`, { method: 'POST' });
+}
+
 export interface OrganizationStats {
   avgFirstResponseSeconds: number;
   byPriority: Record<string, number>;
