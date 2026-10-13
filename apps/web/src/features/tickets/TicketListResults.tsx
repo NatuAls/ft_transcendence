@@ -1,6 +1,8 @@
 import { Pagination, StatusBadge } from 'ui';
 import type { TicketData } from '../../api/tickets';
+import { getInitials } from '../../app/text';
 import { useTranslation } from '../../core/i18n';
+import { formatRelativeTime } from './ticketTime';
 
 function Priority({ priority }: { priority: TicketData['priority'] }) {
   const { t } = useTranslation();
@@ -38,22 +40,16 @@ function getStatusTone(status: string) {
 
 function TicketCard({
   onOpen,
+  showCreatedBy,
   ticket,
 }: {
   onOpen: () => void;
+  showCreatedBy: boolean;
   ticket: TicketData;
 }) {
   const { i18n, t } = useTranslation();
   const assigneeName =
     ticket.assigneeDisplayName || t('tickets.list.unassigned');
-  const initials = ticket.assigneeDisplayName
-    ? assigneeName
-        .split(' ')
-        .map((name) => name[0])
-        .join('')
-        .substring(0, 2)
-    : '?';
-
   return (
     <button
       className="hidden w-full gap-2.5 rounded-md border border-border bg-surface p-4 text-left text-ink max-md:grid"
@@ -63,9 +59,10 @@ function TicketCard({
       <span className="flex items-center justify-between text-xs text-muted">
         <span>#{ticket.id.split('-')[0]}</span>
         <span>
-          {new Intl.DateTimeFormat(i18n.language, {
-            dateStyle: 'medium',
-          }).format(new Date(ticket.createdAt))}
+          {formatRelativeTime(
+            ticket.updatedAt ?? ticket.createdAt,
+            i18n.language,
+          )}
         </span>
       </span>
       <strong className="text-[0.9375rem] font-medium">{ticket.title}</strong>
@@ -77,9 +74,18 @@ function TicketCard({
       </span>
       <span className="flex items-center justify-start border-t border-border pt-3 text-xs text-muted">
         <span className="mr-2 grid size-[26px] place-items-center rounded-full bg-[#d8e5df] text-3xs text-primary">
-          {initials}
+          {getInitials(showCreatedBy ? ticket.authorDisplayName : assigneeName)}
         </span>
-        <span>{assigneeName}</span>
+        <span>
+          {showCreatedBy
+            ? t('tickets.list.createdBy', { name: ticket.authorDisplayName })
+            : assigneeName}
+          {showCreatedBy ? (
+            <span className="block text-2xs">
+              {t('tickets.list.assignedTo', { name: assigneeName })}
+            </span>
+          ) : null}
+        </span>
         <span className="ml-auto text-xl text-ink" aria-hidden="true">
           ›
         </span>
@@ -96,6 +102,7 @@ export function TicketListResults({
   onShowAllMobile,
   pageCount,
   pageSize,
+  showCreatedBy,
   showAllMobile,
 }: {
   activePage: number;
@@ -105,6 +112,7 @@ export function TicketListResults({
   onShowAllMobile: () => void;
   pageCount: number;
   pageSize: number;
+  showCreatedBy: boolean;
   showAllMobile: boolean;
 }) {
   const { i18n, t } = useTranslation();
@@ -118,6 +126,7 @@ export function TicketListResults({
               <th>{t('tickets.table.ticket')}</th>
               <th>{t('tickets.table.status')}</th>
               <th>{t('tickets.table.priority')}</th>
+              {showCreatedBy ? <th>{t('tickets.table.createdBy')}</th> : null}
               <th>{t('tickets.table.assignee')}</th>
               <th>{t('tickets.table.updated')}</th>
             </tr>
@@ -148,13 +157,15 @@ export function TicketListResults({
                 <td>
                   <Priority priority={ticket.priority} />
                 </td>
+                {showCreatedBy ? <td>{ticket.authorDisplayName}</td> : null}
                 <td>
                   {ticket.assigneeDisplayName || t('tickets.list.unassigned')}
                 </td>
                 <td>
-                  {new Intl.DateTimeFormat(i18n.language, {
-                    dateStyle: 'medium',
-                  }).format(new Date(ticket.createdAt))}
+                  {formatRelativeTime(
+                    ticket.updatedAt ?? ticket.createdAt,
+                    i18n.language,
+                  )}
                 </td>
               </tr>
             ))}
@@ -168,6 +179,7 @@ export function TicketListResults({
             <TicketCard
               key={ticket.id}
               onOpen={() => onOpenTicket(ticket.id)}
+              showCreatedBy={showCreatedBy}
               ticket={ticket}
             />
           ),

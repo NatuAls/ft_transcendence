@@ -36,7 +36,6 @@ import { ForgotPasswordPage } from './features/auth/ForgotPasswordPage';
 import { ResetPasswordPage } from './features/auth/ResetPasswordPage';
 import { VerifyEmailPage } from './features/auth/VerifyEmailPage';
 import { LegalPage } from './features/legal/LegalPage';
-import { initialTickets, type Ticket } from './features/tickets/ticketData';
 import {
   getOrganizationInitials,
   organizationsForViewer,
@@ -121,7 +120,6 @@ function App() {
     initialViewer?.profile ?? null,
   );
   const [sessionReady, setSessionReady] = useState(previewMode);
-  const [tickets, setTickets] = useState<Ticket[]>(initialTickets);
   const [organizations, setOrganizations] =
     useState<OrganizationSummary[]>(initialOrganizations);
   const [organizationId, setOrganizationId] = useState(
@@ -520,18 +518,10 @@ function App() {
               current ? { ...current, profile } : current,
             );
           }}
-          onTicketChange={(updatedTicket) =>
-            setTickets((current) =>
-              current.map((ticket) =>
-                ticket.id === updatedTicket.id ? updatedTicket : ticket,
-              ),
-            )
-          }
           organizationDescription={organizationDescription}
           organizationId={organizationId}
           organizationName={organizationName}
           organizations={organizations}
-          tickets={tickets}
           viewer={scopedViewer}
         />
       </AppShell>

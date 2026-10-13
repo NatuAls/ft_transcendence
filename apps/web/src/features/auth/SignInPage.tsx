@@ -3,6 +3,7 @@ import { loginSchema } from 'contracts';
 import { Alert, Button, Checkbox, TextField } from 'ui';
 import { AuthBrandPanel, BrandHeader } from './AuthBrand';
 import { login, type AuthResponse } from '../../api/auth';
+import { useTranslation } from '../../core/i18n';
 
 export interface SignInValues {
   email: string;
@@ -21,6 +22,7 @@ export function SignInPage({
   onOpenPreview,
   onSubmit,
 }: SignInPageProps) {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [keepSignedIn, setKeepSignedIn] = useState(true);
@@ -43,7 +45,7 @@ export function SignInPage({
 
     const parsed = loginSchema.safeParse({ email, password });
     if (!parsed.success) {
-      setError('Please check the form fields.');
+      setError(t('errors.common.validationFailed'));
       return;
     }
 
@@ -56,9 +58,11 @@ export function SignInPage({
       void onSubmit(authData.user);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message);
+        setError(
+          err.message.startsWith('errors.') ? t(err.message) : err.message,
+        );
       } else {
-        setError('An unexpected error occurred.');
+        setError(t('errors.common.unexpected'));
       }
     } finally {
       setIsSubmitting(false);

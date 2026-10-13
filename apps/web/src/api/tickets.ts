@@ -1,6 +1,10 @@
 import {
+  assignTicketSchema,
+  createCommentSchema,
   searchTicketsQuerySchema,
   createTicketSchema,
+  updateTicketSchema,
+  changeStatusSchema,
   type CreateTicketInput,
 } from 'contracts';
 import type { z } from 'zod';
@@ -74,6 +78,7 @@ export interface TicketListItemApi {
   priority: 'LOW' | 'MEDIUM' | 'HIGH';
   organizationId: string;
   categoryName: string | null;
+  categoryId: string | null;
   categoryColor: string | null;
   authorUsername: string;
   authorDisplayName: string;
@@ -109,9 +114,76 @@ export interface TicketData {
   authorDisplayName: string;
   assigneeDisplayName?: string | null;
   createdAt: string;
+  updatedAt: string | null;
 }
 
 export type TicketsData = Array<TicketData>;
+
+export interface TicketDetail {
+  id: string;
+  reference: string;
+  title: string;
+  description: string;
+  status: string;
+  priority: 'HIGH' | 'LOW' | 'MEDIUM';
+  organizationId: string;
+  categoryName: string | null;
+  categoryColor: string | null;
+  categoryId: string | null;
+  authorDisplayName: string;
+  authorId: string;
+  authorAvatarUrl: string | null;
+  assigneeDisplayName?: string | null;
+  assigneeId: string | null;
+  assigneeAvatarUrl: string | null;
+  resolution: string | null;
+  createdAt: string;
+  updatedAt: string;
+  commentCount: number;
+}
+
+export interface TicketComment {
+  author: {
+    displayName: string;
+    id: string;
+    username: string;
+    avatarUrl: string | null;
+  };
+  body: string;
+  createdAt: string;
+  id: string;
+  isInternal: boolean;
+}
+
+interface TicketCommentApi {
+  author: {
+    id: string;
+    username: string;
+    profile: {
+      displayName: string;
+      avatarUrl: string | null;
+    } | null;
+  };
+  body: string;
+  createdAt: string;
+  id: string;
+  isInternal: boolean;
+}
+
+function toTicketComment(row: TicketCommentApi): TicketComment {
+  return {
+    author: {
+      avatarUrl: row.author.profile?.avatarUrl ?? null,
+      displayName: row.author.profile?.displayName || row.author.username,
+      id: row.author.id,
+      username: row.author.username,
+    },
+    body: row.body,
+    createdAt: row.createdAt,
+    id: row.id,
+    isInternal: row.isInternal,
+  };
+}
 
 export type SearchTicketsFilters = Omit<
   z.input<typeof searchTicketsQuerySchema>,
@@ -141,6 +213,32 @@ export function toTicketData(row: TicketListItemApi): TicketData {
     authorDisplayName: row.authorDisplayName,
     assigneeDisplayName: row.assigneeDisplayName ?? '',
     createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+export function toTicketDetail(row: TicketDetailApi): TicketDetail {
+  return {
+    id: row.id,
+    reference: row.reference,
+    title: row.title,
+    description: row.description,
+    status: row.status,
+    priority: row.priority,
+    organizationId: row.organizationId,
+    categoryName: row.category?.name ?? null,
+    categoryId: row.category?.id ?? null,
+    categoryColor: row.category?.color ?? null,
+    authorDisplayName: row.createdBy.profile.displayName,
+    authorId: row.createdBy.id,
+    authorAvatarUrl: row.createdBy.profile.avatarUrl,
+    assigneeDisplayName: row.assignedTo?.profile.displayName ?? null,
+    assigneeId: row.assignedTo?.id ?? null,
+    assigneeAvatarUrl: row.assignedTo?.profile.avatarUrl ?? null,
+    resolution: row.resolution,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    commentCount: row._count.comments,
   };
 }
 
@@ -167,6 +265,22 @@ export async function searchTickets(
   };
 }
 
+export async function getTicket(ticketId: string, signal?: AbortSignal) {
+  const response = await request<TicketDetailApi>(`${RUTA}/${ticketId}`, {
+    signal,
+  });
+  return toTicketDetail(response);
+}
+
+export async function listTicketComments(
+  ticketId: string,
+  signal?: AbortSignal,
+): Promise<TicketComment[]> {
+  return request<TicketCommentApi[]>(`${RUTA}/${ticketId}/comments`, {
+    signal,
+  }).then((rows) => rows.map(toTicketComment));
+}
+
 // ------------------------------------------------------------- escrituras --
 
 /**
@@ -184,83 +298,68 @@ export async function createTicket(
   return created;
 }
 
+export async function updateTicket(
+  ticketId: string,
+  input: {
+    categoryId?: string | null;
+    priority?: 'HIGH' | 'LOW' | 'MEDIUM';
+  },
+): Promise<TicketDetail> {
+  const response = await request<TicketDetailApi>(`${RUTA}/${ticketId}`, {
+    method: 'PATCH',
+    body: updateTicketSchema.parse(input),
+  });
+  return toTicketDetail(response);
+}
+
+export async function changeStatus(
+  ticketId: string,
+  input: {
+    status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
+    resolution?: string | null;
+    note?: string | null;
+  },
+): Promise<TicketDetail> {
+  const body = {
+    status: input.status,
+    ...(input.resolution ? { resolution: input.resolution } : {}),
+    ...(input.note ? { note: input.note } : {}),
+  };
+  const response = await request<TicketDetailApi>(
+    `${RUTA}/${ticketId}/status`,
+    {
+      method: 'PATCH',
+      body: changeStatusSchema.parse(body),
+    },
+  );
+  return toTicketDetail(response);
+}
+
+export async function assignTicket(
+  ticketId: string,
+  assigneeId: string | null,
+): Promise<TicketDetail> {
+  const response = await request<TicketDetailApi>(
+    `${RUTA}/${ticketId}/assignee`,
+    {
+      method: 'PATCH',
+      body: assignTicketSchema.parse({ assigneeId }),
+    },
+  );
+  return toTicketDetail(response);
+}
+
+export async function createTicketComment(
+  ticketId: string,
+  body: string,
+): Promise<TicketComment> {
+  return request<TicketCommentApi>(`${RUTA}/${ticketId}/comments`, {
+    method: 'POST',
+    body: createCommentSchema.parse({ body }),
+  }).then(toTicketComment);
+}
+
 /** 204 sin cuerpo: el cliente devuelve `undefined` y no intenta leer JSON. */
 export async function deleteTicket(id: string): Promise<void> {
   await request(`${RUTA}/${id}`, { method: 'DELETE' });
 }
-
-// ------------------------------------------------------ hijos del recurso --
-
-/**interface ElementoApi {
-  author: { displayName: string | null; username: string };
-  body: string;
-  createdAt: string;
-  id: string;
-}
-
-function toElemento(row: ElementoApi): Elemento {
-  return {
-    autor: row.author.displayName || row.author.username,
-    creado: row.createdAt,
-    id: row.id,
-    texto: row.body,
-  };
-}*/
-
-/** TODO(BLOQUE): p. ej. GET /tickets/:id/comments o /conversations/:id/messages. */
-/**export async function listElementos(
-  recursoId: string,
-  signal?: AbortSignal,
-): Promise<Elemento[]> {
-  const rows = await request<ElementoApi[]>(`${RUTA}/${recursoId}/TODO-hijos`, {
-    signal,
-  });
-  return rows.map(toElemento);
-}
-
-export async function createElemento(
-  recursoId: string,
-  texto: string,
-): Promise<Elemento> {
-  const created = await request<ElementoApi>(
-    `${RUTA}/${recursoId}/TODO-hijos`,
-    // TODO(BLOQUE): valida con tu esquema (createCommentSchema, sendMessageSchema).
-    { method: 'POST', body: { body: texto } },
-  );
-  return toElemento(created);
-}*/
-
-/**
- * Traduce el payload de un evento en tiempo real. Los eventos no siempre
- * traen la misma forma que el REST: mira qué envía `event-bridge.ts` en la
- * API. Devuelve `null` si el evento no es de este recurso.
- */
-/**export function elementoDeEvento(
-  payload: unknown,
-  recursoId: string,
-): Elemento | null {
-  // TODO(BLOQUE): ajusta a la forma real (p. ej. { comment, ticket }).
-  const evento = payload as { item?: ElementoApi; parentId?: string };
-  if (!evento.item || evento.parentId !== recursoId) return null;
-  return toElemento(evento.item);
-}*/
-
-// ---------------------------------------------------------------- ficheros --
-
-/**
- * Subida con barra de progreso (adjuntos). `upload()` usa XHR porque `fetch`
- * no informa del progreso, y renueva la sesión igual que `request()`.
- * El campo SIEMPRE se llama `file`.
- *
- * El avatar es la excepción: va por PUT y sin progreso (ver api/users.ts).
- */
-/**export function uploadAdjunto(
-  recursoId: string,
-  file: File,
-  onProgress: (percent: number) => void,
-): Promise<unknown> {
-  const form = new FormData();
-  form.append('file', file);
-  // TODO(BLOQUE): p. ej. `/tickets/${recursoId}/attachments`.
-  return upload(`${RUTA}/${recursoId}/TODO-adjuntos`, form, onProgress);
-}*/

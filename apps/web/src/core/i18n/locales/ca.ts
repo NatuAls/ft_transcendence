@@ -16,6 +16,11 @@ export const ca: Translation = {
       error: 'Alguna cosa ha fallat',
     },
     language: 'Idioma',
+    notFound: {
+      title: 'Pàgina no trobada',
+      description: 'L’adreça no coincideix amb cap pàgina disponible.',
+      back: 'Tornar als tiquets',
+    },
   },
   nav: {
     tickets: 'Tiquets',
@@ -100,6 +105,12 @@ export const ca: Translation = {
           'Segueix les sol·licituds de la teva organització i fes avançar la feina.',
         personal: 'Segueix les sol·licituds que has creat i el seu progrés.',
       },
+      stats: {
+        open: 'Oberts',
+        inProgress: 'En curs',
+        resolved: 'Resolts',
+        highPriority: 'Prioritat alta',
+      },
       summary: 'Resum de tiquets',
       categoryFilter: 'Filtre de categoria',
       backToCategories: 'Tornar a categories',
@@ -120,6 +131,8 @@ export const ca: Translation = {
       errorTitle: 'No s’han pogut carregar els tiquets',
       unassigned: 'Sense assignar',
       noCategory: 'Sense categoria',
+      createdBy: 'Creat per {{name}}',
+      assignedTo: 'Assignat a {{name}}',
       viewAll_one: 'Veure el tiquet',
       viewAll_other: 'Veure els {{count}} tiquets',
       showing: 'Mostrant {{from}}–{{to}} de {{count}}',
@@ -131,6 +144,89 @@ export const ca: Translation = {
       priority: 'Prioritat',
       assignee: 'Assignat a',
       updated: 'Actualitzat',
+      createdBy: 'Creat per',
+    },
+    detail: {
+      back: 'Tornar als tiquets',
+      title: 'Detall del tiquet',
+      actions: 'Accions del tiquet',
+      updated: 'Actualitzat {{date}}',
+      reopen: 'Reobrir el tiquet',
+      confirmClose: 'Confirma i tanca',
+      closeTicket: 'Confirma la resolució',
+      closeDescription:
+        'Revisa la resolució proposada abans de tancar aquest tiquet.',
+      noResolution: 'No s’ha proporcionat cap resolució.',
+      requester: 'Sol·licitant',
+      details: 'Detalls del tiquet',
+      conversation: 'Conversació',
+      conversationRestricted:
+        'Només el creador, el suport assignat o un administrador de l’organització poden accedir a aquesta conversa.',
+      loadingConversation: 'S’està carregant la conversa…',
+      conversationFailed: 'No s’ha pogut carregar la conversa.',
+      reply: 'Respondre',
+      replyPlaceholder: 'Escriu una resposta…',
+      sendReply: 'Envia la resposta',
+      send: 'Envia',
+      status: 'Estat',
+      priority: 'Prioritat',
+      category: 'Categoria',
+      organization: 'Organització',
+      created: 'Creat',
+      assignment: 'Assignació',
+      assignmentDescription: 'Assignació actual del tiquet.',
+      assignee: 'Assignat a',
+      ticketClosed: 'Tiquet tancat',
+      closedDescription:
+        'El sol·licitant ha confirmat la resolució. La conversa continua disponible com a referència.',
+      adminReassignOnly:
+        'Només els administradors de l’organització poden reasignar aquest tiquet.',
+      agentOptions: 'Opcions de l’agent',
+      agentOptionsDescription:
+        'Actualitza la prioritat i la categoria del tiquet.',
+      resolutionDescription:
+        'Afegeix una resolució abans de marcar aquest tiquet com a resolt.',
+      resolutionEyebrow: 'RESOLUCIÓ',
+      saving: 'Desant…',
+      markResolved: 'Marca com a resolt',
+      resolveTicket: 'Resol el tiquet',
+      resolution: 'Resolució',
+      resolutionPlaceholder:
+        'Descriu com s’ha resolt el problema (com a mínim 20 caràcters).',
+      actionsDescription: 'Accions disponibles per al tiquet {{id}}.',
+      eyebrow: 'TIQUET',
+      returnToTickets: 'Tornar als tiquets',
+      copyId: 'Copiar l’ID del tiquet',
+      loadError: 'No s’ha pogut carregar el tiquet',
+      notFound: 'Tiquet no trobat',
+      notFoundDescription: 'És possible que aquest tiquet s’hagi eliminat.',
+      assignToMe: 'Assigna’m el tiquet',
+      issueDescription: 'Descripció del problema',
+      closedReadOnly:
+        'Aquest tiquet és de només lectura mentre està tancat. Reobre’l abans d’afegir una resposta.',
+      newLineHint: 'Majúscules + Retorn per a una línia nova',
+      feedback: {
+        replyAdded: 'Resposta afegida.',
+        replyFailed: 'No s’ha pogut afegir la resposta. Torna-ho a provar.',
+        priorityUpdated: 'Prioritat actualitzada.',
+        priorityFailed:
+          'No s’ha pogut actualitzar la prioritat. Torna-ho a provar.',
+        assigneeUpdated: 'Assignació actualitzada.',
+        assigneeFailed:
+          'No s’ha pogut actualitzar l’assignació. Torna-ho a provar.',
+        categoryUpdated: 'Categoria actualitzada.',
+        categoryFailed:
+          'No s’ha pogut actualitzar la categoria. Torna-ho a provar.',
+        closed: 'Tiquet tancat.',
+        resolved: 'Tiquet marcat com a resolt.',
+        reopened: 'Tiquet reobert.',
+        statusFailed: 'No s’ha pogut actualitzar l’estat. Torna-ho a provar.',
+        assignedToMe: 'Tiquet assignat i mogut a “En curs”.',
+        assignToMeFailed:
+          'No s’ha pogut assignar el tiquet. Torna-ho a provar.',
+        idCopied: 'ID del tiquet copiat.',
+        copyUnavailable: 'No es pot copiar en aquest navegador. ID: {{id}}.',
+      },
     },
     filters: {
       title: 'Filtrar tiquets',
@@ -209,6 +305,13 @@ export const ca: Translation = {
       sessionExpired: 'La sessió ha caducat. Torna a iniciar la sessió.',
       invalidCredentials: 'Correu o contrasenya incorrectes.',
       wrongPassword: 'La contrasenya actual no és correcta.',
+      serverUnavailable:
+        'El servidor no està disponible temporalment. Torna-ho a provar.',
+      requestFailed: 'La petició ha fallat. Torna-ho a provar.',
+      emptyLoginResponse:
+        'El servidor ha retornat una resposta d’inici de sessió buida. Torna-ho a provar.',
+      emptyRegistrationResponse:
+        'El servidor ha retornat una resposta de registre buida. Torna-ho a provar.',
     },
     password: {
       required: 'La contrasenya és obligatòria.',

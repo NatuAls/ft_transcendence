@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { uuidSchema } from 'contracts';
 import type { AccountProfile } from '../features/account/accountData';
 import { AccountPage } from '../features/account/AccountPage';
 import { ChangePasswordPage } from '../features/account/ChangePasswordPage';
@@ -16,7 +17,6 @@ import { CreateTicketPage } from '../features/tickets/CreateTicketPage';
 import { RelatedTicketsPage } from '../features/tickets/RelatedTicketsPage';
 import { TicketDetailPage } from '../features/tickets/TicketDetailPage';
 import { TicketListPage } from '../features/tickets/TicketListPage';
-import type { Ticket } from '../features/tickets/ticketData';
 import { NotFoundPage } from './NotFoundPage';
 import { can, type ViewerSession } from './session';
 import {
@@ -46,8 +46,6 @@ export function WorkspacePage({
   organizationName,
   organizations,
   onProfileChange,
-  onTicketChange,
-  tickets,
   viewer,
 }: {
   accountProfile: AccountProfile;
@@ -68,22 +66,11 @@ export function WorkspacePage({
   organizationName: string;
   organizations: OrganizationSummary[];
   onProfileChange: (profile: AccountProfile) => void;
-  onTicketChange: (ticket: Ticket) => void;
-  tickets: Ticket[];
+  // La prop `tickets` se ha eliminado de la firma porque la UI ya usa la API real.
   viewer: ViewerSession;
 }): ReactNode {
   const route: AppRoute = location.route;
-  const organizationTickets = tickets.filter(
-    (ticket) => ticket.organizationId === organizationId,
-  );
-  const visibleTickets = can(viewer, 'ticket:read')
-    ? organizationTickets
-    : organizationTickets.filter(
-        (ticket) => ticket.requester === accountProfile.fullName,
-      );
-  const requestedTicket = visibleTickets.find(
-    (ticket) => ticket.id === location.params.get('id'),
-  );
+
   const organizationRole =
     viewer.globalRole === 'GLOBAL_ADMIN'
       ? 'GLOBAL_ADMIN'
@@ -143,25 +130,32 @@ export function WorkspacePage({
       ) : (
         <AdminAccessDenied onBack={() => navigate('tickets')} />
       );
-    case 'ticket-detail':
-      return requestedTicket ? (
+    case 'ticket-detail': {
+      // Extraemos el ID directamente de la URL. TicketDetailPage se encarga de hacer el fetch.
+      const ticketId = location.params.get('id');
+
+      return ticketId && uuidSchema.safeParse(ticketId).success ? (
         <TicketDetailPage
-          canAssignOther={can(viewer, 'ticket:assignOther')}
+          canReassign={
+            organizationRole === 'ORG_ADMIN' ||
+            viewer.globalRole === 'GLOBAL_ADMIN'
+          }
           canChangeStatus={can(viewer, 'ticket:changeStatus')}
           canReopenTickets={can(viewer, 'ticket:reopen')}
           canSelfAssign={can(viewer, 'ticket:selfAssign')}
-          currentUserName={accountProfile.fullName}
-          key={requestedTicket.id}
+          currentUserId={viewer.id}
+          key={ticketId}
           onBack={() =>
             navigate('tickets', getTicketFilterParams(location.params))
           }
-          onTicketChange={onTicketChange}
           organizationName={organizationName}
-          ticket={requestedTicket}
+          organizationId={organizationId}
+          ticketId={ticketId}
         />
       ) : (
         <NotFoundPage onBack={() => navigate('tickets')} />
       );
+    }
     case 'people':
       return (
         <PeoplePage

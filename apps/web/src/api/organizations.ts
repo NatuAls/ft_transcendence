@@ -78,8 +78,12 @@ export function getOrganizationStats(id: string): Promise<OrganizationStats> {
 
 export function listCategories(
   organizationId: string,
+  signal?: AbortSignal,
 ): Promise<CategoryRecord[]> {
-  return request(`/organizations/${organizationId}/categories`);
+  return request<CategoryRecord[]>(
+    `/organizations/${organizationId}/categories`,
+    { signal },
+  );
 }
 
 export function createCategory(

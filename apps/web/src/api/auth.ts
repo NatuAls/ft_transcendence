@@ -39,6 +39,25 @@ export function clearAccessToken(): void {
 
 const API_URL = import.meta.env.VITE_API_URL ?? '/api/v1';
 
+async function readJson<T>(response: Response): Promise<T | null> {
+  const text = await response.text();
+  if (!text.trim()) return null;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return null;
+  }
+}
+
+function responseErrorMessage(
+  response: Response,
+  body: ApiErrorResponse | null,
+) {
+  if (body?.message) return body.message;
+  if (response.status >= 500) return 'errors.auth.serverUnavailable';
+  return 'errors.auth.requestFailed';
+}
+
 export interface AuthResponse {
   accessToken: string;
   user: {
@@ -125,7 +144,9 @@ export function refreshSession(): Promise<AuthResponse | null> {
   })
     .then(async (response) => {
       if (!response.ok) return null;
-      const body = (await response.json()) as AuthResponse;
+      const body = await readJson<AuthResponse>(response);
+      if (!body?.accessToken)
+        throw new SessionUnreachable('The refresh response was empty.');
       saveAccessToken(body.accessToken);
       return body;
     })
@@ -158,15 +179,16 @@ export async function login(input: LoginInput): Promise<AuthResponse> {
   });
 
   if (!response.ok) {
-    // Leemos el JSON de error que enviaste
-    const errorBody = (await response.json()) as ApiErrorResponse;
-    // Lanzamos el mensaje exacto ("Invalid email or password.")
-    throw new Error(errorBody.message);
+    const errorBody = await readJson<ApiErrorResponse>(response);
+    throw new Error(responseErrorMessage(response, errorBody));
   }
 
-  const body = await response.json();
+  const body = await readJson<AuthResponse>(response);
+  if (!body?.accessToken) {
+    throw new Error('errors.auth.emptyLoginResponse');
+  }
   saveAccessToken(body.accessToken);
-  return body as AuthResponse;
+  return body;
 }
 
 export async function register(input: RegisterInput): Promise<AuthResponse> {
@@ -178,14 +200,16 @@ export async function register(input: RegisterInput): Promise<AuthResponse> {
   });
 
   if (!response.ok) {
-    const errorBody = (await response.json()) as ApiErrorResponse;
-    // Lanzamos el mensaje exacto (ej. "Email already in use.")
-    throw new Error(errorBody.message);
+    const errorBody = await readJson<ApiErrorResponse>(response);
+    throw new Error(responseErrorMessage(response, errorBody));
   }
 
-  const body = await response.json();
+  const body = await readJson<AuthResponse>(response);
+  if (!body?.accessToken) {
+    throw new Error('errors.auth.emptyRegistrationResponse');
+  }
   saveAccessToken(body.accessToken);
-  return body as AuthResponse;
+  return body;
 }
 
 /** Change the signed-in user's password; the API revokes every session. */

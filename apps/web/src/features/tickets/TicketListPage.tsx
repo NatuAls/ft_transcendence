@@ -76,27 +76,32 @@ export function TicketListPage({
 
   const closeFilters = useCallback(() => setShowFilters(false), []);
 
-  const tickets = useAsync(async () => {
-    // Convertimos los valores del Select (ej. "In progress") al formato de la API ("IN_PROGRESS")
-    const apiStatus =
-      status === 'all' ? undefined : status.toUpperCase().replace(' ', '_');
-    const apiPriority = priority === 'all' ? undefined : priority.toUpperCase();
+  const tickets = useAsync(
+    async (signal) => {
+      // Convertimos los valores del Select (ej. "In progress") al formato de la API ("IN_PROGRESS")
+      const apiStatus =
+        status === 'all' ? undefined : status.toUpperCase().replace(' ', '_');
+      const apiPriority =
+        priority === 'all' ? undefined : priority.toUpperCase();
 
-    return searchTickets(
-      organizationId,
-      {
-        page,
-        take: 30, // El pageSize que definimos
-        q: query.trim() || undefined,
-        status: apiStatus,
-        priority: apiPriority,
-        categoryId: categoryId && categoryId !== 'all' ? categoryId : undefined,
-        sort: 'createdAt',
-        order: sort === 'newest' ? 'desc' : 'asc',
-      },
-      // Pasa el signal aquí si tu custom hook de useAsync expone un AbortSignal
-    );
-  }, [organizationId, page, query, status, priority, categoryId, sort]);
+      return searchTickets(
+        organizationId,
+        {
+          page,
+          take: 30, // El pageSize que definimos
+          q: query.trim() || undefined,
+          status: apiStatus,
+          priority: apiPriority,
+          categoryId:
+            categoryId && categoryId !== 'all' ? categoryId : undefined,
+          sort: 'createdAt',
+          order: sort === 'newest' ? 'desc' : 'asc',
+        },
+        signal,
+      );
+    },
+    [organizationId, page, query, status, priority, categoryId, sort],
+  );
 
   const apiResponse = tickets.data;
 
@@ -128,6 +133,13 @@ export function TicketListPage({
     }
   });
 
+  useRealtimeEvent(RealtimeEvents.commentCreated, (raw) => {
+    const payload = raw as { ticket?: { organizationId?: string } } | undefined;
+    if (payload?.ticket?.organizationId === organizationId) {
+      reloadTicketsDebounced();
+    }
+  });
+
   useRealtimeEvent(RealtimeEvents.ticketDeleted, (raw) => {
     const payload = raw as
       { organizationId?: string; ticketId?: string } | undefined;
@@ -150,22 +162,24 @@ export function TicketListPage({
 
   const stats = [
     {
-      label: 'Open',
+      label: t('tickets.list.stats.open'),
       tone: 'open',
       value: apiResponse?.meta.facets?.status?.OPEN ?? 0,
     },
     {
-      label: 'In progress',
+      label: t('tickets.list.stats.inProgress'),
       tone: 'progress',
       value: apiResponse?.meta.facets?.status?.IN_PROGRESS ?? 0,
     },
     {
-      label: 'Resolved',
+      label: t('tickets.list.stats.resolved'),
       tone: 'resolved',
-      value: apiResponse?.meta.facets?.status?.RESOLVED ?? 0,
+      value:
+        (apiResponse?.meta.facets?.status?.RESOLVED ?? 0) +
+        (apiResponse?.meta.facets?.status?.CLOSED ?? 0),
     },
     {
-      label: 'High priority',
+      label: t('tickets.list.stats.highPriority'),
       tone: 'urgent',
       value: apiResponse?.meta.facets?.priority?.HIGH ?? 0,
     },
@@ -422,6 +436,7 @@ export function TicketListPage({
             onShowAllMobile={() => setShowAllMobile(true)}
             pageCount={pageCount}
             pageSize={30}
+            showCreatedBy={organizationWide}
             showAllMobile={showAllMobile}
           />
         </AsyncState>
