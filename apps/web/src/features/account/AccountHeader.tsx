@@ -1,3 +1,5 @@
+import { useTranslation } from '../../core/i18n';
+
 export function AccountHeader({
   description,
   title,
@@ -5,10 +7,11 @@ export function AccountHeader({
   description: string;
   title: string;
 }) {
+  const { t } = useTranslation();
   return (
     <header>
       <span className="text-xs2 tracking-[.08em] text-muted max-md:hidden">
-        ACCOUNT
+        {t('nav.account').toLocaleUpperCase()}
       </span>
       <h1 className="my-2 text-[1.875rem] font-medium max-md:text-[1.375rem]">
         {title}
