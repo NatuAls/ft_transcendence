@@ -164,10 +164,12 @@ describe('tickets · nueva creación', () => {
       screen.getByRole('button', { name: 'Create ticket' }).closest('form')!,
     );
 
-    // Verificamos que se pintaron los mensajes de error bajo los campos
-    // (Asegúrate de que 'Check this field.' es lo que devuelve errors.ts actualmente)
-    const errorMessages = await screen.findAllByText('Check this field.');
-    expect(errorMessages.length).toBeGreaterThan(0);
+    // Verificamos que se pintaron los mensajes de error bajo los campos.
+    // Desde el 13/10 salen traducidos y concretos —«Title is too short.»— en
+    // vez del genérico «Check this field.» que daba errors.ts mientras no
+    // había traducción de los errores de campo.
+    expect(await screen.findByText('Title is too short.')).toBeTruthy();
+    expect(screen.getByText('Description is too short.')).toBeTruthy();
 
     // Comprobamos que NUNCA salió la petición POST
     expect(calls.filter((call) => call.method === 'POST')).toHaveLength(0);

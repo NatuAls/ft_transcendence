@@ -87,7 +87,8 @@ describe('reset password page', () => {
     type('Repeat the new password', 'corta');
     fireEvent.click(screen.getByRole('button', { name: 'Change my password' }));
 
-    expect(screen.getByText('Use at least 10 characters.')).toBeTruthy();
+    // Los errores de campo salen ya traducidos de `en.ts` (13/10).
+    expect(screen.getByText('At least 10 characters.')).toBeTruthy();
     expect(calls).toHaveLength(0);
   });
 
@@ -104,7 +105,7 @@ describe('reset password page', () => {
     type('Repeat the new password', 'Otra-Clave-2026!');
     fireEvent.click(screen.getByRole('button', { name: 'Change my password' }));
 
-    expect(screen.getByText('The two passwords do not match.')).toBeTruthy();
+    expect(screen.getByText('Passwords do not match.')).toBeTruthy();
     expect(calls).toHaveLength(0);
   });
 

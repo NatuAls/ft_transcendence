@@ -300,6 +300,14 @@ export const ca: Translation = {
       payloadTooLarge: 'La petició és massa gran.',
       malformedBody: "No s'ha pogut llegir la petició.",
       emptyPatch: 'No hi ha res per actualitzar.',
+      duplicate: 'Això ja existeix.',
+      internal: 'Alguna cosa ha fallat per la nostra banda. Torna-ho a provar.',
+      invalidIdentifier: 'Aquest identificador no és vàlid.',
+      notFound: 'No existeix, o no hi tens accés.',
+      rateLimited: "Massa peticions. Espera't un moment i torna-ho a provar.",
+      routeNotFound: 'Aquesta adreça no existeix.',
+      stillReferenced:
+        'No es pot esborrar mentre alguna cosa encara ho faci servir.',
     },
     auth: {
       sessionExpired: 'La sessió ha caducat. Torna a iniciar la sessió.',
@@ -312,6 +320,14 @@ export const ca: Translation = {
         'El servidor ha retornat una resposta d’inici de sessió buida. Torna-ho a provar.',
       emptyRegistrationResponse:
         'El servidor ha retornat una resposta de registre buida. Torna-ho a provar.',
+      accountDisabled: 'Aquest compte ha estat desactivat.',
+      accountLocked:
+        'Massa intents fallits. El compte queda bloquejat una estona.',
+      emailTaken: 'Aquest correu ja està registrat.',
+      refreshReused:
+        "La teva sessió s'ha fet servir des d'un altre lloc, així que s'han tancat totes. Torna a iniciar la sessió.",
+      tokenInvalid: "L'enllaç no és vàlid o ha caducat.",
+      usernameTaken: "Aquest nom d'usuari ja està agafat.",
     },
     password: {
       required: 'La contrasenya és obligatòria.',
@@ -324,7 +340,12 @@ export const ca: Translation = {
       mismatch: 'Les contrasenyes no coincideixen.',
       mustDiffer: 'Tria una contrasenya diferent de l’actual.',
     },
-    field: { required: 'Aquest camp és obligatori.' },
+    field: {
+      required: 'Aquest camp és obligatori.',
+      invalid: 'Revisa aquest camp.',
+      tooShort: 'Aquest valor és massa curt.',
+      tooLong: 'Aquest valor és massa llarg.',
+    },
     username: {
       tooShort: 'Com a mínim 3 caràcters.',
       tooLong: 'Com a màxim 32 caràcters.',
@@ -337,9 +358,52 @@ export const ca: Translation = {
       descriptionTooShort: 'La descripció és massa curta.',
       descriptionTooLong: 'La descripció és massa llarga.',
       resolutionRequired: "Cal una resolució d'almenys 20 caràcters.",
+      assigneeNotAgent:
+        "Només es pot assignar a un agent d'aquesta organització.",
+      invalidTransition: "El tiquet no pot passar a aquest estat des d'aquí.",
+      locked: 'El seu autor ja no pot editar aquest tiquet.',
+      notFound: 'Aquest tiquet no existeix, o no hi tens accés.',
     },
     comment: { empty: 'El comentari és buit.' },
-    org: { nameTooShort: "El nom de l'organització és massa curt." },
-    file: { tooLarge: 'El fitxer és massa gran.' },
+    org: {
+      nameTooShort: "El nom de l'organització és massa curt.",
+      alreadyMember: 'Aquesta persona ja és membre.',
+      cannotLowerOwnRole:
+        "No et pots abaixar el rol a tu mateix: ho ha de fer un altre administrador, o pots sortir de l'organització.",
+      lastAdmin:
+        'Una organització ha de conservar com a mínim un administrador.',
+      notFound: 'Aquesta organització no existeix, o no hi pertanys.',
+      slugTaken: "Aquesta adreça d'organització ja està en ús.",
+    },
+    category: { nameTaken: 'Ja existeix una categoria amb aquest nom.' },
+    apiKey: {
+      invalid: "La clau d'API falta, no és vàlida o està revocada.",
+      missingScope: "La clau d'API no té el permís que cal.",
+      scopesRequired: 'Tria com a mínim un permís.',
+    },
+    email: { invalid: 'Escriu una adreça de correu vàlida.' },
+    color: { invalid: 'Tria un color vàlid.' },
+    slug: { invalid: 'Només minúscules, dígits i guionets.' },
+    timezone: { invalid: 'Tria una zona horària vàlida.' },
+    message: { empty: 'El missatge és buit.' },
+    rbac: { forbidden: 'El teu rol no permet fer això.' },
+    file: {
+      tooLarge: 'El fitxer és massa gran.',
+      imageUnreadable:
+        "No s'ha pogut llegir la imatge: està malmesa o no és una imatge.",
+      tooMany: "Aquest tiquet ja té el màxim d'adjunts.",
+      typeNotAllowed: 'Aquest tipus de fitxer no està permès.',
+      uploadRejected: "S'ha rebutjat el fitxer.",
+    },
+    friend: {
+      exists: 'Ja existeix una amistat o una sol·licitud.',
+      self: 'No et pots afegir a tu mateix com a amic.',
+      targetRequired: 'Indica a qui vols afegir.',
+    },
+    gdpr: {
+      pending: "Ja tens una sol·licitud pendent d'aquest tipus.",
+      tokenInvalid: "L'enllaç de confirmació no és vàlid o ha caducat.",
+      usernameMismatch: "El nom d'usuari no coincideix amb el teu compte.",
+    },
   },
 };

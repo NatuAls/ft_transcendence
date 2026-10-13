@@ -302,6 +302,14 @@ export const es: Translation = {
       payloadTooLarge: 'La petición es demasiado grande.',
       malformedBody: 'No se ha podido leer la petición.',
       emptyPatch: 'No hay nada que actualizar.',
+      duplicate: 'Eso ya existe.',
+      internal: 'Algo ha fallado por nuestra parte. Inténtalo de nuevo.',
+      invalidIdentifier: 'Ese identificador no es válido.',
+      notFound: 'No existe, o no tienes acceso.',
+      rateLimited:
+        'Demasiadas peticiones. Espera un momento y vuelve a intentarlo.',
+      routeNotFound: 'Esa dirección no existe.',
+      stillReferenced: 'No se puede borrar mientras algo lo siga usando.',
     },
     auth: {
       sessionExpired: 'Tu sesión ha caducado. Vuelve a iniciar sesión.',
@@ -314,6 +322,14 @@ export const es: Translation = {
         'El servidor devolvió una respuesta de inicio de sesión vacía. Inténtalo de nuevo.',
       emptyRegistrationResponse:
         'El servidor devolvió una respuesta de registro vacía. Inténtalo de nuevo.',
+      accountDisabled: 'Esta cuenta ha sido desactivada.',
+      accountLocked:
+        'Demasiados intentos fallidos. La cuenta queda bloqueada un tiempo.',
+      emailTaken: 'Ese correo ya está registrado.',
+      refreshReused:
+        'Tu sesión se ha usado desde otro sitio, así que se han cerrado todas. Vuelve a iniciar sesión.',
+      tokenInvalid: 'El enlace no es válido o ha caducado.',
+      usernameTaken: 'Ese nombre de usuario ya está cogido.',
     },
     password: {
       required: 'La contraseña es obligatoria.',
@@ -326,7 +342,12 @@ export const es: Translation = {
       mismatch: 'Las contraseñas no coinciden.',
       mustDiffer: 'Elige una contraseña distinta de la actual.',
     },
-    field: { required: 'Este campo es obligatorio.' },
+    field: {
+      required: 'Este campo es obligatorio.',
+      invalid: 'Revisa este campo.',
+      tooShort: 'Este valor es demasiado corto.',
+      tooLong: 'Este valor es demasiado largo.',
+    },
     username: {
       tooShort: 'Al menos 3 caracteres.',
       tooLong: 'Como máximo 32 caracteres.',
@@ -340,9 +361,52 @@ export const es: Translation = {
       descriptionTooLong: 'La descripción es demasiado larga.',
       resolutionRequired:
         'Hace falta una resolución de al menos 20 caracteres.',
+      assigneeNotAgent:
+        'Sólo se puede asignar a un agente de esta organización.',
+      invalidTransition: 'El ticket no puede pasar a ese estado desde aquí.',
+      locked: 'Su autor ya no puede editar este ticket.',
+      notFound: 'Ese ticket no existe, o no tienes acceso.',
     },
     comment: { empty: 'El comentario está vacío.' },
-    org: { nameTooShort: 'El nombre de la organización es demasiado corto.' },
-    file: { tooLarge: 'El fichero es demasiado grande.' },
+    org: {
+      nameTooShort: 'El nombre de la organización es demasiado corto.',
+      alreadyMember: 'Esa persona ya es miembro.',
+      cannotLowerOwnRole:
+        'No puedes bajarte el rol a ti mismo: tiene que hacerlo otro administrador, o puedes salir de la organización.',
+      lastAdmin:
+        'Una organización tiene que conservar al menos un administrador.',
+      notFound: 'Esa organización no existe, o no perteneces a ella.',
+      slugTaken: 'Esa dirección de organización ya está en uso.',
+    },
+    category: { nameTaken: 'Ya existe una categoría con ese nombre.' },
+    apiKey: {
+      invalid: 'La clave de API falta, no es válida o está revocada.',
+      missingScope: 'La clave de API no tiene el permiso que hace falta.',
+      scopesRequired: 'Elige al menos un permiso.',
+    },
+    email: { invalid: 'Escribe una dirección de correo válida.' },
+    color: { invalid: 'Elige un color válido.' },
+    slug: { invalid: 'Sólo minúsculas, dígitos y guiones.' },
+    timezone: { invalid: 'Elige una zona horaria válida.' },
+    message: { empty: 'El mensaje está vacío.' },
+    rbac: { forbidden: 'Tu rol no permite hacer esto.' },
+    file: {
+      tooLarge: 'El fichero es demasiado grande.',
+      imageUnreadable:
+        'No se ha podido leer la imagen: está dañada o no es una imagen.',
+      tooMany: 'Este ticket ya tiene el máximo de adjuntos.',
+      typeNotAllowed: 'Ese tipo de fichero no está permitido.',
+      uploadRejected: 'El fichero se ha rechazado.',
+    },
+    friend: {
+      exists: 'Ya existe una amistad o una solicitud.',
+      self: 'No puedes añadirte a ti mismo como amigo.',
+      targetRequired: 'Indica a quién quieres añadir.',
+    },
+    gdpr: {
+      pending: 'Ya tienes una solicitud pendiente de este tipo.',
+      tokenInvalid: 'El enlace de confirmación no es válido o ha caducado.',
+      usernameMismatch: 'El nombre de usuario no coincide con tu cuenta.',
+    },
   },
 };

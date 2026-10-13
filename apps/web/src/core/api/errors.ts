@@ -4,6 +4,8 @@
 // messageKey empieza por "errors." y coincide con las claves de i18n, así
 // que la pantalla puede hacer t(error.messageKey) sin mapas intermedios.
 
+import i18next from 'i18next';
+
 export interface ApiFieldError {
   path: string;
   code: string;
@@ -95,30 +97,31 @@ export function fieldErrorsFromIssues(
 }
 
 /**
- * Una frase para las claves que de verdad se repiten. Mientras las pantallas
- * no estén traducidas, esto es lo que ve el usuario; cuando lo estén, se
- * sustituye por `t(errorKey(error))` y ninguna pantalla se entera, porque
- * todas pasan por aquí.
+ * El texto de un error de campo, en el idioma de la persona.
+ *
+ * Hasta el 13/10 esto era un diccionario fijo en inglés, y su comentario ya
+ * avisaba: «cuando las pantallas estén traducidas, se sustituye por la
+ * traducción y ninguna pantalla se entera, porque todas pasan por aquí». Es
+ * lo que hace ahora. El cambio de contraseña, que no podía esperar, se había
+ * hecho su propio apaño retraduciendo cada error; ya no hace falta.
+ *
+ * Tres orígenes posibles, en este orden:
+ *   · una clave `errors.*` del esquema compartido o de la API → su traducción;
+ *   · un código de Zod sin mensaje propio (`too_small`…) → su equivalente;
+ *   · un texto que ya viene escrito para leerse → tal cual.
+ * Una clave que no esté traducida da «Check this field.» en su idioma, nunca
+ * la clave en crudo; `api-error-keys.test.ts` vigila que no haga falta.
  */
+const CODIGOS_DE_ZOD: Record<string, string> = {
+  invalid_type: 'errors.field.required',
+  too_small: 'errors.field.tooShort',
+  too_big: 'errors.field.tooLong',
+};
+
 function describeFieldCode(code: string): string {
-  const frases: Record<string, string> = {
-    'errors.email.invalid': 'Enter a valid e-mail address.',
-    'errors.field.required': 'This field is required.',
-    'errors.password.tooShort': 'Use at least 10 characters.',
-    'errors.password.tooLong': 'Use at most 128 characters.',
-    'errors.password.needsLowercase': 'Add a lowercase letter.',
-    'errors.password.needsUppercase': 'Add an uppercase letter.',
-    'errors.password.needsDigit': 'Add a digit.',
-    'errors.password.needsSymbol': 'Add a symbol, such as ! or -.',
-    'errors.password.mismatch': 'The two passwords do not match.',
-    'errors.terms.required': 'You have to accept the terms to continue.',
-    invalid_type: 'This field is required.',
-    too_small: 'This value is too short.',
-    too_big: 'This value is too long.',
-  };
-  if (frases[code]) return frases[code];
-  // Un mensaje que no es una clave ya viene escrito para leerse.
-  return code.startsWith('errors.') ? 'Check this field.' : code;
+  const clave = CODIGOS_DE_ZOD[code] ?? code;
+  if (!clave.startsWith('errors.')) return code;
+  return i18next.t(clave, { defaultValue: i18next.t('errors.field.invalid') });
 }
 
 /**

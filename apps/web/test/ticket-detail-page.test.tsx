@@ -247,7 +247,14 @@ describe('ticket detail page', () => {
       target: { value: 'A reply that the API will reject.' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Send reply' }));
-    expect(await screen.findByText('errors.test.FORBIDDEN')).toBeTruthy();
+    // `apiError()` fabrica una clave que no existe en los idiomas
+    // (`errors.test.FORBIDDEN`). Antes salía tal cual en pantalla; ahora una
+    // clave de error sin traducir da el mensaje genérico, que es lo que vería
+    // la persona. El rechazo se sigue enseñando, sólo que legible.
+    expect(
+      await screen.findByText('Unexpected error. Please try again.'),
+    ).toBeTruthy();
+    expect(screen.queryByText('errors.test.FORBIDDEN')).toBeNull();
   });
 
   it('reloads the ticket when its realtime update arrives', async () => {

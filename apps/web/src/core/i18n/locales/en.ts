@@ -294,6 +294,13 @@ export const en = {
       payloadTooLarge: 'The request is too large.',
       malformedBody: 'The request could not be read.',
       emptyPatch: 'Nothing to update.',
+      duplicate: 'That already exists.',
+      internal: 'Something went wrong on our side. Please try again.',
+      invalidIdentifier: 'That identifier is not valid.',
+      notFound: 'It does not exist, or you do not have access to it.',
+      rateLimited: 'Too many requests. Please wait a moment and try again.',
+      routeNotFound: 'That address does not exist.',
+      stillReferenced: 'It cannot be deleted while something still uses it.',
     },
     auth: {
       sessionExpired: 'Your session has expired. Please sign in again.',
@@ -306,6 +313,14 @@ export const en = {
         'The server returned an empty login response. Please try again.',
       emptyRegistrationResponse:
         'The server returned an empty registration response. Please try again.',
+      accountDisabled: 'This account has been disabled.',
+      accountLocked:
+        'Too many failed attempts. The account is locked for a while.',
+      emailTaken: 'That email is already registered.',
+      refreshReused:
+        'Your session was used from somewhere else, so every session has been closed. Please sign in again.',
+      tokenInvalid: 'The link is invalid or has expired.',
+      usernameTaken: 'That username is already taken.',
     },
     password: {
       required: 'Password is required.',
@@ -318,7 +333,12 @@ export const en = {
       mismatch: 'Passwords do not match.',
       mustDiffer: 'Choose a password different from your current one.',
     },
-    field: { required: 'This field is required.' },
+    field: {
+      required: 'This field is required.',
+      invalid: 'Check this field.',
+      tooShort: 'This value is too short.',
+      tooLong: 'This value is too long.',
+    },
     username: {
       tooShort: 'At least 3 characters.',
       tooLong: 'At most 32 characters.',
@@ -331,10 +351,51 @@ export const en = {
       descriptionTooShort: 'Description is too short.',
       descriptionTooLong: 'Description is too long.',
       resolutionRequired: 'A resolution of at least 20 characters is required.',
+      assigneeNotAgent: 'Only an agent of this organization can be assigned.',
+      invalidTransition: 'The ticket cannot move to that state from here.',
+      locked: 'This ticket can no longer be edited by its author.',
+      notFound: 'That ticket does not exist, or you do not have access to it.',
     },
     comment: { empty: 'The comment is empty.' },
-    org: { nameTooShort: 'Organization name is too short.' },
-    file: { tooLarge: 'The file is too large.' },
+    org: {
+      nameTooShort: 'Organization name is too short.',
+      alreadyMember: 'That person is already a member.',
+      cannotLowerOwnRole:
+        'You cannot lower your own role: another administrator has to do it, or you can leave the organization.',
+      lastAdmin: 'An organization must keep at least one administrator.',
+      notFound: 'That organization does not exist, or you do not belong to it.',
+      slugTaken: 'That organization address is already in use.',
+    },
+    category: { nameTaken: 'A category with that name already exists.' },
+    apiKey: {
+      invalid: 'The API key is missing, invalid or revoked.',
+      missingScope: 'The API key does not have the permission this needs.',
+      scopesRequired: 'Choose at least one permission.',
+    },
+    email: { invalid: 'Enter a valid e-mail address.' },
+    color: { invalid: 'Choose a valid colour.' },
+    slug: { invalid: 'Only lowercase letters, digits and hyphens.' },
+    timezone: { invalid: 'Choose a valid time zone.' },
+    message: { empty: 'The message is empty.' },
+    rbac: { forbidden: 'Your role does not allow this.' },
+    file: {
+      tooLarge: 'The file is too large.',
+      imageUnreadable:
+        'The image could not be read: it is damaged or not really an image.',
+      tooMany: 'This ticket has reached the maximum number of attachments.',
+      typeNotAllowed: 'That file type is not allowed.',
+      uploadRejected: 'The file was rejected.',
+    },
+    friend: {
+      exists: 'A friendship or a request already exists.',
+      self: 'You cannot add yourself as a friend.',
+      targetRequired: 'Say who you want to add.',
+    },
+    gdpr: {
+      pending: 'You already have a pending request of this type.',
+      tokenInvalid: 'The confirmation link is invalid or has expired.',
+      usernameMismatch: 'The username you typed does not match your account.',
+    },
   },
 };
 
