@@ -13,7 +13,7 @@ const tones: Record<StatusBadgeTone, string> = {
   progress: 'bg-warning-surface text-warning',
   resolved: 'bg-success-surface text-success',
   urgent: 'bg-danger-surface text-danger',
-  closed: 'bg-[#e8ebea] text-muted',
+  closed: 'bg-surface-secondary text-muted',
 };
 
 export function StatusBadge({

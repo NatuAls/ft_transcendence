@@ -20,6 +20,7 @@
   --color-success-surface: #e1ece5;
   --color-warning-surface: #efe9dc;
   --color-danger-surface: #f1e3e3;
+  --color-aside-text: #f6f7f3;
   /* Tamaños por debajo de text-xs (12px): la escala de Tailwind no llega ahí,
      así que cada pantalla se los inventaba en píxeles absolutos. En rem siguen
      el tamaño de letra que el lector tenga configurado en su navegador, igual
@@ -35,6 +36,32 @@
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
+}
+
+:root {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --color-canvas: #111918;
+  --color-surface: #1b2523;
+  --color-surface-secondary: #24312e;
+  --color-border: #3b4b47;
+  --color-ink: #edf5f1;
+  --color-muted: #a9bab5;
+  --color-primary: #86afa4;
+  --color-primary-hover: #9bc3b8;
+  --color-brand-mint: #86afa4;
+  --color-focus: #a7d0c4;
+  --color-success: #7fbe96;
+  --color-warning: #d7ae78;
+  --color-danger: #e18b8b;
+  --color-info: #8bbac7;
+  --color-info-surface: #233b40;
+  --color-success-surface: #244033;
+  --color-warning-surface: #443726;
+  --color-danger-surface: #452b2d;
+  --color-aside-text: #f6f7f3;
 }
 
 html,
