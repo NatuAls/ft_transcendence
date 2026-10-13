@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { vi } from 'vitest';
 import { conforming } from './contract';
 
@@ -30,6 +32,21 @@ export function reply(
   return { status, body: conforming(operation, status, body) };
 }
 
+/**
+ * The `messageKey` the API really sends with each code, read from its error
+ * catalogue: a faked refusal is then translated exactly like the real one, and
+ * a test that expects the text of a refusal checks what the person will read.
+ * A code the catalogue does not have keeps a key no language translates.
+ */
+const MESSAGE_KEYS: Record<string, string> = Object.fromEntries(
+  [
+    ...readFileSync(
+      resolve(process.cwd(), '../api/src/common/errors/domain-error.ts'),
+      'utf8',
+    ).matchAll(/'([A-Z][A-Z0-9_]+)',\s*'(errors\.[\w.]+)'/g),
+  ].map(([, code, messageKey]) => [code, messageKey]),
+);
+
 /** The ApiError envelope, as the API sends it. */
 export function apiError(
   operation: string,
@@ -40,7 +57,7 @@ export function apiError(
   return reply(operation, status, {
     statusCode: status,
     code,
-    messageKey: `errors.test.${code}`,
+    messageKey: MESSAGE_KEYS[code] ?? `errors.test.${code}`,
     message,
     requestId: '01a10712-4c1e-7b3d-a0f2-9be1d07c5a11',
     timestamp: '2026-10-04T10:00:00.000Z',

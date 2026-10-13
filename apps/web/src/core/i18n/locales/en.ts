@@ -284,6 +284,546 @@ export const en = {
       },
     },
   },
+  // Organizaciones, sus miembros, categorías y roles. Los roles se nombran
+  // aquí una sola vez (organization.role.*) y todas las pantallas los leen de
+  // aquí: antes el mismo rol se llamaba «Agent» en una y «Support agent» en
+  // otra.
+  organization: {
+    eyebrow: 'ORGANIZATION',
+    role: {
+      MEMBER: 'Member',
+      AGENT: 'Support agent',
+      ORG_ADMIN: 'Organization admin',
+    },
+    roleDescription: {
+      MEMBER: 'Opens tickets and follows their own requests.',
+      AGENT:
+        'Works every ticket of the organization: status, self-assignment and internal notes.',
+      ORG_ADMIN:
+        'Everything an agent does, plus members, roles, categories, API keys and the organization itself.',
+    },
+    roleInOrganization: '{{role}} in {{organization}}',
+    someOrganization: 'an organization',
+    members_one: '{{count}} member',
+    members_other: '{{count}} members',
+    tickets_one: '{{count}} ticket',
+    tickets_other: '{{count}} tickets',
+    defaultDescription: 'Organization support and service requests.',
+    list: {
+      eyebrow: 'ORGANIZATIONS',
+      eyebrowPlatform: 'PLATFORM',
+      title: 'Your organizations',
+      titlePlatform: 'Organizations',
+      description:
+        'Choose an organization to continue with your assigned access.',
+      descriptionPlatform: 'Review organizations configured on the platform.',
+      new: 'New organization',
+      search: 'Search organizations',
+      count_one: '{{count}} organization',
+      count_other: '{{count}} organizations',
+      open: 'Open organization',
+      platformAccess: 'Platform access',
+      yours: 'Your organization',
+      pendingAdministrator: 'Administrator invitation pending · {{email}}',
+      noResults: {
+        title: 'No organizations found',
+        description: 'Try another search.',
+      },
+      none: {
+        title: 'No organizations yet',
+        description:
+          'An organization administrator has to give a role to your e-mail address.',
+        descriptionPlatform: 'Create the first one with New organization.',
+      },
+    },
+    create: {
+      title: 'Create an organization',
+      description:
+        'Create the organization and give its administration to an e-mail address. The person receives it even without an account yet: it activates when they create one with that address and confirm it.',
+      name: 'Organization name',
+      namePlaceholder: 'Example: Acme Support',
+      descriptionLabel: 'Description',
+      descriptionPlaceholder: 'What this organization supports',
+      administrator: 'Initial organization administrator',
+      administratorPlaceholder: 'admin@company.com',
+      url: 'Organization URL',
+      urlPlaceholder: 'organization-name',
+      urlHelp:
+        'Generated from the name. If it is already in use, you will be told when you create the organization.',
+      submit: 'Create organization',
+      submitting: 'Creating…',
+      invalidEmail: 'Enter a valid e-mail address for the administrator.',
+      duplicate: 'An organization with this name or URL already exists.',
+      createdPreview:
+        '{{name}} was created and its administrator invitation was prepared in this frontend preview.',
+      createdReserved:
+        '{{name}} was created. Its administration is reserved for {{email}}: it becomes active when that address creates its account and confirms it.',
+      createdApplied:
+        '{{name}} was created and {{administrator}} administers it.',
+      createdWithoutAdministrator:
+        '{{name}} was created, but the administrator could not be assigned: {{reason}} Assign it from Roles & access.',
+    },
+    page: {
+      eyebrowSettings: 'ORGANIZATION SETTINGS',
+      descriptionAgent:
+        'Review ticket workload and the categories used by this organization.',
+      descriptionMember:
+        'View your access and the categories available when creating tickets.',
+      adminTools: 'Organization admin tools',
+      edit: 'Edit organization',
+      stats: {
+        members: 'Members',
+        agents: 'Support agents',
+        openTickets: 'Open tickets',
+        categories: 'Categories',
+      },
+      yourAccess: 'Your access',
+      visibility: 'Ticket visibility',
+      yourTicketsOnly: 'Your tickets only',
+      tabsLabel: 'Organization settings',
+      tabs: {
+        members: 'Members',
+        roles: 'Access roles',
+        categories: 'Categories',
+      },
+      title: {
+        members: 'Members and access',
+        roles: 'Access roles and permissions',
+        categories: 'Ticket categories',
+      },
+      description: {
+        members: 'Changes apply only inside {{organization}}.',
+        roles: 'Review the fixed access levels used inside {{organization}}.',
+        categories:
+          'Create categories used to classify and route support requests.',
+      },
+      addMember: 'Add member',
+      createCategory: 'Create category',
+      columns: {
+        member: 'MEMBER',
+        role: 'ROLE',
+        category: 'CATEGORY',
+        members: 'MEMBERS',
+        tickets: 'TICKETS',
+        access: 'ACCESS',
+        status: 'STATUS',
+      },
+      empty: {
+        membersTitle: 'No members yet',
+        membersDescription: 'Add somebody by e-mail address to get started.',
+        categoriesTitle: 'No categories yet',
+        categoriesDescription: 'Create one to start routing tickets.',
+      },
+      errorTitle: 'This organization could not be read',
+      viewTickets: 'View tickets in {{name}}',
+      open: 'Open {{name}}',
+      editRow: 'Edit {{name}}',
+      active: 'Active',
+      invited: 'Invited',
+      waitingForPerson: ' · waiting for the person',
+      roleRows: {
+        ORG_ADMIN: {
+          badge: 'OA',
+          description: 'Full organization access',
+          access: 'All permissions',
+        },
+        AGENT: {
+          badge: 'AG',
+          description: 'Creates tickets and handles organization requests',
+          access: 'Handle tickets',
+        },
+        MEMBER: {
+          badge: 'ME',
+          description: 'Creates and follows own tickets',
+          access: 'Own tickets',
+        },
+      },
+      aside: {
+        rolesTitle: 'Permission summary',
+        rolesDescription: 'How access is distributed by role.',
+        categoriesTitle: 'Routing overview',
+        categoriesDescription: 'Tickets by category.',
+        membersTitle: 'Ticket categories',
+        membersDescription: 'Used to route new requests.',
+        createTickets: 'Create tickets',
+        handleTickets: 'Handle tickets',
+        manageMembers: 'Manage members',
+        manageCategories: 'Manage categories',
+        accessRoles_one: '{{count}} access role',
+        accessRoles_other: '{{count}} access roles',
+      },
+      feedback: {
+        roleReserved:
+          'Role reserved for {{email}}: they join when they create their account with that address and confirm it.',
+        alreadyHad: '{{name}} already had that role.',
+        nowHasAccess: '{{name}} now has access to {{organization}}.',
+        accessUpdated: "{{name}}'s organization access was updated.",
+        detailsUpdated: 'Organization details were updated.',
+        detailsUpdatedPreview:
+          'Organization details were updated in this frontend preview.',
+        categorySaved: 'Category “{{name}}” was saved.',
+        removed: '{{name}} was removed from the organization.',
+        reservationCancelled: 'The reservation for {{name}} was cancelled.',
+        invitationPrepared: 'Invitation prepared for {{email}}.',
+      },
+    },
+    dialog: {
+      addMember: {
+        title: 'Add organization member',
+        description:
+          'Invite a user to {{organization}} and assign the access they need.',
+        submit: 'Send invitation',
+        note: 'Ticket access comes from the selected role. A confirmed account gets it at once; any other address keeps it reserved until the person creates the account with it and confirms it.',
+      },
+      editMember: {
+        title: 'Edit organization member',
+        description: 'Change {{name}}’s access inside {{organization}}.',
+        submit: 'Save access',
+      },
+      settings: {
+        title: 'Organization settings',
+        description:
+          'Edit the identity and operational details of {{organization}}.',
+        submit: 'Save changes',
+      },
+      category: {
+        titleCreate: 'Create ticket category',
+        titleEdit: 'Edit ticket category',
+        description: 'Configure how requests are classified and routed.',
+        submit: 'Save category',
+      },
+      deleteOrganization: {
+        title: 'Delete {{organization}}?',
+        description:
+          'Members lose organization access and its tickets can no longer be changed.',
+        submit: 'Delete organization',
+        confirmLabel: 'Type the organization name',
+      },
+      removeMember: {
+        title: 'Remove {{name}} from {{organization}}?',
+        description:
+          'This removes organization access. It does not delete the platform account.',
+        submit: 'Remove member',
+        warning:
+          'The member loses access to this organization. Their platform account and data are not deleted.',
+      },
+      remove: 'Remove',
+      delete: 'Delete',
+      sending: 'Sending…',
+      saving: 'Saving…',
+      email: 'Email address',
+      emailPlaceholder: 'name@company.com',
+      role: 'Organization role',
+      organizationName: 'Organization name',
+      description: 'Description',
+      member: 'Member',
+      categoryName: 'Category name',
+      ownAccess: {
+        title: 'This is your own access',
+        text: 'You cannot change your own role or remove yourself from here: lowering it would leave you inside the organization without the access needed to undo it. Another administrator can change it for you, and leaving the organization is a separate decision.',
+      },
+    },
+    // «Roles & access»: la pantalla de roles de la organización y las piezas
+    // que comparte con la de roles de plataforma.
+    access: {
+      title: 'Roles & access',
+      summary: 'Summary',
+      emailLabel: 'E-mail address',
+      emailPlaceholder: 'person@company.com',
+      assign: 'Assign role',
+      assigning: 'Assigning…',
+      cancelReservation: 'Cancel the reservation for {{email}}',
+      reservedBy: 'Reserved by {{name}} · {{date}}',
+      formerAdministrator: 'a former administrator',
+      never: 'Never',
+      loadError: 'The roles could not be loaded',
+      reservationCancelled: 'The reservation for {{email}} was cancelled.',
+      nothingWaiting: 'Nothing is waiting',
+      waiting: {
+        ACCOUNT: {
+          label: 'Waiting for the account',
+          hint: 'Nobody has registered this address yet.',
+        },
+        VERIFICATION: {
+          label: 'Waiting for e-mail confirmation',
+          hint: 'The account exists; its address is not confirmed yet.',
+        },
+      },
+      link: {
+        title: 'How the link works',
+        stepOnePlatform:
+          'You assign the role to an e-mail address for the whole platform.',
+        stepOneOrganization:
+          'You assign the role to an e-mail address in {{organization}}.',
+        stepTwo:
+          'The person creates their own account with that same address — or already has one.',
+        stepThree:
+          'The role becomes active the moment the address is confirmed. Until then it waits in the list below.',
+        protection:
+          'Confirmation is what protects the role: anybody could register somebody else’s address, but only its owner can confirm it.',
+      },
+      matrix: {
+        title: 'What each role can do',
+        description:
+          'Fixed roles: the same three in every organization, enforced by the server on every request.',
+        label: 'Capabilities of each organization role',
+        capability: 'Capability',
+        yourRole: '(your role)',
+        yes: 'Yes',
+        no: 'No',
+      },
+      capabilities: {
+        createTickets: 'Open tickets and comment on them',
+        readAllTickets: 'See every ticket of the organization',
+        changeStatus: 'Change status and take tickets',
+        internalNotes: 'Write internal notes',
+        readStats: 'Read organization statistics',
+        assignOthers: 'Assign tickets to other agents',
+        manageCategories: 'Manage categories',
+        manageMembers: 'Assign roles and manage members',
+        manageOrganization: 'Edit or delete the organization',
+        manageApiKeys: 'Manage API keys',
+      },
+      none: {
+        description:
+          'Roles are given inside an organization, and there is none to choose yet.',
+        title: 'No organization selected',
+        hint: 'Create an organization first; its roles are managed here.',
+        goTo: 'Go to organizations',
+      },
+      manage: {
+        eyebrow: 'ORGANIZATION ADMINISTRATION',
+        description:
+          'Give roles in {{organization}} to an e-mail address, change them and remove members. A confirmed account gets the role at once; any other address keeps it reserved until the person creates the account with it and confirms it.',
+        actingAsPlatformAdmin: ' You are acting as a platform administrator.',
+        cards: {
+          admins: 'Organization admins',
+          agents: 'Support agents',
+          members: 'Members',
+          waiting: 'Waiting for the person',
+        },
+        assignTitle: 'Assign a role by e-mail',
+        assignDescription: 'The address does not need an account yet.',
+        roleLabel: 'Role in this organization',
+        loading: 'Loading roles',
+        membersTitle: 'Members of {{organization}}',
+        membersDescription:
+          'Changing a role applies immediately. An organization always keeps at least one administrator.',
+        since: '{{email}} · since {{date}}',
+        you: '{{name}} (you)',
+        roleOf: 'Role of {{name}}',
+        removeFrom: 'Remove {{name}} from {{organization}}',
+        reservationsTitle: 'Reserved for an e-mail address',
+        reservationsDescription:
+          'Roles given to addresses that have no confirmed account yet. The person joins when they confirm it.',
+        reservationsEmpty:
+          'When you assign a role to an address without a confirmed account, it waits here.',
+        feedback: {
+          applied: '{{name}} now has the role {{role}} in {{organization}}.',
+          unchanged: '{{name}} already has the role {{role}}. Nothing changed.',
+          reservedVerification:
+            '{{role}} reserved for {{email}}. That account exists but its address is not confirmed: they join {{organization}} as soon as it is. We e-mailed them.',
+          reservedAccount:
+            '{{role}} reserved for {{email}}. Nobody has registered that address yet: they join {{organization}} when they create their account with it and confirm it. We e-mailed them.',
+          changed: '{{name}} now has the role {{role}}.',
+          removed:
+            '{{name}} was removed from {{organization}}. Their open tickets went back to the unassigned queue.',
+        },
+        removeDialog: {
+          eyebrow: 'ROLES & ACCESS',
+          title: 'Remove {{name}}?',
+          description:
+            '{{name}} loses access to {{organization}} and its tickets immediately. Their open tickets go back to the unassigned queue. Their account is not affected.',
+          keep: 'Keep member',
+          confirm: 'Remove member',
+        },
+        demoteDialog: {
+          title: 'Give up your own administration?',
+          description:
+            'You will stop administering {{organization}}: this screen, members, categories and API keys will no longer be available to you. Another administrator would have to give the role back.',
+          keep: 'Stay administrator',
+          confirm: 'Become {{role}}',
+        },
+      },
+      readOnly: {
+        descriptionAgent:
+          'Who does what in {{organization}}. Roles are assigned by the organization administrators.',
+        descriptionMember:
+          'Your access in {{organization}}, what each role can do and whom to ask for a change.',
+        yourRole: 'Your role',
+        needDifferent: 'Need a different role?',
+        onlyAdmin:
+          'Only an organization administrator can change it. Write to one of them from Messages:',
+        noAdmin: 'No administrator could be listed right now.',
+        peopleTitle: 'People in {{organization}}',
+        peopleDescription:
+          'Read only. Agents see who handles what; administrators manage it.',
+        loading: 'Loading members',
+      },
+    },
+  },
+  // Administración de la plataforma: usuarios, roles de plataforma.
+  admin: {
+    eyebrow: 'PLATFORM ADMINISTRATION',
+    platformAdministrator: 'Platform administrator',
+    platformRole: {
+      USER: 'Standard user',
+      GLOBAL_ADMIN: 'Global admin',
+    },
+    accountState: {
+      ACTIVE: 'Active',
+      SUSPENDED: 'Suspended',
+      PENDING: 'Invitation pending',
+    },
+    accessDenied: {
+      title: 'Access restricted',
+      description:
+        'Only platform administrators can open this area. If you need it, ask one of them for access.',
+      back: 'Return to workspace',
+    },
+    users: {
+      title: 'Users',
+      description:
+        'Manage platform accounts, organization access and account state.',
+      invite: 'Invite user',
+      cards: {
+        sampleUsers: 'Sample users',
+        accounts: 'Accounts',
+        active: 'Active',
+        administrators: 'Administrators',
+        organizations: 'Organizations',
+      },
+      panelTitle: 'Platform users',
+      search: 'Search platform users',
+      searchPlaceholder: 'Search name or email',
+      roles: 'Roles',
+      allRoles: 'All roles',
+      states: 'States',
+      allStates: 'All states',
+      columns: {
+        user: 'USER',
+        organization: 'ORGANIZATION',
+        globalRole: 'GLOBAL ROLE',
+        state: 'STATE',
+      },
+      loading: 'Loading users…',
+      edit: 'Edit {{name}}',
+      emptyTitle: 'No users match these filters',
+      emptyDescription: 'Adjust the search, role or state filters.',
+      errorTitle: 'Users could not be read',
+      showingSample: 'Showing {{shown}} of {{total}} sample users',
+      showing: 'Showing {{shown}} of {{total}} accounts and invitations',
+      organizations_one: '{{count}} organization',
+      organizations_other: '{{count}} organizations',
+      invitedUser: 'Invited user',
+      locked: {
+        primary:
+          'This is the primary administrator, created at deployment: its role and state cannot be changed from here.',
+        self: 'This is your own account: another administrator has to change your role or state.',
+        email:
+          'The e-mail address is the sign-in identity and is not edited from here. Suspending blocks access; deleting closes the account.',
+      },
+      feedback: {
+        invitationPrepared: 'Invitation prepared for {{email}}.',
+        updated: '{{name}} was updated.',
+        platformReserved:
+          'Invitation sent to {{email}}: platform administration is reserved until they create the account and confirm the address.',
+        platformApplied:
+          '{{name}} already has an account and is now a platform administrator.',
+        organizationFirst:
+          'Create an organization first: a standard user is invited into one.',
+        roleReserved:
+          'Invitation sent to {{email}}: the role is reserved until they create the account and confirm the address.',
+        roleApplied: '{{name}} already has an account and now has the role.',
+        deleted: "{{name}}'s account was deleted.",
+      },
+    },
+    userDialog: {
+      inviteTitle: 'Invite user',
+      editTitle: 'Edit platform user',
+      inviteDescription:
+        'The person creates their own account and password with this address. The access you choose is reserved for it and becomes active when they confirm it — at once if they already have a confirmed account.',
+      editDescription: 'Update identity, role and account state for {{name}}.',
+      delete: 'Delete',
+      send: 'Send invitation',
+      save: 'Save changes',
+      fullName: 'Full name',
+      email: 'Email address',
+      platformAccess: 'Platform access',
+      initialOrganization: 'Initial organization',
+      organizationRole: 'Organization role',
+      accountState: 'Account state',
+      notes: {
+        globalAdmin:
+          'A platform administrator can act in every organization without being a member of any.',
+        standardUser:
+          'Nothing is active until the person confirms the address: registering it is not enough, so nobody can claim somebody else’s invitation.',
+        edit: 'Suspending blocks access. Personal-data deletion remains a separate, user-confirmed privacy request.',
+      },
+      deleteConfirm: {
+        title: 'Delete {{name}}?',
+        description:
+          '{{name}} will no longer be able to sign in: every session is closed now and the account disappears from the platform. Their tickets and comments stay, for the people who depend on them.',
+        keep: 'Keep account',
+        confirm: 'Delete account',
+      },
+    },
+    roles: {
+      title: 'Platform roles',
+      eyebrowDialog: 'PLATFORM ROLES',
+      description:
+        'Give platform administration to an e-mail address. A confirmed account receives it at once; any other address keeps it reserved until the person creates the account with it and confirms it.',
+      cards: {
+        administrators: 'Platform administrators',
+        waitingAccount: 'Waiting for an account',
+        waitingVerification: 'Waiting for e-mail confirmation',
+      },
+      assignTitle: 'Assign a platform role',
+      assignDescription:
+        'Every account starts as a standard user. To take administration back from somebody, use Withdraw in the list below.',
+      roleToAssign: 'Role to assign',
+      roleDescription:
+        'Manages every account, organization and role on the platform, acts in any organization and reads the audit trail.',
+      loading: 'Loading platform roles',
+      administratorsDescription:
+        'They can manage the whole platform. The primary administrator is created at deployment and cannot be withdrawn from here.',
+      you: 'You',
+      primary: 'Primary · protected',
+      unconfirmed: 'Address not confirmed',
+      suspended: 'Suspended',
+      lastSignIn: 'Last sign-in: {{date}}',
+      ownRole: 'Your own role',
+      protected: 'Protected',
+      withdraw: 'Withdraw',
+      withdrawFrom: 'Withdraw platform administration from {{name}}',
+      reservationsTitle: 'Reserved for an e-mail address',
+      reservationsDescription:
+        'Addresses that will become platform administrators once the account exists and the address is confirmed.',
+      reservationsEmpty:
+        'When you assign the role to an address without a confirmed account, it waits here.',
+      feedback: {
+        applied:
+          '{{name}} is now a platform administrator. The change applies to their current session right away.',
+        unchanged:
+          '{{name}} already is a platform administrator. Nothing changed.',
+        reservedVerification:
+          'Reserved for {{email}}. That account exists but its address is not confirmed: the role is applied as soon as it is. We e-mailed them.',
+        reservedAccount:
+          'Reserved for {{email}}. Nobody has registered that address yet: the role is applied when they create their account with it and confirm it. We e-mailed them.',
+        withdrawn:
+          '{{name}} is a standard user again. Their account and organization roles are untouched.',
+        cancelled:
+          'The reservation for {{email}} was cancelled. Confirming that address no longer gives any role.',
+      },
+      withdrawDialog: {
+        title: 'Withdraw platform administration?',
+        description:
+          '{{name}} keeps their account, their organizations and their roles in them. What they lose, immediately, is platform administration.',
+        keep: 'Keep the role',
+        confirm: 'Withdraw administration',
+      },
+    },
+  },
   // Las claves de error coinciden con el messageKey que devuelve la API:
   // t(error.messageKey) funciona sin mapas intermedios.
   errors: {

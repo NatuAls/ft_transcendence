@@ -1,3 +1,5 @@
+import type { ViewerSession } from '../../src/app/session';
+
 /**
  * Answers of the API, shaped like its OpenAPI document says (and checked
  * against it by `reply()` wherever they are used).
@@ -116,6 +118,32 @@ export function deviceSession(overrides: Record<string, unknown> = {}) {
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 Chrome/131.0 Safari/537.36',
     ip: '83.45.120.0',
     current: true,
+    ...overrides,
+  };
+}
+
+/** A signed-in person, as the shell builds it from the session. */
+export function viewerSession(
+  overrides: Partial<ViewerSession> = {},
+): ViewerSession {
+  return {
+    accountState: 'ACTIVE',
+    emailVerified: true,
+    globalRole: 'USER',
+    id: ids.admin,
+    memberships: [],
+    pendingRoles: [],
+    permissions: [],
+    profile: {
+      bio: '',
+      email: 'ana@example.com',
+      firstName: 'Ana',
+      fullName: 'Ana García',
+      jobTitle: '',
+      lastName: 'García',
+      location: 'Europe/Madrid',
+      username: 'ana',
+    },
     ...overrides,
   };
 }

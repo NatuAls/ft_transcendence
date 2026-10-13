@@ -4,6 +4,9 @@ import { emailSchema } from 'contracts';
 import * as organizationsApi from '../../api/organizations';
 import { assignOrganizationRole } from '../../api/roles';
 import { previewMode, type ViewerSession } from '../../app/session';
+import { errorKey } from '../../core/api/errors';
+import { useTranslation } from '../../core/i18n';
+import { organizationRoleLabel } from '../roles/rolesGateway';
 import {
   getOrganizationInitials,
   normalizeOrganizationSlug,
@@ -24,6 +27,7 @@ export function OrganizationsPage({
   organizations: OrganizationSummary[];
   viewer: ViewerSession;
 }) {
+  const { t } = useTranslation();
   const platformView = viewer.globalRole === 'GLOBAL_ADMIN';
   const [create, setCreate] = useState(false);
   // The preview keeps its own sample list; the application uses the one the
@@ -66,7 +70,7 @@ export function OrganizationsPage({
     if (!trimmedName || !slug || !trimmedAdministratorEmail) return;
     const parsedEmail = emailSchema.safeParse(trimmedAdministratorEmail);
     if (!parsedEmail.success) {
-      setCreateError('Enter a valid e-mail address for the administrator.');
+      setCreateError(t('organization.create.invalidEmail'));
       return;
     }
     if (
@@ -76,23 +80,23 @@ export function OrganizationsPage({
           organization.slug === slug,
       )
     ) {
-      setCreateError('An organization with this name or URL already exists.');
+      setCreateError(t('organization.create.duplicate'));
       return;
     }
     if (previewMode) {
       const createdOrganization: OrganizationSummary = {
-        description:
-          description.trim() || 'Organization support and service requests.',
+        counts: null,
+        description: description.trim(),
         id: `preview-${slug}`,
         initials: getOrganizationInitials(trimmedName),
         name: trimmedName,
-        roleLabel: 'Platform access',
+        pendingAdministrator: trimmedAdministratorEmail,
+        role: null,
         slug,
-        summary: `Administrator invitation pending · ${trimmedAdministratorEmail}`,
       };
       setPreviewOrganizations((current) => [...current, createdOrganization]);
       setFeedback(
-        `${trimmedName} was created and its administrator invitation was prepared in this frontend preview.`,
+        t('organization.create.createdPreview', { name: trimmedName }),
       );
       closeCreate();
       return;
@@ -107,11 +111,7 @@ export function OrganizationsPage({
         name: trimmedName,
       });
     } catch (error) {
-      setCreateError(
-        error instanceof Error
-          ? error.message
-          : 'The organization could not be created.',
-      );
+      setCreateError(t(errorKey(error)));
       setSubmitting(false);
       return;
     }
@@ -125,12 +125,21 @@ export function OrganizationsPage({
       });
       setFeedback(
         assignment.outcome === 'RESERVED'
-          ? `${created.name} was created. Its administration is reserved for ${parsedEmail.data}: it becomes active when that address creates its account and confirms it.`
-          : `${created.name} was created and ${assignment.user?.displayName ?? parsedEmail.data} administers it.`,
+          ? t('organization.create.createdReserved', {
+              email: parsedEmail.data,
+              name: created.name,
+            })
+          : t('organization.create.createdApplied', {
+              administrator: assignment.user?.displayName ?? parsedEmail.data,
+              name: created.name,
+            }),
       );
     } catch (error) {
       setFeedback(
-        `${created.name} was created, but the administrator could not be assigned (${error instanceof Error ? error.message : 'unknown error'}). Assign it from Roles & access.`,
+        t('organization.create.createdWithoutAdministrator', {
+          name: created.name,
+          reason: t(errorKey(error)),
+        }),
       );
     }
     setSubmitting(false);
@@ -143,15 +152,19 @@ export function OrganizationsPage({
       <header className="flex items-end justify-between max-md:items-start">
         <div>
           <span className="text-2xs tracking-[.08em] text-muted">
-            {platformView ? 'PLATFORM' : 'ORGANIZATIONS'}
+            {platformView
+              ? t('organization.list.eyebrowPlatform')
+              : t('organization.list.eyebrow')}
           </span>
           <h1 className="my-2 text-[1.875rem] font-medium max-md:text-[1.375rem]">
-            {platformView ? 'Organizations' : 'Your organizations'}
+            {platformView
+              ? t('organization.list.titlePlatform')
+              : t('organization.list.title')}
           </h1>
           <p className="text-[0.8125rem] text-muted max-md:hidden">
             {platformView
-              ? 'Review organizations configured on the platform.'
-              : 'Choose an organization to continue with your assigned access.'}
+              ? t('organization.list.descriptionPlatform')
+              : t('organization.list.description')}
           </p>
         </div>
         {platformView ? (
@@ -159,24 +172,26 @@ export function OrganizationsPage({
             className="max-md:!min-h-9 max-md:!px-2.5"
             onClick={() => setCreate(true)}
           >
-            New organization
+            {t('organization.list.new')}
           </Button>
         ) : null}
       </header>
       <div className="my-4 mt-7 flex items-center gap-5">
         <label className="flex h-[42px] flex-1 items-center rounded-sm border border-border bg-surface px-[13px] py-2.5 focus-within:border-focus focus-within:outline-3 focus-within:outline-focus">
           <Icon className="mr-1" name="search" size={15} />{' '}
-          <span className="sr-only">Search organizations</span>
+          <span className="sr-only">{t('organization.list.search')}</span>
           <input
             className="w-[90%] border-0 bg-transparent outline-0 focus-visible:!outline-none"
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search organizations"
+            placeholder={t('organization.list.search')}
             type="search"
             value={query}
           />
         </label>
         <span className="text-xs2 text-muted">
-          {visibleOrganizations.length} organizations
+          {t('organization.list.count', {
+            count: visibleOrganizations.length,
+          })}
         </span>
       </div>
       {feedback ? (
@@ -203,16 +218,31 @@ export function OrganizationsPage({
                 {organization.name}
               </h2>
               <strong className="text-2xs text-primary">
-                {organization.roleLabel}
+                {organization.role
+                  ? organizationRoleLabel(organization.role)
+                  : t('organization.list.platformAccess')}
               </strong>
               <p className="my-[5px] text-2xs text-muted">
-                {organization.description}
+                {organization.description ||
+                  t('organization.defaultDescription')}
               </p>
-              <p className="text-2xs text-muted">{organization.summary}</p>
+              <p className="text-2xs text-muted">
+                {organization.pendingAdministrator
+                  ? t('organization.list.pendingAdministrator', {
+                      email: organization.pendingAdministrator,
+                    })
+                  : organization.counts
+                    ? `${t('organization.members', {
+                        count: organization.counts.members,
+                      })} · ${t('organization.tickets', {
+                        count: organization.counts.tickets,
+                      })}`
+                    : t('organization.list.yours')}
+              </p>
             </div>
             <div className="text-right max-md:col-span-full max-md:flex max-md:items-center max-md:justify-end max-md:gap-2.5">
               <Button onClick={() => onOpen(organization)} variant="secondary">
-                Open organization
+                {t('organization.list.open')}
               </Button>
             </div>
           </article>
@@ -220,29 +250,29 @@ export function OrganizationsPage({
         {!visibleOrganizations.length ? (
           organizations.length ? (
             <EmptyState
-              description="Try another search."
-              title="No organizations found"
+              description={t('organization.list.noResults.description')}
+              title={t('organization.list.noResults.title')}
             />
           ) : (
             <EmptyState
               description={
                 platformView
-                  ? 'Create the first one with New organization.'
-                  : 'An organization administrator has to give a role to your e-mail address.'
+                  ? t('organization.list.none.descriptionPlatform')
+                  : t('organization.list.none.description')
               }
-              title="No organizations yet"
+              title={t('organization.list.none.title')}
             />
           )
         ) : null}
       </section>
       {create ? (
         <Dialog
-          description="Create the organization and give its administration to an e-mail address. The person receives it even without an account yet: it activates when they create one with that address and confirm it."
-          eyebrow="ORGANIZATIONS"
+          description={t('organization.create.description')}
+          eyebrow={t('organization.list.eyebrow')}
           footer={
             <>
               <Button onClick={closeCreate} variant="secondary">
-                Cancel
+                {t('common.actions.cancel')}
               </Button>
               <Button
                 disabled={
@@ -253,7 +283,9 @@ export function OrganizationsPage({
                 }
                 type="submit"
               >
-                {submitting ? 'Creating…' : 'Create organization'}
+                {submitting
+                  ? t('organization.create.submitting')
+                  : t('organization.create.submit')}
               </Button>
             </>
           }
@@ -262,40 +294,41 @@ export function OrganizationsPage({
             event.preventDefault();
             void createOrganization();
           }}
-          title="Create an organization"
+          title={t('organization.create.title')}
         >
           <TextField
-            label="Organization name"
+            label={t('organization.create.name')}
             onChange={(event) => {
               setName(event.target.value);
               setCreateError('');
             }}
-            placeholder="Example: Acme Support"
+            placeholder={t('organization.create.namePlaceholder')}
             required
             value={name}
           />
           <TextField
-            label="Description"
+            label={t('organization.create.descriptionLabel')}
             onChange={(event) => setDescription(event.target.value)}
-            placeholder="What this organization supports"
+            placeholder={t('organization.create.descriptionPlaceholder')}
             value={description}
           />
           <TextField
-            label="Initial organization administrator"
+            label={t('organization.create.administrator')}
             onChange={(event) => setAdministratorEmail(event.target.value)}
-            placeholder="admin@company.com"
+            placeholder={t('organization.create.administratorPlaceholder')}
             required
             type="email"
             value={administratorEmail}
           />
           <div className="grid gap-1.5 rounded-sm border border-border bg-surface-secondary px-3.5 py-3">
-            <span className="text-xs font-medium">Organization URL</span>
+            <span className="text-xs font-medium">
+              {t('organization.create.url')}
+            </span>
             <code className="overflow-hidden text-xs text-ellipsis text-muted">
-              helpdesk.local/{slug || 'organization-name'}
+              helpdesk.local/{slug || t('organization.create.urlPlaceholder')}
             </code>
             <small className="text-2xs text-muted">
-              Generated automatically. The backend remains responsible for
-              uniqueness.
+              {t('organization.create.urlHelp')}
             </small>
           </div>
           {createError ? <Alert tone="danger">{createError}</Alert> : null}

@@ -57,7 +57,7 @@ describe('web permissions and API policies', () => {
 
   it('tells the truth in the "what each role can do" table', () => {
     const wrong: string[] = [];
-    for (const { permission, label } of organizationCapabilities) {
+    for (const { permission, key } of organizationCapabilities) {
       expect(permission in POLICIES, `${permission} is an API policy`).toBe(
         true,
       );
@@ -69,7 +69,7 @@ describe('web permissions and API policies', () => {
           {},
         ).allowed;
         if (shown !== allowed)
-          wrong.push(`${label} / ${role}: table ${shown}, API ${allowed}`);
+          wrong.push(`${key} / ${role}: table ${shown}, API ${allowed}`);
       }
     }
     expect(wrong).toEqual([]);

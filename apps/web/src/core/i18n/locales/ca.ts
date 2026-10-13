@@ -292,6 +292,541 @@ export const ca: Translation = {
       },
     },
   },
+  organization: {
+    eyebrow: 'ORGANITZACIÓ',
+    role: {
+      MEMBER: 'Membre',
+      AGENT: 'Agent de suport',
+      ORG_ADMIN: 'Administrador de l’organització',
+    },
+    roleDescription: {
+      MEMBER: 'Obre tiquets i segueix les seves pròpies sol·licituds.',
+      AGENT:
+        'Treballa tots els tiquets de l’organització: estat, autoassignació i notes internes.',
+      ORG_ADMIN:
+        'Tot el que fa un agent, i a més membres, rols, categories, claus d’API i la mateixa organització.',
+    },
+    roleInOrganization: '{{role}} a {{organization}}',
+    someOrganization: 'una organització',
+    members_one: '{{count}} membre',
+    members_other: '{{count}} membres',
+    tickets_one: '{{count}} tiquet',
+    tickets_other: '{{count}} tiquets',
+    defaultDescription: 'Suport i sol·licituds de servei de l’organització.',
+    list: {
+      eyebrow: 'ORGANITZACIONS',
+      eyebrowPlatform: 'PLATAFORMA',
+      title: 'Les teves organitzacions',
+      titlePlatform: 'Organitzacions',
+      description: 'Tria una organització per continuar amb l’accés que tens.',
+      descriptionPlatform: 'Revisa les organitzacions de la plataforma.',
+      new: 'Organització nova',
+      search: 'Cerca organitzacions',
+      count_one: '{{count}} organització',
+      count_other: '{{count}} organitzacions',
+      open: 'Obre l’organització',
+      platformAccess: 'Accés de plataforma',
+      yours: 'La teva organització',
+      pendingAdministrator: 'Invitació d’administració pendent · {{email}}',
+      noResults: {
+        title: 'No s’ha trobat cap organització',
+        description: 'Prova amb una altra cerca.',
+      },
+      none: {
+        title: 'Encara no hi ha organitzacions',
+        description:
+          'Un administrador d’una organització ha de donar un rol a la teva adreça de correu.',
+        descriptionPlatform: 'Crea la primera amb Organització nova.',
+      },
+    },
+    create: {
+      title: 'Crea una organització',
+      description:
+        'Crea l’organització i dona’n l’administració a una adreça de correu. La persona la rep encara que no tingui compte: s’activa quan en creï un amb aquella adreça i la confirmi.',
+      name: 'Nom de l’organització',
+      namePlaceholder: 'Exemple: Suport Acme',
+      descriptionLabel: 'Descripció',
+      descriptionPlaceholder: 'A què dona suport aquesta organització',
+      administrator: 'Administrador inicial de l’organització',
+      administratorPlaceholder: 'admin@empresa.com',
+      url: 'Adreça de l’organització',
+      urlPlaceholder: 'nom-de-l-organitzacio',
+      urlHelp:
+        'Es genera a partir del nom. Si ja està en ús, t’ho direm en crear l’organització.',
+      submit: 'Crea l’organització',
+      submitting: 'S’està creant…',
+      invalidEmail: 'Escriu una adreça de correu vàlida per a l’administrador.',
+      duplicate:
+        'Ja existeix una organització amb aquest nom o aquesta adreça.',
+      createdPreview:
+        'S’ha creat {{name}} i s’ha preparat la invitació del seu administrador en aquesta vista prèvia.',
+      createdReserved:
+        'S’ha creat {{name}}. La seva administració queda reservada per a {{email}}: s’activa quan aquella adreça creï el compte i el confirmi.',
+      createdApplied: 'S’ha creat {{name}} i l’administra {{administrator}}.',
+      createdWithoutAdministrator:
+        'S’ha creat {{name}}, però no s’ha pogut assignar l’administrador: {{reason}} Assigna’l des de Rols i accés.',
+    },
+    page: {
+      eyebrowSettings: 'CONFIGURACIÓ DE L’ORGANITZACIÓ',
+      descriptionAgent:
+        'Revisa la càrrega de tiquets i les categories que fa servir aquesta organització.',
+      descriptionMember:
+        'Consulta el teu accés i les categories disponibles en crear tiquets.',
+      adminTools: 'Eines d’administració',
+      edit: 'Edita l’organització',
+      stats: {
+        members: 'Membres',
+        agents: 'Agents de suport',
+        openTickets: 'Tiquets oberts',
+        categories: 'Categories',
+      },
+      yourAccess: 'El teu accés',
+      visibility: 'Visibilitat dels tiquets',
+      yourTicketsOnly: 'Només els teus tiquets',
+      tabsLabel: 'Configuració de l’organització',
+      tabs: {
+        members: 'Membres',
+        roles: 'Rols d’accés',
+        categories: 'Categories',
+      },
+      title: {
+        members: 'Membres i accés',
+        roles: 'Rols d’accés i permisos',
+        categories: 'Categories de tiquets',
+      },
+      description: {
+        members: 'Els canvis només s’apliquen dins de {{organization}}.',
+        roles:
+          'Revisa els nivells d’accés fixos que es fan servir a {{organization}}.',
+        categories:
+          'Crea categories per classificar i encaminar les sol·licituds de suport.',
+      },
+      addMember: 'Afegeix un membre',
+      createCategory: 'Crea una categoria',
+      columns: {
+        member: 'MEMBRE',
+        role: 'ROL',
+        category: 'CATEGORIA',
+        members: 'MEMBRES',
+        tickets: 'TIQUETS',
+        access: 'ACCÉS',
+        status: 'ESTAT',
+      },
+      empty: {
+        membersTitle: 'Encara no hi ha membres',
+        membersDescription:
+          'Afegeix algú per la seva adreça de correu per començar.',
+        categoriesTitle: 'Encara no hi ha categories',
+        categoriesDescription: 'Crea’n una per començar a encaminar tiquets.',
+      },
+      errorTitle: 'No s’ha pogut llegir aquesta organització',
+      viewTickets: 'Mostra els tiquets de {{name}}',
+      open: 'Obre {{name}}',
+      editRow: 'Edita {{name}}',
+      active: 'Actiu',
+      invited: 'Convidat',
+      waitingForPerson: ' · esperant la persona',
+      roleRows: {
+        ORG_ADMIN: {
+          badge: 'AO',
+          description: 'Accés complet a l’organització',
+          access: 'Tots els permisos',
+        },
+        AGENT: {
+          badge: 'AG',
+          description: 'Crea tiquets i atén les sol·licituds de l’organització',
+          access: 'Atendre tiquets',
+        },
+        MEMBER: {
+          badge: 'ME',
+          description: 'Crea i segueix els seus propis tiquets',
+          access: 'Els seus tiquets',
+        },
+      },
+      aside: {
+        rolesTitle: 'Resum de permisos',
+        rolesDescription: 'Com es reparteix l’accés per rol.',
+        categoriesTitle: 'Encaminament',
+        categoriesDescription: 'Tiquets per categoria.',
+        membersTitle: 'Categories de tiquets',
+        membersDescription: 'Serveixen per encaminar les sol·licituds noves.',
+        createTickets: 'Crear tiquets',
+        handleTickets: 'Atendre tiquets',
+        manageMembers: 'Gestionar membres',
+        manageCategories: 'Gestionar categories',
+        accessRoles_one: '{{count}} rol d’accés',
+        accessRoles_other: '{{count}} rols d’accés',
+      },
+      feedback: {
+        roleReserved:
+          'Rol reservat per a {{email}}: entra quan creï el compte amb aquella adreça i la confirmi.',
+        alreadyHad: '{{name}} ja tenia aquest rol.',
+        nowHasAccess: '{{name}} ja té accés a {{organization}}.',
+        accessUpdated: 'S’ha actualitzat l’accés de {{name}} a l’organització.',
+        detailsUpdated: 'S’han actualitzat les dades de l’organització.',
+        detailsUpdatedPreview:
+          'S’han actualitzat les dades de l’organització en aquesta vista prèvia.',
+        categorySaved: 'S’ha desat la categoria «{{name}}».',
+        removed: '{{name}} ja no forma part de l’organització.',
+        reservationCancelled: 'S’ha cancel·lat la reserva per a {{name}}.',
+        invitationPrepared: 'Invitació preparada per a {{email}}.',
+      },
+    },
+    dialog: {
+      addMember: {
+        title: 'Afegeix un membre a l’organització',
+        description:
+          'Convida algú a {{organization}} i assigna-li l’accés que necessita.',
+        submit: 'Envia la invitació',
+        note: 'L’accés als tiquets depèn del rol triat. Un compte confirmat el rep a l’acte; qualsevol altra adreça el deixa reservat fins que la persona creï el compte amb aquella adreça i la confirmi.',
+      },
+      editMember: {
+        title: 'Edita un membre de l’organització',
+        description: 'Canvia l’accés de {{name}} dins de {{organization}}.',
+        submit: 'Desa l’accés',
+      },
+      settings: {
+        title: 'Configuració de l’organització',
+        description: 'Edita la identitat i les dades de {{organization}}.',
+        submit: 'Desa els canvis',
+      },
+      category: {
+        titleCreate: 'Crea una categoria de tiquets',
+        titleEdit: 'Edita la categoria de tiquets',
+        description:
+          'Configura com es classifiquen i s’encaminen les sol·licituds.',
+        submit: 'Desa la categoria',
+      },
+      deleteOrganization: {
+        title: 'Vols eliminar {{organization}}?',
+        description:
+          'Els membres perden l’accés a l’organització i els seus tiquets ja no es podran modificar.',
+        submit: 'Elimina l’organització',
+        confirmLabel: 'Escriu el nom de l’organització',
+      },
+      removeMember: {
+        title: 'Vols treure {{name}} de {{organization}}?',
+        description:
+          'Això treu l’accés a l’organització. No elimina el compte de la plataforma.',
+        submit: 'Treu el membre',
+        warning:
+          'La persona perd l’accés a aquesta organització. El seu compte de la plataforma i les seves dades no s’eliminen.',
+      },
+      remove: 'Treu',
+      delete: 'Elimina',
+      sending: 'S’està enviant…',
+      saving: 'S’està desant…',
+      email: 'Adreça de correu',
+      emailPlaceholder: 'nom@empresa.com',
+      role: 'Rol a l’organització',
+      organizationName: 'Nom de l’organització',
+      description: 'Descripció',
+      member: 'Membre',
+      categoryName: 'Nom de la categoria',
+      ownAccess: {
+        title: 'Aquest és el teu propi accés',
+        text: 'No pots canviar el teu propi rol ni treure’t des d’aquí: rebaixar-lo et deixaria dins de l’organització sense l’accés necessari per desfer-ho. Un altre administrador el pot canviar per tu, i sortir de l’organització és una decisió a part.',
+      },
+    },
+    access: {
+      title: 'Rols i accés',
+      summary: 'Resum',
+      emailLabel: 'Adreça de correu',
+      emailPlaceholder: 'persona@empresa.com',
+      assign: 'Assigna el rol',
+      assigning: 'S’està assignant…',
+      cancelReservation: 'Cancel·la la reserva per a {{email}}',
+      reservedBy: 'Reservat per {{name}} · {{date}}',
+      formerAdministrator: 'un antic administrador',
+      never: 'Mai',
+      loadError: 'No s’han pogut carregar els rols',
+      reservationCancelled: 'S’ha cancel·lat la reserva per a {{email}}.',
+      nothingWaiting: 'No hi ha res en espera',
+      waiting: {
+        ACCOUNT: {
+          label: 'Esperant el compte',
+          hint: 'Encara ningú no ha registrat aquesta adreça.',
+        },
+        VERIFICATION: {
+          label: 'Esperant la confirmació del correu',
+          hint: 'El compte existeix, però la seva adreça encara no està confirmada.',
+        },
+      },
+      link: {
+        title: 'Com funciona el vincle',
+        stepOnePlatform:
+          'Assignes el rol a una adreça de correu per a tota la plataforma.',
+        stepOneOrganization:
+          'Assignes el rol a una adreça de correu a {{organization}}.',
+        stepTwo:
+          'La persona crea el seu propi compte amb aquesta mateixa adreça, o ja en té un.',
+        stepThree:
+          'El rol s’activa en el moment en què es confirma l’adreça. Fins aleshores espera a la llista de sota.',
+        protection:
+          'La confirmació és el que protegeix el rol: qualsevol podria registrar l’adreça d’una altra persona, però només el seu propietari la pot confirmar.',
+      },
+      matrix: {
+        title: 'Què pot fer cada rol',
+        description:
+          'Rols fixos: els mateixos tres a totes les organitzacions, i el servidor els aplica a cada petició.',
+        label: 'Capacitats de cada rol de l’organització',
+        capability: 'Capacitat',
+        yourRole: '(el teu rol)',
+        yes: 'Sí',
+        no: 'No',
+      },
+      capabilities: {
+        createTickets: 'Obrir tiquets i comentar-los',
+        readAllTickets: 'Veure tots els tiquets de l’organització',
+        changeStatus: 'Canviar l’estat i fer-se càrrec de tiquets',
+        internalNotes: 'Escriure notes internes',
+        readStats: 'Consultar les estadístiques de l’organització',
+        assignOthers: 'Assignar tiquets a altres agents',
+        manageCategories: 'Gestionar categories',
+        manageMembers: 'Assignar rols i gestionar membres',
+        manageOrganization: 'Editar o eliminar l’organització',
+        manageApiKeys: 'Gestionar claus d’API',
+      },
+      none: {
+        description:
+          'Els rols es donen dins d’una organització, i encara no n’hi ha cap per triar.',
+        title: 'No hi ha cap organització seleccionada',
+        hint: 'Crea primer una organització; els seus rols es gestionen aquí.',
+        goTo: 'Ves a organitzacions',
+      },
+      manage: {
+        eyebrow: 'ADMINISTRACIÓ DE L’ORGANITZACIÓ',
+        description:
+          'Dona rols a {{organization}} a una adreça de correu, canvia’ls i treu membres. Un compte confirmat rep el rol a l’acte; qualsevol altra adreça el deixa reservat fins que la persona creï el compte amb aquella adreça i la confirmi.',
+        actingAsPlatformAdmin: ' Actues com a administrador de la plataforma.',
+        cards: {
+          admins: 'Administradors',
+          agents: 'Agents de suport',
+          members: 'Membres',
+          waiting: 'Esperant la persona',
+        },
+        assignTitle: 'Assigna un rol per correu',
+        assignDescription: 'L’adreça encara no necessita tenir compte.',
+        roleLabel: 'Rol en aquesta organització',
+        loading: 'S’estan carregant els rols',
+        membersTitle: 'Membres de {{organization}}',
+        membersDescription:
+          'Canviar un rol s’aplica a l’acte. Una organització sempre conserva almenys un administrador.',
+        since: '{{email}} · des del {{date}}',
+        you: '{{name}} (tu)',
+        roleOf: 'Rol de {{name}}',
+        removeFrom: 'Treu {{name}} de {{organization}}',
+        reservationsTitle: 'Reservat per a una adreça de correu',
+        reservationsDescription:
+          'Rols donats a adreces que encara no tenen un compte confirmat. La persona entra quan la confirma.',
+        reservationsEmpty:
+          'Quan assignes un rol a una adreça sense compte confirmat, espera aquí.',
+        feedback: {
+          applied: '{{name}} ja té el rol {{role}} a {{organization}}.',
+          unchanged: '{{name}} ja tenia el rol {{role}}. No ha canviat res.',
+          reservedVerification:
+            '{{role}} reservat per a {{email}}. Aquest compte existeix, però la seva adreça no està confirmada: entra a {{organization}} tan aviat com ho estigui. Li hem enviat un correu.',
+          reservedAccount:
+            '{{role}} reservat per a {{email}}. Encara ningú no ha registrat aquesta adreça: entra a {{organization}} quan creï el compte amb aquesta adreça i la confirmi. Li hem enviat un correu.',
+          changed: '{{name}} ja té el rol {{role}}.',
+          removed:
+            '{{name}} ja no forma part de {{organization}}. Els seus tiquets oberts han tornat a la cua sense assignar.',
+        },
+        removeDialog: {
+          eyebrow: 'ROLS I ACCÉS',
+          title: 'Vols treure {{name}}?',
+          description:
+            '{{name}} perd a l’acte l’accés a {{organization}} i als seus tiquets. Els seus tiquets oberts tornen a la cua sense assignar. El seu compte no es veu afectat.',
+          keep: 'Mantén el membre',
+          confirm: 'Treu el membre',
+        },
+        demoteDialog: {
+          title: 'Vols renunciar a la teva pròpia administració?',
+          description:
+            'Deixaràs d’administrar {{organization}}: aquesta pantalla, els membres, les categories i les claus d’API deixaran d’estar al teu abast. Un altre administrador t’hauria de tornar el rol.',
+          keep: 'Continua com a administrador',
+          confirm: 'Passa a {{role}}',
+        },
+      },
+      readOnly: {
+        descriptionAgent:
+          'Qui fa què a {{organization}}. Els rols els assignen els administradors de l’organització.',
+        descriptionMember:
+          'El teu accés a {{organization}}, què pot fer cada rol i a qui demanar un canvi.',
+        yourRole: 'El teu rol',
+        needDifferent: 'Necessites un altre rol?',
+        onlyAdmin:
+          'Només un administrador de l’organització el pot canviar. Escriu a un d’ells des de Missatges:',
+        noAdmin: 'Ara mateix no s’ha pogut mostrar cap administrador.',
+        peopleTitle: 'Persones de {{organization}}',
+        peopleDescription:
+          'Només lectura. Els agents veuen qui s’encarrega de què; els administradors ho gestionen.',
+        loading: 'S’estan carregant els membres',
+      },
+    },
+  },
+  admin: {
+    eyebrow: 'ADMINISTRACIÓ DE LA PLATAFORMA',
+    platformAdministrator: 'Administrador de la plataforma',
+    platformRole: {
+      USER: 'Usuari estàndard',
+      GLOBAL_ADMIN: 'Administrador global',
+    },
+    accountState: {
+      ACTIVE: 'Actiu',
+      SUSPENDED: 'Suspès',
+      PENDING: 'Invitació pendent',
+    },
+    accessDenied: {
+      title: 'Accés restringit',
+      description:
+        'Només els administradors de la plataforma poden obrir aquesta zona. Si la necessites, demana accés a un d’ells.',
+      back: 'Torna a l’espai de treball',
+    },
+    users: {
+      title: 'Usuaris',
+      description:
+        'Gestiona els comptes de la plataforma, el seu accés a les organitzacions i el seu estat.',
+      invite: 'Convida un usuari',
+      cards: {
+        sampleUsers: 'Usuaris d’exemple',
+        accounts: 'Comptes',
+        active: 'Actius',
+        administrators: 'Administradors',
+        organizations: 'Organitzacions',
+      },
+      panelTitle: 'Usuaris de la plataforma',
+      search: 'Cerca usuaris de la plataforma',
+      searchPlaceholder: 'Cerca per nom o correu',
+      roles: 'Rols',
+      allRoles: 'Tots els rols',
+      states: 'Estats',
+      allStates: 'Tots els estats',
+      columns: {
+        user: 'USUARI',
+        organization: 'ORGANITZACIÓ',
+        globalRole: 'ROL GLOBAL',
+        state: 'ESTAT',
+      },
+      loading: 'S’estan carregant els usuaris…',
+      edit: 'Edita {{name}}',
+      emptyTitle: 'Cap usuari coincideix amb aquests filtres',
+      emptyDescription: 'Ajusta la cerca o els filtres de rol i estat.',
+      errorTitle: 'No s’han pogut llegir els usuaris',
+      showingSample: 'Es mostren {{shown}} de {{total}} usuaris d’exemple',
+      showing: 'Es mostren {{shown}} de {{total}} comptes i invitacions',
+      organizations_one: '{{count}} organització',
+      organizations_other: '{{count}} organitzacions',
+      invitedUser: 'Usuari convidat',
+      locked: {
+        primary:
+          'És l’administrador principal, creat en desplegar: el seu rol i el seu estat no es poden canviar des d’aquí.',
+        self: 'És el teu propi compte: un altre administrador ha de canviar el teu rol o el teu estat.',
+        email:
+          'L’adreça de correu és la identitat per iniciar sessió i no s’edita des d’aquí. Suspendre bloqueja l’accés; eliminar tanca el compte.',
+      },
+      feedback: {
+        invitationPrepared: 'Invitació preparada per a {{email}}.',
+        updated: 'S’ha actualitzat {{name}}.',
+        platformReserved:
+          'Invitació enviada a {{email}}: l’administració de la plataforma queda reservada fins que creï el compte i confirmi l’adreça.',
+        platformApplied:
+          '{{name}} ja tenia compte i ara és administrador de la plataforma.',
+        organizationFirst:
+          'Crea primer una organització: un usuari estàndard s’hi convida.',
+        roleReserved:
+          'Invitació enviada a {{email}}: el rol queda reservat fins que creï el compte i confirmi l’adreça.',
+        roleApplied: '{{name}} ja tenia compte i ara té el rol.',
+        deleted: 'S’ha eliminat el compte de {{name}}.',
+      },
+    },
+    userDialog: {
+      inviteTitle: 'Convida un usuari',
+      editTitle: 'Edita un usuari de la plataforma',
+      inviteDescription:
+        'La persona crea el seu propi compte i la seva contrasenya amb aquesta adreça. L’accés que triïs queda reservat per a ella i s’activa quan la confirmi; a l’acte si ja té un compte confirmat.',
+      editDescription:
+        'Actualitza la identitat, el rol i l’estat del compte de {{name}}.',
+      delete: 'Elimina',
+      send: 'Envia la invitació',
+      save: 'Desa els canvis',
+      fullName: 'Nom complet',
+      email: 'Adreça de correu',
+      platformAccess: 'Accés a la plataforma',
+      initialOrganization: 'Organització inicial',
+      organizationRole: 'Rol a l’organització',
+      accountState: 'Estat del compte',
+      notes: {
+        globalAdmin:
+          'Un administrador de la plataforma pot actuar a totes les organitzacions sense ser membre de cap.',
+        standardUser:
+          'Res no s’activa fins que la persona confirma l’adreça: registrar-la no n’hi ha prou, de manera que ningú no es pot quedar la invitació d’una altra persona.',
+        edit: 'Suspendre bloqueja l’accés. Esborrar les dades personals continua sent una sol·licitud de privacitat a part, que confirma la mateixa persona.',
+      },
+      deleteConfirm: {
+        title: 'Vols eliminar {{name}}?',
+        description:
+          '{{name}} ja no podrà iniciar sessió: totes les seves sessions es tanquen ara i el compte desapareix de la plataforma. Els seus tiquets i comentaris es queden, per a qui en depèn.',
+        keep: 'Conserva el compte',
+        confirm: 'Elimina el compte',
+      },
+    },
+    roles: {
+      title: 'Rols de la plataforma',
+      eyebrowDialog: 'ROLS DE LA PLATAFORMA',
+      description:
+        'Dona l’administració de la plataforma a una adreça de correu. Un compte confirmat la rep a l’acte; qualsevol altra adreça la deixa reservada fins que la persona creï el compte amb aquella adreça i la confirmi.',
+      cards: {
+        administrators: 'Administradors de la plataforma',
+        waitingAccount: 'Esperant un compte',
+        waitingVerification: 'Esperant la confirmació del correu',
+      },
+      assignTitle: 'Assigna un rol de plataforma',
+      assignDescription:
+        'Tot compte comença com a usuari estàndard. Per retirar l’administració a algú, fes servir Retira a la llista de sota.',
+      roleToAssign: 'Rol que s’assigna',
+      roleDescription:
+        'Gestiona tots els comptes, organitzacions i rols de la plataforma, actua a qualsevol organització i consulta el registre d’auditoria.',
+      loading: 'S’estan carregant els rols de la plataforma',
+      administratorsDescription:
+        'Poden gestionar tota la plataforma. L’administrador principal es crea en desplegar i no es pot retirar des d’aquí.',
+      you: 'Tu',
+      primary: 'Principal · protegit',
+      unconfirmed: 'Adreça sense confirmar',
+      suspended: 'Suspès',
+      lastSignIn: 'Darrer inici de sessió: {{date}}',
+      ownRole: 'El teu propi rol',
+      protected: 'Protegit',
+      withdraw: 'Retira',
+      withdrawFrom: 'Retira l’administració de la plataforma a {{name}}',
+      reservationsTitle: 'Reservat per a una adreça de correu',
+      reservationsDescription:
+        'Adreces que passaran a administrar la plataforma quan existeixi el compte i es confirmi l’adreça.',
+      reservationsEmpty:
+        'Quan assignes el rol a una adreça sense compte confirmat, espera aquí.',
+      feedback: {
+        applied:
+          '{{name}} ja és administrador de la plataforma. El canvi s’aplica a l’acte a la seva sessió actual.',
+        unchanged:
+          '{{name}} ja era administrador de la plataforma. No ha canviat res.',
+        reservedVerification:
+          'Reservat per a {{email}}. Aquest compte existeix, però la seva adreça no està confirmada: el rol s’aplica tan aviat com ho estigui. Li hem enviat un correu.',
+        reservedAccount:
+          'Reservat per a {{email}}. Encara ningú no ha registrat aquesta adreça: el rol s’aplica quan creï el compte amb aquesta adreça i la confirmi. Li hem enviat un correu.',
+        withdrawn:
+          '{{name}} torna a ser un usuari estàndard. El seu compte i els seus rols a les organitzacions no canvien.',
+        cancelled:
+          'S’ha cancel·lat la reserva per a {{email}}. Confirmar aquesta adreça ja no dona cap rol.',
+      },
+      withdrawDialog: {
+        title: 'Vols retirar l’administració de la plataforma?',
+        description:
+          '{{name}} conserva el seu compte, les seves organitzacions i els seus rols. El que perd, a l’acte, és l’administració de la plataforma.',
+        keep: 'Mantén el rol',
+        confirm: 'Retira l’administració',
+      },
+    },
+  },
   errors: {
     common: {
       unexpected: 'Error inesperat. Torna-ho a provar.',

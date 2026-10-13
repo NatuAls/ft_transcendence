@@ -2,7 +2,10 @@ import { BrandMark, Button, Icon, LoadingState } from 'ui';
 import { useEffect, useRef, useState } from 'react';
 import { verifyEmail } from '../../api/verification';
 import { previewMode, type ViewerSession } from '../../app/session';
-import { organizationRoleLabel } from '../roles/rolesGateway';
+import {
+  platformAdministratorText,
+  roleInOrganizationText,
+} from '../roles/rolesGateway';
 
 type State =
   | { kind: 'checking' }
@@ -58,11 +61,10 @@ export function VerifyEmailPage({
   const access = viewer
     ? [
         ...(viewer.globalRole === 'GLOBAL_ADMIN'
-          ? ['Platform administrator']
+          ? [platformAdministratorText()]
           : []),
-        ...viewer.memberships.map(
-          (membership) =>
-            `${organizationRoleLabel(membership.role)} in ${membership.organizationName}`,
+        ...viewer.memberships.map((membership) =>
+          roleInOrganizationText(membership.role, membership.organizationName),
         ),
       ]
     : [];

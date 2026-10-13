@@ -1,66 +1,99 @@
+import type { OrgRole, ReservationWaitingFor } from 'contracts';
+
 export type OrgTab = 'members' | 'roles' | 'categories';
 export type OrganizationDialogKind =
   'add-member' | 'edit-member' | 'settings' | 'category' | 'delete' | null;
 export type DeleteContext = 'edit-member' | 'settings' | null;
-/**
- * Una fila de las tablas de la organización: iniciales, nombre, segunda
- * columna, rol y estado — y, en la aplicación real, su IDENTIFICADOR.
+
+/*
+ * Las filas de las tablas de la organización. Cada una lleva su
+ * IDENTIFICADOR, porque el nombre no sirve para saber de quién es: tres
+ * cuentas distintas pueden llamarse igual. Cuando eso pasaba, las filas
+ * compartían clave de React —aparecían repetidas o fantasma al recargarse la
+ * lista— y, peor, las acciones se aplicaban a la cuenta equivocada, porque la
+ * pantalla buscaba el identificador por nombre. Se vio el 09/10 con tres
+ * cuentas «Felipe Cela». Los datos de muestra lo omiten: ahí los nombres no se
+ * repiten.
  *
- * La sexta posición existe porque las cinco primeras son texto para leer, y
- * ninguna sirve para saber de quién es la fila: tres cuentas distintas pueden
- * llamarse igual. Cuando eso pasaba, las filas compartían clave de React
- * —aparecían repetidas o fantasma al recargarse la lista— y, peor, las
- * acciones se aplicaban a la cuenta equivocada, porque la pantalla buscaba el
- * identificador por nombre. Se vio el 09/10 con tres cuentas «Felipe Cela».
- *
- * Los datos de muestra la omiten: ahí los nombres no se repiten.
+ * Rol y espera van como CÓDIGOS (`AGENT`, `ACCOUNT`…) y la pantalla los
+ * traduce al pintarlos. Antes eran el texto en inglés —«Agent», «Invited»— y
+ * la lógica comparaba contra ese texto, así que traducirlo la habría roto.
  */
-export type OrganizationRow = [string, string, string, string, string, string?];
+
+/** Alguien en la pestaña de miembros: un miembro o una reserva de rol. */
+export interface MemberRow {
+  email: string;
+  /** El de la cuenta si es un miembro; el de la reserva si es una reserva. */
+  id?: string;
+  initials: string;
+  /** Su nombre visible; una reserva aún no tiene otro que su dirección. */
+  name: string;
+  role: OrgRole;
+  /** `null` si ya es miembro; si es una reserva, qué le falta. */
+  waitingFor: ReservationWaitingFor | null;
+}
+
+export interface CategoryRow {
+  description: string;
+  id?: string;
+  initials: string;
+  name: string;
+  tickets: number;
+}
+
+/** Un nivel de acceso de la pestaña de roles y cuántos miembros lo tienen. */
+export interface RoleRow {
+  members: number;
+  role: OrgRole;
+}
 
 /** La identidad de una fila: su id si lo trae, y si no el texto que la nombra. */
-export function rowKey(row: OrganizationRow): string {
-  return row[5] ?? row[1];
+export function rowKey(row: MemberRow | CategoryRow): string {
+  return row.id ?? row.name;
 }
 
 export interface OrganizationFixture {
-  categories: OrganizationRow[];
+  categories: CategoryRow[];
   description: string;
-  members: OrganizationRow[];
+  members: MemberRow[];
   openTickets: number;
 }
 
-const northstarMembers: OrganizationRow[] = [
-  ['MS', 'Maya Singh', 'maya.singh@northstar.test', 'Agent', 'Active'],
-  ['JL', 'John Lee', 'john.lee@northstar.test', 'Member', 'Active'],
-  ['MC', 'Mia Chen', 'mia.chen@northstar.test', 'Organization admin', 'Active'],
-  ['CV', 'Carlos Vega', 'carlos.vega@northstar.test', 'Agent', 'Invited'],
-  ['LP', 'Lena Patel', 'lena.patel@northstar.test', 'Member', 'Active'],
+const member = (
+  initials: string,
+  name: string,
+  email: string,
+  role: OrgRole,
+  waitingFor: ReservationWaitingFor | null = null,
+): MemberRow => ({ email, initials, name, role, waitingFor });
+
+const category = (
+  initials: string,
+  name: string,
+  description: string,
+  tickets: number,
+): CategoryRow => ({ description, initials, name, tickets });
+
+const northstarMembers: MemberRow[] = [
+  member('MS', 'Maya Singh', 'maya.singh@northstar.test', 'AGENT'),
+  member('JL', 'John Lee', 'john.lee@northstar.test', 'MEMBER'),
+  member('MC', 'Mia Chen', 'mia.chen@northstar.test', 'ORG_ADMIN'),
+  member(
+    'CV',
+    'Carlos Vega',
+    'carlos.vega@northstar.test',
+    'AGENT',
+    'VERIFICATION',
+  ),
+  member('LP', 'Lena Patel', 'lena.patel@northstar.test', 'MEMBER'),
 ];
 
-const northstarCategories: OrganizationRow[] = [
-  [
-    'AA',
-    'Account access',
-    'Login, identity and access requests',
-    '18 tickets',
-    '',
-  ],
-  ['BI', 'Billing', 'Payments, invoices and refunds', '7 tickets', ''],
-  [
-    'OR',
-    'Organization',
-    'Membership and organization settings',
-    '11 tickets',
-    '',
-  ],
-  [
-    'TI',
-    'Technical issue',
-    'Application errors and incidents',
-    '9 tickets',
-    '',
-  ],
-  ['OT', 'Other', 'Requests that need manual routing', '4 tickets', ''],
+const northstarCategories: CategoryRow[] = [
+  category('AA', 'Account access', 'Login, identity and access requests', 18),
+  category('BI', 'Billing', 'Payments, invoices and refunds', 7),
+  category('OR', 'Organization', 'Membership and organization settings', 11),
+  category('TI', 'Technical issue', 'Application errors and incidents', 9),
+  category('OT', 'Other', 'Requests that need manual routing', 4),
 ];
 
 const organizationFixtures: Record<string, OrganizationFixture> = {
@@ -72,41 +105,29 @@ const organizationFixtures: Record<string, OrganizationFixture> = {
   },
   'org-helio': {
     categories: [
-      [
-        'LA',
-        'Lab access',
-        'Laboratory access and credentials',
-        '4 tickets',
-        '',
-      ],
-      ['EQ', 'Equipment', 'Research equipment support', '3 tickets', ''],
-      ['OT', 'Other', 'Requests needing manual routing', '2 tickets', ''],
+      category('LA', 'Lab access', 'Laboratory access and credentials', 4),
+      category('EQ', 'Equipment', 'Research equipment support', 3),
+      category('OT', 'Other', 'Requests needing manual routing', 2),
     ],
     description: 'Research operations and internal support for Helio Labs.',
     members: [
-      ['JL', 'John Lee', 'john.lee@northstar.test', 'Member', 'Active'],
-      ['AR', 'Ana Ruiz', 'ana@helio.test', 'Organization admin', 'Active'],
-      ['SO', 'Sofia Ortega', 'sofia@helio.test', 'Agent', 'Active'],
+      member('JL', 'John Lee', 'john.lee@northstar.test', 'MEMBER'),
+      member('AR', 'Ana Ruiz', 'ana@helio.test', 'ORG_ADMIN'),
+      member('SO', 'Sofia Ortega', 'sofia@helio.test', 'AGENT'),
     ],
     openTickets: 9,
   },
   'org-orbit': {
     categories: [
-      ['BI', 'Billing', 'Payments, invoices and refunds', '8 tickets', ''],
-      [
-        'RP',
-        'Reporting',
-        'Financial reporting and dashboards',
-        '5 tickets',
-        '',
-      ],
-      ['AC', 'Access', 'Finance system access requests', '4 tickets', ''],
+      category('BI', 'Billing', 'Payments, invoices and refunds', 8),
+      category('RP', 'Reporting', 'Financial reporting and dashboards', 5),
+      category('AC', 'Access', 'Finance system access requests', 4),
     ],
     description: 'Finance systems, reporting and employee service requests.',
     members: [
-      ['MS', 'Maya Singh', 'maya.singh@northstar.test', 'Member', 'Active'],
-      ['NK', 'Noah Kim', 'noah@orbit.test', 'Organization admin', 'Active'],
-      ['LP', 'Lena Patel', 'lena@orbit.test', 'Agent', 'Active'],
+      member('MS', 'Maya Singh', 'maya.singh@northstar.test', 'MEMBER'),
+      member('NK', 'Noah Kim', 'noah@orbit.test', 'ORG_ADMIN'),
+      member('LP', 'Lena Patel', 'lena@orbit.test', 'AGENT'),
     ],
     openTickets: 17,
   },
@@ -121,47 +142,26 @@ export function organizationFixture(
 ): OrganizationFixture {
   const fixture = organizationFixtures[organizationId] ?? {
     categories: northstarCategories,
-    description:
-      fallbackDescription || 'Organization support and service requests.',
+    description: fallbackDescription,
     members: northstarMembers,
     openTickets: 0,
   };
   return {
     ...fixture,
-    categories: fixture.categories.map((row) => [...row]),
-    members: fixture.members.map((row) => [...row]),
+    categories: fixture.categories.map((row) => ({ ...row })),
+    members: fixture.members.map((row) => ({ ...row })),
   };
 }
 
-export function roleRowsForMembers(
-  members: OrganizationRow[],
-): OrganizationRow[] {
-  const active = members.filter((row) => row[4] === 'Active');
-  const count = (role: string) =>
-    active.filter((row) => row[3] === role).length;
-  return [
-    [
-      'OA',
-      'Organization admin',
-      'Full organization access',
-      `${count('Organization admin')} members`,
-      'All permissions',
-    ],
-    [
-      'AG',
-      'Agent',
-      'Creates tickets and handles organization requests',
-      `${count('Agent')} members`,
-      'Handle tickets',
-    ],
-    [
-      'ME',
-      'Member',
-      'Creates and follows own tickets',
-      `${count('Member')} members`,
-      'Own tickets',
-    ],
-  ];
+/** The three access levels, with how many confirmed members hold each. */
+export function roleRowsForMembers(members: MemberRow[]): RoleRow[] {
+  const count = (role: OrgRole) =>
+    members.filter((row) => row.waitingFor === null && row.role === role)
+      .length;
+  return (['ORG_ADMIN', 'AGENT', 'MEMBER'] as const).map((role) => ({
+    members: count(role),
+    role,
+  }));
 }
 
 export function labelFromEmail(email: string) {

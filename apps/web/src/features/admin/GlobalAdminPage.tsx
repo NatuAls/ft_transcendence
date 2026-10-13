@@ -1,6 +1,6 @@
 import { Alert, Button, Icon, SelectField } from 'ui';
 import { useMemo, useRef, useState } from 'react';
-import type { OrgRole } from 'contracts';
+import { orgRoleSchema } from 'contracts';
 import * as adminApi from '../../api/admin';
 import * as rolesApi from '../../api/roles';
 import { previewMode } from '../../app/session';
@@ -8,31 +8,28 @@ import { getInitials } from '../../app/text';
 import type { OrganizationSummary } from '../organizations/organizationsData';
 import { AdminDialog } from './AdminDialog';
 import { initialUsers } from './adminData';
-import type { AdminDialogKind, AdminUser } from './adminData';
-import { errorMessage } from '../../core/api/errors';
+import type {
+  AccountState,
+  AdminDialogKind,
+  AdminUser,
+  PlatformAccess,
+} from './adminData';
+import { errorKey } from '../../core/api/errors';
 import { AsyncState } from '../../core/async/AsyncState';
 import { useAsync } from '../../core/async/useAsync';
-
-const ORGANIZATION_ROLES: Record<string, OrgRole> = {
-  Agent: 'AGENT',
-  Member: 'MEMBER',
-  'Organization admin': 'ORG_ADMIN',
-};
+import { useTranslation } from '../../core/i18n';
 
 /** An account of the API as the row the table already knows how to draw. */
 function rowFrom(user: adminApi.PlatformUser): AdminUser {
   const name = user.profile?.displayName || user.username;
-  const organizations = user._count.memberships;
-  return [
-    getInitials(name),
+  return {
+    email: user.email,
+    initials: getInitials(name),
     name,
-    user.email,
-    organizations
-      ? `${organizations} ${organizations === 1 ? 'organization' : 'organizations'}`
-      : '—',
-    user.globalRole === 'GLOBAL_ADMIN' ? 'Global admin' : 'Standard user',
-    user.isActive ? 'Active' : 'Suspended',
-  ];
+    organizations: user._count.memberships || null,
+    role: user.globalRole === 'GLOBAL_ADMIN' ? 'GLOBAL_ADMIN' : 'USER',
+    state: user.isActive ? 'ACTIVE' : 'SUSPENDED',
+  };
 }
 
 /**
@@ -48,17 +45,20 @@ export function GlobalAdminPage({
   currentUserId: string;
   organizations: OrganizationSummary[];
 }) {
+  const { t } = useTranslation();
   const [dialog, setDialog] = useState<AdminDialogKind>(null);
-  const [selectedUser, setSelectedUser] = useState<AdminUser>(initialUsers[0]);
+  // Nadie elegido hasta que se abre una fila. Antes arrancaba con la primera
+  // fila de MUESTRA también en la aplicación real.
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [query, setQuery] = useState('');
-  const [role, setRole] = useState('all');
-  const [state, setState] = useState('all');
+  const [role, setRole] = useState<'all' | PlatformAccess>('all');
+  const [state, setState] = useState<'all' | AccountState>('all');
   const [feedback, setFeedback] = useState('');
   const [failure, setFailure] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
 
-  // Rows are display tuples; the API needs the account behind each address,
-  // so both travel together through the one load.
+  // Rows are what the table draws; the API needs the account behind each
+  // address, so both travel together through the one load.
   const directory = useAsync(async () => {
     if (previewMode) return { users: initialUsers, accounts: {} };
     const [page, reservations] = await Promise.all([
@@ -68,14 +68,14 @@ export function GlobalAdminPage({
     return {
       users: [
         ...page.data.map(rowFrom),
-        ...reservations.map((reservation): AdminUser => [
-          getInitials(reservation.email),
-          reservation.email,
-          reservation.email,
-          '—',
-          'Global admin',
-          'Invitation pending',
-        ]),
+        ...reservations.map((reservation): AdminUser => ({
+          email: reservation.email,
+          initials: getInitials(reservation.email),
+          name: reservation.email,
+          organizations: null,
+          role: 'GLOBAL_ADMIN',
+          state: 'PENDING',
+        })),
       ],
       accounts: Object.fromEntries(
         page.data.map((user) => [user.email, user]),
@@ -95,19 +95,28 @@ export function GlobalAdminPage({
   const filteredUsers = useMemo(
     () =>
       users.filter((user) => {
-        const matchesQuery = `${user[1]} ${user[2]}`
+        const matchesQuery = `${user.name} ${user.email}`
           .toLowerCase()
           .includes(query.trim().toLowerCase());
-        const matchesRole = role === 'all' || user[4] === role;
-        const matchesState = state === 'all' || user[5] === state;
+        const matchesRole = role === 'all' || user.role === role;
+        const matchesState = state === 'all' || user.state === state;
         return matchesQuery && matchesRole && matchesState;
       }),
     [query, role, state, users],
   );
 
-  const selectedAccount = accounts[selectedUser[2]];
+  const selectedAccount = selectedUser
+    ? accounts[selectedUser.email]
+    : undefined;
   const selectedIsSelf = selectedAccount?.id === currentUserId;
   const selectedIsPrimary = Boolean(selectedAccount?.isPrimary);
+
+  /** Cuántas organizaciones, o el nombre de una en la vista previa. */
+  function organizationsText(value: AdminUser['organizations']) {
+    return typeof value === 'number'
+      ? t('admin.users.organizations', { count: value })
+      : (value ?? '—');
+  }
 
   function saveUser(kind: Exclude<AdminDialogKind, null>, data: FormData) {
     if (!previewMode) {
@@ -118,41 +127,45 @@ export function GlobalAdminPage({
     const value = (name: string) => String(data.get(name) ?? '').trim();
     if (kind === 'create') {
       const email = value('email');
-      const name = value('name') || email.split('@')[0] || 'Invited user';
-      const platformAccess = value('role');
+      const name =
+        value('name') || email.split('@')[0] || t('admin.users.invitedUser');
+      const platformAccess: PlatformAccess =
+        value('role') === 'GLOBAL_ADMIN' ? 'GLOBAL_ADMIN' : 'USER';
       directory.setData((current) => ({
         accounts: current?.accounts ?? {},
         users: [
           ...(current?.users ?? []),
-          [
-            getInitials(name),
-            name,
+          {
             email,
-            platformAccess === 'Global admin' ? '—' : value('organization'),
-            platformAccess,
-            'Invitation pending',
-          ],
+            initials: getInitials(name),
+            name,
+            organizations:
+              platformAccess === 'GLOBAL_ADMIN' ? null : value('organization'),
+            role: platformAccess,
+            state: 'PENDING',
+          },
         ],
       }));
-      setFeedback(`Invitation prepared for ${email}.`);
-    } else {
+      setFeedback(t('admin.users.feedback.invitationPrepared', { email }));
+    } else if (selectedUser) {
       const name = value('name');
       directory.setData((current) => ({
         accounts: current?.accounts ?? {},
         users: (current?.users ?? []).map((user) =>
-          user[2] === selectedUser[2]
-            ? [
-                getInitials(name),
+          user.email === selectedUser.email
+            ? {
+                ...user,
+                email: value('email'),
+                initials: getInitials(name),
                 name,
-                value('email'),
-                user[3],
-                value('role'),
-                value('state'),
-              ]
+                role:
+                  value('role') === 'GLOBAL_ADMIN' ? 'GLOBAL_ADMIN' : 'USER',
+                state: value('state') === 'SUSPENDED' ? 'SUSPENDED' : 'ACTIVE',
+              }
             : user,
         ),
       }));
-      setFeedback(`${name} was updated.`);
+      setFeedback(t('admin.users.feedback.updated', { name }));
     }
     setDialog(null);
   }
@@ -172,71 +185,80 @@ export function GlobalAdminPage({
     try {
       if (kind === 'create') {
         const email = value('email');
-        if (value('role') === 'Global admin') {
+        if (value('role') === 'GLOBAL_ADMIN') {
           const result = await rolesApi.assignPlatformRole({
             email,
             globalRole: 'GLOBAL_ADMIN',
           });
           setFeedback(
             result.outcome === 'RESERVED'
-              ? `Invitation sent to ${email}: platform administration is reserved until they create the account and confirm the address.`
-              : `${result.user?.displayName ?? email} already has an account and is now a platform administrator.`,
+              ? t('admin.users.feedback.platformReserved', { email })
+              : t('admin.users.feedback.platformApplied', {
+                  name: result.user?.displayName ?? email,
+                }),
           );
         } else {
           const organizationId = value('organization');
           if (!organizationId) {
-            setFailure(
-              'Create an organization first: a standard user is invited into one.',
-            );
+            setFailure(t('admin.users.feedback.organizationFirst'));
             return;
           }
+          const requested = orgRoleSchema.safeParse(value('organization-role'));
           const result = await rolesApi.assignOrganizationRole(organizationId, {
             email,
-            role: ORGANIZATION_ROLES[value('organization-role')] ?? 'MEMBER',
+            role: requested.success ? requested.data : 'MEMBER',
           });
           setFeedback(
             result.outcome === 'RESERVED'
-              ? `Invitation sent to ${email}: the role is reserved until they create the account and confirm the address.`
-              : `${result.user?.displayName ?? email} already has an account and now has the role.`,
+              ? t('admin.users.feedback.roleReserved', { email })
+              : t('admin.users.feedback.roleApplied', {
+                  name: result.user?.displayName ?? email,
+                }),
           );
         }
-      } else if (selectedAccount) {
+      } else if (selectedUser && selectedAccount) {
         const name = value('name');
-        if (name && name !== selectedUser[1]) {
+        if (name && name !== selectedUser.name) {
           await adminApi.updateUserName(selectedAccount.id, name);
         }
         const nextRole = value('role');
-        if (nextRole && nextRole !== selectedUser[4]) {
+        if (nextRole && nextRole !== selectedUser.role) {
           await adminApi.setGlobalRole(
             selectedAccount.id,
-            nextRole === 'Global admin' ? 'GLOBAL_ADMIN' : 'USER',
+            nextRole === 'GLOBAL_ADMIN' ? 'GLOBAL_ADMIN' : 'USER',
           );
         }
         const nextState = value('state');
-        if (nextState && nextState !== selectedUser[5]) {
+        if (nextState && nextState !== selectedUser.state) {
           await adminApi.setUserStatus(
             selectedAccount.id,
-            nextState === 'Active',
+            nextState === 'ACTIVE',
           );
         }
-        setFeedback(`${name || selectedUser[1]} was updated.`);
+        setFeedback(
+          t('admin.users.feedback.updated', {
+            name: name || selectedUser.name,
+          }),
+        );
       }
     } catch (error) {
-      setFailure(errorMessage(error, 'The change could not be saved.'));
+      setFailure(t(errorKey(error)));
     }
     reload();
   }
 
   async function deleteSelected() {
-    if (!selectedAccount) return;
+    if (!selectedUser || !selectedAccount) return;
     setDialog(null);
     setFeedback('');
     setFailure('');
     try {
       await adminApi.deleteUser(selectedAccount.id);
-      setFeedback(`${selectedUser[1]}'s account was deleted.`);
+      setFeedback(
+        t('admin.users.feedback.deleted', { name: selectedUser.name }),
+      );
     } catch (error) {
-      setFailure(errorMessage(error, 'The account could not be deleted.'));
+      setFailure(t(errorKey(error)));
     }
     reload();
   }
@@ -256,49 +278,60 @@ export function GlobalAdminPage({
       <section className="flex justify-between">
         <div>
           <span className="text-2xs tracking-[.08em] text-muted">
-            PLATFORM ADMINISTRATION
+            {t('admin.eyebrow')}
           </span>
-          <h1 className="my-2 text-[1.875rem] font-medium">Users</h1>
+          <h1 className="my-2 text-[1.875rem] font-medium">
+            {t('admin.users.title')}
+          </h1>
           <p className="text-[0.8125rem] leading-[1.2] text-muted">
-            Manage platform accounts, organization access and account state.
+            {t('admin.users.description')}
           </p>
         </div>
-        <Button onClick={() => setDialog('create')}>Invite user</Button>
+        <Button
+          onClick={() => {
+            setSelectedUser(null);
+            setDialog('create');
+          }}
+        >
+          {t('admin.users.invite')}
+        </Button>
       </section>
       <section className="my-[26px] grid grid-cols-4 gap-3 max-[1000px]:grid-cols-2">
         {[
           [
-            String(
-              users.filter((user) => user[5] !== 'Invitation pending').length,
-            ),
-            previewMode ? 'Sample users' : 'Accounts',
+            String(users.filter((user) => user.state !== 'PENDING').length),
+            previewMode
+              ? t('admin.users.cards.sampleUsers')
+              : t('admin.users.cards.accounts'),
           ],
           [
-            String(users.filter((user) => user[5] === 'Active').length),
-            'Active',
+            String(users.filter((user) => user.state === 'ACTIVE').length),
+            t('admin.users.cards.active'),
           ],
           [
             String(
               users.filter(
                 (user) =>
-                  user[4] === 'Global admin' &&
-                  user[5] !== 'Invitation pending',
+                  user.role === 'GLOBAL_ADMIN' && user.state !== 'PENDING',
               ).length,
             ),
-            'Administrators',
+            t('admin.users.cards.administrators'),
           ],
           previewMode
             ? [
                 String(
                   new Set(
                     users
-                      .map((user) => user[3])
-                      .filter((value) => value !== '—'),
+                      .map((user) => user.organizations)
+                      .filter((value) => typeof value === 'string'),
                   ).size,
                 ),
-                'Organizations',
+                t('admin.users.cards.organizations'),
               ]
-            : [String(organizations.length), 'Organizations'],
+            : [
+                String(organizations.length),
+                t('admin.users.cards.organizations'),
+              ],
         ].map(([v, l]) => (
           <article
             className="grid gap-[5px] rounded-md border border-border bg-surface p-[18px]"
@@ -330,15 +363,15 @@ export function GlobalAdminPage({
         ) : null}
         <header className="flex items-center gap-[9px] p-4 max-[600px]:grid max-[600px]:grid-cols-2">
           <h2 className="flex-1 text-base font-medium max-[600px]:col-span-2">
-            Platform users
+            {t('admin.users.panelTitle')}
           </h2>
           <label className="flex h-10 min-w-0 items-center rounded-sm border border-border p-2.5 focus-within:border-focus focus-within:outline-3 focus-within:outline-focus max-[600px]:col-span-2">
             <Icon className="mr-1" name="search" size={14} />{' '}
-            <span className="sr-only">Search platform users</span>
+            <span className="sr-only">{t('admin.users.search')}</span>
             <input
               className="min-w-0 flex-1 border-0 bg-transparent outline-0 focus-visible:!outline-none"
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search name or email"
+              placeholder={t('admin.users.searchPlaceholder')}
               ref={searchRef}
               type="search"
               value={query}
@@ -347,32 +380,40 @@ export function GlobalAdminPage({
           <SelectField
             className="max-[600px]:w-full"
             hideLabel
-            label="Roles"
-            onChange={(event) => setRole(event.target.value)}
+            label={t('admin.users.roles')}
+            onChange={(event) =>
+              setRole(event.target.value as 'all' | PlatformAccess)
+            }
             value={role}
           >
-            <option value="all">All roles</option>
-            <option value="Standard user">Standard user</option>
-            <option value="Global admin">Global admin</option>
+            <option value="all">{t('admin.users.allRoles')}</option>
+            <option value="USER">{t('admin.platformRole.USER')}</option>
+            <option value="GLOBAL_ADMIN">
+              {t('admin.platformRole.GLOBAL_ADMIN')}
+            </option>
           </SelectField>
           <SelectField
             className="max-[600px]:w-full"
             hideLabel
-            label="States"
-            onChange={(event) => setState(event.target.value)}
+            label={t('admin.users.states')}
+            onChange={(event) =>
+              setState(event.target.value as 'all' | AccountState)
+            }
             value={state}
           >
-            <option value="all">All states</option>
-            <option value="Active">Active</option>
-            <option value="Suspended">Suspended</option>
-            <option value="Invitation pending">Invitation pending</option>
+            <option value="all">{t('admin.users.allStates')}</option>
+            <option value="ACTIVE">{t('admin.accountState.ACTIVE')}</option>
+            <option value="SUSPENDED">
+              {t('admin.accountState.SUSPENDED')}
+            </option>
+            <option value="PENDING">{t('admin.accountState.PENDING')}</option>
           </SelectField>
         </header>
         <div className="grid w-full grid-cols-[2fr_1fr_1fr_1fr_25px] items-center gap-2.5 border-t border-border bg-surface-secondary px-[18px] py-[13px] text-left text-3xs text-muted max-[1000px]:grid-cols-[2fr_1fr_1fr_20px] max-[1000px]:[&>span:nth-child(2)]:hidden">
-          <span>USER</span>
-          <span>ORGANIZATION</span>
-          <span>GLOBAL ROLE</span>
-          <span>STATE</span>
+          <span>{t('admin.users.columns.user')}</span>
+          <span>{t('admin.users.columns.organization')}</span>
+          <span>{t('admin.users.columns.globalRole')}</span>
+          <span>{t('admin.users.columns.state')}</span>
           <span />
         </div>
         {directory.status === 'loading' ? (
@@ -380,47 +421,51 @@ export function GlobalAdminPage({
             className="border-t border-border p-5 text-xs text-muted"
             role="status"
           >
-            Loading users…
+            {t('admin.users.loading')}
           </p>
         ) : null}
         {filteredUsers.map((user) => (
           <button
-            aria-label={`Edit ${user[1]}`}
+            aria-label={t('admin.users.edit', { name: user.name })}
             className="grid w-full grid-cols-[2fr_1fr_1fr_1fr_25px] items-center gap-2.5 border-t border-border px-[18px] py-[13px] text-left text-xs2 max-[1000px]:grid-cols-[2fr_1fr_1fr_20px] max-[1000px]:[&>span:nth-child(2)]:hidden"
-            key={`${user[2]}-${user[5]}`}
+            key={`${user.email}-${user.state}`}
             onClick={() => {
-              if (user[5] === 'Invitation pending') return;
+              if (user.state === 'PENDING') return;
               setSelectedUser(user);
               setDialog('edit');
             }}
-            disabled={user[5] === 'Invitation pending'}
+            disabled={user.state === 'PENDING'}
             type="button"
           >
             <span className="flex items-center gap-2.5">
               <b className="grid size-8 place-items-center rounded-full bg-surface-secondary text-3xs text-primary">
-                {user[0]}
+                {user.initials}
               </b>
               <span className="grid">
-                <strong className="text-xs2">{user[1]}</strong>
-                <small className="text-3xs text-muted">{user[2]}</small>
+                <strong className="text-xs2">{user.name}</strong>
+                <small className="text-3xs text-muted">{user.email}</small>
               </span>
             </span>
-            <span className="text-xs2">{user[3]}</span>
-            <span className="text-xs2">{user[4]}</span>
+            <span className="text-xs2">
+              {organizationsText(user.organizations)}
+            </span>
+            <span className="text-xs2">
+              {t(`admin.platformRole.${user.role}`)}
+            </span>
             <span
-              className={`text-xs2 ${user[5] === 'Suspended' ? 'text-danger' : ''}`}
+              className={`text-xs2 ${user.state === 'SUSPENDED' ? 'text-danger' : ''}`}
             >
-              ● {user[5]}
+              ● {t(`admin.accountState.${user.state}`)}
             </span>
             <span>⋯</span>
           </button>
         ))}
         {directory.status !== 'loading' ? (
           <AsyncState
-            emptyDescription="Adjust the search, role or state filters."
-            emptyTitle="No users match these filters"
+            emptyDescription={t('admin.users.emptyDescription')}
+            emptyTitle={t('admin.users.emptyTitle')}
             error={directory.error}
-            errorTitle="Users could not be read"
+            errorTitle={t('admin.users.errorTitle')}
             isEmpty={!filteredUsers.length}
             onRetry={reload}
             status={directory.status}
@@ -429,8 +474,13 @@ export function GlobalAdminPage({
           </AsyncState>
         ) : null}
         <footer className="p-4 text-2xs text-muted">
-          Showing {filteredUsers.length} of {users.length}
-          {previewMode ? ' sample users' : ' accounts and invitations'}
+          {t(
+            previewMode ? 'admin.users.showingSample' : 'admin.users.showing',
+            {
+              shown: filteredUsers.length,
+              total: users.length,
+            },
+          )}
         </footer>
       </section>
       {dialog && (
@@ -443,10 +493,10 @@ export function GlobalAdminPage({
               : {
                   email: true,
                   reason: selectedIsPrimary
-                    ? 'This is the primary administrator, created at deployment: its role and state cannot be changed from here.'
+                    ? t('admin.users.locked.primary')
                     : selectedIsSelf
-                      ? 'This is your own account: another administrator has to change your role or state.'
-                      : 'The e-mail address is the sign-in identity and is not edited from here. Suspending blocks access; deleting closes the account.',
+                      ? t('admin.users.locked.self')
+                      : t('admin.users.locked.email'),
                   role: selectedIsSelf || selectedIsPrimary,
                   state: selectedIsSelf || selectedIsPrimary,
                 }
@@ -463,7 +513,7 @@ export function GlobalAdminPage({
           }
           onSave={(data) => saveUser(dialog, data)}
           organizationOptions={organizationOptions}
-          user={selectedUser}
+          user={dialog === 'edit' ? (selectedUser ?? undefined) : undefined}
         />
       )}
     </div>

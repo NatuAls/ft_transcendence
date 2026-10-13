@@ -1,14 +1,16 @@
 import { Alert, Button, IconButton, Tabs } from 'ui';
 import { useState } from 'react';
-import type { OrgRole } from 'contracts';
+import { orgRoleSchema, type OrgRole } from 'contracts';
 import * as organizationsApi from '../../api/organizations';
 import * as rolesApi from '../../api/roles';
 import { previewMode } from '../../app/session';
 import { getInitials } from '../../app/text';
+import { organizationRoleLabel } from '../roles/rolesGateway';
 import { OrganizationDialog } from './OrganizationDialog';
-import { errorMessage } from '../../core/api/errors';
+import { errorKey } from '../../core/api/errors';
 import { AsyncState } from '../../core/async/AsyncState';
 import { useAsync } from '../../core/async/useAsync';
+import { useTranslation } from '../../core/i18n';
 import { RealtimeEvents } from '../../core/realtime/socket';
 import {
   useOrganizationRoom,
@@ -21,23 +23,33 @@ import {
   rowKey,
 } from './organizationData';
 import type {
+  CategoryRow,
   DeleteContext,
+  MemberRow,
   OrganizationDialogKind,
   OrganizationFixture,
-  OrganizationRow,
   OrgTab,
 } from './organizationData';
 
-const ROLE_BY_LABEL: Record<string, OrgRole> = {
-  Agent: 'AGENT',
-  Member: 'MEMBER',
-  'Organization admin': 'ORG_ADMIN',
-};
-const LABEL_BY_ROLE: Record<OrgRole, string> = {
-  AGENT: 'Agent',
-  MEMBER: 'Member',
-  ORG_ADMIN: 'Organization admin',
-};
+/** El rol que envía un formulario: su código, o MEMBER si no es ninguno. */
+function roleFromForm(value: string): OrgRole {
+  const parsed = orgRoleSchema.safeParse(value);
+  return parsed.success ? parsed.data : 'MEMBER';
+}
+
+/** Una fila tal como la pinta la tabla, sea de la pestaña que sea. */
+interface TableRow {
+  /** Sólo en la pestaña de roles: el acceso que da. */
+  access?: string;
+  badge: string;
+  category?: CategoryRow;
+  detail: string;
+  key: string;
+  member?: MemberRow;
+  name: string;
+  /** Segunda columna: el rol, los miembros o los tickets. */
+  second: string;
+}
 
 export function OrganizationPage({
   canManageCategories,
@@ -82,6 +94,7 @@ export function OrganizationPage({
   organizationName: string;
   organizationRole: 'AGENT' | 'GLOBAL_ADMIN' | 'MEMBER' | 'ORG_ADMIN';
 }) {
+  const { t } = useTranslation();
   // Sample rows in the preview; the application starts empty and reads the
   // organization from the API below.
   const fixture: OrganizationFixture = previewMode
@@ -99,7 +112,7 @@ export function OrganizationPage({
   // Who created the organization: the API lets only them (or a platform
   // administrator) delete it.
   const [deleteContext, setDeleteContext] = useState<DeleteContext>(null);
-  const [selectedName, setSelectedName] = useState('Maya Singh');
+  const [selectedName, setSelectedName] = useState('');
   const [feedback, setFeedback] = useState('');
   const [failure, setFailure] = useState('');
 
@@ -135,41 +148,35 @@ export function OrganizationPage({
           : null,
       ]);
     return {
-      categoryRows: categories.map((category): OrganizationRow => {
-        const count = category._count?.tickets ?? 0;
-        return [
-          getInitials(category.name),
-          category.name,
-          category.description ?? '',
-          `${count} ${count === 1 ? 'ticket' : 'tickets'}`,
-          '',
-          category.id,
-        ];
-      }),
+      categoryRows: categories.map((category): CategoryRow => ({
+        description: category.description ?? '',
+        id: category.id,
+        initials: getInitials(category.name),
+        name: category.name,
+        tickets: category._count?.tickets ?? 0,
+      })),
       createdById: detail?.createdById ?? null,
       // Cada fila con su identificador. Antes se guardaban tres diccionarios
       // (miembros, reservas y categorías) con el TEXTO de la fila como clave,
       // y con tres cuentas llamadas igual sólo sobrevivía la última: la
       // pantalla acababa cambiando el rol de otra persona.
       memberRows: [
-        ...(members ?? []).map((member): OrganizationRow => [
-          getInitials(member.displayName),
-          member.displayName,
-          member.email,
-          LABEL_BY_ROLE[member.role],
-          'Active',
-          member.userId,
-        ]),
-        ...(reservations ?? []).map((reservation): OrganizationRow => [
-          getInitials(labelFromEmail(reservation.email)),
-          reservation.email,
-          reservation.waitingFor === 'ACCOUNT'
-            ? 'Waiting for the account'
-            : 'Waiting for e-mail confirmation',
-          LABEL_BY_ROLE[reservation.role],
-          'Invited',
-          reservation.id,
-        ]),
+        ...(members ?? []).map((member): MemberRow => ({
+          email: member.email,
+          id: member.userId,
+          initials: getInitials(member.displayName),
+          name: member.displayName,
+          role: member.role,
+          waitingFor: null,
+        })),
+        ...(reservations ?? []).map((reservation): MemberRow => ({
+          email: reservation.email,
+          id: reservation.id,
+          initials: getInitials(labelFromEmail(reservation.email)),
+          name: reservation.email,
+          role: reservation.role,
+          waitingFor: reservation.waitingFor,
+        })),
       ],
       // Sólo OPEN, igual que la tarjeta «Open» de la lista de tickets. Antes
       // sumaba también IN_PROGRESS: los datos eran los mismos, pero la misma
@@ -259,28 +266,57 @@ export function OrganizationPage({
     );
   }
 
-  const rows =
-    tab === 'members' ? memberRows : tab === 'roles' ? roleRows : categoryRows;
-  const selectedRow = rows.find((row) => rowKey(row) === selectedKey);
   // Quién es la fila elegida, sacado de ELLA y no de un diccionario por texto.
+  const selectedMember =
+    tab === 'members'
+      ? memberRows.find((row) => rowKey(row) === selectedKey)
+      : undefined;
+  const selectedCategory =
+    tab === 'categories'
+      ? categoryRows.find((row) => rowKey(row) === selectedKey)
+      : undefined;
   const selectedMemberId =
-    selectedRow?.[4] === 'Active' ? selectedRow[5] : undefined;
-  const selectedReservationId =
-    selectedRow?.[4] === 'Invited' ? selectedRow[5] : undefined;
-  const selectedCategoryId =
-    tab === 'categories' ? selectedRow?.[5] : undefined;
-  const title =
+    selectedMember?.waitingFor === null ? selectedMember.id : undefined;
+  const selectedReservationId = selectedMember?.waitingFor
+    ? selectedMember.id
+    : undefined;
+  const selectedCategoryId = selectedCategory?.id;
+  const title = t(`organization.page.title.${tab}`);
+  const description = t(`organization.page.description.${tab}`, {
+    organization: organizationName,
+  });
+
+  // Lo que se pinta, traducido aquí y no al leer de la API: así la tabla
+  // cambia de idioma con la aplicación abierta.
+  const rows: TableRow[] =
     tab === 'members'
-      ? 'Members and access'
+      ? memberRows.map((row) => ({
+          badge: row.initials,
+          detail: row.waitingFor
+            ? t(`organization.access.waiting.${row.waitingFor}.label`)
+            : row.email,
+          key: rowKey(row),
+          member: row,
+          name: row.name,
+          second: organizationRoleLabel(row.role),
+        }))
       : tab === 'roles'
-        ? 'Access roles and permissions'
-        : 'Ticket categories';
-  const description =
-    tab === 'members'
-      ? `Changes apply only inside ${organizationName}.`
-      : tab === 'roles'
-        ? `Review the fixed access levels used inside ${organizationName}.`
-        : 'Create categories used to classify and route support requests.';
+        ? roleRows.map((row) => ({
+            access: t(`organization.page.roleRows.${row.role}.access`),
+            badge: t(`organization.page.roleRows.${row.role}.badge`),
+            detail: t(`organization.page.roleRows.${row.role}.description`),
+            key: row.role,
+            name: organizationRoleLabel(row.role),
+            second: t('organization.members', { count: row.members }),
+          }))
+        : categoryRows.map((row) => ({
+            badge: row.initials,
+            category: row,
+            detail: row.description,
+            key: rowKey(row),
+            name: row.name,
+            second: t('organization.tickets', { count: row.tickets }),
+          }));
   const tableGridClass =
     tab === 'members'
       ? 'grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_44px]'
@@ -343,17 +379,23 @@ export function OrganizationPage({
       if (kind === 'add-member') {
         const result = await rolesApi.assignOrganizationRole(organizationId, {
           email: value('email'),
-          role: ROLE_BY_LABEL[value('role')] ?? 'MEMBER',
+          role: roleFromForm(value('role')),
         });
+        const name = result.user?.displayName ?? result.email;
         setFeedback(
           result.outcome === 'RESERVED'
-            ? `Role reserved for ${result.email}: they join when they create their account with that address and confirm it.`
+            ? t('organization.page.feedback.roleReserved', {
+                email: result.email,
+              })
             : result.outcome === 'UNCHANGED'
-              ? `${result.user?.displayName ?? result.email} already had that role.`
-              : `${result.user?.displayName ?? result.email} now has access to ${organizationName}.`,
+              ? t('organization.page.feedback.alreadyHad', { name })
+              : t('organization.page.feedback.nowHasAccess', {
+                  name,
+                  organization: organizationName,
+                }),
         );
       } else if (kind === 'edit-member') {
-        const role = ROLE_BY_LABEL[value('role')] ?? 'MEMBER';
+        const role = roleFromForm(value('role'));
         if (memberId) {
           await rolesApi.changeMemberRole(organizationId, memberId, role);
           if (memberId === currentUserId) onAccessChanged();
@@ -365,7 +407,9 @@ export function OrganizationPage({
             role,
           });
         }
-        setFeedback(`${selectedName}'s organization access was updated.`);
+        setFeedback(
+          t('organization.page.feedback.accessUpdated', { name: selectedName }),
+        );
       } else if (kind === 'settings') {
         const updated = await organizationsApi.updateOrganization(
           organizationId,
@@ -377,7 +421,7 @@ export function OrganizationPage({
         onOrganizationNameChange(updated.name);
         onOrganizationDescriptionChange(updated.description ?? '');
         onOrganizationsChanged(organizationId);
-        setFeedback('Organization details were updated.');
+        setFeedback(t('organization.page.feedback.detailsUpdated'));
       } else if (kind === 'category') {
         const input = {
           description: value('description') || undefined,
@@ -395,18 +439,26 @@ export function OrganizationPage({
             color: '#0d6c90',
           });
         }
-        setFeedback(`Category “${input.name}” was saved.`);
+        setFeedback(
+          t('organization.page.feedback.categorySaved', { name: input.name }),
+        );
       } else if (context === 'edit-member') {
         const reservationId = selectedReservationId;
         if (memberId) {
           await rolesApi.removeMember(organizationId, memberId);
-          setFeedback(`${selectedName} was removed from the organization.`);
+          setFeedback(
+            t('organization.page.feedback.removed', { name: selectedName }),
+          );
         } else if (reservationId) {
           await rolesApi.cancelOrganizationReservation(
             organizationId,
             reservationId,
           );
-          setFeedback(`The reservation for ${selectedName} was cancelled.`);
+          setFeedback(
+            t('organization.page.feedback.reservationCancelled', {
+              name: selectedName,
+            }),
+          );
         }
       } else if (context === 'settings') {
         await organizationsApi.deleteOrganization(organizationId);
@@ -416,7 +468,7 @@ export function OrganizationPage({
       }
       reload();
     } catch (error) {
-      setFailure(errorMessage(error, 'The change could not be saved.'));
+      setFailure(t(errorKey(error)));
     }
   }
 
@@ -431,52 +483,61 @@ export function OrganizationPage({
       patchRows((current) => ({
         memberRows: [
           ...current.memberRows,
-          [getInitials(name), name, email, value('role'), 'Invited'],
+          {
+            email,
+            initials: getInitials(name),
+            name,
+            role: roleFromForm(value('role')),
+            waitingFor: 'ACCOUNT',
+          },
         ],
       }));
-      setFeedback(`Invitation prepared for ${email}.`);
+      setFeedback(
+        t('organization.page.feedback.invitationPrepared', { email }),
+      );
     } else if (kind === 'edit-member') {
       patchRows((current) => ({
         memberRows: current.memberRows.map((row) =>
           rowKey(row) === selectedKey
-            ? [row[0], row[1], row[2], value('role'), row[4], row[5]]
+            ? { ...row, role: roleFromForm(value('role')) }
             : row,
         ),
       }));
-      setFeedback(`${selectedName}'s organization access was updated.`);
+      setFeedback(
+        t('organization.page.feedback.accessUpdated', { name: selectedName }),
+      );
     } else if (kind === 'settings') {
       onOrganizationNameChange(value('organization-name'));
       onOrganizationDescriptionChange(value('description'));
-      setFeedback(
-        'Organization details were updated in this frontend preview.',
-      );
+      setFeedback(t('organization.page.feedback.detailsUpdatedPreview'));
     } else if (kind === 'category') {
       const name = value('category-name');
       // El identificador de la fila se conserva: es lo que la nombra, no su
       // texto, que es justo lo que se está cambiando.
-      const nextRow = (id?: string): OrganizationRow => [
-        getInitials(name),
+      const nextRow = (previous?: CategoryRow): CategoryRow => ({
+        description: value('description'),
+        id: previous?.id,
+        initials: getInitials(name),
         name,
-        value('description'),
-        selectedRow?.[3] ?? '0 tickets',
-        '',
-        id,
-      ];
+        tickets: previous?.tickets ?? 0,
+      });
       patchRows((current) => ({
         categoryRows: selectedKey
           ? current.categoryRows.map((row) =>
-              rowKey(row) === selectedKey ? nextRow(row[5]) : row,
+              rowKey(row) === selectedKey ? nextRow(row) : row,
             )
           : [...current.categoryRows, nextRow()],
       }));
-      setFeedback(`Category “${name}” was saved.`);
+      setFeedback(t('organization.page.feedback.categorySaved', { name }));
     } else if (deleteContext === 'edit-member') {
       patchRows((current) => ({
         memberRows: current.memberRows.filter(
           (row) => rowKey(row) !== selectedKey,
         ),
       }));
-      setFeedback(`${selectedName} was removed from the organization.`);
+      setFeedback(
+        t('organization.page.feedback.removed', { name: selectedName }),
+      );
     } else if (deleteContext === 'settings') {
       onOrganizationDeleted();
     }
@@ -489,24 +550,26 @@ export function OrganizationPage({
       <header className="flex items-end justify-between max-md:items-start">
         <div>
           <span className="text-xs2 tracking-[.08em] text-muted max-md:hidden">
-            {canManageOrganization ? 'ORGANIZATION SETTINGS' : 'ORGANIZATION'}
+            {canManageOrganization
+              ? t('organization.page.eyebrowSettings')
+              : t('organization.eyebrow')}
           </span>
           <h1 className="my-2 text-[1.875rem] font-medium max-md:text-[1.375rem]">
             {organizationName}
           </h1>
           <p className="text-sm text-muted max-md:hidden">
             {canManageOrganization
-              ? organizationDescription
+              ? organizationDescription || t('organization.defaultDescription')
               : organizationRole === 'AGENT'
-                ? 'Review ticket workload and the categories used by this organization.'
-                : 'View your access and the categories available when creating tickets.'}
+                ? t('organization.page.descriptionAgent')
+                : t('organization.page.descriptionMember')}
           </p>
         </div>
         <div className="flex items-center gap-3">
           {canManageOrganization ? (
             <>
               <span className="text-xs2 text-success max-md:hidden">
-                Organization admin tools
+                {t('organization.page.adminTools')}
               </span>
               <Button
                 className="max-md:!min-h-9 max-md:!px-2.5"
@@ -518,7 +581,7 @@ export function OrganizationPage({
                 }}
                 variant="secondary"
               >
-                Edit organization
+                {t('organization.page.edit')}
               </Button>
             </>
           ) : null}
@@ -528,19 +591,24 @@ export function OrganizationPage({
         <section className="my-5 mt-7 grid grid-cols-4 gap-3 max-md:my-[18px] max-md:grid-cols-2">
           {[
             [
-              String(memberRows.filter((row) => row[4] === 'Active').length),
-              'Members',
+              String(
+                memberRows.filter((row) => row.waitingFor === null).length,
+              ),
+              t('organization.page.stats.members'),
             ],
             [
               String(
                 memberRows.filter(
-                  (row) => row[3] === 'Agent' && row[4] === 'Active',
+                  (row) => row.role === 'AGENT' && row.waitingFor === null,
                 ).length,
               ),
-              'Support agents',
+              t('organization.page.stats.agents'),
             ],
-            [String(openTickets), 'Open tickets'],
-            [String(categoryRows.length), 'Categories'],
+            [String(openTickets), t('organization.page.stats.openTickets')],
+            [
+              String(categoryRows.length),
+              t('organization.page.stats.categories'),
+            ],
           ].map(([value, label]) => (
             <article
               className="grid gap-[5px] rounded-md border border-border bg-surface p-[18px]"
@@ -554,12 +622,20 @@ export function OrganizationPage({
       ) : (
         <section className="my-5 mt-7 grid grid-cols-2 gap-3 max-md:my-[18px] max-md:grid-cols-1">
           <article className="grid gap-1 rounded-md border border-border bg-surface p-[18px]">
-            <span className="text-xs2 text-muted">Your access</span>
-            <strong className="text-base font-medium">Member</strong>
+            <span className="text-xs2 text-muted">
+              {t('organization.page.yourAccess')}
+            </span>
+            <strong className="text-base font-medium">
+              {organizationRoleLabel('MEMBER')}
+            </strong>
           </article>
           <article className="grid gap-1 rounded-md border border-border bg-surface p-[18px]">
-            <span className="text-xs2 text-muted">Ticket visibility</span>
-            <strong className="text-base font-medium">Your tickets only</strong>
+            <span className="text-xs2 text-muted">
+              {t('organization.page.visibility')}
+            </span>
+            <strong className="text-base font-medium">
+              {t('organization.page.yourTicketsOnly')}
+            </strong>
           </article>
         </section>
       )}
@@ -595,7 +671,9 @@ export function OrganizationPage({
                 className="max-md:!min-h-9 max-md:!px-2.5"
                 onClick={openCreateDialog}
               >
-                {tab === 'members' ? 'Add member' : 'Create category'}
+                {tab === 'members'
+                  ? t('organization.page.addMember')
+                  : t('organization.page.createCategory')}
               </Button>
             ) : null}
           </header>
@@ -604,11 +682,14 @@ export function OrganizationPage({
               <Tabs
                 activeTab={tab}
                 items={[
-                  { id: 'members', label: 'Members' },
-                  { id: 'roles', label: 'Access roles' },
-                  { id: 'categories', label: 'Categories' },
+                  { id: 'members', label: t('organization.page.tabs.members') },
+                  { id: 'roles', label: t('organization.page.tabs.roles') },
+                  {
+                    id: 'categories',
+                    label: t('organization.page.tabs.categories'),
+                  },
                 ]}
-                label="Organization settings"
+                label={t('organization.page.tabsLabel')}
                 onChange={setTab}
               />
             </div>
@@ -620,36 +701,42 @@ export function OrganizationPage({
             >
               <span>
                 {tab === 'members'
-                  ? 'MEMBER'
+                  ? t('organization.page.columns.member')
                   : tab === 'roles'
-                    ? 'ROLE'
-                    : 'CATEGORY'}
+                    ? t('organization.page.columns.role')
+                    : t('organization.page.columns.category')}
               </span>
               {tab !== 'categories' || canReadStats ? (
                 <span>
                   {tab === 'members'
-                    ? 'ROLE'
+                    ? t('organization.page.columns.role')
                     : tab === 'roles'
-                      ? 'MEMBERS'
-                      : 'OPEN TICKETS'}
+                      ? t('organization.page.columns.members')
+                      : t('organization.page.columns.tickets')}
                 </span>
               ) : null}
               {tab !== 'categories' ? (
-                <span>{tab === 'roles' ? 'ACCESS' : 'STATUS'}</span>
+                <span>
+                  {tab === 'roles'
+                    ? t('organization.page.columns.access')
+                    : t('organization.page.columns.status')}
+                </span>
               ) : null}
               {tab !== 'roles' ? <span aria-hidden="true" /> : null}
             </div>
             <AsyncState
               emptyDescription={
                 tab === 'members'
-                  ? 'Add somebody by e-mail address to get started.'
-                  : 'Create one to start routing tickets.'
+                  ? t('organization.page.empty.membersDescription')
+                  : t('organization.page.empty.categoriesDescription')
               }
               emptyTitle={
-                tab === 'members' ? 'No members yet' : 'No categories yet'
+                tab === 'members'
+                  ? t('organization.page.empty.membersTitle')
+                  : t('organization.page.empty.categoriesTitle')
               }
               error={view.error}
-              errorTitle="This organization could not be read"
+              errorTitle={t('organization.page.errorTitle')}
               isEmpty={!rows.length}
               onRetry={reload}
               status={view.status}
@@ -658,7 +745,8 @@ export function OrganizationPage({
                 const editor = tab === 'members' ? 'edit-member' : 'category';
                 const canEdit =
                   tab === 'members'
-                    ? canManageMembers && (row[4] === 'Active' || !previewMode)
+                    ? canManageMembers &&
+                      (row.member?.waitingFor === null || !previewMode)
                     : tab === 'categories'
                       ? canManageCategories
                       : false;
@@ -666,73 +754,82 @@ export function OrganizationPage({
                 return (
                   <div
                     className={`grid border-t border-border ${tableGridClass} ${rowMobileGridClass}`}
-                    key={rowKey(row)}
+                    key={row.key}
                     role="row"
                   >
                     <button
                       aria-label={
                         tab === 'categories'
-                          ? `View tickets in ${row[1]}`
-                          : `Open ${row[1]}`
+                          ? t('organization.page.viewTickets', {
+                              name: row.name,
+                            })
+                          : t('organization.page.open', { name: row.name })
                       }
                       className={`grid min-h-[68px] w-full items-center gap-3 px-[18px] py-[11px] text-left enabled:hover:bg-surface-secondary disabled:cursor-default max-md:col-span-1 max-md:grid-cols-[minmax(0,1fr)_auto] max-md:p-3 ${rowContentClass}`}
                       disabled={!canOpen}
                       onClick={() => {
-                        setSelectedName(row[1]);
-                        setSelectedKey(rowKey(row));
+                        setSelectedName(row.name);
+                        setSelectedKey(row.key);
                         // El ID, no el nombre: la lista de tickets filtra por
                         // `categoryId` contra la API, y con el nombre ésta
                         // respondía 400 («Could not load tickets»). Las filas
                         // de muestra no traen ID y caen al nombre, que es lo
                         // que entiende la lista de la vista previa.
-                        if (tab === 'categories')
-                          onOpenCategory(row[5] ?? row[1]);
+                        if (row.category)
+                          onOpenCategory(row.category.id ?? row.category.name);
                         else if (canEdit) setDialog(editor);
                       }}
                       type="button"
                     >
                       <span className="flex items-center gap-2.5">
                         <b className="grid size-8 place-items-center rounded-full bg-surface-secondary text-3xs text-primary">
-                          {row[0]}
+                          {row.badge}
                         </b>
                         <span className="grid gap-1">
-                          <strong className="text-xs">{row[1]}</strong>
+                          <strong className="text-xs">{row.name}</strong>
                           <small className="text-2xs text-muted max-md:max-w-[180px] max-md:overflow-hidden max-md:text-ellipsis max-md:whitespace-nowrap">
-                            {row[2]}
+                            {row.detail}
                           </small>
                         </span>
                       </span>
                       {tab !== 'categories' || canReadStats ? (
-                        <span className="text-2xs text-muted">{row[3]}</span>
+                        <span className="text-2xs text-muted">
+                          {row.second}
+                        </span>
                       ) : null}
                       {tab !== 'categories' ? (
                         <span className="flex items-center gap-1.5 text-2xs text-muted">
-                          {tab === 'members' ? (
+                          {row.member ? (
                             <i
-                              className={`size-1.5 rounded-full ${row[4] === 'Invited' ? 'bg-warning' : 'bg-success'}`}
+                              className={`size-1.5 rounded-full ${row.member.waitingFor ? 'bg-warning' : 'bg-success'}`}
                             />
                           ) : null}
-                          {row[4] === 'Invited' ? (
-                            <>
-                              Invited
-                              <span className="max-md:hidden">
-                                {' '}
-                                · waiting for the person
-                              </span>
-                            </>
+                          {row.member ? (
+                            row.member.waitingFor ? (
+                              <>
+                                {t('organization.page.invited')}
+                                <span className="max-md:hidden">
+                                  {t('organization.page.waitingForPerson')}
+                                </span>
+                              </>
+                            ) : (
+                              t('organization.page.active')
+                            )
                           ) : (
-                            row[4]
+                            row.access
                           )}
                         </span>
                       ) : null}
                     </button>
                     {canEdit ? (
                       <IconButton
-                        label={`Edit ${row[1]}`}
+                        label={t('organization.page.editRow', {
+                          name: row.name,
+                        })}
                         icon="more"
                         onClick={() => {
-                          setSelectedName(row[1]);
-                          setSelectedKey(rowKey(row));
+                          setSelectedName(row.name);
+                          setSelectedKey(row.key);
                           setDeleteContext(null);
                           setDialog(editor);
                         }}
@@ -750,31 +847,35 @@ export function OrganizationPage({
         {canReadStats ? (
           <aside className="min-w-0 w-full rounded-md border border-border bg-surface p-5 max-[900px]:mt-4 max-md:hidden">
             <h2 className="text-base font-medium">
-              {tab === 'roles'
-                ? 'Permission summary'
-                : tab === 'categories'
-                  ? 'Routing overview'
-                  : 'Ticket categories'}
+              {t(`organization.page.aside.${tab}Title`)}
             </h2>
             <p className="mt-1.5 text-xs2 text-muted">
-              {tab === 'roles'
-                ? 'How access is distributed by role.'
-                : tab === 'categories'
-                  ? 'Open workload by category.'
-                  : 'Used to route new requests.'}
+              {t(`organization.page.aside.${tab}Description`)}
             </p>
             {(tab === 'roles'
-              ? [
-                  ['Create tickets', '3 access roles'],
-                  ['Handle tickets', '2 access roles'],
-                  ['Manage members', '1 access role'],
-                  ['Manage categories', '1 access role'],
-                ]
-              : categoryRows.slice(0, 4).map((row) => [row[1], row[3]])
-            ).map(([label, value]) => (
+              ? (
+                  [
+                    ['createTickets', 3],
+                    ['handleTickets', 2],
+                    ['manageMembers', 1],
+                    ['manageCategories', 1],
+                  ] as const
+                ).map(([capability, roles]) => ({
+                  key: capability,
+                  label: t(`organization.page.aside.${capability}`),
+                  value: t('organization.page.aside.accessRoles', {
+                    count: roles,
+                  }),
+                }))
+              : categoryRows.slice(0, 4).map((row) => ({
+                  key: rowKey(row),
+                  label: row.name,
+                  value: t('organization.tickets', { count: row.tickets }),
+                }))
+            ).map(({ key, label, value }) => (
               <div
                 className="mt-[18px] grid grid-cols-[12px_1fr_auto] gap-[7px]"
-                key={label}
+                key={key}
               >
                 <span className="text-3xs text-brand-mint">●</span>
                 <strong className="text-2xs">{label}</strong>
@@ -810,8 +911,9 @@ export function OrganizationPage({
           onSave={(data) => saveDialog(dialog, data)}
           organizationName={organizationName}
           organizationDescription={organizationDescription}
+          selectedCategory={selectedCategory}
+          selectedMember={selectedMember}
           selectedName={selectedName}
-          selectedRow={selectedRow}
         />
       ) : null}
     </div>

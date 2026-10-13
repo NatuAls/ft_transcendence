@@ -11,7 +11,8 @@ import {
 import { useState, type FormEvent } from 'react';
 import { AsyncState } from '../../core/async/AsyncState';
 import { useAsync } from '../../core/async/useAsync';
-import { errorMessage, fieldErrorsFromIssues } from '../../core/api/errors';
+import { errorKey, fieldErrorsFromIssues } from '../../core/api/errors';
+import { useTranslation } from '../../core/i18n';
 import {
   assignOrganizationRoleSchema,
   type OrgRole,
@@ -20,6 +21,7 @@ import {
 } from 'contracts';
 import {
   formatDate,
+  organizationRoleDescription,
   organizationRoleLabel,
   organizationRoles,
   rolesGateway,
@@ -27,6 +29,7 @@ import {
 } from './rolesGateway';
 import {
   CapabilityMatrix,
+  Highlighted,
   HowTheLinkWorks,
   PageHeader,
   Panel,
@@ -40,9 +43,6 @@ export type OrganizationViewerRole =
   'GLOBAL_ADMIN' | 'ORG_ADMIN' | 'AGENT' | 'MEMBER';
 
 type Feedback = { text: string; tone: 'success' | 'info' | 'danger' } | null;
-
-const roleDescription = (role: OrgRole) =>
-  organizationRoles.find((item) => item.value === role)?.description ?? '';
 
 /**
  * Screen 2 of 2: roles at ORGANIZATION level, for the active organization.
@@ -75,23 +75,24 @@ export function OrganizationRolesPage({
   organizationName: string;
   viewerRole: OrganizationViewerRole;
 }) {
+  const { t } = useTranslation();
   if (!organizationId) {
     return (
       <div className="mx-auto max-w-[1160px] p-10 max-md:px-4 max-md:py-6">
         <PageHeader
-          description="Roles are given inside an organization, and there is none to choose yet."
-          eyebrow="ORGANIZATION"
-          title="Roles & access"
+          description={t('organization.access.none.description')}
+          eyebrow={t('organization.eyebrow')}
+          title={t('organization.access.title')}
         />
         <div className="mt-6">
           <EmptyState
             action={
               <Button onClick={onOpenOrganizations} variant="secondary">
-                Go to organizations
+                {t('organization.access.none.goTo')}
               </Button>
             }
-            description="Create an organization first; its roles are managed here."
-            title="No organization selected"
+            description={t('organization.access.none.hint')}
+            title={t('organization.access.none.title')}
           />
         </div>
       </div>
@@ -130,6 +131,7 @@ function ManageView({
   organizationName: string;
   viewerRole: OrganizationViewerRole;
 }) {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<OrgRole>('MEMBER');
   const [emailError, setEmailError] = useState('');
@@ -152,25 +154,32 @@ function ManageView({
   const reload = roles.reload;
 
   function describe(result: OrganizationRoleAssignment): Feedback {
-    const name = result.user?.displayName ?? result.email;
-    const label = organizationRoleLabel(result.role);
+    const values = {
+      email: result.email,
+      name: result.user?.displayName ?? result.email,
+      organization: organizationName,
+      role: organizationRoleLabel(result.role),
+    };
     if (result.outcome === 'APPLIED') {
       return {
-        text: `${name} now has the role ${label} in ${organizationName}.`,
+        text: t('organization.access.manage.feedback.applied', values),
         tone: 'success',
       };
     }
     if (result.outcome === 'UNCHANGED') {
       return {
-        text: `${name} already has the role ${label}. Nothing changed.`,
+        text: t('organization.access.manage.feedback.unchanged', values),
         tone: 'info',
       };
     }
     return {
       text:
         result.reservation?.waitingFor === 'VERIFICATION'
-          ? `${label} reserved for ${result.email}. That account exists but its address is not confirmed: they join ${organizationName} as soon as it is. We e-mailed them.`
-          : `${label} reserved for ${result.email}. Nobody has registered that address yet: they join ${organizationName} when they create their account with it and confirm it. We e-mailed them.`,
+          ? t(
+              'organization.access.manage.feedback.reservedVerification',
+              values,
+            )
+          : t('organization.access.manage.feedback.reservedAccount', values),
       tone: 'success',
     };
   }
@@ -181,7 +190,8 @@ function ManageView({
     const parsed = assignOrganizationRoleSchema.safeParse({ email, role });
     if (!parsed.success) {
       setEmailError(
-        fieldErrorsFromIssues(parsed.error.issues).email ?? 'Check this field.',
+        fieldErrorsFromIssues(parsed.error.issues).email ??
+          t('errors.field.invalid'),
       );
       return;
     }
@@ -197,10 +207,7 @@ function ManageView({
       reload();
       if (result.user?.id === currentUserId) onAccessChanged();
     } catch (error) {
-      setFeedback({
-        text: errorMessage(error, 'The role could not be assigned.'),
-        tone: 'danger',
-      });
+      setFeedback({ text: t(errorKey(error)), tone: 'danger' });
     } finally {
       setSubmitting(false);
     }
@@ -213,16 +220,16 @@ function ManageView({
     try {
       await rolesGateway.changeMemberRole(organizationId, member.userId, next);
       setFeedback({
-        text: `${member.displayName} now has the role ${organizationRoleLabel(next)}.`,
+        text: t('organization.access.manage.feedback.changed', {
+          name: member.displayName,
+          role: organizationRoleLabel(next),
+        }),
         tone: 'success',
       });
       reload();
       if (member.userId === currentUserId) onAccessChanged();
     } catch (error) {
-      setFeedback({
-        text: errorMessage(error, 'The role could not be changed.'),
-        tone: 'danger',
-      });
+      setFeedback({ text: t(errorKey(error)), tone: 'danger' });
     } finally {
       setBusyId('');
       setDemotingSelf(null);
@@ -235,16 +242,16 @@ function ManageView({
     try {
       await rolesGateway.removeMember(organizationId, member.userId);
       setFeedback({
-        text: `${member.displayName} was removed from ${organizationName}. Their open tickets went back to the unassigned queue.`,
+        text: t('organization.access.manage.feedback.removed', {
+          name: member.displayName,
+          organization: organizationName,
+        }),
         tone: 'success',
       });
       setRemoving(null);
       reload();
     } catch (error) {
-      setFeedback({
-        text: errorMessage(error, 'The member could not be removed.'),
-        tone: 'danger',
-      });
+      setFeedback({ text: t(errorKey(error)), tone: 'danger' });
       setRemoving(null);
     } finally {
       setBusyId('');
@@ -260,15 +267,14 @@ function ManageView({
         reservation.id,
       );
       setFeedback({
-        text: `The reservation for ${reservation.email} was cancelled.`,
+        text: t('organization.access.reservationCancelled', {
+          email: reservation.email,
+        }),
         tone: 'success',
       });
       reload();
     } catch (error) {
-      setFeedback({
-        text: errorMessage(error, 'The reservation could not be cancelled.'),
-        tone: 'danger',
-      });
+      setFeedback({ text: t(errorKey(error)), tone: 'danger' });
     } finally {
       setBusyId('');
     }
@@ -283,32 +289,45 @@ function ManageView({
       <PageHeader
         description={
           <>
-            Give roles in{' '}
-            <strong className="font-medium">{organizationName}</strong> to an
-            e-mail address, change them and remove members. A confirmed account
-            gets the role at once; any other address keeps it reserved until the
-            person creates the account with it and confirms it.
+            <Highlighted
+              sentence={(organization) =>
+                t('organization.access.manage.description', { organization })
+              }
+              value={organizationName}
+            />
             {viewerRole === 'GLOBAL_ADMIN' && !self
-              ? ' You are acting as a platform administrator.'
+              ? t('organization.access.manage.actingAsPlatformAdmin')
               : ''}
           </>
         }
-        eyebrow="ORGANIZATION ADMINISTRATION"
-        title="Roles & access"
+        eyebrow={t('organization.access.manage.eyebrow')}
+        title={t('organization.access.title')}
       />
       <SummaryCards
         items={[
-          { label: 'Organization admins', value: count('ORG_ADMIN') },
-          { label: 'Support agents', value: count('AGENT') },
-          { label: 'Members', value: count('MEMBER') },
-          { label: 'Waiting for the person', value: reservations.length },
+          {
+            label: t('organization.access.manage.cards.admins'),
+            value: count('ORG_ADMIN'),
+          },
+          {
+            label: t('organization.access.manage.cards.agents'),
+            value: count('AGENT'),
+          },
+          {
+            label: t('organization.access.manage.cards.members'),
+            value: count('MEMBER'),
+          },
+          {
+            label: t('organization.access.manage.cards.waiting'),
+            value: reservations.length,
+          },
         ]}
       />
 
       <div className="grid grid-cols-[minmax(0,1fr)_340px] items-start gap-5 max-[900px]:grid-cols-1">
         <Panel
-          description="The address does not need an account yet."
-          title="Assign a role by e-mail"
+          description={t('organization.access.manage.assignDescription')}
+          title={t('organization.access.manage.assignTitle')}
         >
           <form
             className="grid gap-4 border-t border-border p-5 max-md:p-4"
@@ -318,40 +337,42 @@ function ManageView({
             <TextField
               autoComplete="off"
               error={emailError || undefined}
-              label="E-mail address"
+              label={t('organization.access.emailLabel')}
               name="email"
               onChange={(event) => {
                 setEmail(event.target.value);
                 setEmailError('');
               }}
-              placeholder="person@company.com"
+              placeholder={t('organization.access.emailPlaceholder')}
               required
               type="email"
               value={email}
             />
             <SelectField
-              label="Role in this organization"
+              label={t('organization.access.manage.roleLabel')}
               name="role"
               onChange={(event) => setRole(event.target.value as OrgRole)}
               value={role}
             >
               {organizationRoles.map((item) => (
                 <option key={item.value} value={item.value}>
-                  {item.label}
+                  {organizationRoleLabel(item.value)}
                 </option>
               ))}
             </SelectField>
             <p className="-mt-2 text-xs leading-5 text-muted">
-              {roleDescription(role)}
+              {organizationRoleDescription(role)}
             </p>
             <div className="flex justify-end">
               <Button disabled={submitting} type="submit">
-                {submitting ? 'Assigning…' : 'Assign role'}
+                {submitting
+                  ? t('organization.access.assigning')
+                  : t('organization.access.assign')}
               </Button>
             </div>
           </form>
         </Panel>
-        <HowTheLinkWorks scope={` in ${organizationName}`} />
+        <HowTheLinkWorks organizationName={organizationName} />
       </div>
 
       {feedback ? (
@@ -367,10 +388,10 @@ function ManageView({
 
       <AsyncState
         error={roles.error}
-        errorTitle="The roles could not be loaded"
+        errorTitle={t('organization.access.loadError')}
         loading={
           <div className="mt-5">
-            <LoadingState label="Loading roles" />
+            <LoadingState label={t('organization.access.manage.loading')} />
           </div>
         }
         onRetry={reload}
@@ -378,8 +399,10 @@ function ManageView({
       >
         <div className="mt-5 grid gap-5">
           <Panel
-            description="Changing a role applies immediately. An organization always keeps at least one administrator."
-            title={`Members of ${organizationName}`}
+            description={t('organization.access.manage.membersDescription')}
+            title={t('organization.access.manage.membersTitle', {
+              organization: organizationName,
+            })}
           >
             <ul className="border-t border-border">
               {members.map((member) => {
@@ -391,10 +414,15 @@ function ManageView({
                   >
                     <PersonCell
                       avatarUrl={member.avatarUrl}
-                      detail={`${member.email} · since ${formatDate(member.joinedAt)}`}
+                      detail={t('organization.access.manage.since', {
+                        date: formatDate(member.joinedAt),
+                        email: member.email,
+                      })}
                       name={
                         isSelf
-                          ? `${member.displayName} (you)`
+                          ? t('organization.access.manage.you', {
+                              name: member.displayName,
+                            })
                           : member.displayName
                       }
                       online={member.isOnline}
@@ -403,7 +431,9 @@ function ManageView({
                       <SelectField
                         disabled={busyId === member.userId}
                         hideLabel
-                        label={`Role of ${member.displayName}`}
+                        label={t('organization.access.manage.roleOf', {
+                          name: member.displayName,
+                        })}
                         onChange={(event) => {
                           const next = event.target.value as OrgRole;
                           if (
@@ -420,7 +450,7 @@ function ManageView({
                       >
                         {organizationRoles.map((item) => (
                           <option key={item.value} value={item.value}>
-                            {item.label}
+                            {organizationRoleLabel(item.value)}
                           </option>
                         ))}
                       </SelectField>
@@ -431,7 +461,10 @@ function ManageView({
                       <IconButton
                         disabled={busyId === member.userId}
                         icon="close"
-                        label={`Remove ${member.displayName} from ${organizationName}`}
+                        label={t('organization.access.manage.removeFrom', {
+                          name: member.displayName,
+                          organization: organizationName,
+                        })}
                         onClick={() => setRemoving(member)}
                         size="sm"
                       />
@@ -443,8 +476,10 @@ function ManageView({
           </Panel>
 
           <Panel
-            description="Roles given to addresses that have no confirmed account yet. The person joins when they confirm it."
-            title="Reserved for an e-mail address"
+            description={t(
+              'organization.access.manage.reservationsDescription',
+            )}
+            title={t('organization.access.manage.reservationsTitle')}
           >
             {reservations.length ? (
               <ul className="border-t border-border">
@@ -454,7 +489,12 @@ function ManageView({
                     key={reservation.id}
                   >
                     <PersonCell
-                      detail={`Reserved by ${reservation.grantedBy?.displayName ?? 'a former administrator'} · ${formatDate(reservation.updatedAt)}`}
+                      detail={t('organization.access.reservedBy', {
+                        date: formatDate(reservation.updatedAt),
+                        name:
+                          reservation.grantedBy?.displayName ??
+                          t('organization.access.formerAdministrator'),
+                      })}
                       name={reservation.email}
                     />
                     <span className="max-md:order-3">
@@ -464,13 +504,15 @@ function ManageView({
                       <WaitingTag reason={reservation.waitingFor} />
                     </span>
                     <Button
-                      aria-label={`Cancel the reservation for ${reservation.email}`}
+                      aria-label={t('organization.access.cancelReservation', {
+                        email: reservation.email,
+                      })}
                       disabled={busyId === reservation.id}
                       onClick={() => void cancel(reservation)}
                       size="compact"
                       variant="secondary"
                     >
-                      Cancel
+                      {t('common.actions.cancel')}
                     </Button>
                   </li>
                 ))}
@@ -478,8 +520,10 @@ function ManageView({
             ) : (
               <div className="border-t border-border p-5">
                 <EmptyState
-                  description="When you assign a role to an address without a confirmed account, it waits here."
-                  title="Nothing is waiting"
+                  description={t(
+                    'organization.access.manage.reservationsEmpty',
+                  )}
+                  title={t('organization.access.nothingWaiting')}
                 />
               </div>
             )}
@@ -491,19 +535,25 @@ function ManageView({
 
       {removing ? (
         <Dialog
-          description={`${removing.displayName} loses access to ${organizationName} and its tickets immediately. Their open tickets go back to the unassigned queue. Their account is not affected.`}
-          eyebrow="ROLES & ACCESS"
+          description={t(
+            'organization.access.manage.removeDialog.description',
+            {
+              name: removing.displayName,
+              organization: organizationName,
+            },
+          )}
+          eyebrow={t('organization.access.manage.removeDialog.eyebrow')}
           footer={
             <>
               <Button onClick={() => setRemoving(null)} variant="secondary">
-                Keep member
+                {t('organization.access.manage.removeDialog.keep')}
               </Button>
               <Button
                 disabled={busyId === removing.userId}
                 type="submit"
                 variant="destructive"
               >
-                Remove member
+                {t('organization.access.manage.removeDialog.confirm')}
               </Button>
             </>
           }
@@ -512,21 +562,30 @@ function ManageView({
             event.preventDefault();
             void remove(removing);
           }}
-          title={`Remove ${removing.displayName}?`}
+          title={t('organization.access.manage.removeDialog.title', {
+            name: removing.displayName,
+          })}
         />
       ) : null}
 
       {demotingSelf && self ? (
         <Dialog
-          description={`You will stop administering ${organizationName}: this screen, members, categories and API keys will no longer be available to you. Another administrator would have to give the role back.`}
-          eyebrow="ROLES & ACCESS"
+          description={t(
+            'organization.access.manage.demoteDialog.description',
+            {
+              organization: organizationName,
+            },
+          )}
+          eyebrow={t('organization.access.manage.removeDialog.eyebrow')}
           footer={
             <>
               <Button onClick={() => setDemotingSelf(null)} variant="secondary">
-                Stay administrator
+                {t('organization.access.manage.demoteDialog.keep')}
               </Button>
               <Button type="submit" variant="destructive">
-                Become {organizationRoleLabel(demotingSelf)}
+                {t('organization.access.manage.demoteDialog.confirm', {
+                  role: organizationRoleLabel(demotingSelf),
+                })}
               </Button>
             </>
           }
@@ -535,7 +594,7 @@ function ManageView({
             event.preventDefault();
             void changeRole(self, demotingSelf);
           }}
-          title="Give up your own administration?"
+          title={t('organization.access.manage.demoteDialog.title')}
         />
       ) : null}
     </div>
@@ -553,16 +612,14 @@ function ReadOnlyView({
   organizationName: string;
   viewerRole: 'AGENT' | 'MEMBER';
 }) {
+  const { t } = useTranslation();
   const roster = useAsync(
     () => rolesGateway.listMembers(organizationId),
     [organizationId],
   );
   const members: OrganizationMemberRow[] = roster.data ?? [];
   const loading = roster.status === 'loading';
-  const loadError =
-    roster.status === 'error'
-      ? errorMessage(roster.error, 'The members could not be read.')
-      : '';
+  const loadError = roster.status === 'error' ? t(errorKey(roster.error)) : '';
 
   const administrators = members.filter(
     (member) => member.role === 'ORG_ADMIN',
@@ -572,30 +629,34 @@ function ReadOnlyView({
   return (
     <div className="mx-auto max-w-[1160px] p-10 max-md:px-4 max-md:py-6">
       <PageHeader
-        description={
+        description={t(
           agent
-            ? `Who does what in ${organizationName}. Roles are assigned by the organization administrators.`
-            : `Your access in ${organizationName}, what each role can do and whom to ask for a change.`
-        }
-        eyebrow="ORGANIZATION"
-        title="Roles & access"
+            ? 'organization.access.readOnly.descriptionAgent'
+            : 'organization.access.readOnly.descriptionMember',
+          { organization: organizationName },
+        )}
+        eyebrow={t('organization.eyebrow')}
+        title={t('organization.access.title')}
       />
 
       <section className="my-6 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3 max-md:grid-cols-1">
         <article className="grid gap-1.5 rounded-md border border-border bg-surface p-5">
-          <span className="text-xs text-muted">Your role</span>
+          <span className="text-xs text-muted">
+            {t('organization.access.readOnly.yourRole')}
+          </span>
           <strong className="text-lg font-medium">
             {organizationRoleLabel(viewerRole)}
           </strong>
           <p className="text-sm leading-6 text-muted">
-            {roleDescription(viewerRole)}
+            {organizationRoleDescription(viewerRole)}
           </p>
         </article>
         <article className="grid content-start gap-2 rounded-md border border-border bg-surface p-5">
-          <span className="text-xs text-muted">Need a different role?</span>
+          <span className="text-xs text-muted">
+            {t('organization.access.readOnly.needDifferent')}
+          </span>
           <p className="text-sm leading-6 text-muted">
-            Only an organization administrator can change it. Write to one of
-            them from Messages:
+            {t('organization.access.readOnly.onlyAdmin')}
           </p>
           {loading ? null : administrators.length ? (
             <ul className="grid gap-2">
@@ -605,7 +666,7 @@ function ReadOnlyView({
                       for agents and administrators. */}
                   <PersonCell
                     avatarUrl={member.avatarUrl}
-                    detail="Organization admin"
+                    detail={organizationRoleLabel('ORG_ADMIN')}
                     name={member.displayName}
                     online={member.isOnline}
                   />
@@ -614,7 +675,7 @@ function ReadOnlyView({
             </ul>
           ) : (
             <p className="text-sm text-muted">
-              No administrator could be listed right now.
+              {t('organization.access.readOnly.noAdmin')}
             </p>
           )}
         </article>
@@ -629,11 +690,13 @@ function ReadOnlyView({
       <div className="grid gap-5">
         {agent ? (
           <Panel
-            description="Read only. Agents see who handles what; administrators manage it."
-            title={`People in ${organizationName}`}
+            description={t('organization.access.readOnly.peopleDescription')}
+            title={t('organization.access.readOnly.peopleTitle', {
+              organization: organizationName,
+            })}
           >
             {loading ? (
-              <LoadingState label="Loading members" />
+              <LoadingState label={t('organization.access.readOnly.loading')} />
             ) : (
               <ul className="border-t border-border">
                 {members.map((member) => (
