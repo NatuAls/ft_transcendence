@@ -184,7 +184,7 @@ export function CreateTicketPage({
             <label className="relative grid gap-[7px] text-xs leading-[1.2] font-medium text-ink">
               <span>{t('tickets.create.fields.description')}</span>
               <textarea
-                className="min-h-[130px] w-full min-w-0 resize-y rounded-[10px] border border-border bg-[#f7faf8] p-4 text-sm leading-[1.2] text-ink max-md:min-h-[120px]"
+                className="min-h-[130px] w-full min-w-0 resize-y rounded-[10px] border border-border bg-surface p-4 text-sm leading-[1.2] text-ink max-md:min-h-[120px]"
                 minLength={10}
                 maxLength={5000}
                 onChange={(event) => setDescription(event.target.value)}
