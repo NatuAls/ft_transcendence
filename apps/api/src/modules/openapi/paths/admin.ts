@@ -108,6 +108,21 @@ export const adminPaths: Paths = {
       },
     }),
   },
+  '/admin/audit-logs/{id}': {
+    get: op({
+      tag: 'Admin',
+      operationId: 'getAuditLog',
+      summary: 'One audit entry, with its before and after',
+      description:
+        'GLOBAL_ADMIN only. Everything the list leaves out of an entry: the state before and after the action - only the fields it changed, and never a secret - the user agent, and the API key it came through when it came through the public API.',
+      security: session,
+      parameters: [{ $ref: '#/components/parameters/IdPath' }],
+      responses: {
+        '200': ok('The entry.', ref('AuditLogDetail')),
+        ...errs('400', '401', '403', '404'),
+      },
+    }),
+  },
   '/admin/role-grants': {
     get: op({
       tag: 'Admin',

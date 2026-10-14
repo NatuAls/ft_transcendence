@@ -6,7 +6,7 @@ import { useEffect } from 'react';
 // adequate, not placeholders: the subject rejects projects with inadequate
 // Privacy Policy / Terms of Service pages. Items marked [TEAM] need a real
 // value before the defense.
-const LAST_UPDATED = '17 September 2026';
+const LAST_UPDATED = '14 October 2026';
 const CONTACT = 'privacy@helpdesklite.me'; // [TEAM] real mailbox
 
 const content = {
@@ -56,9 +56,11 @@ const content = {
       [
         'How long we keep it',
         [
-          'Account and help-desk content: while your account exists. When you delete your account, personal data is removed and your comments are anonymized.',
+          'Account and help-desk content: while your account exists. When you delete your account yourself, your personal data is erased at once. When a platform administrator closes it, you can no longer sign in and your personal data is erased 30 days later; until then the closure can be undone, and you can ask for the erasure sooner by writing to us.',
+          'What stays after the erasure: the tickets you opened and your comments on tickets remain in the records of the organizations they belong to, under an anonymous author, because other people depend on them. Your e-mail address, username, profile, photo, private messages, notifications, files and data exports are deleted, and the address can be used to sign up again.',
+          'Data exports: the archive can be downloaded for 24 hours; then it is deleted.',
           'Sessions: until they expire (7 days) or you revoke them.',
-          'Audit logs: 12 months. [TEAM] confirm.',
+          'Audit logs: 12 months, then deleted automatically.',
           'Centralized application logs: 30 days.',
           'Encrypted backups: 14 days locally and in the off-site bucket, so a deleted account may persist in a backup for up to 14 days.',
         ],
@@ -68,7 +70,7 @@ const content = {
         [
           'Access and portability: request an export of your data from Privacy & data settings. You receive a ZIP with a machine-readable data.json after confirming the request by e-mail.',
           'Rectification: edit your profile at any time.',
-          'Erasure: delete your account from Privacy & data settings. Deletion requires a double confirmation: a link sent to your e-mail and typing your username.',
+          'Erasure: delete your account from Privacy & data settings. Deletion requires a double confirmation: a link sent to your e-mail and typing your username. If you can no longer sign in — for instance because an administrator closed your account — write to us and an administrator erases your data.',
           `For anything else, or to complain, write to ${CONTACT}. You also have the right to lodge a complaint with the Spanish supervisory authority (AEPD, aepd.es).`,
         ],
       ],
@@ -126,7 +128,7 @@ const content = {
       ],
       [
         'Termination',
-        'You can delete your account at any time from the privacy settings. We may suspend accounts that violate these terms.',
+        'You can delete your account at any time from the privacy settings. We may suspend or close accounts that violate these terms; the personal data of a closed account is erased 30 days after its closure.',
       ],
       [
         'Liability',

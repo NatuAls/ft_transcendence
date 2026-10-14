@@ -1,6 +1,12 @@
 import { Alert, Button, Dialog, SelectField, TextField } from 'ui';
 import { useState } from 'react';
-import type { AdminDialogKind, AdminUser } from './adminData';
+import { ACCOUNT_ERASURE_GRACE_DAYS, type OrgRole } from 'contracts';
+import { useTranslation } from '../../core/i18n';
+import type { AdminDialogKind, AdminUser, PlatformAccess } from './adminData';
+
+// Las opciones llevan el código como valor y el texto traducido como etiqueta:
+// el formulario envía lo mismo en cualquier idioma.
+const ORGANIZATION_ROLES: OrgRole[] = ['MEMBER', 'AGENT', 'ORG_ADMIN'];
 
 export function AdminDialog({
   kind,
@@ -28,30 +34,37 @@ export function AdminDialog({
   onDelete?: () => void;
   onSave: (data: FormData) => void;
   organizationOptions: Array<{ label: string; value: string }>;
-  user: AdminUser;
+  /** The account being edited; an invitation has none yet. */
+  user?: AdminUser;
 }) {
-  const create = kind === 'create';
-  const [platformAccess, setPlatformAccess] = useState(
-    create ? 'Standard user' : user[4],
+  const { t, i18n } = useTranslation();
+  const create = kind === 'create' || !user;
+  const name = user?.name ?? '';
+  const [platformAccess, setPlatformAccess] = useState<PlatformAccess>(
+    create ? 'USER' : user.role,
   );
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  // When the data would be erased if the deletion were confirmed now. Set
+  // when «Delete» is pressed: that is the moment the date is announced.
+  const [erasureDate, setErasureDate] = useState<Date | null>(null);
 
-  if (confirmingDelete && onDelete) {
+  if (erasureDate && onDelete) {
     return (
       <Dialog
         className="max-w-[500px]"
-        description={`${user[1]} will no longer be able to sign in: every session is closed now and the account disappears from the platform. Their tickets and comments stay, for the people who depend on them.`}
-        eyebrow="PLATFORM ADMINISTRATION"
+        description={t('admin.userDialog.deleteConfirm.description', {
+          date: new Intl.DateTimeFormat(i18n.language, {
+            dateStyle: 'long',
+          }).format(erasureDate),
+          name,
+        })}
+        eyebrow={t('admin.eyebrow')}
         footer={
           <>
-            <Button
-              onClick={() => setConfirmingDelete(false)}
-              variant="secondary"
-            >
-              Keep account
+            <Button onClick={() => setErasureDate(null)} variant="secondary">
+              {t('admin.userDialog.deleteConfirm.keep')}
             </Button>
             <Button type="submit" variant="destructive">
-              Delete account
+              {t('admin.userDialog.deleteConfirm.confirm')}
             </Button>
           </>
         }
@@ -60,7 +73,7 @@ export function AdminDialog({
           event.preventDefault();
           onDelete();
         }}
-        title={`Delete ${user[1]}?`}
+        title={t('admin.userDialog.deleteConfirm.title', { name })}
       />
     );
   }
@@ -70,26 +83,33 @@ export function AdminDialog({
       className="max-w-[500px]"
       description={
         create
-          ? 'The person creates their own account and password with this address. The access you choose is reserved for it and becomes active when they confirm it — at once if they already have a confirmed account.'
-          : `Update identity, role and account state for ${user[1]}.`
+          ? t('admin.userDialog.inviteDescription')
+          : t('admin.userDialog.editDescription', { name })
       }
-      eyebrow="PLATFORM ADMINISTRATION"
+      eyebrow={t('admin.eyebrow')}
       footer={
         <>
           {!create && onDelete ? (
             <Button
               className="mr-auto max-md:mr-0 max-md:w-full"
-              onClick={() => setConfirmingDelete(true)}
+              onClick={() =>
+                // El mismo plazo que aplica la API: se lee del contrato.
+                setErasureDate(
+                  new Date(
+                    Date.now() + ACCOUNT_ERASURE_GRACE_DAYS * 86_400_000,
+                  ),
+                )
+              }
               variant="destructive"
             >
-              Delete
+              {t('admin.userDialog.delete')}
             </Button>
           ) : null}
           <Button onClick={onClose} variant="secondary">
-            Cancel
+            {t('common.actions.cancel')}
           </Button>
           <Button type="submit">
-            {create ? 'Send invitation' : 'Save changes'}
+            {create ? t('admin.userDialog.send') : t('admin.userDialog.save')}
           </Button>
         </>
       }
@@ -98,69 +118,167 @@ export function AdminDialog({
         event.preventDefault();
         onSave(new FormData(event.currentTarget));
       }}
-      title={create ? 'Invite user' : 'Edit platform user'}
+      title={
+        create
+          ? t('admin.userDialog.inviteTitle')
+          : t('admin.userDialog.editTitle')
+      }
     >
       {create ? null : (
         <TextField
-          defaultValue={user[1]}
-          label="Full name"
+          defaultValue={name}
+          label={t('admin.userDialog.fullName')}
           name="name"
           required
         />
       )}
       <TextField
-        defaultValue={create ? '' : user[2]}
+        defaultValue={create ? '' : user.email}
         disabled={!create && locked?.email}
-        label="Email address"
+        label={t('admin.userDialog.email')}
         name="email"
         required
         type="email"
       />
       <SelectField
         disabled={!create && locked?.role}
-        label="Platform access"
+        label={t('admin.userDialog.platformAccess')}
         name="role"
-        onChange={(event) => setPlatformAccess(event.target.value)}
+        onChange={(event) =>
+          setPlatformAccess(event.target.value as PlatformAccess)
+        }
         value={platformAccess}
       >
-        <option>Standard user</option>
-        <option>Global admin</option>
+        <option value="USER">{t('admin.platformRole.USER')}</option>
+        <option value="GLOBAL_ADMIN">
+          {t('admin.platformRole.GLOBAL_ADMIN')}
+        </option>
       </SelectField>
-      {create && platformAccess === 'Standard user' ? (
+      {create && platformAccess === 'USER' ? (
         <>
-          <SelectField label="Initial organization" name="organization">
+          <SelectField
+            label={t('admin.userDialog.initialOrganization')}
+            name="organization"
+          >
             {organizationOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
             ))}
           </SelectField>
-          <SelectField label="Organization role" name="organization-role">
-            <option>Member</option>
-            <option>Agent</option>
-            <option>Organization admin</option>
+          <SelectField
+            label={t('admin.userDialog.organizationRole')}
+            name="organization-role"
+          >
+            {ORGANIZATION_ROLES.map((role) => (
+              <option key={role} value={role}>
+                {t(`organization.role.${role}`)}
+              </option>
+            ))}
           </SelectField>
         </>
       ) : null}
       {!create ? (
         <SelectField
-          defaultValue={user[5]}
+          defaultValue={user.state}
           disabled={locked?.state}
-          label="Account state"
+          label={t('admin.userDialog.accountState')}
           name="state"
         >
-          <option>Active</option>
-          <option>Suspended</option>
+          <option value="ACTIVE">{t('admin.accountState.ACTIVE')}</option>
+          <option value="SUSPENDED">{t('admin.accountState.SUSPENDED')}</option>
         </SelectField>
       ) : null}
       <Alert>
         {create
-          ? platformAccess === 'Global admin'
-            ? 'Global administrators receive platform access without a synthetic organization membership.'
-            : 'Nothing is active until the person confirms the address: registering it is not enough, so nobody can claim somebody else’s invitation.'
-          : (locked?.reason ??
-            'Suspending blocks access. Personal-data deletion remains a separate, user-confirmed privacy request.')}
+          ? platformAccess === 'GLOBAL_ADMIN'
+            ? t('admin.userDialog.notes.globalAdmin')
+            : t('admin.userDialog.notes.standardUser')
+          : (locked?.reason ?? t('admin.userDialog.notes.edit'))}
       </Alert>
     </Dialog>
+  );
+}
+
+/**
+ * A closed account, within its grace period: restore it, or erase its data
+ * now because the person asked for it. Erasing asks once more, since it is
+ * the one step here that cannot be undone.
+ */
+export function ClosedAccountDialog({
+  erasureDueAt,
+  name,
+  onClose,
+  onErase,
+  onRestore,
+}: {
+  erasureDueAt: string;
+  name: string;
+  onClose: () => void;
+  onErase: () => void;
+  onRestore: () => void;
+}) {
+  const { t, i18n } = useTranslation();
+  const [confirmingErase, setConfirmingErase] = useState(false);
+  const date = new Intl.DateTimeFormat(i18n.language, {
+    dateStyle: 'long',
+  }).format(new Date(erasureDueAt));
+
+  if (confirmingErase) {
+    return (
+      <Dialog
+        className="max-w-[500px]"
+        description={t('admin.closedDialog.eraseDescription')}
+        eyebrow={t('admin.eyebrow')}
+        footer={
+          <>
+            <Button
+              onClick={() => setConfirmingErase(false)}
+              variant="secondary"
+            >
+              {t('admin.closedDialog.keep', { date })}
+            </Button>
+            <Button type="submit" variant="destructive">
+              {t('admin.closedDialog.eraseConfirm')}
+            </Button>
+          </>
+        }
+        onClose={onClose}
+        onSubmit={(event) => {
+          event.preventDefault();
+          onErase();
+        }}
+        title={t('admin.closedDialog.eraseTitle', { name })}
+      />
+    );
+  }
+
+  return (
+    <Dialog
+      className="max-w-[500px]"
+      description={t('admin.closedDialog.description', { date })}
+      eyebrow={t('admin.eyebrow')}
+      footer={
+        <>
+          <Button
+            className="mr-auto max-md:mr-0 max-md:w-full"
+            onClick={() => setConfirmingErase(true)}
+            variant="destructive"
+          >
+            {t('admin.closedDialog.erase')}
+          </Button>
+          <Button onClick={onClose} variant="secondary">
+            {t('common.actions.cancel')}
+          </Button>
+          <Button type="submit">{t('admin.closedDialog.restore')}</Button>
+        </>
+      }
+      onClose={onClose}
+      onSubmit={(event) => {
+        event.preventDefault();
+        onRestore();
+      }}
+      title={t('admin.closedDialog.title', { name })}
+    />
   );
 }

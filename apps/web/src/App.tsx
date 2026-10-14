@@ -54,12 +54,6 @@ import { fromApiLocale, hasStoredLanguage, setLanguage } from './core/i18n';
 import { applyTheme } from './core/theme';
 import { getPreferences } from './api/users';
 
-const roleLabels = {
-  AGENT: 'Support agent',
-  MEMBER: 'Member',
-  ORG_ADMIN: 'Organization admin',
-} as const;
-
 /**
  * The organizations the viewer can switch between.
  *
@@ -79,13 +73,13 @@ async function loadOrganizations(
     // The memberships still name every organization of the account; only the
     // descriptions and counters wait for the next successful load.
     return viewer.memberships.map((membership) => ({
+      counts: null,
       description: membership.organizationDescription ?? '',
       id: membership.organizationId,
       initials: getOrganizationInitials(membership.organizationName),
       name: membership.organizationName,
-      roleLabel: roleLabels[membership.role],
+      role: membership.role,
       slug: membership.organizationSlug,
-      summary: '',
     }));
   }
 }

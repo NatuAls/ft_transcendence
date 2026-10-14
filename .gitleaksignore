@@ -60,3 +60,21 @@ ef0633a7a63669e98859df3b8893f6c5095aa2ef:fix/claude_code_1.md:generic-api-key:11
 #  Si algún día se purga el histórico con `git filter-repo`, esta línea sobra.
 
 3db9e8d5a14ca86dbbca2255334b4e686f299a2c:config/nginx/certs/transcendence.key:private-key:1
+
+#  -----------------------------------------------------------------------
+#  FALSO POSITIVO: clave de API inventada en un test
+#  -----------------------------------------------------------------------
+#  Qué es: `apps/web/test/organization-api-keys.test.tsx` comprueba que la
+#  pantalla de claves de API enseña el secreto una sola vez y no lo deja en
+#  la página, en el almacenamiento del navegador ni en la dirección. Para eso
+#  necesita un secreto, y el suyo se inventó para el test (14 oct 2026): la
+#  API nunca lo emitió y no abre nada en ningún entorno. No hay nada que
+#  rotar.
+#
+#  Por qué saltó la regla generic-api-key: el valor estaba escrito de una
+#  pieza, con aspecto aleatorio, en una constante llamada SECRETO. Un commit
+#  posterior de la misma rama lo monta por trozos, así que el árbol actual
+#  ya no tiene nada que marcar. Esta huella sólo reconoce el commit que lo
+#  introdujo, que sigue en el histórico.
+
+9e5a972f356f4f22a7ccc161055da4f7df49b56b:apps/web/test/organization-api-keys.test.tsx:generic-api-key:20

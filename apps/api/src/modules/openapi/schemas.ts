@@ -302,6 +302,18 @@ const adminUser = object('A user as the platform administration lists it.', {
     description:
       'The recovery administrator created at deployment. The API refuses to suspend, demote or delete it, so the interface hides those actions.',
   },
+  deletedAt: {
+    ...date(
+      'When an administrator closed the account. Null for an account in use; only listed with `includeClosed=true`.',
+    ),
+    nullable: true,
+  },
+  erasureDueAt: {
+    ...date(
+      'When the personal data of a closed account will be erased: 30 days after its closure.',
+    ),
+    nullable: true,
+  },
 });
 
 /** What `GET /auth/me` answers: flat, and with everything the session needs. */
@@ -695,7 +707,7 @@ const auditLog = object(
   {
     id: uuid('Entry id.'),
     action: str(
-      'What happened. Accounts: `user.created`, `user.role.changed`, `user.status.changed`, `user.password.rotated`, `user.deleted`. Organizations: `organization.created`, `organization.updated`, `organization.deleted`, `member.invited`, `member.role.changed`, `member.removed`. Roles given by e-mail: `role.reserved`, `role.reservation.cancelled`, `role.reservation.claimed`. Credentials: `apiKey.created`, `apiKey.revoked`. Privacy: `gdpr.export.confirmed`, `gdpr.delete.confirmed`.',
+      'What happened. Accounts: `user.created`, `user.role.changed`, `user.status.changed`, `user.password.rotated`, `user.deleted` (closed by an administrator), `user.restored`, `user.erased`. Organizations: `organization.created`, `organization.updated`, `organization.deleted`, `member.invited`, `member.role.changed`, `member.removed`. Roles given by e-mail: `role.reserved`, `role.reservation.cancelled`, `role.reservation.claimed`. Credentials: `apiKey.created`, `apiKey.revoked`. Privacy: `gdpr.export.confirmed`, `gdpr.delete.confirmed`.',
       { example: 'role.reserved' },
     ),
     entity: str(
@@ -713,6 +725,48 @@ const auditLog = object(
       nullable: true,
     },
   },
+);
+
+const auditLogDetail = object(
+  'One entry of the audit trail with what the list leaves out: the state before and after the action - only the fields it changed, never a password hash, a key hash or a token - the user agent and the API key it came through.',
+  {
+    ...(auditLog['properties'] as Record<string, JsonSchema>),
+    userAgent: {
+      ...str('Browser or client that sent the request.'),
+      nullable: true,
+    },
+    apiKeyId: {
+      ...uuid('API key used, when the action came through the public API.'),
+      nullable: true,
+    },
+    before: {
+      type: 'object',
+      description:
+        'State before: only the fields the action changed. Null when it created something.',
+      additionalProperties: true,
+      nullable: true,
+    },
+    after: {
+      type: 'object',
+      description:
+        'State after: only the fields the action changed. Null when it removed something.',
+      additionalProperties: true,
+      nullable: true,
+    },
+  },
+  [
+    'id',
+    'action',
+    'entity',
+    'entityId',
+    'ip',
+    'userAgent',
+    'apiKeyId',
+    'createdAt',
+    'actor',
+    'before',
+    'after',
+  ],
 );
 
 const healthStatus = object(
@@ -842,6 +896,7 @@ export const componentSchemas: Record<string, JsonSchema> = {
   ApiKey: apiKey,
   ApiKeyCreated: apiKeyCreated,
   AuditLog: auditLog,
+  AuditLogDetail: auditLogDetail,
   HealthStatus: healthStatus,
   PlatformRoleReservation: platformRoleReservation,
   OrganizationRoleReservation: organizationRoleReservation,

@@ -4,6 +4,7 @@ import type { AccountProfile } from '../features/account/accountData';
 import { AccountPage } from '../features/account/AccountPage';
 import { ChangePasswordPage } from '../features/account/ChangePasswordPage';
 import { AdminAccessDenied } from '../features/admin/AdminAccessDenied';
+import { AuditLogPage } from '../features/admin/AuditLogPage';
 import { GlobalAdminPage } from '../features/admin/GlobalAdminPage';
 import { MessagesPage } from '../features/messages/MessagesPage';
 import { OrganizationPage } from '../features/organization/OrganizationPage';
@@ -217,6 +218,15 @@ export function WorkspacePage({
       return (
         <OrganizationPage
           key={organizationId}
+          // Irse es de quien pertenece: el administrador de plataforma que
+          // entra sin ser miembro no tiene de dónde salir.
+          canLeave={
+            can(viewer, 'member:leave') &&
+            viewer.memberships.some(
+              (membership) => membership.organizationId === organizationId,
+            )
+          }
+          canManageApiKeys={can(viewer, 'apiKey:manage')}
           canManageCategories={can(viewer, 'category:write')}
           canManageMembers={can(viewer, 'member:invite')}
           canManageOrganization={can(viewer, 'organization:update')}
@@ -224,7 +234,12 @@ export function WorkspacePage({
           canReadStats={can(viewer, 'stats:read')}
           currentUserId={viewer.id}
           onAccessChanged={onAccessChanged}
-          onOpenCategory={(category) => navigate('tickets', { category })}
+          // Plataforma = quien puede repartir roles de plataforma.
+          isPlatformAdmin={can(viewer, 'user:setGlobalRole')}
+          onOpenCategory={(categoryId) =>
+            navigate('tickets', { category: categoryId })
+          }
+          onLeft={() => navigate('organizations')}
           onOrganizationDeleted={() => navigate('organizations')}
           onOrganizationsChanged={onOrganizationsChanged}
           onOrganizationDescriptionChange={onOrganizationDescriptionChange}
@@ -238,6 +253,7 @@ export function WorkspacePage({
     case 'organizations':
       return (
         <OrganizationsPage
+          isPlatformAdmin={can(viewer, 'user:setGlobalRole')}
           onOpen={(organization) => {
             onOrganizationSelect(organization);
             navigate('organization');
@@ -256,6 +272,31 @@ export function WorkspacePage({
       ) : (
         <AdminAccessDenied onBack={() => navigate('tickets')} />
       );
+    case 'admin/audit': {
+      // Lo que llega en la dirección se filtra antes de llegar a la API: un
+      // `actor` que no es un identificador daría un 400 que ningún botón de
+      // la pantalla puede arreglar.
+      const param = (name: string) => location.params.get(name) || undefined;
+      const day = (name: string) =>
+        /^\d{4}-\d{2}-\d{2}$/.test(param(name) ?? '') ? param(name) : undefined;
+      const actor = param('actor');
+      return can(viewer, 'audit:read') ? (
+        <AuditLogPage
+          initialFilters={{
+            action: param('action'),
+            actorId:
+              actor && uuidSchema.safeParse(actor).success ? actor : undefined,
+            entity: param('entity'),
+            from: day('from'),
+            page: Math.max(1, Number(param('page') ?? '1') || 1),
+            to: day('to'),
+          }}
+          onFiltersChange={(params) => replaceHash('admin/audit', params)}
+        />
+      ) : (
+        <AdminAccessDenied onBack={() => navigate('tickets')} />
+      );
+    }
     case 'platform-roles':
       return can(viewer, 'user:setGlobalRole') ? (
         <PlatformRolesPage currentUserId={viewer.id} />

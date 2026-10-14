@@ -2,7 +2,6 @@ import type {
   AssignOrganizationRoleInput,
   AssignPlatformRoleInput,
   OrgRole,
-  PendingRole,
   OrganizationRoleAssignment,
   OrganizationRoleReservation,
   PlatformRoleAssignment,
@@ -14,6 +13,8 @@ import type {
   OrganizationMemberRow,
   PlatformAdministrator,
 } from '../../api/roles';
+import i18next from 'i18next';
+import { ApiError } from '../../core/api/errors';
 import { previewMode, type Permission } from '../../app/session';
 import { organizationFixture } from '../organization/organizationData';
 
@@ -54,89 +55,58 @@ export interface RolesGateway {
 
 // -------------------------------------------------------------- vocabulary --
 
-export const organizationRoles: Array<{
-  description: string;
-  label: string;
-  value: OrgRole;
-}> = [
-  {
-    description: 'Opens tickets and follows their own requests.',
-    label: 'Member',
-    value: 'MEMBER',
-  },
-  {
-    description:
-      'Works every ticket of the organization: status, self-assignment and internal notes.',
-    label: 'Support agent',
-    value: 'AGENT',
-  },
-  {
-    description:
-      'Everything an agent does, plus members, roles, categories, API keys and the organization itself.',
-    label: 'Organization admin',
-    value: 'ORG_ADMIN',
-  },
+/** The three organization roles, from the least access to the most. */
+export const organizationRoles: Array<{ value: OrgRole }> = [
+  { value: 'MEMBER' },
+  { value: 'AGENT' },
+  { value: 'ORG_ADMIN' },
 ];
 
+/*
+ * Los textos se traducen al LLAMAR, no al importar el módulo: el idioma puede
+ * cambiar con la aplicación abierta, y una constante calculada al cargar se
+ * quedaría para siempre en el primero.
+ */
+
 export function organizationRoleLabel(role: OrgRole) {
-  return organizationRoles.find((item) => item.value === role)?.label ?? role;
+  return i18next.t(`organization.role.${role}`);
 }
 
-export function pendingRoleText(role: PendingRole) {
-  return role.scope === 'PLATFORM'
-    ? 'Platform administrator'
-    : `${organizationRoleLabel(role.role as OrgRole)} in ${role.organizationName ?? 'an organization'}`;
+export function organizationRoleDescription(role: OrgRole) {
+  return i18next.t(`organization.roleDescription.${role}`);
 }
 
-const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' });
-
+/** A date in the language of the interface, not in the browser's. */
 export function formatDate(value: string | null) {
-  return value ? dateFormat.format(new Date(value)) : 'Never';
+  return value
+    ? new Intl.DateTimeFormat(i18next.language, {
+        dateStyle: 'medium',
+      }).format(new Date(value))
+    : i18next.t('organization.access.never');
 }
-
-export const waitingForLabel: Record<ReservationWaitingFor, string> = {
-  ACCOUNT: 'Waiting for the account',
-  VERIFICATION: 'Waiting for e-mail confirmation',
-};
-
-export const waitingForHint: Record<ReservationWaitingFor, string> = {
-  ACCOUNT: 'Nobody has registered this address yet.',
-  VERIFICATION: 'The account exists; its address is not confirmed yet.',
-};
 
 /**
  * What each organization role can do, read from the same permission lists
- * the interface uses to show or hide controls (`app/session.ts`).
+ * the interface uses to show or hide controls (`app/session.ts`). `key` names
+ * the text in `organization.access.capabilities`.
  */
 export const organizationCapabilities: Array<{
-  label: string;
+  key: string;
   permission: Permission;
 }> = [
-  { label: 'Open tickets and comment on them', permission: 'ticket:create' },
-  { label: 'See every ticket of the organization', permission: 'ticket:read' },
-  {
-    label: 'Change status and take tickets',
-    permission: 'ticket:changeStatus',
-  },
-  { label: 'Write internal notes', permission: 'comment:createInternal' },
-  { label: 'Read organization statistics', permission: 'stats:read' },
-  { label: 'Assign tickets to other agents', permission: 'ticket:assignOther' },
-  { label: 'Manage categories', permission: 'category:write' },
-  { label: 'Assign roles and manage members', permission: 'member:invite' },
-  {
-    label: 'Edit or delete the organization',
-    permission: 'organization:update',
-  },
-  { label: 'Manage API keys', permission: 'apiKey:manage' },
+  { key: 'createTickets', permission: 'ticket:create' },
+  { key: 'readAllTickets', permission: 'ticket:read' },
+  { key: 'changeStatus', permission: 'ticket:changeStatus' },
+  { key: 'internalNotes', permission: 'comment:createInternal' },
+  { key: 'readStats', permission: 'stats:read' },
+  { key: 'assignOthers', permission: 'ticket:assignOther' },
+  { key: 'manageCategories', permission: 'category:write' },
+  { key: 'manageMembers', permission: 'member:invite' },
+  { key: 'manageOrganization', permission: 'organization:update' },
+  { key: 'manageApiKeys', permission: 'apiKey:manage' },
 ];
 
 // ---------------------------------------------------------------- preview --
-
-const previewLabelToRole: Record<string, OrgRole> = {
-  Agent: 'AGENT',
-  Member: 'MEMBER',
-  'Organization admin': 'ORG_ADMIN',
-};
 
 /** Addresses the preview treats as verified accounts. Anything else has none. */
 const previewVerified = new Set([
@@ -181,6 +151,17 @@ const previewGrantor = {
   id: 'preview-global-admin',
   username: 'sam',
 };
+
+/** Lo que respondería la API: con su clave, para que se traduzca igual. */
+const lastAdministrator = () =>
+  new ApiError(
+    {
+      code: 'ORG_LAST_ADMIN',
+      message: 'An organization must keep at least one administrator.',
+      messageKey: 'errors.org.lastAdmin',
+    },
+    409,
+  );
 
 let previewId = 0;
 const nextId = (prefix: string) => `${prefix}-${(previewId += 1)}`;
@@ -235,31 +216,31 @@ function seedOrganization(organizationId: string) {
   previewMembers.set(
     organizationId,
     rows
-      .filter((row) => row[4] === 'Active')
+      .filter((row) => row.waitingFor === null)
       .map((row) => ({
         avatarUrl: null,
-        displayName: row[1],
-        email: row[2],
-        isOnline: row[1] !== 'Lena Patel',
+        displayName: row.name,
+        email: row.email,
+        isOnline: row.name !== 'Lena Patel',
         joinedAt: '2026-09-01T09:00:00.000Z',
-        role: previewLabelToRole[row[3]] ?? 'MEMBER',
-        userId: previewSessionIds[row[2]] ?? `preview-${row[2]}`,
-        username: row[2].split('@')[0] ?? row[2],
+        role: row.role,
+        userId: previewSessionIds[row.email] ?? `preview-${row.email}`,
+        username: row.email.split('@')[0] ?? row.email,
       })),
   );
   previewReservations.set(
     organizationId,
     rows
-      .filter((row) => row[4] !== 'Active')
+      .filter((row) => row.waitingFor !== null)
       .map((row) => ({
         createdAt: '2026-09-28T10:00:00.000Z',
-        email: row[2],
+        email: row.email,
         grantedBy: previewGrantor,
         id: nextId('preview-reservation'),
         organizationId,
-        role: previewLabelToRole[row[3]] ?? 'MEMBER',
+        role: row.role,
         updatedAt: '2026-09-28T10:00:00.000Z',
-        waitingFor: waitingFor(row[2]),
+        waitingFor: waitingFor(row.email),
       })),
   );
 }
@@ -408,7 +389,7 @@ const previewGateway: RolesGateway = {
       role !== 'ORG_ADMIN' &&
       members.filter((row) => row.role === 'ORG_ADMIN').length <= 1
     ) {
-      throw new Error('An organization must keep at least one administrator.');
+      throw lastAdministrator();
     }
     if (target) target.role = role;
     return later(undefined);
@@ -437,7 +418,7 @@ const previewGateway: RolesGateway = {
       target?.role === 'ORG_ADMIN' &&
       members.filter((row) => row.role === 'ORG_ADMIN').length <= 1
     ) {
-      throw new Error('An organization must keep at least one administrator.');
+      throw lastAdministrator();
     }
     previewMembers.set(
       organizationId,

@@ -108,7 +108,7 @@ export function GlobalSearchDialog({
     >
       <div className="flex h-[50px] items-center gap-3 rounded-sm border border-border bg-surface px-[14px] focus-within:border-primary focus-within:ring-1 focus-within:ring-primary">
         <label className="sr-only" htmlFor="global-search-input">
-          {t('common.search')}
+          {t('common.actions.search')}
         </label>
         <Icon className="shrink-0 text-muted" name="search" size={18} />
         <input
