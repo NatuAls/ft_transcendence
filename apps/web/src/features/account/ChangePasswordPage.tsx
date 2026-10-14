@@ -5,6 +5,7 @@ import { changePassword } from '../../api/auth';
 import {
   isApiError,
   errorKey,
+  fieldErrorKey,
   fieldErrorsFromIssues,
 } from '../../core/api/errors';
 import { useToast } from '../../core/feedback/useToast';
@@ -41,13 +42,7 @@ export function ChangePasswordPage({
       const rawErrors = fieldErrorsFromIssues(parsed.error.issues);
       const translated: FieldErrors = {};
       for (const field of Object.keys(rawErrors) as PasswordField[]) {
-        const issue = parsed.error.issues.find(
-          (candidate) => candidate.path.join('.') === field,
-        );
-        if (!issue) continue;
-        translated[field] = issue.message.startsWith('errors.')
-          ? t(issue.message)
-          : t('errors.field.required');
+        translated[field] = t(fieldErrorKey(rawErrors[field]));
       }
       setFieldErrors(translated);
       return;
@@ -64,7 +59,7 @@ export function ChangePasswordPage({
     } catch (error) {
       if (isApiError(error) && error.code === 'AUTH_WRONG_PASSWORD') {
         setFieldErrors({
-          currentPassword: t(error.messageKey, { defaultValue: error.message }),
+          currentPassword: t(errorKey(error)),
         });
       } else {
         setFailure(t(errorKey(error)));

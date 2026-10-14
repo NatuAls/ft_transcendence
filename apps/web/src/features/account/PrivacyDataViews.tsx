@@ -4,7 +4,8 @@ import { AccountHeader } from './AccountHeader';
 import type { AccountProfile } from './accountData';
 import { AsyncState } from '../../core/async/AsyncState';
 import { useAsync } from '../../core/async/useAsync';
-import { errorMessage } from '../../core/api/errors';
+import { errorKey } from '../../core/api/errors';
+import { useTranslation } from '../../core/i18n';
 import {
   confirmDeletion,
   confirmExport,
@@ -54,10 +55,15 @@ function latestOf(
   return requests.find((request) => request.type === type);
 }
 
-function formatDate(value: string | null): string {
+function formatDate(value: string | null, locale: string): string {
   if (!value) return '—';
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString();
+  return Number.isNaN(date.getTime())
+    ? '—'
+    : new Intl.DateTimeFormat(locale, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      }).format(date);
 }
 
 export function PrivacyPage({
@@ -75,6 +81,7 @@ export function PrivacyPage({
   onProfile: () => void;
   onTerms: () => void;
 }) {
+  const { t, i18n } = useTranslation();
   const [error, setError] = useState('');
   const [isWorking, setIsWorking] = useState(false);
   // La lista acompaña, no es el contenido de la pantalla: si falla, las dos
@@ -104,9 +111,7 @@ export function PrivacyPage({
       requests.reload();
       onExport();
     } catch (requestError) {
-      setError(
-        errorMessage(requestError, 'The export could not be requested.'),
-      );
+      setError(t(errorKey(requestError)));
     } finally {
       setIsWorking(false);
     }
@@ -119,20 +124,20 @@ export function PrivacyPage({
         onClick={onBack}
         type="button"
       >
-        ‹ Account
+        {t('account.back')}
       </button>
       <AccountHeader
-        description="Control your personal information and understand how it is handled."
-        title="Privacy & data"
+        description={t('account.privacy.description')}
+        title={t('account.privacy.title')}
       />
       <div className="mt-[26px] border-b border-border max-md:hidden">
         <Tabs
           activeTab="privacy"
           items={[
-            { id: 'profile', label: 'Profile' },
-            { id: 'privacy', label: 'Privacy & data' },
+            { id: 'profile', label: t('account.profile.tabProfile') },
+            { id: 'privacy', label: t('account.profile.tabPrivacy') },
           ]}
-          label="Account sections"
+          label={t('account.profile.sections')}
           onChange={(tab) => {
             if (tab === 'profile') onProfile();
           }}
@@ -143,14 +148,15 @@ export function PrivacyPage({
           {error ? <Alert tone="danger">{error}</Alert> : null}
           {requests.status === 'error' ? (
             <Alert tone="warning">
-              Your previous requests could not be read, so this page cannot say
-              whether one is already under way. {errorMessage(requests.error)}{' '}
+              {t('account.privacy.requestsReadError', {
+                error: t(errorKey(requests.error)),
+              })}{' '}
               <button
                 className="underline"
                 onClick={requests.reload}
                 type="button"
               >
-                Try again
+                {t('common.actions.retry')}
               </button>
             </Alert>
           ) : null}
@@ -159,25 +165,28 @@ export function PrivacyPage({
               className="grid size-8 place-items-center rounded-[9px] bg-success-surface text-success not-italic"
               aria-hidden="true"
             >
-              ↓
+              <Icon aria-hidden="true" name="send" size={18} />
             </i>
             <div>
               <h2 className="text-base font-medium">
-                Export your personal data
+                {t('account.privacy.export.title')}
               </h2>
               <p className="text-xs2 text-muted">
-                Request a portable archive containing your profile, connections,
-                conversations and ticket activity. We e-mail you a confirmation
-                link before anything is built.
+                {t('account.privacy.export.description')}
               </p>
               <small className="text-3xs text-muted uppercase">
                 {requests.status === 'loading'
-                  ? 'Last export · checking…'
+                  ? t('account.privacy.export.lastChecking')
                   : pendingExport
-                    ? 'Waiting for your e-mail confirmation'
+                    ? t('account.privacy.export.waiting')
                     : completedExport
-                      ? `Last export · ${formatDate(completedExport.completedAt)}`
-                      : 'Last export · No export requested'}
+                      ? t('account.privacy.export.lastCompleted', {
+                          date: formatDate(
+                            completedExport.completedAt,
+                            i18n.language,
+                          ),
+                        })
+                      : t('account.privacy.export.none')}
               </small>
             </div>
             <Button
@@ -188,10 +197,10 @@ export function PrivacyPage({
               variant="secondary"
             >
               {pendingExport
-                ? 'Continue export'
+                ? t('account.privacy.export.continue')
                 : isWorking
-                  ? 'Requesting…'
-                  : 'Request export'}
+                  ? t('account.privacy.export.requesting')
+                  : t('account.privacy.export.request')}
             </Button>
           </section>
           <section className="grid grid-cols-[34px_1fr_auto] gap-3 rounded-md border border-border bg-surface p-[22px] max-md:grid-cols-[34px_1fr] max-md:p-4 max-md:[&_.ui-button]:col-span-full">
@@ -199,16 +208,17 @@ export function PrivacyPage({
               className="grid size-8 place-items-center rounded-[9px] bg-danger-surface text-danger not-italic"
               aria-hidden="true"
             >
-              !
+              <Icon aria-hidden="true" name="close" size={18} />
             </i>
             <div>
-              <h2 className="text-base font-medium">Delete your account</h2>
+              <h2 className="text-base font-medium">
+                {t('account.privacy.delete.title')}
+              </h2>
               <p className="text-xs2 text-muted">
-                Permanently remove your account and personal data. This action
-                cannot be undone.
+                {t('account.privacy.delete.description')}
               </p>
               <small className="text-3xs text-muted">
-                Email confirmation required
+                {t('account.privacy.delete.emailRequired')}
               </small>
             </div>
             <Button
@@ -217,22 +227,26 @@ export function PrivacyPage({
               size="compact"
               variant="destructive"
             >
-              Delete account
+              {t('account.privacy.delete.action')}
             </Button>
           </section>
           <section className="rounded-md border border-border bg-surface p-[22px] max-md:mt-[14px]">
-            <h2 className="text-base font-medium">Legal documents</h2>
+            <h2 className="text-base font-medium">
+              {t('account.privacy.legal.title')}
+            </h2>
             <p className="text-xs2 text-muted">
-              Review the policies that govern the service.
+              {t('account.privacy.legal.description')}
             </p>
             <button
               className="grid w-full grid-cols-[1fr_auto] border-t border-border py-[14px] text-left"
               onClick={onPrivacyPolicy}
               type="button"
             >
-              <strong className="block">Privacy Policy</strong>
+              <strong className="block">
+                {t('account.privacy.legal.privacyTitle')}
+              </strong>
               <small className="block text-2xs text-muted">
-                How personal data is handled
+                {t('account.privacy.legal.privacyDescription')}
               </small>
               <Icon
                 className="col-start-2 row-span-2"
@@ -245,9 +259,11 @@ export function PrivacyPage({
               onClick={onTerms}
               type="button"
             >
-              <strong className="block">Terms of Service</strong>
+              <strong className="block">
+                {t('account.privacy.legal.termsTitle')}
+              </strong>
               <small className="block text-2xs text-muted">
-                Rules for using the platform
+                {t('account.privacy.legal.termsDescription')}
               </small>
               <Icon
                 className="col-start-2 row-span-2"
@@ -259,16 +275,25 @@ export function PrivacyPage({
         </main>
         <aside className="rounded-md border border-border bg-surface p-[22px] max-md:hidden">
           <h2 className="text-[0.9375rem] font-medium">
-            Your privacy at a glance
+            {t('account.privacy.sidebar.title')}
           </h2>
           {[
-            ['Authorization', 'Access is checked by the backend.'],
-            ['Data scope', 'Exports include only your own data.'],
-            ['Confirmation', 'Sensitive requests require email.'],
+            [
+              t('account.privacy.sidebar.authorization'),
+              t('account.privacy.sidebar.authorizationDescription'),
+            ],
+            [
+              t('account.privacy.sidebar.dataScope'),
+              t('account.privacy.sidebar.dataScopeDescription'),
+            ],
+            [
+              t('account.privacy.sidebar.confirmation'),
+              t('account.privacy.sidebar.confirmationDescription'),
+            ],
           ].map(([title, description]) => (
             <div className="mt-5 flex gap-2.5" key={title}>
               <i className="text-success" aria-hidden="true">
-                ✓
+                <Icon aria-hidden="true" name="check" size={16} />
               </i>
               <p className="grid gap-1">
                 <strong className="text-xs2">{title}</strong>
@@ -283,7 +308,7 @@ export function PrivacyPage({
 }
 
 function FlowPage({
-  backLabel = 'Privacy & data',
+  backLabel,
   children,
   onBack,
   subtitle,
@@ -295,6 +320,7 @@ function FlowPage({
   subtitle: string;
   title: string;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="mx-auto max-w-[660px] p-10 max-md:px-4 max-md:py-6">
       <button
@@ -302,7 +328,7 @@ function FlowPage({
         onClick={onBack}
         type="button"
       >
-        ‹ {backLabel}
+        {backLabel ?? t('account.back')}
       </button>
       <section className="grid gap-[18px] rounded-lg border border-border bg-surface p-[30px] max-md:px-[18px] max-md:py-[22px] [&>footer]:flex [&>footer]:justify-end [&>footer]:gap-2 [&>footer]:border-t [&>footer]:border-border [&>footer]:pt-[18px] max-md:[&>footer]:flex-col-reverse max-md:[&>footer_.ui-button]:w-full">
         <h1 className="text-2xl font-medium">{title}</h1>
@@ -322,6 +348,7 @@ export function ExportRequested({
   onConfirm: () => void;
   token?: string;
 }) {
+  const { t } = useTranslation();
   const [value, setValue] = useState(token);
   const [error, setError] = useState('');
   const [isWorking, setIsWorking] = useState(false);
@@ -333,12 +360,7 @@ export function ExportRequested({
       await confirmExport(value.trim());
       onConfirm();
     } catch (confirmError) {
-      setError(
-        errorMessage(
-          confirmError,
-          'That confirmation code is not valid any more. Request the export again.',
-        ),
-      );
+      setError(t(errorKey(confirmError)));
     } finally {
       setIsWorking(false);
     }
@@ -347,37 +369,37 @@ export function ExportRequested({
   return (
     <FlowPage
       onBack={onBack}
-      subtitle="We have sent a confirmation link to your e-mail address. Nothing is built until you confirm."
-      title="Confirm your data export"
+      subtitle={t('account.privacy.export.confirmDescription')}
+      title={t('account.privacy.export.confirmTitle')}
     >
-      <Alert tone="info" title="Check your inbox">
-        The link is valid for 30 minutes. Opening it brings you back here with
-        the code already filled in; if your mail client broke the link, paste
-        the code by hand.
+      <Alert tone="info" title={t('account.privacy.export.checkInbox')}>
+        {t('account.privacy.export.confirmHelp')}
       </Alert>
       <TextField
         autoComplete="off"
-        label="Confirmation code"
+        label={t('account.privacy.export.confirmationCode')}
         onChange={(event) => setValue(event.target.value)}
-        placeholder="Paste the code from the e-mail"
+        placeholder={t('account.privacy.export.codePlaceholder')}
         value={value}
       />
       <dl className="grid gap-2 text-xs2 [&_dt]:font-medium [&_dd]:mb-2 [&_dd]:text-muted">
-        <dt>Export contents</dt>
-        <dd>Profile, connections, conversations and ticket activity.</dd>
-        <dt>Format</dt>
-        <dd>ZIP archive containing readable JSON files</dd>
+        <dt>{t('account.privacy.export.contents')}</dt>
+        <dd>{t('account.privacy.export.contentsDescription')}</dd>
+        <dt>{t('account.privacy.export.format')}</dt>
+        <dd>{t('account.privacy.export.formatDescription')}</dd>
       </dl>
       {error ? <Alert tone="danger">{error}</Alert> : null}
       <footer>
         <Button onClick={onBack} variant="secondary">
-          Cancel request
+          {t('account.privacy.export.cancel')}
         </Button>
         <Button
           disabled={value.trim().length < 20 || isWorking}
           onClick={() => void confirm()}
         >
-          {isWorking ? 'Confirming…' : 'Confirm export'}
+          {isWorking
+            ? t('account.privacy.export.confirming')
+            : t('account.privacy.export.confirm')}
         </Button>
       </footer>
     </FlowPage>
@@ -385,6 +407,7 @@ export function ExportRequested({
 }
 
 export function ExportReady({ onBack }: { onBack: () => void }) {
+  const { t, i18n } = useTranslation();
   const [error, setError] = useState('');
   const [timedOut, setTimedOut] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -426,9 +449,7 @@ export function ExportReady({ onBack }: { onBack: () => void }) {
     try {
       await downloadExport(request.id);
     } catch (downloadError) {
-      setError(
-        errorMessage(downloadError, 'The archive could not be downloaded.'),
-      );
+      setError(t(errorKey(downloadError)));
     } finally {
       setIsDownloading(false);
     }
@@ -442,53 +463,62 @@ export function ExportReady({ onBack }: { onBack: () => void }) {
       onBack={onBack}
       subtitle={
         isReady
-          ? 'Your archive is ready. The link expires, so download it now.'
-          : 'Your archive is being built. This page updates on its own.'
+          ? t('account.privacy.export.readyDescription')
+          : t('account.privacy.export.buildingDescription')
       }
-      title={isReady ? 'Your archive is ready' : 'Preparing your archive'}
+      title={
+        isReady
+          ? t('account.privacy.export.readyTitle')
+          : t('account.privacy.export.buildingTitle')
+      }
     >
       {/* `status` se calcula sobre los datos y no sobre el estado del hook:
           el sondeo recarga cada tres segundos y, si se mirase el hook, la
           pantalla parpadearía a «cargando» en cada vuelta. */}
       <AsyncState
         error={latest.error}
-        errorTitle="The state of your export could not be read"
-        loading={<LoadingState label="Building your archive" />}
+        errorTitle={t('account.privacy.export.stateError')}
+        loading={<LoadingState label={t('account.privacy.export.building')} />}
         onRetry={latest.reload}
         status={request ? 'success' : latest.status}
       >
         {hasFailed ? (
-          <Alert tone="danger" title="The export failed">
-            Nothing was produced. Request the export again, and if it keeps
-            failing, contact support.
+          <Alert tone="danger" title={t('account.privacy.export.failedTitle')}>
+            {t('account.privacy.export.failedDescription')}
           </Alert>
         ) : isReady ? (
           <div className="grid gap-1.5 rounded-sm bg-surface-secondary p-4 text-xs">
-            <strong>✓ Archive generated</strong>
+            <strong>{t('account.privacy.export.generated')}</strong>
             <span className="text-xs2 text-muted">
-              Requested {formatDate(request.requestedAt)} · available until{' '}
-              {formatDate(request.expiresAt)}
+              {t('account.privacy.export.generatedDates', {
+                requested: formatDate(request.requestedAt, i18n.language),
+                expires: formatDate(request.expiresAt, i18n.language),
+              })}
             </span>
           </div>
         ) : timedOut ? (
-          <Alert tone="warning" title="This is taking longer than usual">
-            The archive is still being built. Come back to Privacy &amp; data in
-            a few minutes; the download appears here when it is ready.
+          <Alert
+            tone="warning"
+            title={t('account.privacy.export.takingLongerTitle')}
+          >
+            {t('account.privacy.export.takingLongerDescription')}
           </Alert>
         ) : (
-          <LoadingState label="Building your archive" />
+          <LoadingState label={t('account.privacy.export.building')} />
         )}
       </AsyncState>
       {error ? <Alert tone="danger">{error}</Alert> : null}
       <footer>
         <Button onClick={onBack} variant="secondary">
-          Back to privacy
+          {t('account.privacy.back')}
         </Button>
         <Button
           disabled={!isReady || isDownloading}
           onClick={() => void download()}
         >
-          {isDownloading ? 'Downloading…' : 'Download archive'}
+          {isDownloading
+            ? t('account.privacy.export.downloading')
+            : t('account.privacy.export.download')}
         </Button>
       </footer>
     </FlowPage>
@@ -506,6 +536,7 @@ export function DeleteAccount({
   profile: AccountProfile;
   token?: string;
 }) {
+  const { t } = useTranslation();
   // Arriving from the e-mail link means the request already exists: start at
   // the confirmation step instead of asking for a second e-mail.
   const [step, setStep] = useState<'request' | 'confirm'>(
@@ -523,12 +554,7 @@ export function DeleteAccount({
       await requestDeletion();
       setStep('confirm');
     } catch (requestError) {
-      setError(
-        errorMessage(
-          requestError,
-          'The confirmation e-mail could not be sent.',
-        ),
-      );
+      setError(t(errorKey(requestError)));
     } finally {
       setIsWorking(false);
     }
@@ -542,12 +568,7 @@ export function DeleteAccount({
       // The account no longer exists: the session has to go with it.
       onDeleted();
     } catch (confirmError) {
-      setError(
-        errorMessage(
-          confirmError,
-          'The account was not deleted. Check the code and the username.',
-        ),
-      );
+      setError(t(errorKey(confirmError)));
     } finally {
       setIsWorking(false);
     }
@@ -556,53 +577,50 @@ export function DeleteAccount({
   return (
     <FlowPage
       onBack={onBack}
-      subtitle="This permanently removes your account and personal data."
-      title="Delete your account?"
+      subtitle={t('account.privacy.delete.flowDescription')}
+      title={t('account.privacy.delete.flowTitle')}
     >
-      <p className="text-sm">
-        Your profile, sessions, notifications and private messages are deleted.
-        Content other people still depend on — comments on their tickets — is
-        anonymised instead of removed, which is what the regulation allows and
-        what keeps their records readable.
-      </p>
+      <p className="text-sm">{t('account.privacy.delete.details')}</p>
 
       {step === 'request' ? (
         <>
-          <Alert tone="warning" title="Two confirmations are required">
-            First we e-mail you a confirmation code. Then you type that code and
-            your own username. Nothing is deleted before both.
+          <Alert
+            tone="warning"
+            title={t('account.privacy.delete.twoConfirmations')}
+          >
+            {t('account.privacy.delete.twoConfirmationsDescription')}
           </Alert>
           {error ? <Alert tone="danger">{error}</Alert> : null}
           <footer>
             <Button onClick={onBack} variant="secondary">
-              Cancel
+              {t('common.actions.cancel')}
             </Button>
             <Button
               disabled={isWorking}
               onClick={() => void sendEmail()}
               variant="destructive"
             >
-              {isWorking ? 'Sending…' : 'E-mail me the confirmation code'}
+              {isWorking
+                ? t('account.privacy.delete.sending')
+                : t('account.privacy.delete.sendCode')}
             </Button>
           </footer>
         </>
       ) : (
         <>
-          <Alert tone="danger" title="This cannot be undone">
-            Once confirmed, the account and its personal data are gone. There is
-            no recovery, not even from a backup: restoring one would bring other
-            people's data back with it.
+          <Alert tone="danger" title={t('account.privacy.delete.irreversible')}>
+            {t('account.privacy.delete.irreversibleDescription')}
           </Alert>
           <TextField
             autoComplete="off"
-            label="Confirmation code from the e-mail"
+            label={t('account.privacy.delete.confirmationCode')}
             onChange={(event) => setCode(event.target.value)}
-            placeholder="Paste the code from the e-mail"
+            placeholder={t('account.privacy.delete.codePlaceholder')}
             value={code}
           />
           <TextField
             autoComplete="off"
-            label="Type your username to confirm"
+            label={t('account.privacy.delete.usernameConfirmation')}
             onChange={(event) => setUsername(event.target.value)}
             placeholder={profile.username}
             value={username}
@@ -610,7 +628,7 @@ export function DeleteAccount({
           {error ? <Alert tone="danger">{error}</Alert> : null}
           <footer>
             <Button onClick={onBack} variant="secondary">
-              Cancel
+              {t('common.actions.cancel')}
             </Button>
             <Button
               disabled={
@@ -619,7 +637,9 @@ export function DeleteAccount({
               onClick={() => void confirm()}
               variant="destructive"
             >
-              {isWorking ? 'Deleting…' : 'Delete my account permanently'}
+              {isWorking
+                ? t('account.privacy.delete.deleting')
+                : t('account.privacy.delete.confirm')}
             </Button>
           </footer>
         </>
