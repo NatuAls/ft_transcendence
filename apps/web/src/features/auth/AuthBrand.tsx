@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { BrandMark } from 'ui';
+import { useTranslation } from '../../core/i18n';
 
 interface AuthBrandPanelProps {
   description: string;
@@ -14,10 +15,11 @@ export function AuthBrandPanel({
   title,
   tone = 'sign-in',
 }: AuthBrandPanelProps) {
+  const { t } = useTranslation();
   return (
     <aside
       className={`hidden min-h-screen flex-col p-16 text-[#f7faf8] min-[1100px]:flex ${tone === 'register' ? 'bg-[#2d5b60]' : 'bg-[#183039]'}`}
-      aria-label="About HelpDesk Lite"
+      aria-label={t('auth.brand.ariaLabel')}
     >
       <div className="auth-brand-enter">
         <BrandHeader inverse />
@@ -29,9 +31,7 @@ export function AuthBrandPanel({
         </div>
         {insight}
       </div>
-      <p className="mt-auto text-xs text-[#9eb1b3]">
-        Privacy-first · Accessible · Designed for focus
-      </p>
+      <p className="mt-auto text-xs text-[#9eb1b3]">{t('auth.brand.footer')}</p>
     </aside>
   );
 }
@@ -43,6 +43,7 @@ export function BrandHeader({
   inverse?: boolean;
   mark?: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <div
       className={`flex items-center gap-3 font-medium ${inverse ? 'text-xl' : 'text-[0.9375rem]'}`}
@@ -50,7 +51,7 @@ export function BrandHeader({
       {mark ? (
         <BrandMark className={inverse ? '' : '!size-9 !rounded-[10px]'} />
       ) : null}
-      <span>HelpDesk Lite</span>
+      <span>{t('auth.brand.name')}</span>
     </div>
   );
 }

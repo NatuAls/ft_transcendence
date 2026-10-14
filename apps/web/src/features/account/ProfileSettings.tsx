@@ -8,6 +8,8 @@ import {
 import { previewMode } from '../../app/session';
 import { useRef, useState } from 'react';
 import { getInitials } from '../../app/text';
+import { errorKey } from '../../core/api/errors';
+import { useTranslation } from '../../core/i18n';
 import { AccountHeader } from './AccountHeader';
 import type { AccountProfile } from './accountData';
 
@@ -26,6 +28,7 @@ export function ProfileSettings({
   onProfileChange: (profile: AccountProfile) => void;
   profile: AccountProfile;
 }) {
+  const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const [previewUrl, setPreviewUrl] = useState(avatarUrl);
   const [draft, setDraft] = useState(profile);
@@ -63,12 +66,10 @@ export function ProfileSettings({
       setPreviewUrl(undefined);
       onAvatarChange('');
       setFeedbackKind('success');
-      setFeedback('Photo removed. Your initials are shown instead.');
+      setFeedback(t('account.profile.photoRemoved'));
     } catch (error) {
       setFeedbackKind('error');
-      setFeedback(
-        error instanceof Error ? error.message : 'Unable to remove the photo.',
-      );
+      setFeedback(t(errorKey(error)));
     }
   }
 
@@ -80,12 +81,12 @@ export function ProfileSettings({
       )
     ) {
       setFeedbackKind('error');
-      setFeedback('Choose a PNG, JPG, GIF or WebP image.');
+      setFeedback(t('account.profile.invalidImageType'));
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
       setFeedbackKind('error');
-      setFeedback('The image must be 5 MB or smaller.');
+      setFeedback(t('account.profile.imageTooLarge'));
       return;
     }
     const reader = new FileReader();
@@ -94,7 +95,7 @@ export function ProfileSettings({
       if (typeof reader.result !== 'string') return;
       setPreviewUrl(reader.result);
       setFeedbackKind('info');
-      setFeedback('Avatar preview updated. Save changes to keep it.');
+      setFeedback(t('account.profile.previewUpdated'));
     });
     reader.readAsDataURL(file);
   }
@@ -106,20 +107,20 @@ export function ProfileSettings({
         onClick={onBack}
         type="button"
       >
-        ‹ Account
+        {t('account.back')}
       </button>
       <AccountHeader
-        description="Manage the public information connected to your account."
-        title="Profile settings"
+        description={t('account.profile.description')}
+        title={t('account.profile.title')}
       />
       <div className="mt-[26px] border-b border-border max-md:hidden">
         <Tabs
           activeTab="profile"
           items={[
-            { id: 'profile', label: 'Profile' },
-            { id: 'privacy', label: 'Privacy & data' },
+            { id: 'profile', label: t('account.profile.tabProfile') },
+            { id: 'privacy', label: t('account.profile.tabPrivacy') },
           ]}
-          label="Account sections"
+          label={t('account.profile.sections')}
           onChange={(tab) => {
             if (tab === 'privacy') onPrivacy();
           }}
@@ -154,27 +155,25 @@ export function ProfileSettings({
               bio: saved.bio ?? '',
             });
             setFeedbackKind('success');
-            setFeedback('Profile updated successfully.');
+            setFeedback(t('account.profile.updated'));
           } catch (error) {
-            setFeedback(
-              error instanceof Error
-                ? error.message
-                : 'Unable to update your profile.',
-            );
+            setFeedback(t(errorKey(error)));
           } finally {
             setIsSaving(false);
           }
         }}
       >
         <header className="max-md:hidden">
-          <h2 className="text-base font-medium">Public profile</h2>
+          <h2 className="text-base font-medium">
+            {t('account.profile.publicTitle')}
+          </h2>
           <p className="text-xs2 text-muted">
-            This information is visible to other platform members.
+            {t('account.profile.publicDescription')}
           </p>
         </header>
         <div className="flex items-center gap-3 max-md:flex-wrap max-md:justify-center">
           <Avatar
-            alt={draft.fullName}
+            alt={t('account.profile.avatarAlt', { name: draft.fullName })}
             className="!size-[58px] !basis-[58px]"
             initials={getInitials(draft.fullName)}
             src={previewUrl}
@@ -187,29 +186,31 @@ export function ProfileSettings({
             type="file"
           />
           <Button onClick={() => inputRef.current?.click()} variant="secondary">
-            {previewUrl ? 'Change avatar' : 'Upload a photo'}
+            {previewUrl
+              ? t('account.profile.changeAvatar')
+              : t('account.profile.uploadPhoto')}
           </Button>
           {previewUrl ? (
             <Button onClick={() => void removeAvatar()} variant="ghost">
-              Remove photo
+              {t('account.profile.removePhoto')}
             </Button>
           ) : null}
           <small className="text-2xs text-muted max-md:w-full max-md:text-center">
             {previewUrl
-              ? 'PNG, JPG, GIF or WebP · Maximum 5 MB'
-              : 'No photo yet: your initials are your default avatar. PNG, JPG, GIF or WebP · Maximum 5 MB'}
+              ? t('account.profile.imageHelp')
+              : t('account.profile.noPhotoHelp')}
           </small>
         </div>
         <div className="grid grid-cols-2 gap-[14px] max-md:grid-cols-1">
           <TextField
-            label="First name"
+            label={t('account.profile.firstName')}
             name="firstName"
             onChange={(event) => updateDraft('firstName', event.target.value)}
             required
             value={draft.firstName}
           />
           <TextField
-            label="Last name"
+            label={t('account.profile.lastName')}
             name="lastName"
             onChange={(event) => updateDraft('lastName', event.target.value)}
             required
@@ -217,14 +218,16 @@ export function ProfileSettings({
           />
         </div>
         <TextField
-          label="Username"
+          autoComplete="username"
+          label={t('account.profile.username')}
           name="username"
           className="[&_.ui-field__input]:cursor-not-allowed [&_.ui-field__input]:bg-surface-secondary [&_.ui-field__input]:text-muted"
           readOnly
           value={draft.username}
         />
         <TextField
-          label="Email address"
+          autoComplete="email"
+          label={t('account.profile.email')}
           name="email"
           onChange={(event) => updateDraft('email', event.target.value)}
           className="[&_.ui-field__input]:cursor-not-allowed [&_.ui-field__input]:bg-surface-secondary [&_.ui-field__input]:text-muted"
@@ -235,14 +238,14 @@ export function ProfileSettings({
         />
         <div className="grid grid-cols-2 gap-[14px] max-md:grid-cols-1">
           <TextField
-            label="Job title"
+            label={t('account.profile.jobTitle')}
             name="jobTitle"
             onChange={(event) => updateDraft('jobTitle', event.target.value)}
             value={draft.jobTitle}
           />
           <SelectField
             className="!h-[52px]"
-            label="Time zone"
+            label={t('account.profile.timezone')}
             name="timezone"
             onChange={(event) => updateDraft('location', event.target.value)}
             value={draft.location}
@@ -255,7 +258,7 @@ export function ProfileSettings({
           </SelectField>
         </div>
         <label className="grid gap-2 text-sm font-medium">
-          Bio
+          {t('account.profile.bio')}
           <textarea
             className="min-h-[90px] resize-y rounded-sm border border-border p-3 leading-[1.5] focus-visible:border-focus focus-visible:outline-3 focus-visible:outline-focus"
             maxLength={280}
@@ -280,10 +283,10 @@ export function ProfileSettings({
         ) : null}
         <footer className="flex justify-end gap-2 border-t border-border pt-[18px] max-md:[&_.ui-button]:w-full max-md:[&_.ui-button:first-child]:hidden">
           <Button onClick={onBack} variant="secondary">
-            Cancel
+            {t('common.actions.cancel')}
           </Button>
           <Button disabled={isSaving} type="submit">
-            {isSaving ? 'Saving...' : 'Save changes'}
+            {isSaving ? t('account.profile.saving') : t('account.profile.save')}
           </Button>
         </footer>
       </form>

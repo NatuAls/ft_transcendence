@@ -162,7 +162,7 @@ function AccountHome({
       />
       <section className="mt-7 flex items-center gap-4 rounded-md border border-border bg-surface p-[22px] max-md:p-4 max-md:[&_.ui-button]:!min-h-9 max-md:[&_.ui-button]:!px-2.5">
         <Avatar
-          alt={profile.fullName}
+          alt={t('account.profile.avatarAlt', { name: profile.fullName })}
           className="!size-[58px] !basis-[58px]"
           initials={getInitials(profile.fullName)}
           src={avatarUrl}
@@ -198,7 +198,7 @@ function AccountHome({
               {t('account.password.description')}
             </small>
           </div>
-          <b aria-hidden="true">›</b>
+          <Icon aria-hidden="true" name="chevron-right" size={18} />
         </button>
         <button
           className="grid grid-cols-[36px_1fr_20px] items-center gap-2.5 rounded-md border border-border bg-surface p-4 text-left hover:border-focus hover:bg-surface-secondary"
@@ -212,7 +212,7 @@ function AccountHome({
               {t('account.home.preferences.summary', { timezone: timeZone })}
             </small>
           </div>
-          <b aria-hidden="true">›</b>
+          <Icon aria-hidden="true" name="chevron-right" size={18} />
         </button>
         <button
           className="grid grid-cols-[36px_1fr_20px] items-center gap-2.5 rounded-md border border-border bg-surface p-4 text-left hover:border-focus hover:bg-surface-secondary"
@@ -226,7 +226,7 @@ function AccountHome({
               {t('account.home.privacy.description')}
             </small>
           </div>
-          <b aria-hidden="true">›</b>
+          <Icon aria-hidden="true" name="chevron-right" size={18} />
         </button>
         <button
           className="grid grid-cols-[36px_1fr_20px] items-center gap-2.5 rounded-md border border-border bg-surface p-4 text-left hover:border-focus hover:bg-surface-secondary"
@@ -240,7 +240,7 @@ function AccountHome({
               {t('account.home.sessions.description')}
             </small>
           </div>
-          <b aria-hidden="true">›</b>
+          <Icon aria-hidden="true" name="chevron-right" size={18} />
         </button>
       </nav>
     </div>
