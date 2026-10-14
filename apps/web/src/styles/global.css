@@ -43,7 +43,7 @@
 }
 
 :root[data-theme='dark'] {
-    color-scheme: dark;
+  color-scheme: dark;
   --color-canvas: #111918;
   --color-surface: #1b2523;
   --color-surface-secondary: #24312e;
