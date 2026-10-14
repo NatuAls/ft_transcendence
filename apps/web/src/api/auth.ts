@@ -6,6 +6,7 @@ import {
   type RegisterInput,
 } from 'contracts';
 import { request } from '../core/api/client';
+import { ApiError } from '../core/api/errors';
 
 // =============================================================================
 //  ÚNICA EXCEPCIÓN al cliente compartido de core/api/client.ts.
@@ -47,15 +48,6 @@ async function readJson<T>(response: Response): Promise<T | null> {
   } catch {
     return null;
   }
-}
-
-function responseErrorMessage(
-  response: Response,
-  body: ApiErrorResponse | null,
-) {
-  if (body?.message) return body.message;
-  if (response.status >= 500) return 'errors.auth.serverUnavailable';
-  return 'errors.auth.requestFailed';
 }
 
 export interface AuthResponse {
@@ -180,7 +172,20 @@ export async function login(input: LoginInput): Promise<AuthResponse> {
 
   if (!response.ok) {
     const errorBody = await readJson<ApiErrorResponse>(response);
-    throw new Error(responseErrorMessage(response, errorBody));
+    throw new ApiError(
+      errorBody ?? {
+        code: response.status === 429 ? 'RATE_LIMITED' : 'UNKNOWN',
+        messageKey:
+          response.status === 429
+            ? 'errors.common.rateLimited'
+            : response.status >= 500
+              ? 'errors.auth.serverUnavailable'
+              : 'errors.auth.requestFailed',
+        message: 'errors.auth.requestFailed',
+        statusCode: response.status,
+      },
+      response.status,
+    );
   }
 
   const body = await readJson<AuthResponse>(response);
@@ -201,7 +206,20 @@ export async function register(input: RegisterInput): Promise<AuthResponse> {
 
   if (!response.ok) {
     const errorBody = await readJson<ApiErrorResponse>(response);
-    throw new Error(responseErrorMessage(response, errorBody));
+    throw new ApiError(
+      errorBody ?? {
+        code: response.status === 429 ? 'RATE_LIMITED' : 'UNKNOWN',
+        messageKey:
+          response.status === 429
+            ? 'errors.common.rateLimited'
+            : response.status >= 500
+              ? 'errors.auth.serverUnavailable'
+              : 'errors.auth.requestFailed',
+        message: 'errors.auth.requestFailed',
+        statusCode: response.status,
+      },
+      response.status,
+    );
   }
 
   const body = await readJson<AuthResponse>(response);
