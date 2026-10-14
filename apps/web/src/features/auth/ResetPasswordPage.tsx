@@ -2,15 +2,21 @@ import { Alert, BrandMark, Button, Icon, TextField } from 'ui';
 import { resetPasswordSchema } from 'contracts';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { resetPassword } from '../../api/verification';
-import { errorMessage, fieldErrorsFromIssues } from '../../core/api/errors';
+import {
+  errorKey,
+  fieldErrorKey,
+  fieldErrorsFromIssues,
+} from '../../core/api/errors';
 import { previewMode } from '../../app/session';
+import { LanguageSwitcher } from '../../core/i18n/LanguageSwitcher';
+import { useTranslation } from '../../core/i18n';
 
 /** Lo que exige `passwordSchema` de `packages/contracts`, dicho en voz alta. */
 const RULES = [
-  'At least 10 characters',
-  'One lowercase and one uppercase letter',
-  'One digit',
-  'One symbol',
+  'auth.reset.ruleMinLength',
+  'auth.reset.ruleCase',
+  'auth.reset.ruleDigit',
+  'auth.reset.ruleSymbol',
 ];
 
 /**
@@ -34,6 +40,7 @@ export function ResetPasswordPage({
   onRequestNew: () => void;
   token: string;
 }) {
+  const { t } = useTranslation();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [show, setShow] = useState(false);
@@ -67,8 +74,12 @@ export function ResetPasswordPage({
     if (!parsed.success) {
       const messages = fieldErrorsFromIssues(parsed.error.issues);
       setFieldErrors({
-        confirmPassword: messages.confirmPassword,
-        password: messages.password,
+        confirmPassword: messages.confirmPassword
+          ? t(fieldErrorKey(messages.confirmPassword))
+          : undefined,
+        password: messages.password
+          ? t(fieldErrorKey(messages.password))
+          : undefined,
       });
       return;
     }
@@ -78,12 +89,7 @@ export function ResetPasswordPage({
       if (!previewMode) await resetPassword(parsed.data);
       setDone(true);
     } catch (error) {
-      setFailure(
-        errorMessage(
-          error,
-          'This link is not valid any more: it was already used, or it expired after 30 minutes.',
-        ),
-      );
+      setFailure(t(errorKey(error)));
     } finally {
       setSaving(false);
     }
@@ -92,6 +98,9 @@ export function ResetPasswordPage({
   return (
     <main className="grid min-h-dvh place-items-center bg-canvas p-5">
       <section className="w-full max-w-[520px] rounded-lg border border-border bg-surface p-8 shadow-sm max-sm:p-6">
+        <div className="mb-4 flex justify-end">
+          <LanguageSwitcher />
+        </div>
         <BrandMark className="mx-auto !size-12" />
 
         {!token ? (
@@ -99,13 +108,14 @@ export function ResetPasswordPage({
             <span className="mx-auto mt-6 grid size-11 place-items-center rounded-full bg-surface-secondary text-primary">
               <Icon aria-hidden="true" name="shield" size={22} />
             </span>
-            <h1 className="mt-4 text-2xl font-medium">Nothing to reset</h1>
+            <h1 className="mt-4 text-2xl font-medium">
+              {t('auth.reset.missingTitle')}
+            </h1>
             <p className="mx-auto mt-2 max-w-[410px] text-sm leading-6 text-muted">
-              This page opens from the link in the recovery e-mail. Open the
-              newest message and follow its link, or ask for a new one.
+              {t('auth.reset.missingDescription')}
             </p>
             <Button className="mt-7" onClick={onRequestNew}>
-              Ask for a new link
+              {t('auth.reset.requestNew')}
             </Button>
           </div>
         ) : done ? (
@@ -113,27 +123,27 @@ export function ResetPasswordPage({
             <span className="mx-auto mt-6 grid size-11 place-items-center rounded-full bg-success-surface text-success">
               <Icon aria-hidden="true" name="check" size={22} />
             </span>
-            <h1 className="mt-4 text-2xl font-medium">Password changed</h1>
+            <h1 className="mt-4 text-2xl font-medium">
+              {t('auth.reset.doneTitle')}
+            </h1>
             <p
               aria-live="polite"
               className="mx-auto mt-2 max-w-[410px] text-sm leading-6 text-muted"
               role="status"
             >
-              You can sign in with your new password. Any device that was signed
-              in with the old one has to sign in again, and the failed attempts
-              counter has been cleared.
+              {t('auth.reset.doneDescription')}
             </p>
             <Button className="mt-7" onClick={onDone}>
-              Go to sign in
+              {t('auth.reset.goToSignIn')}
             </Button>
           </div>
         ) : (
           <>
             <h1 className="mt-6 text-center text-2xl font-medium">
-              Choose a new password
+              {t('auth.reset.title')}
             </h1>
             <p className="mx-auto mt-2 max-w-[410px] text-center text-sm leading-6 text-muted">
-              This link works once and expires 30 minutes after it was sent.
+              {t('auth.reset.description')}
             </p>
             <form className="mt-7 grid gap-4" noValidate onSubmit={submit}>
               <div className="relative">
@@ -141,10 +151,10 @@ export function ResetPasswordPage({
                   autoComplete="new-password"
                   autoFocus
                   error={fieldErrors.password}
-                  label="New password"
+                  label={t('auth.reset.newPassword')}
                   name="password"
                   onChange={(event) => setPassword(event.target.value)}
-                  placeholder="••••••••••"
+                  placeholder={t('auth.reset.passwordPlaceholder')}
                   type={show ? 'text' : 'password'}
                   value={password}
                 />
@@ -154,16 +164,16 @@ export function ResetPasswordPage({
                   tabIndex={-1}
                   type="button"
                 >
-                  {show ? 'Hide' : 'Show'}
+                  {show ? t('auth.common.hide') : t('auth.common.show')}
                 </button>
               </div>
               <TextField
                 autoComplete="new-password"
                 error={fieldErrors.confirmPassword}
-                label="Repeat the new password"
+                label={t('auth.reset.repeatPassword')}
                 name="confirmPassword"
                 onChange={(event) => setConfirmPassword(event.target.value)}
-                placeholder="••••••••••"
+                placeholder={t('auth.reset.passwordPlaceholder')}
                 type={show ? 'text' : 'password'}
                 value={confirmPassword}
               />
@@ -171,7 +181,7 @@ export function ResetPasswordPage({
                 {RULES.map((rule) => (
                   <li className="flex items-center gap-2" key={rule}>
                     <Icon aria-hidden="true" name="check" size={14} />
-                    {rule}
+                    {t(rule)}
                   </li>
                 ))}
               </ul>
@@ -183,7 +193,7 @@ export function ResetPasswordPage({
                     onClick={onRequestNew}
                     type="button"
                   >
-                    Ask for a new link
+                    {t('auth.reset.requestNew')}
                   </button>
                 </Alert>
               ) : null}
@@ -193,7 +203,7 @@ export function ResetPasswordPage({
                 fullWidth
                 type="submit"
               >
-                {saving ? 'Saving…' : 'Change my password'}
+                {saving ? t('auth.reset.submitting') : t('auth.reset.submit')}
               </Button>
             </form>
           </>
