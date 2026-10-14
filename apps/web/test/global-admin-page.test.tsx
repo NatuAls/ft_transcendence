@@ -14,6 +14,19 @@ import { adminUser, ids, page, platformReservation } from './support/fixtures';
  * traducirlos pasaron a ser códigos, y esto comprueba que lo que sale hacia la
  * API sigue siendo exactamente lo mismo, en cualquier idioma.
  */
+/** Closed by an administrator on 1 October: its data goes on the 31st. */
+const CERRADA = '01a106fe-4f60-7b55-9d84-ae9170f6e544';
+const cerrada = adminUser({
+  id: CERRADA,
+  username: 'oldie',
+  email: 'oldie@example.com',
+  globalRole: 'USER',
+  isActive: false,
+  deletedAt: '2026-10-01T10:00:00.000Z',
+  erasureDueAt: '2026-10-31T10:00:00.000Z',
+  profile: { displayName: 'Old Account', avatarUrl: null, isOnline: false },
+});
+
 const accounts = [
   adminUser(),
   adminUser({
@@ -85,6 +98,13 @@ const fila = (name: string, editar = 'Edit') =>
 afterEach(async () => {
   await i18next.changeLanguage('en');
 });
+
+function conCerrada(extra: Parameters<typeof mockApi>[0] = {}) {
+  return api({
+    'GET /users': reply('GET /users', 200, page([...accounts, cerrada])),
+    ...extra,
+  });
+}
 
 describe('usuarios de la plataforma', () => {
   it('pinta cuentas e invitaciones con su rol y su estado', async () => {
@@ -223,7 +243,7 @@ describe('usuarios de la plataforma', () => {
     expect(within(dialogo).getByText(/primary administrator/)).toBeTruthy();
   });
 
-  it('borrar una cuenta pide confirmación y llama a la API una vez', async () => {
+  it('borrar una cuenta pide confirmación, anuncia la fecha del borrado y llama a la API una vez', async () => {
     const { calls } = api({
       [`DELETE /users/${ids.member}`]: reply('DELETE /users/{user}', 204),
     });
@@ -238,12 +258,25 @@ describe('usuarios de la plataforma', () => {
     );
     const confirmacion = await screen.findByRole('dialog');
     expect(within(confirmacion).getByText('Delete John Lee?')).toBeTruthy();
+    // Dentro de 30 días, como la API: la fecha sale del contrato compartido.
+    const dentroDe30 = new Intl.DateTimeFormat('en', {
+      dateStyle: 'long',
+    }).format(new Date(Date.now() + 30 * 86_400_000));
+    expect(
+      within(confirmacion).getByText(
+        new RegExp(
+          `erased for good on ${dentroDe30}; until then you can restore`,
+        ),
+      ),
+    ).toBeTruthy();
     expect(calls.some((call) => call.method === 'DELETE')).toBe(false);
     fireEvent.click(
       within(confirmacion).getByRole('button', { name: 'Delete account' }),
     );
     expect(
-      await screen.findByText("John Lee's account was deleted."),
+      await screen.findByText(
+        `John Lee's account was closed. Its personal data will be erased on ${dentroDe30}; until then you can restore it.`,
+      ),
     ).toBeTruthy();
     expect(calls.filter((call) => call.method === 'DELETE')).toHaveLength(1);
   });
@@ -294,6 +327,96 @@ describe('usuarios de la plataforma', () => {
     ).toBeTruthy();
     const post = calls.find((call) => call.method === 'POST')!;
     expect(post.body).toEqual({ email: 'nueva@example.com', role: 'AGENT' });
+  });
+
+  it('una cuenta cerrada se ve como tal, con la fecha en que se borran sus datos', async () => {
+    const { calls } = conCerrada();
+    pintar();
+    const fila = await screen.findByRole('button', {
+      name: 'Edit Old Account',
+    });
+    expect(within(fila).getByText(/Closed/)).toBeTruthy();
+    expect(
+      within(fila).getByText('Data erased on October 31, 2026'),
+    ).toBeTruthy();
+    // La pantalla la pide a la API: sin ella no saldría.
+    expect(
+      calls.find((call) => call.path === '/users')!.query.get('includeClosed'),
+    ).toBe('true');
+    // No cuenta como cuenta en uso.
+    fireEvent.change(screen.getByLabelText('States'), {
+      target: { value: 'CLOSED' },
+    });
+    expect(
+      screen.getByText('Showing 1 of 6 accounts and invitations'),
+    ).toBeTruthy();
+  });
+
+  it('restaurar una cuenta cerrada', async () => {
+    const { calls } = conCerrada({
+      [`POST /users/${CERRADA}/restore`]: reply(
+        'POST /users/{user}/restore',
+        200,
+        { id: CERRADA, username: 'oldie', isActive: true },
+      ),
+    });
+    pintar();
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Edit Old Account' }),
+    );
+    const dialogo = await screen.findByRole('dialog');
+    expect(
+      within(dialogo).getByText(/erased for good on October 31, 2026/),
+    ).toBeTruthy();
+    fireEvent.click(
+      within(dialogo).getByRole('button', { name: 'Restore account' }),
+    );
+    expect(
+      await screen.findByText("Old Account's account was restored."),
+    ).toBeTruthy();
+    expect(
+      calls.filter((call) => call.method === 'POST').map((call) => call.path),
+    ).toEqual([`/users/${CERRADA}/restore`]);
+  });
+
+  it('borrar ya los datos pide confirmar, porque no se puede deshacer', async () => {
+    const { calls } = conCerrada({
+      [`POST /users/${CERRADA}/erase`]: reply('POST /users/{user}/erase', 204),
+    });
+    pintar();
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Edit Old Account' }),
+    );
+    fireEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', {
+        name: 'Erase data now',
+      }),
+    );
+    let dialogo = await screen.findByRole('dialog');
+    expect(
+      within(dialogo).getByText("Erase Old Account's data now?"),
+    ).toBeTruthy();
+    // Pensárselo: vuelve sin llamar a nadie.
+    fireEvent.click(
+      within(dialogo).getByRole('button', {
+        name: 'Wait until October 31, 2026',
+      }),
+    );
+    expect(calls.some((call) => call.method === 'POST')).toBe(false);
+
+    fireEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', {
+        name: 'Erase data now',
+      }),
+    );
+    dialogo = await screen.findByRole('dialog');
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Erase now' }));
+    expect(
+      await screen.findByText("Old Account's personal data was erased."),
+    ).toBeTruthy();
+    expect(
+      calls.filter((call) => call.method === 'POST').map((call) => call.path),
+    ).toEqual([`/users/${CERRADA}/erase`]);
   });
 
   it('en castellano, la tabla y los filtros hablan castellano', async () => {

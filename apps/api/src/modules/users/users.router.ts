@@ -160,8 +160,40 @@ usersRouter.delete(
   ...authed,
   requireGlobalAdmin(),
   async (req, res) => {
-    await users.softDelete(req.actor!, param(req.params.id));
-    audit.from(req)('user.deleted', 'User', param(req.params.id));
+    const { erasureDueAt } = await users.softDelete(
+      req.actor!,
+      param(req.params.id),
+    );
+    audit.from(req)('user.deleted', 'User', param(req.params.id), {
+      after: { erasureDueAt },
+    });
+    res.status(204).end();
+  },
+);
+
+// Las dos salidas de una cuenta cerrada antes de que acabe su plazo:
+// deshacer el cierre, o borrar ya sus datos porque la persona lo pide.
+usersRouter.post(
+  '/:id/restore',
+  ...authed,
+  requireGlobalAdmin(),
+  async (req, res) => {
+    const user = await users.restore(param(req.params.id));
+    audit.from(req)('user.restored', 'User', user.id);
+    res.json(user);
+  },
+);
+
+usersRouter.post(
+  '/:id/erase',
+  ...authed,
+  requireGlobalAdmin(),
+  async (req, res) => {
+    const id = param(req.params.id);
+    await users.eraseNow(id);
+    audit.from(req)('user.erased', 'User', id, {
+      after: { by: 'administrator' },
+    });
     res.status(204).end();
   },
 );

@@ -1,4 +1,4 @@
-export type AdminDialogKind = 'create' | 'edit' | null;
+export type AdminDialogKind = 'create' | 'edit' | 'closed' | null;
 
 /**
  * Una fila de la tabla de usuarios de la plataforma.
@@ -17,10 +17,16 @@ export interface AdminUser {
   organizations: number | string | null;
   role: PlatformAccess;
   state: AccountState;
+  /** A closed account: when its personal data will be erased. */
+  erasureDueAt?: string;
 }
 
 export type PlatformAccess = 'USER' | 'GLOBAL_ADMIN';
-export type AccountState = 'ACTIVE' | 'SUSPENDED' | 'PENDING';
+/**
+ * `CLOSED`: an administrator deleted it. It can no longer sign in, and its
+ * personal data is erased when `erasureDueAt` arrives unless it is restored.
+ */
+export type AccountState = 'ACTIVE' | 'SUSPENDED' | 'PENDING' | 'CLOSED';
 
 export const initialUsers: AdminUser[] = [
   {

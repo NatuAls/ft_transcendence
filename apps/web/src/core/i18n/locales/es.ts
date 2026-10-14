@@ -785,6 +785,7 @@ export const es: Translation = {
       ACTIVE: 'Activa',
       SUSPENDED: 'Suspendida',
       PENDING: 'Invitación pendiente',
+      CLOSED: 'Cerrada',
     },
     accessDenied: {
       title: 'Acceso restringido',
@@ -842,7 +843,9 @@ export const es: Translation = {
         userRoleChanged: 'Rol de plataforma cambiado',
         userStatusChanged: 'Cuenta suspendida o reactivada',
         userPasswordRotated: 'Contraseña sustituida',
-        userDeleted: 'Cuenta eliminada',
+        userDeleted: 'Cuenta cerrada',
+        userRestored: 'Cuenta restaurada',
+        userErased: 'Datos personales borrados',
         organizationCreated: 'Organización creada',
         organizationUpdated: 'Organización editada',
         organizationDeleted: 'Organización eliminada',
@@ -910,12 +913,13 @@ export const es: Translation = {
       organizations_one: '{{count}} organización',
       organizations_other: '{{count}} organizaciones',
       invitedUser: 'Usuario invitado',
+      erasureOn: 'Datos borrados el {{date}}',
       locked: {
         primary:
           'Es el administrador principal, creado al desplegar: su rol y su estado no se pueden cambiar desde aquí.',
         self: 'Es tu propia cuenta: otro administrador tiene que cambiar tu rol o tu estado.',
         email:
-          'La dirección de correo es la identidad para iniciar sesión y no se edita desde aquí. Suspender bloquea el acceso; eliminar cierra la cuenta.',
+          'La dirección de correo es la identidad para iniciar sesión y no se edita desde aquí. Suspender bloquea el acceso y se puede deshacer en cualquier momento; eliminar cierra la cuenta y borra sus datos personales 30 días después.',
       },
       feedback: {
         invitationPrepared: 'Invitación preparada para {{email}}.',
@@ -929,7 +933,10 @@ export const es: Translation = {
         roleReserved:
           'Invitación enviada a {{email}}: el rol queda reservado hasta que cree la cuenta y confirme la dirección.',
         roleApplied: '{{name}} ya tenía cuenta y ahora tiene el rol.',
-        deleted: 'Se ha eliminado la cuenta de {{name}}.',
+        closed:
+          'Se ha cerrado la cuenta de {{name}}. Sus datos personales se borrarán el {{date}}; hasta entonces puedes restaurarla.',
+        restored: 'Se ha restaurado la cuenta de {{name}}.',
+        erased: 'Se han borrado los datos personales de {{name}}.',
       },
     },
     userDialog: {
@@ -953,15 +960,27 @@ export const es: Translation = {
           'Un administrador de la plataforma puede actuar en todas las organizaciones sin ser miembro de ninguna.',
         standardUser:
           'Nada se activa hasta que la persona confirma la dirección: registrarla no basta, así que nadie puede quedarse con la invitación de otra persona.',
-        edit: 'Suspender bloquea el acceso. Borrar los datos personales sigue siendo una solicitud de privacidad aparte, que confirma la propia persona.',
+        edit: 'Suspender bloquea el acceso y se puede deshacer en cualquier momento. Eliminar cierra la cuenta en el acto y borra sus datos personales 30 días después.',
       },
       deleteConfirm: {
         title: '¿Eliminar a {{name}}?',
         description:
-          '{{name}} ya no podrá iniciar sesión: todas sus sesiones se cierran ahora y la cuenta desaparece de la plataforma. Sus tickets y comentarios se quedan, para quienes dependen de ellos.',
+          '{{name}} ya no podrá iniciar sesión: todas sus sesiones se cierran ahora y la cuenta sale de la plataforma. Sus datos personales se borran definitivamente el {{date}}; hasta entonces puedes restaurar la cuenta. Los tickets que abrió se quedan, con el autor anonimizado.',
         keep: 'Conservar la cuenta',
         confirm: 'Eliminar la cuenta',
       },
+    },
+    closedDialog: {
+      title: 'La cuenta de {{name}} está cerrada',
+      description:
+        'Ya no puede iniciar sesión. Sus datos personales se borrarán definitivamente el {{date}}. Hasta entonces puedes restaurarla, o borrarlos ya si la persona lo pide.',
+      restore: 'Restaurar la cuenta',
+      erase: 'Borrar los datos ahora',
+      eraseTitle: '¿Borrar ya los datos de {{name}}?',
+      eraseDescription:
+        'No se puede deshacer. Se borran su correo, su nombre, su foto, sus mensajes privados, sus ficheros y sus exportaciones de datos, y la dirección vuelve a quedar libre. Los tickets que abrió y sus comentarios se quedan, con el autor anonimizado.',
+      keep: 'Esperar al {{date}}',
+      eraseConfirm: 'Borrar ahora',
     },
     roles: {
       title: 'Roles de la plataforma',
@@ -1159,6 +1178,10 @@ export const es: Translation = {
     reservation: { notFound: 'Esa reserva ya no existe.' },
     session: { notFound: 'Esa sesión ya no existe.' },
     thumbnail: { notFound: 'Esa vista previa no existe.' },
-    user: { notFound: 'Esa cuenta no existe.' },
+    user: {
+      notFound: 'Esa cuenta no existe.',
+      notClosed:
+        'Solo se puede restaurar o borrar una cuenta cerrada que aún no se haya borrado.',
+    },
   },
 };

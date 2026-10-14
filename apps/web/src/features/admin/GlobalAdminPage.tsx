@@ -1,12 +1,12 @@
 import { Alert, Button, Icon, SelectField } from 'ui';
 import { useId, useMemo, useRef, useState } from 'react';
-import { orgRoleSchema } from 'contracts';
+import { ACCOUNT_ERASURE_GRACE_DAYS, orgRoleSchema } from 'contracts';
 import * as adminApi from '../../api/admin';
 import * as rolesApi from '../../api/roles';
 import { previewMode } from '../../app/session';
 import { getInitials } from '../../app/text';
 import type { OrganizationSummary } from '../organizations/organizationsData';
-import { AdminDialog } from './AdminDialog';
+import { AdminDialog, ClosedAccountDialog } from './AdminDialog';
 import { initialUsers } from './adminData';
 import type {
   AccountState,
@@ -29,9 +29,14 @@ function rowFrom(user: adminApi.PlatformUser): AdminUser {
     name,
     organizations: user._count.memberships || null,
     role: user.globalRole === 'GLOBAL_ADMIN' ? 'GLOBAL_ADMIN' : 'USER',
-    state: user.isActive ? 'ACTIVE' : 'SUSPENDED',
+    state: user.deletedAt ? 'CLOSED' : user.isActive ? 'ACTIVE' : 'SUSPENDED',
+    erasureDueAt: user.erasureDueAt ?? undefined,
   };
 }
+
+/** Pending invitations and closed accounts are not accounts in use. */
+const inUse = (user: AdminUser) =>
+  user.state !== 'PENDING' && user.state !== 'CLOSED';
 
 /**
  * Platform users: list, edit, suspend, change the platform role and delete -
@@ -64,7 +69,9 @@ export function GlobalAdminPage({
   const directory = useAsync(async () => {
     if (previewMode) return { users: initialUsers, accounts: {} };
     const [page, reservations] = await Promise.all([
-      adminApi.listUsers({}),
+      // También las cerradas que aún esperan su borrado: aquí es donde se
+      // restauran o se borran ya.
+      adminApi.listUsers({ includeClosed: true }),
       rolesApi.listPlatformReservations(),
     ]);
     return {
@@ -266,21 +273,44 @@ export function GlobalAdminPage({
     reload();
   }
 
-  async function deleteSelected() {
+  const longDate = (value: Date) =>
+    new Intl.DateTimeFormat(i18n.language, { dateStyle: 'long' }).format(value);
+
+  /** One action on the selected account, then the list read again. */
+  async function onSelected(
+    action: (id: string) => Promise<void>,
+    feedbackOf: (name: string) => string,
+  ) {
     if (!selectedUser || !selectedAccount) return;
     setDialog(null);
     setFeedback('');
     setFailure('');
     try {
-      await adminApi.deleteUser(selectedAccount.id);
-      setFeedback(
-        t('admin.users.feedback.deleted', { name: selectedUser.name }),
-      );
+      await action(selectedAccount.id);
+      setFeedback(feedbackOf(selectedUser.name));
     } catch (error) {
       setFailure(t(errorKey(error)));
     }
     reload();
   }
+
+  const deleteSelected = () =>
+    onSelected(adminApi.deleteUser, (name) =>
+      t('admin.users.feedback.closed', {
+        date: longDate(
+          new Date(Date.now() + ACCOUNT_ERASURE_GRACE_DAYS * 86_400_000),
+        ),
+        name,
+      }),
+    );
+  const restoreSelected = () =>
+    onSelected(adminApi.restoreUser, (name) =>
+      t('admin.users.feedback.restored', { name }),
+    );
+  const eraseSelected = () =>
+    onSelected(adminApi.eraseUser, (name) =>
+      t('admin.users.feedback.erased', { name }),
+    );
 
   const organizationOptions = previewMode
     ? ['Northstar Studio', 'Helio Labs', 'Orbit Finance'].map((name) => ({
@@ -318,10 +348,7 @@ export function GlobalAdminPage({
       <section className="my-[26px] grid grid-cols-4 gap-3 max-[1000px]:grid-cols-2">
         {[
           [
-            String(
-              platformStats?.users ??
-                users.filter((user) => user.state !== 'PENDING').length,
-            ),
+            String(platformStats?.users ?? users.filter(inUse).length),
             previewMode
               ? t('admin.users.cards.sampleUsers')
               : t('admin.users.cards.accounts'),
@@ -336,8 +363,7 @@ export function GlobalAdminPage({
           [
             String(
               users.filter(
-                (user) =>
-                  user.role === 'GLOBAL_ADMIN' && user.state !== 'PENDING',
+                (user) => user.role === 'GLOBAL_ADMIN' && inUse(user),
               ).length,
             ),
             t('admin.users.cards.administrators'),
@@ -496,6 +522,7 @@ export function GlobalAdminPage({
               {t('admin.accountState.SUSPENDED')}
             </option>
             <option value="PENDING">{t('admin.accountState.PENDING')}</option>
+            <option value="CLOSED">{t('admin.accountState.CLOSED')}</option>
           </SelectField>
         </header>
         <div className="grid w-full grid-cols-[2fr_1fr_1fr_1fr_25px] items-center gap-2.5 border-t border-border bg-surface-secondary px-[18px] py-[13px] text-left text-3xs text-muted max-[1000px]:grid-cols-[2fr_1fr_1fr_20px] max-[1000px]:[&>span:nth-child(2)]:hidden">
@@ -521,7 +548,8 @@ export function GlobalAdminPage({
             onClick={() => {
               if (user.state === 'PENDING') return;
               setSelectedUser(user);
-              setDialog('edit');
+              // Una cuenta cerrada no se edita: se restaura o se borra ya.
+              setDialog(user.state === 'CLOSED' ? 'closed' : 'edit');
             }}
             disabled={user.state === 'PENDING'}
             type="button"
@@ -542,9 +570,16 @@ export function GlobalAdminPage({
               {t(`admin.platformRole.${user.role}`)}
             </span>
             <span
-              className={`text-xs2 ${user.state === 'SUSPENDED' ? 'text-danger' : ''}`}
+              className={`grid text-xs2 ${user.state === 'SUSPENDED' || user.state === 'CLOSED' ? 'text-danger' : ''}`}
             >
-              ● {t(`admin.accountState.${user.state}`)}
+              <span>● {t(`admin.accountState.${user.state}`)}</span>
+              {user.erasureDueAt ? (
+                <small className="text-3xs text-muted">
+                  {t('admin.users.erasureOn', {
+                    date: longDate(new Date(user.erasureDueAt)),
+                  })}
+                </small>
+              ) : null}
             </span>
             <span>⋯</span>
           </button>
@@ -572,7 +607,16 @@ export function GlobalAdminPage({
           )}
         </footer>
       </section>
-      {dialog && (
+      {dialog === 'closed' && selectedUser?.erasureDueAt ? (
+        <ClosedAccountDialog
+          erasureDueAt={selectedUser.erasureDueAt}
+          name={selectedUser.name}
+          onClose={() => setDialog(null)}
+          onErase={() => void eraseSelected()}
+          onRestore={() => void restoreSelected()}
+        />
+      ) : null}
+      {dialog && dialog !== 'closed' && (
         <AdminDialog
           key={dialog}
           kind={dialog}

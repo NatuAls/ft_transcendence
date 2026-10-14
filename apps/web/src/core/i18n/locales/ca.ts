@@ -776,6 +776,7 @@ export const ca: Translation = {
       ACTIVE: 'Actiu',
       SUSPENDED: 'Suspès',
       PENDING: 'Invitació pendent',
+      CLOSED: 'Tancat',
     },
     accessDenied: {
       title: 'Accés restringit',
@@ -833,7 +834,9 @@ export const ca: Translation = {
         userRoleChanged: 'Rol de plataforma canviat',
         userStatusChanged: 'Compte suspès o reactivat',
         userPasswordRotated: 'Contrasenya substituïda',
-        userDeleted: 'Compte eliminat',
+        userDeleted: 'Compte tancat',
+        userRestored: 'Compte restaurat',
+        userErased: 'Dades personals esborrades',
         organizationCreated: 'Organització creada',
         organizationUpdated: 'Organització editada',
         organizationDeleted: 'Organització eliminada',
@@ -901,12 +904,13 @@ export const ca: Translation = {
       organizations_one: '{{count}} organització',
       organizations_other: '{{count}} organitzacions',
       invitedUser: 'Usuari convidat',
+      erasureOn: 'Dades esborrades el {{date}}',
       locked: {
         primary:
           'És l’administrador principal, creat en desplegar: el seu rol i el seu estat no es poden canviar des d’aquí.',
         self: 'És el teu propi compte: un altre administrador ha de canviar el teu rol o el teu estat.',
         email:
-          'L’adreça de correu és la identitat per iniciar sessió i no s’edita des d’aquí. Suspendre bloqueja l’accés; eliminar tanca el compte.',
+          'L’adreça de correu és la identitat per iniciar sessió i no s’edita des d’aquí. Suspendre bloqueja l’accés i es pot desfer en qualsevol moment; eliminar tanca el compte i n’esborra les dades personals 30 dies després.',
       },
       feedback: {
         invitationPrepared: 'Invitació preparada per a {{email}}.',
@@ -920,7 +924,10 @@ export const ca: Translation = {
         roleReserved:
           'Invitació enviada a {{email}}: el rol queda reservat fins que creï el compte i confirmi l’adreça.',
         roleApplied: '{{name}} ja tenia compte i ara té el rol.',
-        deleted: 'S’ha eliminat el compte de {{name}}.',
+        closed:
+          'S’ha tancat el compte de {{name}}. Les seves dades personals s’esborraran el {{date}}; fins aleshores el pots restaurar.',
+        restored: 'S’ha restaurat el compte de {{name}}.',
+        erased: 'S’han esborrat les dades personals de {{name}}.',
       },
     },
     userDialog: {
@@ -944,15 +951,27 @@ export const ca: Translation = {
           'Un administrador de la plataforma pot actuar a totes les organitzacions sense ser membre de cap.',
         standardUser:
           'Res no s’activa fins que la persona confirma l’adreça: registrar-la no n’hi ha prou, de manera que ningú no es pot quedar la invitació d’una altra persona.',
-        edit: 'Suspendre bloqueja l’accés. Esborrar les dades personals continua sent una sol·licitud de privacitat a part, que confirma la mateixa persona.',
+        edit: 'Suspendre bloqueja l’accés i es pot desfer en qualsevol moment. Eliminar tanca el compte a l’acte i n’esborra les dades personals 30 dies després.',
       },
       deleteConfirm: {
         title: 'Vols eliminar {{name}}?',
         description:
-          '{{name}} ja no podrà iniciar sessió: totes les seves sessions es tanquen ara i el compte desapareix de la plataforma. Els seus tiquets i comentaris es queden, per a qui en depèn.',
+          '{{name}} ja no podrà iniciar sessió: totes les seves sessions es tanquen ara i el compte surt de la plataforma. Les seves dades personals s’esborren definitivament el {{date}}; fins aleshores pots restaurar el compte. Els tiquets que va obrir es queden, amb l’autor anonimitzat.',
         keep: 'Conserva el compte',
         confirm: 'Elimina el compte',
       },
+    },
+    closedDialog: {
+      title: 'El compte de {{name}} està tancat',
+      description:
+        'Ja no pot iniciar sessió. Les seves dades personals s’esborraran definitivament el {{date}}. Fins aleshores el pots restaurar, o esborrar-les ara si la persona ho demana.',
+      restore: 'Restaura el compte',
+      erase: 'Esborra les dades ara',
+      eraseTitle: 'Vols esborrar ara les dades de {{name}}?',
+      eraseDescription:
+        'No es pot desfer. S’esborren el seu correu, el seu nom, la seva foto, els seus missatges privats, els seus fitxers i les seves exportacions de dades, i l’adreça torna a quedar lliure. Els tiquets que va obrir i els seus comentaris es queden, amb l’autor anonimitzat.',
+      keep: 'Espera fins al {{date}}',
+      eraseConfirm: 'Esborra ara',
     },
     roles: {
       title: 'Rols de la plataforma',
@@ -1153,6 +1172,10 @@ export const ca: Translation = {
     reservation: { notFound: 'Aquesta reserva ja no existeix.' },
     session: { notFound: 'Aquesta sessió ja no existeix.' },
     thumbnail: { notFound: 'Aquesta previsualització no existeix.' },
-    user: { notFound: 'Aquest compte no existeix.' },
+    user: {
+      notFound: 'Aquest compte no existeix.',
+      notClosed:
+        'Només es pot restaurar o esborrar un compte tancat que encara no s’hagi esborrat.',
+    },
   },
 };

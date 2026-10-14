@@ -775,6 +775,7 @@ export const en = {
       ACTIVE: 'Active',
       SUSPENDED: 'Suspended',
       PENDING: 'Invitation pending',
+      CLOSED: 'Closed',
     },
     accessDenied: {
       title: 'Access restricted',
@@ -832,7 +833,9 @@ export const en = {
         userRoleChanged: 'Platform role changed',
         userStatusChanged: 'Account suspended or reactivated',
         userPasswordRotated: 'Password replaced',
-        userDeleted: 'Account deleted',
+        userDeleted: 'Account closed',
+        userRestored: 'Account restored',
+        userErased: 'Personal data erased',
         organizationCreated: 'Organization created',
         organizationUpdated: 'Organization edited',
         organizationDeleted: 'Organization deleted',
@@ -900,12 +903,13 @@ export const en = {
       organizations_one: '{{count}} organization',
       organizations_other: '{{count}} organizations',
       invitedUser: 'Invited user',
+      erasureOn: 'Data erased on {{date}}',
       locked: {
         primary:
           'This is the primary administrator, created at deployment: its role and state cannot be changed from here.',
         self: 'This is your own account: another administrator has to change your role or state.',
         email:
-          'The e-mail address is the sign-in identity and is not edited from here. Suspending blocks access; deleting closes the account.',
+          'The e-mail address is the sign-in identity and is not edited from here. Suspending blocks access and can be undone at any time; deleting closes the account and erases its personal data 30 days later.',
       },
       feedback: {
         invitationPrepared: 'Invitation prepared for {{email}}.',
@@ -919,7 +923,10 @@ export const en = {
         roleReserved:
           'Invitation sent to {{email}}: the role is reserved until they create the account and confirm the address.',
         roleApplied: '{{name}} already has an account and now has the role.',
-        deleted: "{{name}}'s account was deleted.",
+        closed:
+          "{{name}}'s account was closed. Its personal data will be erased on {{date}}; until then you can restore it.",
+        restored: "{{name}}'s account was restored.",
+        erased: "{{name}}'s personal data was erased.",
       },
     },
     userDialog: {
@@ -942,15 +949,27 @@ export const en = {
           'A platform administrator can act in every organization without being a member of any.',
         standardUser:
           'Nothing is active until the person confirms the address: registering it is not enough, so nobody can claim somebody else’s invitation.',
-        edit: 'Suspending blocks access. Personal-data deletion remains a separate, user-confirmed privacy request.',
+        edit: 'Suspending blocks access and can be undone at any time. Deleting closes the account at once and erases its personal data 30 days later.',
       },
       deleteConfirm: {
         title: 'Delete {{name}}?',
         description:
-          '{{name}} will no longer be able to sign in: every session is closed now and the account disappears from the platform. Their tickets and comments stay, for the people who depend on them.',
+          '{{name}} will no longer be able to sign in: every session is closed now and the account leaves the platform. Their personal data is erased for good on {{date}}; until then you can restore the account. The tickets they opened stay, with the author anonymised.',
         keep: 'Keep account',
         confirm: 'Delete account',
       },
+    },
+    closedDialog: {
+      title: "{{name}}'s account is closed",
+      description:
+        'It can no longer sign in. Its personal data will be erased for good on {{date}}. Until then you can restore it, or erase it now if the person asks for it.',
+      restore: 'Restore account',
+      erase: 'Erase data now',
+      eraseTitle: "Erase {{name}}'s data now?",
+      eraseDescription:
+        'This cannot be undone. Their e-mail, name, photo, private messages, files and data exports are erased, and the address becomes free again. The tickets they opened and their comments stay, with the author anonymised.',
+      keep: 'Wait until {{date}}',
+      eraseConfirm: 'Erase now',
     },
     roles: {
       title: 'Platform roles',
@@ -1149,7 +1168,11 @@ export const en = {
     reservation: { notFound: 'That reservation does not exist any more.' },
     session: { notFound: 'That session does not exist any more.' },
     thumbnail: { notFound: 'That preview does not exist.' },
-    user: { notFound: 'That account does not exist.' },
+    user: {
+      notFound: 'That account does not exist.',
+      notClosed:
+        'Only a closed account that is not erased yet can be restored or erased.',
+    },
   },
 };
 

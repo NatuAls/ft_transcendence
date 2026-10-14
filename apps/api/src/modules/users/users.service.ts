@@ -3,10 +3,11 @@ import { mkdir, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import sharp from 'sharp';
 import { fileTypeFromBuffer } from 'file-type';
-import type {
-  ListUsersQuery,
-  UpdatePreferencesInput,
-  UpdateProfileInput,
+import {
+  ACCOUNT_ERASURE_GRACE_DAYS,
+  type ListUsersQuery,
+  type UpdatePreferencesInput,
+  type UpdateProfileInput,
 } from 'contracts';
 import type { GlobalRole } from '../../generated/prisma/client.ts';
 import { prisma } from '../../database/prisma.ts';
@@ -14,6 +15,8 @@ import { DomainEvents, events } from '../../database/events.ts';
 import { loadConfiguration } from '../../config/env.ts';
 import { Errors } from '../../common/errors/domain-error.ts';
 import { isPrimaryAdminUsername } from '../admin/bootstrap-admin.ts';
+import { removeAvatarFile } from './avatar-storage.ts';
+import { erase } from '../gdpr/gdpr.service.ts';
 import { paginate } from '../../common/utils/pagination.ts';
 import { uuidv7 } from '../../common/utils/uuid.ts';
 import type { RequestActor } from '../../common/types.ts';
@@ -249,13 +252,7 @@ export async function clearAvatar(userId: string) {
     where: { userId },
     data: { avatarUrl: null },
   });
-  if (previous?.avatarUrl?.startsWith('/api/v1/users/avatars/')) {
-    const key = previous.avatarUrl.split('/').pop();
-    if (key)
-      await unlink(join(loadConfiguration().UPLOAD_DIR, 'avatars', key)).catch(
-        () => undefined,
-      );
-  }
+  await removeAvatarFile(previous?.avatarUrl);
   events.emit(DomainEvents.accountUpdated, { userId });
   return { avatarUrl: null };
 }
@@ -281,9 +278,18 @@ export async function autocomplete(term: string) {
 }
 
 // --------------------------------------------------------------- administration --
+/** When the personal data of an account closed at `closedAt` is erased. */
+export function erasureDueAt(closedAt: Date): Date {
+  return new Date(closedAt.getTime() + ACCOUNT_ERASURE_GRACE_DAYS * 86_400_000);
+}
+
 export async function listAll(query: ListUsersQuery) {
   const where = {
-    deletedAt: null,
+    // Las cerradas por un administrador sólo si se piden: la pantalla de
+    // usuarios las enseña para poder restaurarlas o borrarlas ya; el resto de
+    // quien lista cuentas (los administradores de plataforma, por ejemplo) no
+    // debe verlas. Las ya borradas no salen nunca: no son de nadie.
+    ...(query.includeClosed ? { erasedAt: null } : { deletedAt: null }),
     ...(query.globalRole ? { globalRole: query.globalRole } : {}),
     ...(query.isActive !== undefined ? { isActive: query.isActive } : {}),
     ...(query.q
@@ -310,6 +316,7 @@ export async function listAll(query: ListUsersQuery) {
         createdAt: true,
         lastLoginAt: true,
         emailVerifiedAt: true,
+        deletedAt: true,
         profile: {
           select: { displayName: true, avatarUrl: true, isOnline: true },
         },
@@ -323,6 +330,7 @@ export async function listAll(query: ListUsersQuery) {
   return paginate(
     rows.map((row) => ({
       ...row,
+      erasureDueAt: row.deletedAt ? erasureDueAt(row.deletedAt) : null,
       isPrimary: isPrimaryAdminUsername(row.username),
     })),
     total,
@@ -386,20 +394,63 @@ export async function setGlobalRole(
   return user;
 }
 
+/**
+ * An administrator closes an account: it stops signing in at once, every
+ * session ends and it leaves the lists, but its personal data waits
+ * `ACCOUNT_ERASURE_GRACE_DAYS` before the maintenance job erases it, so a
+ * mistake can be undone (`restore`). Before this, the data simply stayed for
+ * good — and the person, who could no longer sign in, had no way left to ask
+ * for its erasure.
+ */
 export async function softDelete(
   actor: RequestActor,
   userId: string,
-): Promise<void> {
+): Promise<{ erasureDueAt: Date }> {
   if (userId === actor.id)
     throw Errors.forbiddenAction('delete your own account here');
   await refusePrimaryAdmin(userId, 'delete');
+  const closedAt = new Date();
   await prisma.user.update({
     where: { id: userId },
-    data: { deletedAt: new Date(), isActive: false },
+    data: { deletedAt: closedAt, isActive: false },
   });
   await prisma.userSession.updateMany({
     where: { userId, revokedAt: null },
-    data: { revokedAt: new Date() },
+    data: { revokedAt: closedAt },
   });
   events.emit(DomainEvents.accountDeleted, { userId });
+  return { erasureDueAt: erasureDueAt(closedAt) };
+}
+
+/** A closed account still within its grace period, or a 409. */
+async function closedAccount(userId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, username: true, deletedAt: true, erasedAt: true },
+  });
+  if (!user) throw Errors.resourceNotFound('user');
+  if (!user.deletedAt || user.erasedAt) throw Errors.accountNotClosed();
+  return user;
+}
+
+/** Undoes a closure: the account signs in again, as it was. */
+export async function restore(userId: string) {
+  const user = await closedAccount(userId);
+  const restored = await prisma.user.update({
+    where: { id: user.id },
+    data: { deletedAt: null, isActive: true },
+    select: { id: true, username: true, isActive: true },
+  });
+  events.emit(DomainEvents.accountUpdated, { userId });
+  return restored;
+}
+
+/**
+ * Erases a closed account without waiting for the end of its grace period:
+ * for when the person asks for it, by e-mail for instance — they can no
+ * longer sign in to do it themselves.
+ */
+export async function eraseNow(userId: string): Promise<void> {
+  const user = await closedAccount(userId);
+  await erase(user.id);
 }

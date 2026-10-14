@@ -12,6 +12,8 @@ export const AUDIT_ACTION_GROUPS = {
     'user.status.changed',
     'user.password.rotated',
     'user.deleted',
+    'user.restored',
+    'user.erased',
   ],
   organizations: [
     'organization.created',

@@ -9,8 +9,12 @@ import { request } from '../core/api/client';
 export interface PlatformUser {
   _count: { memberships: number; ticketsCreated: number };
   createdAt: string;
+  /** When an administrator closed it; listed only with `includeClosed`. */
+  deletedAt: string | null;
   email: string;
   emailVerifiedAt: string | null;
+  /** When the personal data of a closed account will be erased. */
+  erasureDueAt: string | null;
   globalRole: GlobalRole;
   id: string;
   isActive: boolean;
@@ -26,6 +30,8 @@ export interface PlatformUser {
 
 export function listUsers(filters: {
   globalRole?: GlobalRole;
+  /** Also the accounts closed and still waiting for their erasure. */
+  includeClosed?: boolean;
   isActive?: boolean;
   q?: string;
 }): Promise<Paginated<PlatformUser>> {
@@ -38,6 +44,7 @@ export function listUsers(filters: {
   if (filters.globalRole) search.set('globalRole', filters.globalRole);
   if (filters.isActive !== undefined)
     search.set('isActive', String(filters.isActive));
+  if (filters.includeClosed) search.set('includeClosed', 'true');
   return request(`/users?${search.toString()}`);
 }
 
@@ -76,9 +83,22 @@ export async function setGlobalRole(
   });
 }
 
-/** Closes the account: sessions revoked, sign-in refused. */
+/**
+ * Closes the account: sessions revoked, sign-in refused at once, and its
+ * personal data erased `ACCOUNT_ERASURE_GRACE_DAYS` later unless restored.
+ */
 export async function deleteUser(id: string): Promise<void> {
   await request(`/users/${id}`, { method: 'DELETE' });
+}
+
+/** Undoes the closure of an account whose data is still there. */
+export async function restoreUser(id: string): Promise<void> {
+  await request(`/users/${id}/restore`, { method: 'POST' });
+}
+
+/** Erases a closed account now, when the person asks for it. */
+export async function eraseUser(id: string): Promise<void> {
+  await request(`/users/${id}/erase`, { method: 'POST' });
 }
 
 /** Platform-wide counters: deleted accounts and organizations do not count. */

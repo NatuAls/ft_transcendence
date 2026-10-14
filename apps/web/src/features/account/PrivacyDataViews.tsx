@@ -560,10 +560,12 @@ export function DeleteAccount({
       title="Delete your account?"
     >
       <p className="text-sm">
-        Your profile, sessions, notifications and private messages are deleted.
-        Content other people still depend on — comments on their tickets — is
-        anonymised instead of removed, which is what the regulation allows and
-        what keeps their records readable.
+        Your e-mail address, username, profile, photo, sessions, notifications,
+        private messages, files and data exports are deleted at once, and the
+        address is free to sign up again. What other people still depend on —
+        the tickets you opened and your comments on tickets — stays in your
+        organizations&apos; records under an anonymous author instead, which is
+        what the regulation allows and what keeps those records readable.
       </p>
 
       {step === 'request' ? (
