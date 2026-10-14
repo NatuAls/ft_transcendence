@@ -19,9 +19,13 @@ import { en } from '../src/core/i18n/locales/en';
  */
 const SRC = resolve(process.cwd(), 'src');
 const NAMESPACES = Object.keys(en).join('|');
-// Los nombres de los eventos de tiempo real —`organization.updated`— tienen
-// la misma forma que una clave y no lo son.
-const NO_SON_CLAVES = new Set(['core/realtime/socket.ts']);
+// Los nombres de los eventos de tiempo real y de las acciones del registro de
+// auditoría —`organization.updated`— tienen la misma forma que una clave y no
+// lo son.
+const NO_SON_CLAVES = new Set([
+  'core/realtime/socket.ts',
+  'features/admin/auditCatalog.ts',
+]);
 
 function fuentes(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entrada) => {

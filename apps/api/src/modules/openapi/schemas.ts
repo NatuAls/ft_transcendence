@@ -715,6 +715,48 @@ const auditLog = object(
   },
 );
 
+const auditLogDetail = object(
+  'One entry of the audit trail with what the list leaves out: the state before and after the action - only the fields it changed, never a password hash, a key hash or a token - the user agent and the API key it came through.',
+  {
+    ...(auditLog['properties'] as Record<string, JsonSchema>),
+    userAgent: {
+      ...str('Browser or client that sent the request.'),
+      nullable: true,
+    },
+    apiKeyId: {
+      ...uuid('API key used, when the action came through the public API.'),
+      nullable: true,
+    },
+    before: {
+      type: 'object',
+      description:
+        'State before: only the fields the action changed. Null when it created something.',
+      additionalProperties: true,
+      nullable: true,
+    },
+    after: {
+      type: 'object',
+      description:
+        'State after: only the fields the action changed. Null when it removed something.',
+      additionalProperties: true,
+      nullable: true,
+    },
+  },
+  [
+    'id',
+    'action',
+    'entity',
+    'entityId',
+    'ip',
+    'userAgent',
+    'apiKeyId',
+    'createdAt',
+    'actor',
+    'before',
+    'after',
+  ],
+);
+
 const healthStatus = object(
   'Public status page payload: functional areas, never internal detail.',
   {
@@ -842,6 +884,7 @@ export const componentSchemas: Record<string, JsonSchema> = {
   ApiKey: apiKey,
   ApiKeyCreated: apiKeyCreated,
   AuditLog: auditLog,
+  AuditLogDetail: auditLogDetail,
   HealthStatus: healthStatus,
   PlatformRoleReservation: platformRoleReservation,
   OrganizationRoleReservation: organizationRoleReservation,

@@ -21,6 +21,7 @@ export function ProfileMenu({
   onSignOut,
   placement = 'topbar',
   showAdministration = false,
+  showAudit = false,
   previewIdentity,
 }: {
   children: ReactNode;
@@ -31,6 +32,8 @@ export function ProfileMenu({
   onSignOut: () => void | Promise<void>;
   placement?: 'mobile' | 'sidebar' | 'topbar';
   showAdministration?: boolean;
+  /** `audit:read`: the audit log entry, inside the platform group. */
+  showAudit?: boolean;
   previewIdentity?: PreviewIdentity;
 }) {
   const [open, setOpen] = useState(false);
@@ -145,6 +148,14 @@ export function ProfileMenu({
               >
                 Platform roles
               </MenuItem>
+              {showAudit ? (
+                <MenuItem
+                  icon="history"
+                  onClick={() => navigate('admin/audit')}
+                >
+                  Audit log
+                </MenuItem>
+              ) : null}
             </>
           ) : null}
           {previewMode && previewIdentity && onPreviewIdentityChange ? (

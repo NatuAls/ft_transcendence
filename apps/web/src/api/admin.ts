@@ -96,3 +96,78 @@ export interface PlatformStats {
 export function getPlatformStats(): Promise<PlatformStats> {
   return request('/admin/stats');
 }
+
+/** One entry of the audit trail, as the list returns it. */
+export interface AuditEntry {
+  action: string;
+  /** Null for the system, or for an account deleted since. */
+  actor: { id: string; username: string } | null;
+  createdAt: string;
+  entity: string;
+  entityId: string | null;
+  id: string;
+  ip: string | null;
+}
+
+/** The whole entry: what the list leaves out, read when it is opened. */
+export interface AuditEntryDetail extends AuditEntry {
+  after: Record<string, unknown> | null;
+  apiKeyId: string | null;
+  before: Record<string, unknown> | null;
+  userAgent: string | null;
+}
+
+/** The filters as the screen and its address keep them. */
+export interface AuditFilters {
+  action?: string;
+  actorId?: string;
+  entity?: string;
+  /** A day, `YYYY-MM-DD`, as a date field gives it. */
+  from?: string;
+  page?: number;
+  to?: string;
+}
+
+export const AUDIT_PAGE_SIZE = 25;
+
+/**
+ * A day of the person looking, as a moment the API understands. «To the 14th»
+ * means the whole 14th where they are: sent as a bare date, the API would
+ * stop at midnight UTC and leave the 14th out.
+ */
+function dayEdge(day: string | undefined, end: boolean): string | undefined {
+  const match = day ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(day) : null;
+  if (!match) return undefined;
+  const [, year, month, date] = match.map(Number) as [
+    number,
+    number,
+    number,
+    number,
+  ];
+  return (
+    end
+      ? new Date(year, month - 1, date, 23, 59, 59, 999)
+      : new Date(year, month - 1, date)
+  ).toISOString();
+}
+
+export function listAuditLogs(
+  filters: AuditFilters,
+): Promise<Paginated<AuditEntry>> {
+  const search = new URLSearchParams({
+    page: String(filters.page ?? 1),
+    take: String(AUDIT_PAGE_SIZE),
+  });
+  if (filters.entity) search.set('entity', filters.entity);
+  if (filters.action) search.set('action', filters.action);
+  if (filters.actorId) search.set('actorId', filters.actorId);
+  const from = dayEdge(filters.from, false);
+  const to = dayEdge(filters.to, true);
+  if (from) search.set('from', from);
+  if (to) search.set('to', to);
+  return request(`/admin/audit-logs?${search.toString()}`);
+}
+
+export function getAuditLog(id: string): Promise<AuditEntryDetail> {
+  return request(`/admin/audit-logs/${id}`);
+}

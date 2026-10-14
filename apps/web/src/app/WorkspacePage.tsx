@@ -4,6 +4,7 @@ import type { AccountProfile } from '../features/account/accountData';
 import { AccountPage } from '../features/account/AccountPage';
 import { ChangePasswordPage } from '../features/account/ChangePasswordPage';
 import { AdminAccessDenied } from '../features/admin/AdminAccessDenied';
+import { AuditLogPage } from '../features/admin/AuditLogPage';
 import { GlobalAdminPage } from '../features/admin/GlobalAdminPage';
 import { MessagesPage } from '../features/messages/MessagesPage';
 import { OrganizationPage } from '../features/organization/OrganizationPage';
@@ -255,6 +256,31 @@ export function WorkspacePage({
       ) : (
         <AdminAccessDenied onBack={() => navigate('tickets')} />
       );
+    case 'admin/audit': {
+      // Lo que llega en la dirección se filtra antes de llegar a la API: un
+      // `actor` que no es un identificador daría un 400 que ningún botón de
+      // la pantalla puede arreglar.
+      const param = (name: string) => location.params.get(name) || undefined;
+      const day = (name: string) =>
+        /^\d{4}-\d{2}-\d{2}$/.test(param(name) ?? '') ? param(name) : undefined;
+      const actor = param('actor');
+      return can(viewer, 'audit:read') ? (
+        <AuditLogPage
+          initialFilters={{
+            action: param('action'),
+            actorId:
+              actor && uuidSchema.safeParse(actor).success ? actor : undefined,
+            entity: param('entity'),
+            from: day('from'),
+            page: Math.max(1, Number(param('page') ?? '1') || 1),
+            to: day('to'),
+          }}
+          onFiltersChange={(params) => replaceHash('admin/audit', params)}
+        />
+      ) : (
+        <AdminAccessDenied onBack={() => navigate('tickets')} />
+      );
+    }
     case 'platform-roles':
       return can(viewer, 'user:setGlobalRole') ? (
         <PlatformRolesPage currentUserId={viewer.id} />
