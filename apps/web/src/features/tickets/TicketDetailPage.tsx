@@ -1,9 +1,19 @@
-import { Button, Dialog, Icon, IconButton, SelectField, StatusBadge } from 'ui';
+import {
+  Button,
+  Dialog,
+  Icon,
+  IconButton,
+  SelectField,
+  StatusBadge,
+  TextField,
+} from 'ui';
 import { useEffect, useState } from 'react';
+import { TICKET_TRANSITIONS, updateTicketSchema } from 'contracts';
 import { getInitials } from '../../app/text';
 import { useAsync } from '../../core/async/useAsync';
 import { AsyncState } from '../../core/async/AsyncState';
 import { isApiError } from '../../core/api/errors';
+import { fieldErrorsFromIssues } from '../../core/api/errors';
 import {
   assignTicket,
   createTicketComment,
@@ -11,6 +21,9 @@ import {
   listTicketComments,
   updateTicket,
   changeStatus,
+  deleteTicket,
+  deleteTicketComment,
+  updateTicketComment,
   type TicketDetail,
   type TicketComment,
 } from '../../api/tickets';
@@ -30,6 +43,10 @@ interface TicketDetailPageProps {
   canChangeStatus: boolean;
   canReopenTickets: boolean;
   canSelfAssign: boolean;
+  canUpdate: boolean;
+  canDelete: boolean;
+  canCreateInternal: boolean;
+  canViewInternal: boolean;
   currentUserId: string;
   organizationName: string;
   organizationId: string;
@@ -52,6 +69,10 @@ export function TicketDetailPage({
   canChangeStatus,
   canReopenTickets,
   canSelfAssign,
+  canUpdate,
+  canDelete,
+  canCreateInternal,
+  canViewInternal,
   currentUserId,
   organizationName,
   organizationId,
@@ -92,10 +113,10 @@ export function TicketDetailPage({
 
   const categoriesResponse = useAsync(
     async (signal) => {
-      if (!organizationId || !canChangeStatus) return [];
+      if (!organizationId || !canUpdate) return [];
       return listCategories(organizationId, signal);
     },
-    [organizationId, canChangeStatus],
+    [organizationId, canUpdate],
   );
 
   const [reply, setReply] = useState('');
@@ -106,16 +127,38 @@ export function TicketDetailPage({
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [statusBusy, setStatusBusy] = useState(false);
   const [isReplying, setIsReplying] = useState(false);
+  const [isInternal, setIsInternal] = useState(false);
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingCommentBody, setEditingCommentBody] = useState('');
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteCommentId, setDeleteCommentId] = useState<string | null>(null);
+  const [editErrors, setEditErrors] = useState<Record<string, string>>({});
 
   const currentStatus = ticket?.status ?? 'OPEN';
-  const assignee = ticket?.assigneeDisplayName || 'Unassigned';
+  const assignee = ticket?.assigneeDisplayName || t('tickets.list.unassigned');
   const currentUiState = stateMap[currentStatus] || stateMap.OPEN;
   const isRequester = ticket?.authorId === currentUserId;
+  const canResolveAssignedTicket =
+    canChangeStatus &&
+    currentStatus === 'IN_PROGRESS' &&
+    ticket?.assigneeId === currentUserId;
 
   useTicketRoom(ticketId);
 
   useRealtimeEvent(RealtimeEvents.commentCreated, (payload) => {
-    const event = payload as { ticket?: { id?: string } } | undefined;
+    const event = payload as
+      | {
+          ticket?: { id?: string };
+          comment?: { id?: string };
+        }
+      | undefined;
+    if (
+      event?.ticket?.id === ticketId &&
+      event.comment?.id &&
+      commentsResponse.data?.some((item) => item.id === event.comment?.id)
+    )
+      return;
     if (event?.ticket?.id === ticketId) commentsResponse.reload();
   });
   useRealtimeEvent(RealtimeEvents.commentUpdated, (payload) => {
@@ -131,6 +174,15 @@ export function TicketDetailPage({
     const event = payload as { ticket?: { id?: string } } | undefined;
     if (event?.ticket?.id === ticketId) {
       apiResponse.reload();
+    }
+  });
+
+  useRealtimeEvent(RealtimeEvents.ticketDeleted, (payload) => {
+    const event = payload as
+      { ticketId?: string; ticket?: { id?: string } } | undefined;
+    if (event?.ticketId === ticketId || event?.ticket?.id === ticketId) {
+      toast.show({ tone: 'warning', title: t('tickets.detail.deleted') });
+      onBack();
     }
   });
 
@@ -150,9 +202,9 @@ export function TicketDetailPage({
     setIsReplying(true);
     try {
       if (!canAccessConversation) return;
-      await createTicketComment(ticketId, text);
+      await createTicketComment(ticketId, text, isInternal);
       setReply('');
-      toast.success(t('tickets.detail.feedback.replyAdded'));
+      setIsInternal(false);
       commentsResponse.reload();
     } catch (error) {
       toast.error(error);
@@ -160,6 +212,49 @@ export function TicketDetailPage({
       setIsReplying(false);
     }
   }
+
+  async function saveComment() {
+    if (!editingCommentId || !editingCommentBody.trim()) return;
+    try {
+      await updateTicketComment(ticketId, editingCommentId, editingCommentBody);
+      setEditingCommentId(null);
+      setEditingCommentBody('');
+      commentsResponse.reload();
+    } catch (error) {
+      toast.error(error);
+    }
+  }
+
+  async function removeComment() {
+    if (!deleteCommentId) return;
+    try {
+      await deleteTicketComment(ticketId, deleteCommentId);
+      setDeleteCommentId(null);
+      commentsResponse.reload();
+    } catch (error) {
+      toast.error(error);
+    }
+  }
+
+  async function removeTicket() {
+    try {
+      await deleteTicket(ticketId);
+      onBack();
+    } catch (error) {
+      toast.error(error);
+    }
+  }
+
+  const mayUpdateTicket =
+    canUpdate || (isRequester && currentStatus === 'OPEN');
+  const mayChangeStatus = (nextState: keyof typeof TICKET_TRANSITIONS) =>
+    Boolean(
+      ticket &&
+      TICKET_TRANSITIONS[
+        ticket.status as keyof typeof TICKET_TRANSITIONS
+      ]?.includes(nextState) &&
+      (canChangeStatus || (nextState === 'IN_PROGRESS' && canReopenTickets)),
+    );
 
   async function changePriority(priority: TicketDetail['priority']) {
     if (!ticket || priority === ticket.priority) return;
@@ -202,6 +297,7 @@ export function TicketDetailPage({
     note: string | null = null,
   ) {
     if (!ticket || nextState === currentStatus || statusBusy) return;
+    if (!mayChangeStatus(nextState)) return;
     if (nextState === 'RESOLVED' && !nextResolution) {
       setResolutionDialogOpen(true);
       return;
@@ -231,16 +327,14 @@ export function TicketDetailPage({
   }
 
   async function assignToMe() {
-    if (!ticket || currentStatus !== 'OPEN' || statusBusy) return;
+    if (!ticket || statusBusy) return;
     setStatusBusy(true);
     try {
-      const statusUpdated = await changeStatus(ticket.id, {
-        status: 'IN_PROGRESS',
-      });
+      await assignTicket(ticket.id, currentUserId);
       const updated =
-        statusUpdated.assigneeId === currentUserId
-          ? statusUpdated
-          : await assignTicket(ticket.id, currentUserId);
+        ticket.status === 'OPEN'
+          ? await changeStatus(ticket.id, { status: 'IN_PROGRESS' })
+          : await getTicket(ticket.id);
       apiResponse.setData(() => updated);
       toast.success(t('tickets.detail.feedback.assignedToMe'));
     } catch (error) {
@@ -325,7 +419,7 @@ export function TicketDetailPage({
                   </small>
                 </div>
               </div>
-              {currentStatus === 'OPEN' && canSelfAssign && (
+              {canSelfAssign && ticket.assigneeId !== currentUserId && (
                 <Button
                   className="max-md:!min-w-[100px] max-md:!px-3"
                   disabled={statusBusy}
@@ -334,7 +428,7 @@ export function TicketDetailPage({
                   {t('tickets.detail.assignToMe')}
                 </Button>
               )}
-              {currentStatus === 'IN_PROGRESS' && canChangeStatus && (
+              {mayChangeStatus('RESOLVED') && canResolveAssignedTicket && (
                 <Button
                   className="max-md:!min-w-[100px] max-md:!px-3"
                   disabled={statusBusy}
@@ -346,7 +440,7 @@ export function TicketDetailPage({
               {currentStatus === 'RESOLVED' &&
                 (canChangeStatus || isRequester) && (
                   <div className="flex items-center gap-[14px] max-md:flex-col max-md:items-end max-md:gap-2 max-md:[&_.ui-button]:!min-h-[38px] max-md:[&_.ui-button]:!px-3">
-                    {canReopenTickets ? (
+                    {mayChangeStatus('IN_PROGRESS') ? (
                       <Button
                         onClick={() => void updateStatus('IN_PROGRESS')}
                         disabled={statusBusy}
@@ -355,7 +449,7 @@ export function TicketDetailPage({
                         {t('tickets.detail.reopen')}
                       </Button>
                     ) : null}
-                    {isRequester ? (
+                    {mayChangeStatus('CLOSED') ? (
                       <Button
                         disabled={statusBusy}
                         onClick={() => setCloseDialogOpen(true)}
@@ -370,7 +464,7 @@ export function TicketDetailPage({
                   <span className="rounded-sm bg-success-surface px-4 py-3 text-xs font-medium text-success">
                     ✓ {t('tickets.detail.ticketClosed')}
                   </span>
-                  {canReopenTickets ? (
+                  {mayChangeStatus('IN_PROGRESS') ? (
                     <Button
                       onClick={() => void updateStatus('IN_PROGRESS')}
                       disabled={statusBusy}
@@ -427,38 +521,81 @@ export function TicketDetailPage({
                     </p>
                   ) : null}
                   {canAccessConversation &&
-                    (commentsResponse.data ?? []).map(
-                      (comment: TicketComment) => (
+                    (commentsResponse.data ?? [])
+                      .filter(
+                        (comment) => canViewInternal || !comment.isInternal,
+                      )
+                      .map((comment: TicketComment) => (
                         <article
                           className={`flex gap-3 ${comment.author.id === currentUserId ? 'justify-end' : ''}`}
                           key={comment.id}
                         >
                           {comment.author.id !== currentUserId ? (
-                            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#d8e5df] text-2xs text-primary">
+                            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-surface-secondary text-2xs text-primary">
                               {getInitials(comment.author.displayName)}
                             </span>
                           ) : null}
                           <div className="max-w-[78%] max-md:max-w-[82%]">
-                            <small className="text-xs2 text-muted">
-                              {comment.author.displayName} ·{' '}
-                              {formatRelativeTime(
-                                comment.createdAt,
-                                i18n.language,
-                                now,
-                              )}
+                            <small className="flex items-center gap-2 text-xs2 text-muted">
+                              <span>
+                                {comment.author.displayName} ·{' '}
+                                {formatRelativeTime(
+                                  comment.createdAt,
+                                  i18n.language,
+                                  now,
+                                )}
+                              </span>
+                              {comment.isInternal ? (
+                                <span className="rounded-sm bg-warning-surface px-1.5 py-0.5 text-3xs font-medium text-warning uppercase">
+                                  {t('tickets.detail.internalNote')}
+                                </span>
+                              ) : null}
                             </small>
-                            <p className="mt-2 rounded-[4px_12px_12px] bg-[#e1ece8] px-4 py-[13px] text-xs leading-[1.5] max-md:text-2xs">
+                            <p
+                              className={`mt-2 whitespace-pre-line break-words rounded-[4px_12px_12px] px-4 py-[13px] text-xs leading-[1.5] max-md:text-2xs ${
+                                comment.isInternal
+                                  ? 'bg-warning-surface text-ink'
+                                  : 'bg-surface-secondary text-ink'
+                              }`}
+                            >
                               {comment.body}
                             </p>
+                            {comment.author.id === currentUserId &&
+                            (canUpdate || canDelete) ? (
+                              <div className="mt-1 flex justify-end gap-2 text-2xs">
+                                {canUpdate ? (
+                                  <button
+                                    className="text-primary"
+                                    onClick={() => {
+                                      setEditingCommentId(comment.id);
+                                      setEditingCommentBody(comment.body);
+                                    }}
+                                    type="button"
+                                  >
+                                    {t('common.actions.edit')}
+                                  </button>
+                                ) : null}
+                                {canDelete ? (
+                                  <button
+                                    className="text-danger"
+                                    onClick={() =>
+                                      setDeleteCommentId(comment.id)
+                                    }
+                                    type="button"
+                                  >
+                                    {t('common.actions.delete')}
+                                  </button>
+                                ) : null}
+                              </div>
+                            ) : null}
                           </div>
                           {comment.author.id === currentUserId ? (
-                            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#e9e2d8] text-2xs text-[#6e573c]">
+                            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-surface-secondary text-2xs text-ink">
                               {getInitials(comment.author.displayName)}
                             </span>
                           ) : null}
                         </article>
-                      ),
-                    )}
+                      ))}
                   {canAccessConversation &&
                   commentsResponse.status === 'loading' &&
                   !commentsResponse.data ? (
@@ -478,7 +615,7 @@ export function TicketDetailPage({
                     </p>
                   ) : canAccessConversation ? (
                     <form
-                      className="relative grid min-w-0 gap-3"
+                      className="relative mt-2 grid min-w-0 gap-3"
                       onSubmit={(event) => {
                         event.preventDefault();
                         sendReply();
@@ -508,6 +645,19 @@ export function TicketDetailPage({
                           {t('tickets.detail.newLineHint')}
                         </small>
                       </label>
+
+                      {canCreateInternal ? (
+                        <label className="flex cursor-pointer items-center gap-2 self-end pb-2 text-xs text-muted">
+                          <input
+                            checked={isInternal}
+                            className="size-4 rounded-sm border-border text-primary focus:ring-primary"
+                            onChange={(e) => setIsInternal(e.target.checked)}
+                            type="checkbox"
+                          />
+                          {t('tickets.detail.internalNote')}
+                        </label>
+                      ) : null}
+
                       <Button
                         aria-label={t('tickets.detail.sendReply')}
                         className="self-end justify-self-end max-md:absolute max-md:top-1/2 max-md:right-1.5 max-md:bottom-auto max-md:-translate-y-1/2 max-md:!size-10 max-md:!min-h-10 max-md:!min-w-10 max-md:!p-0"
@@ -524,6 +674,24 @@ export function TicketDetailPage({
                     </form>
                   ) : null}
                 </section>
+                {mayUpdateTicket ? (
+                  <section className="flex gap-2">
+                    <Button
+                      onClick={() => setEditDialogOpen(true)}
+                      variant="secondary"
+                    >
+                      Edit ticket
+                    </Button>
+                    {canDelete ? (
+                      <Button
+                        onClick={() => setDeleteDialogOpen(true)}
+                        variant="destructive"
+                      >
+                        Delete ticket
+                      </Button>
+                    ) : null}
+                  </section>
+                ) : null}
               </div>
 
               <aside className="grid content-start gap-5 max-md:hidden">
@@ -624,7 +792,7 @@ export function TicketDetailPage({
                     </div>
                   )}
                 </section>
-                {canChangeStatus ? (
+                {canUpdate ? (
                   <section className="rounded-md border border-border bg-surface p-[26px]">
                     <h2 className="mb-[7px] text-base font-medium">
                       {t('tickets.detail.agentOptions')}
@@ -712,6 +880,147 @@ export function TicketDetailPage({
             />
           </label>
         </Dialog>
+      ) : null}
+
+      {editDialogOpen && ticket ? (
+        <Dialog
+          description={t('tickets.detail.editDescription')}
+          footer={
+            <>
+              <Button
+                onClick={() => setEditDialogOpen(false)}
+                variant="secondary"
+              >
+                {t('common.actions.cancel')}
+              </Button>
+              <Button type="submit">{t('common.actions.saveChanges')}</Button>
+            </>
+          }
+          onClose={() => setEditDialogOpen(false)}
+          onSubmit={(event) => {
+            event.preventDefault();
+            const form = new FormData(event.currentTarget);
+            const parsed = updateTicketSchema.safeParse({
+              title: String(form.get('title') ?? ''),
+              description: String(form.get('description') ?? ''),
+            });
+            if (!parsed.success) {
+              setEditErrors(fieldErrorsFromIssues(parsed.error.issues));
+              return;
+            }
+            setEditErrors({});
+            void (async () => {
+              try {
+                const updated = await updateTicket(ticket.id, parsed.data);
+                apiResponse.setData(() => updated);
+                setEditDialogOpen(false);
+              } catch (error) {
+                toast.error(error);
+              }
+            })();
+          }}
+          title={t('tickets.detail.editTicket')}
+        >
+          <TextField
+            defaultValue={ticket.title}
+            error={editErrors.title}
+            label={t('tickets.detail.titleField')}
+            name="title"
+          />
+          <label className="grid gap-2 text-xs">
+            <span className="font-medium">
+              {t('tickets.detail.descriptionField')}
+            </span>
+            <textarea
+              className={`min-h-32 rounded-sm border p-3 ${
+                editErrors.description ? 'border-danger' : 'border-border'
+              }`}
+              defaultValue={ticket.description}
+              maxLength={5000}
+              minLength={10}
+              name="description"
+              required
+            />
+            {editErrors.description ? (
+              <span className="text-xs text-danger">
+                {editErrors.description}
+              </span>
+            ) : null}
+          </label>
+        </Dialog>
+      ) : null}
+
+      {deleteDialogOpen ? (
+        <Dialog
+          description={t('tickets.detail.deleteDescription')}
+          footer={
+            <>
+              <Button
+                onClick={() => setDeleteDialogOpen(false)}
+                variant="secondary"
+              >
+                {t('common.actions.cancel')}
+              </Button>
+              <Button onClick={() => void removeTicket()} variant="destructive">
+                {t('tickets.detail.deleteTicket')}
+              </Button>
+            </>
+          }
+          onClose={() => setDeleteDialogOpen(false)}
+          title={t('tickets.detail.deleteTicketQuestion')}
+        />
+      ) : null}
+
+      {editingCommentId ? (
+        <Dialog
+          footer={
+            <>
+              <Button
+                onClick={() => setEditingCommentId(null)}
+                variant="secondary"
+              >
+                {t('common.actions.cancel')}
+              </Button>
+              <Button onClick={() => void saveComment()}>
+                {t('common.actions.saveChanges')}
+              </Button>
+            </>
+          }
+          onClose={() => setEditingCommentId(null)}
+          title={t('tickets.detail.editComment')}
+        >
+          <div className="my-2 grid gap-2">
+            <textarea
+              className="min-h-32 resize-y rounded-sm border border-border p-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              onChange={(event) => setEditingCommentBody(event.target.value)}
+              value={editingCommentBody}
+            />
+          </div>
+        </Dialog>
+      ) : null}
+
+      {deleteCommentId ? (
+        <Dialog
+          description={t('tickets.detail.deleteDescription')}
+          footer={
+            <>
+              <Button
+                onClick={() => setDeleteCommentId(null)}
+                variant="secondary"
+              >
+                {t('common.actions.cancel')}
+              </Button>
+              <Button
+                onClick={() => void removeComment()}
+                variant="destructive"
+              >
+                {t('tickets.detail.deleteComment')}
+              </Button>
+            </>
+          }
+          onClose={() => setDeleteCommentId(null)}
+          title={t('tickets.detail.deleteCommentQuestion')}
+        />
       ) : null}
 
       {closeDialogOpen ? (
