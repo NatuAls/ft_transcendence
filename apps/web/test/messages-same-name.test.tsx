@@ -46,7 +46,7 @@ const sendMessage = vi.fn(async (conversationId: string, body: string) => ({
   },
 }));
 
-vi.mock('../src/features/messages/messagesApi', () => ({
+vi.mock('../src/api/messages', () => ({
   listConversations: (...args: unknown[]) => listConversations(...args),
   listMessages: (...args: unknown[]) => listMessages(...args),
   markConversationRead: vi.fn(async () => ({})),
@@ -54,14 +54,11 @@ vi.mock('../src/features/messages/messagesApi', () => ({
   searchUsers: vi.fn(async () => []),
   sendMessage: (conversationId: string, body: string) =>
     sendMessage(conversationId, body),
-  socketOrigin: () => 'http://localhost',
-  currentUserId: () => '01a11000-0000-7000-8000-00000000000f',
 }));
 
-// La sesión y el socket: esta prueba va de a quién se escribe, no de red.
-vi.mock('../src/api/auth', () => ({ getAccessToken: () => 'token-de-prueba' }));
-vi.mock('socket.io-client', () => ({
-  io: () => ({ on: vi.fn(), off: vi.fn(), emit: vi.fn(), disconnect: vi.fn() }),
+vi.mock('../src/core/realtime/useRealtime', () => ({
+  useConversationRoom: vi.fn(),
+  useRealtimeEvent: vi.fn(),
 }));
 
 const { MessagesPage } = await import('../src/features/messages/MessagesPage');
@@ -76,7 +73,18 @@ function conversacion(id: string, participante: typeof ANA, ultimo: string) {
 }
 
 function pintar() {
-  render(<MessagesPage onOpenProfile={vi.fn()} onViewTickets={vi.fn()} />);
+  render(
+    <MessagesPage
+      onOpenProfile={vi.fn()}
+      onViewTickets={vi.fn()}
+      viewer={
+        {
+          id: '01a11000-0000-7000-8000-00000000000f',
+          profile: { username: 'yo' },
+        } as never
+      }
+    />,
+  );
 }
 
 describe('dos conversaciones con el mismo nombre visible', () => {

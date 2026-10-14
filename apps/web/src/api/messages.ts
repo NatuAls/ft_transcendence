@@ -1,5 +1,4 @@
-import { getAccessToken } from '../../api/auth';
-import { request } from '../../core/api/client';
+import { request } from '../core/api/client';
 
 export interface ChatUser {
   id: string;
@@ -75,29 +74,8 @@ export function sendMessage(
 }
 
 export function markConversationRead(conversationId: string): Promise<unknown> {
-  // La API contesta 204 a esta ruta. El cliente propio hacía `response.json()`
-  // sobre un cuerpo vacío y reventaba; el compartido devuelve `undefined`.
   return request(`/conversations/${encodeURIComponent(conversationId)}/read`, {
     method: 'PATCH',
     body: {},
   });
-}
-
-export function socketOrigin(): string | undefined {
-  const configured = import.meta.env.VITE_API_URL as string | undefined;
-  if (!configured || configured.startsWith('/')) return undefined;
-  return new URL(configured).origin;
-}
-
-export function currentUserId(): string | null {
-  const token = getAccessToken();
-  if (!token) return null;
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1] ?? '')) as {
-      sub?: string;
-    };
-    return payload.sub ?? null;
-  } catch {
-    return null;
-  }
 }
