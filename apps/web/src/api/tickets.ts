@@ -4,6 +4,7 @@ import {
   searchTicketsQuerySchema,
   createTicketSchema,
   updateTicketSchema,
+  updateCommentSchema,
   changeStatusSchema,
   type CreateTicketInput,
 } from 'contracts';
@@ -155,6 +156,34 @@ export interface TicketComment {
   isInternal: boolean;
 }
 
+export interface TicketHistoryEntry {
+  id: string;
+  field: string;
+  oldValue: string | null;
+  newValue: string | null;
+  note: string | null;
+  createdAt: string;
+  changedBy: {
+    id: string;
+    username: string;
+    displayName: string;
+  };
+}
+
+interface TicketHistoryApi {
+  id: string;
+  field: string;
+  oldValue: string | null;
+  newValue: string | null;
+  note: string | null;
+  createdAt: string;
+  changedBy: {
+    id: string;
+    username: string;
+    profile: { displayName: string } | null;
+  };
+}
+
 interface TicketCommentApi {
   author: {
     id: string;
@@ -281,6 +310,24 @@ export async function listTicketComments(
   }).then((rows) => rows.map(toTicketComment));
 }
 
+export async function listTicketHistory(
+  ticketId: string,
+  signal?: AbortSignal,
+): Promise<TicketHistoryEntry[]> {
+  const rows = await request<TicketHistoryApi[]>(
+    `${RUTA}/${ticketId}/history`,
+    { signal },
+  );
+  return rows.map((row) => ({
+    ...row,
+    changedBy: {
+      id: row.changedBy.id,
+      username: row.changedBy.username,
+      displayName: row.changedBy.profile?.displayName ?? row.changedBy.username,
+    },
+  }));
+}
+
 // ------------------------------------------------------------- escrituras --
 
 /**
@@ -301,6 +348,8 @@ export async function createTicket(
 export async function updateTicket(
   ticketId: string,
   input: {
+    title?: string;
+    description?: string;
     categoryId?: string | null;
     priority?: 'HIGH' | 'LOW' | 'MEDIUM';
   },
@@ -352,11 +401,35 @@ export async function assignTicket(
 export async function createTicketComment(
   ticketId: string,
   body: string,
+  isInternal: boolean,
 ): Promise<TicketComment> {
   return request<TicketCommentApi>(`${RUTA}/${ticketId}/comments`, {
     method: 'POST',
-    body: createCommentSchema.parse({ body }),
+    body: createCommentSchema.parse({ body, isInternal }),
   }).then(toTicketComment);
+}
+
+export async function updateTicketComment(
+  ticketId: string,
+  commentId: string,
+  body: string,
+): Promise<TicketComment> {
+  return request<TicketCommentApi>(
+    `${RUTA}/${ticketId}/comments/${commentId}`,
+    {
+      method: 'PATCH',
+      body: updateCommentSchema.parse({ body }),
+    },
+  ).then(toTicketComment);
+}
+
+export async function deleteTicketComment(
+  ticketId: string,
+  commentId: string,
+): Promise<void> {
+  await request(`${RUTA}/${ticketId}/comments/${commentId}`, {
+    method: 'DELETE',
+  });
 }
 
 /** 204 sin cuerpo: el cliente devuelve `undefined` y no intenta leer JSON. */
