@@ -37,6 +37,8 @@ export type AuditAction =
   | 'user.status.changed'
   | 'user.password.rotated'
   | 'user.deleted'
+  | 'user.restored'
+  | 'user.erased'
   // organizations
   | 'organization.created'
   | 'organization.updated'
@@ -61,8 +63,11 @@ export interface AuditContext {
 }
 
 export interface AuditEntry {
+  /** Null for what the system does on its own, like a scheduled erasure. */
   actor:
-    Pick<RequestActor, 'id' | 'apiKeyId'> | { id: string; apiKeyId?: string };
+    | Pick<RequestActor, 'id' | 'apiKeyId'>
+    | { id: string; apiKeyId?: string }
+    | null;
   action: AuditAction;
   entity: string;
   entityId?: string | null;
@@ -98,8 +103,8 @@ export async function record(entry: AuditEntry): Promise<void> {
   try {
     await prisma.auditLog.create({
       data: {
-        actorId: entry.actor.id,
-        apiKeyId: entry.actor.apiKeyId ?? null,
+        actorId: entry.actor?.id ?? null,
+        apiKeyId: entry.actor?.apiKeyId ?? null,
         action: entry.action,
         entity: entry.entity,
         entityId: entry.entityId ?? null,

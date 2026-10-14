@@ -80,6 +80,8 @@ function renderPage(
       canReadMembers
       canReadStats
       currentUserId={ids.admin}
+      // Lo que el armazón calcula con can(viewer, 'user:setGlobalRole').
+      isPlatformAdmin={organizationRole === 'GLOBAL_ADMIN'}
       onAccessChanged={vi.fn()}
       onOpenCategory={vi.fn()}
       onOrganizationDeleted={vi.fn()}

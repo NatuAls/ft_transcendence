@@ -7,6 +7,7 @@ export type AppSection =
   | 'admin'
   | 'organizations'
   | 'platform-roles'
+  | 'admin/audit'
   | 'organization-roles';
 
 export type AccountView =
@@ -34,6 +35,7 @@ export type AppRoute =
   | 'account'
   | `account/${Exclude<AccountView, 'home'>}`
   | 'admin'
+  | 'admin/audit'
   | 'organizations'
   | 'platform-roles'
   | 'organization-roles'
@@ -75,6 +77,7 @@ const routes = new Set<AppRoute>([
   'account/export-ready',
   'account/delete',
   'admin',
+  'admin/audit',
   'organizations',
   'platform-roles',
   'organization-roles',
@@ -144,6 +147,7 @@ export function getActiveSection(route: AppRoute): AppSection {
   if (route === 'people-profile') return 'people';
   if (
     route === 'admin' ||
+    route === 'admin/audit' ||
     route === 'organizations' ||
     route === 'platform-roles' ||
     route === 'organization-roles'

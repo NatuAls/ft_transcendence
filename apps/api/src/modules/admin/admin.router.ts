@@ -6,6 +6,7 @@ import { requireGlobalAdmin } from '../../common/middleware/policy.ts';
 import { validate } from '../../common/middleware/validate.ts';
 import { paginate } from '../../common/utils/pagination.ts';
 import { originOf, param } from '../../common/utils/http.ts';
+import { Errors } from '../../common/errors/domain-error.ts';
 import * as audit from '../audit/audit.service.ts';
 import * as roles from '../roles/role-grants.service.ts';
 
@@ -62,6 +63,30 @@ adminRouter.get(
     res.json(paginate(rows, total, q.page, q.take));
   },
 );
+
+// Una entrada entera: lo que la lista deja fuera —el antes y el después, el
+// navegador, la clave de API por la que llegó— para leerlo cuando hace falta
+// y no cargar con ello en cada página del registro.
+adminRouter.get('/audit-logs/:id', async (req, res) => {
+  const entry = await prisma.auditLog.findUnique({
+    where: { id: param(req.params.id) },
+    select: {
+      id: true,
+      action: true,
+      entity: true,
+      entityId: true,
+      ip: true,
+      userAgent: true,
+      apiKeyId: true,
+      createdAt: true,
+      before: true,
+      after: true,
+      actor: { select: { id: true, username: true } },
+    },
+  });
+  if (!entry) throw Errors.resourceNotFound('auditLog');
+  res.json(entry);
+});
 
 adminRouter.get('/stats', async (_req, res) => {
   const [

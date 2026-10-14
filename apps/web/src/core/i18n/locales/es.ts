@@ -6,6 +6,7 @@ export const es: Translation = {
       save: 'Guardar',
       cancel: 'Cancelar',
       retry: 'Reintentar',
+      refresh: 'Actualizar',
       close: 'Cerrar',
       search: 'Buscar',
       signOut: 'Cerrar sesión',
@@ -17,6 +18,8 @@ export const es: Translation = {
       loading: 'Cargando…',
       empty: 'Aún no hay nada aquí',
       error: 'Algo ha salido mal',
+      refreshing: 'Actualizando…',
+      updatedAt: 'Actualizado: {{time}} · se refresca cada minuto',
     },
     language: 'Idioma',
     notFound: {
@@ -32,6 +35,12 @@ export const es: Translation = {
     previewMode: 'Vista previa · datos locales',
     goToTickets: 'Ir a tickets',
     mobileNavigation: 'Navegación móvil',
+    accountMenu: 'Menú de cuenta',
+    legalNavigation: 'Información legal y del servicio',
+    serviceStatus: 'Estado del servicio',
+    academicProject: 'HelpDesk Lite · un proyecto académico de 42 Barcelona',
+    crash:
+      'La interfaz no ha podido terminar de cargarse. Los datos de tu navegador no se han modificado.',
   },
   nav: {
     tickets: 'Tickets',
@@ -40,8 +49,12 @@ export const es: Translation = {
     organization: 'Organización',
     account: 'Cuenta',
     admin: 'Administración',
+    users: 'Usuarios',
+    platformUsers: 'Usuarios de la plataforma',
     organizations: 'Organizaciones',
+    yourOrganizations: 'Tus organizaciones',
     platformRoles: 'Roles de plataforma',
+    auditLog: 'Registro de auditoría',
     organizationRoles: 'Roles y acceso',
     organizationGroup: 'ORGANIZACIÓN',
     platformGroup: 'PLATAFORMA',
@@ -113,6 +126,8 @@ export const es: Translation = {
       submit: 'Cambiar contraseña',
       saving: 'Cambiando contraseña…',
       success: 'Contraseña cambiada correctamente.',
+      showPassword: 'Mostrar contraseña',
+      hidePassword: 'Ocultar contraseña',
     },
     profile: {
       title: 'Configuración del perfil',
@@ -270,7 +285,7 @@ export const es: Translation = {
         flowDescription:
           'Esto elimina permanentemente tu cuenta y tus datos personales.',
         details:
-          'Se eliminarán tu perfil, sesiones, notificaciones y mensajes privados. El contenido del que dependen otras personas —comentarios en sus tickets— se anonimiza en lugar de eliminarse, como permite la normativa y para mantener sus registros legibles.',
+          'Se eliminan al momento tu correo, tu nombre de usuario, tu perfil, tu foto, tus sesiones, tus notificaciones, tus mensajes privados, tus ficheros y tus exportaciones de datos, y la dirección queda libre para volver a registrarse. Lo que otras personas siguen necesitando —los tickets que abriste y tus comentarios en tickets— se queda en los registros de tus organizaciones con autor anónimo, como permite la normativa y para que esos registros sigan siendo legibles.',
         twoConfirmations: 'Se requieren dos confirmaciones',
         twoConfirmationsDescription:
           'Primero te enviaremos un código de confirmación. Después tendrás que escribir ese código y tu propio nombre de usuario. No se eliminará nada antes de ambos pasos.',
@@ -683,6 +698,767 @@ export const es: Translation = {
       },
     },
   },
+  organization: {
+    eyebrow: 'ORGANIZACIÓN',
+    role: {
+      MEMBER: 'Miembro',
+      AGENT: 'Agente de soporte',
+      ORG_ADMIN: 'Administrador de la organización',
+    },
+    roleDescription: {
+      MEMBER: 'Abre tickets y sigue sus propias solicitudes.',
+      AGENT:
+        'Trabaja todos los tickets de la organización: estado, autoasignación y notas internas.',
+      ORG_ADMIN:
+        'Todo lo que hace un agente, y además miembros, roles, categorías, claves de API y la propia organización.',
+    },
+    members_one: '{{count}} miembro',
+    members_other: '{{count}} miembros',
+    tickets_one: '{{count}} ticket',
+    tickets_other: '{{count}} tickets',
+    defaultDescription: 'Soporte y solicitudes de servicio de la organización.',
+    list: {
+      eyebrow: 'ORGANIZACIONES',
+      eyebrowPlatform: 'PLATAFORMA',
+      title: 'Tus organizaciones',
+      titlePlatform: 'Organizaciones',
+      description:
+        'Elige una organización para seguir con el acceso que tienes.',
+      descriptionPlatform: 'Revisa las organizaciones de la plataforma.',
+      new: 'Nueva organización',
+      search: 'Buscar organizaciones',
+      count_one: '{{count}} organización',
+      count_other: '{{count}} organizaciones',
+      open: 'Abrir organización',
+      platformAccess: 'Acceso de plataforma',
+      yours: 'Tu organización',
+      pendingAdministrator:
+        'Invitación de administración pendiente · {{email}}',
+      noResults: {
+        title: 'No se ha encontrado ninguna organización',
+        description: 'Prueba con otra búsqueda.',
+      },
+      none: {
+        title: 'Todavía no hay organizaciones',
+        description:
+          'Un administrador de una organización tiene que darle un rol a tu dirección de correo.',
+        descriptionPlatform: 'Crea la primera con Nueva organización.',
+      },
+    },
+    create: {
+      title: 'Crear una organización',
+      description:
+        'Crea la organización y da su administración a una dirección de correo. La persona la recibe aunque todavía no tenga cuenta: se activa cuando cree una con esa dirección y la confirme.',
+      name: 'Nombre de la organización',
+      namePlaceholder: 'Ejemplo: Soporte Acme',
+      descriptionLabel: 'Descripción',
+      descriptionPlaceholder: 'A qué da soporte esta organización',
+      administrator: 'Administrador inicial de la organización',
+      administratorPlaceholder: 'admin@empresa.com',
+      url: 'Dirección de la organización',
+      urlPlaceholder: 'nombre-de-la-organizacion',
+      urlHelp:
+        'Se genera a partir del nombre. Si ya está en uso, te lo diremos al crear la organización.',
+      submit: 'Crear organización',
+      submitting: 'Creando…',
+      invalidEmail:
+        'Escribe una dirección de correo válida para el administrador.',
+      duplicate: 'Ya existe una organización con ese nombre o esa dirección.',
+      createdPreview:
+        'Se ha creado {{name}} y se ha preparado la invitación de su administrador en esta vista previa.',
+      createdReserved:
+        'Se ha creado {{name}}. Su administración queda reservada para {{email}}: se activa cuando esa dirección cree su cuenta y la confirme.',
+      createdApplied:
+        'Se ha creado {{name}} y la administra {{administrator}}.',
+      createdWithoutAdministrator:
+        'Se ha creado {{name}}, pero no se ha podido asignar el administrador: {{reason}} Asígnalo desde Roles y acceso.',
+    },
+    page: {
+      eyebrowSettings: 'AJUSTES DE LA ORGANIZACIÓN',
+      descriptionAgent:
+        'Revisa la carga de tickets y las categorías que usa esta organización.',
+      descriptionMember:
+        'Consulta tu acceso y las categorías disponibles al crear tickets.',
+      adminTools: 'Herramientas de administración',
+      edit: 'Editar organización',
+      stats: {
+        members: 'Miembros',
+        agents: 'Agentes de soporte',
+        openTickets: 'Tickets abiertos',
+        categories: 'Categorías',
+      },
+      yourAccess: 'Tu acceso',
+      visibility: 'Visibilidad de tickets',
+      yourTicketsOnly: 'Solo tus tickets',
+      tabsLabel: 'Ajustes de la organización',
+      tabs: {
+        members: 'Miembros',
+        roles: 'Roles de acceso',
+        categories: 'Categorías',
+        apiKeys: 'Claves de API',
+      },
+      title: {
+        members: 'Miembros y acceso',
+        roles: 'Roles de acceso y permisos',
+        categories: 'Categorías de tickets',
+        apiKeys: 'Claves de API',
+      },
+      description: {
+        members: 'Los cambios solo se aplican dentro de {{organization}}.',
+        roles:
+          'Revisa los niveles de acceso fijos que se usan en {{organization}}.',
+        categories:
+          'Crea categorías para clasificar y encaminar las solicitudes de soporte.',
+        apiKeys:
+          'Deja que otro sistema trabaje con {{organization}} a través de la API pública, solo con los permisos que elijas.',
+      },
+      addMember: 'Añadir miembro',
+      createCategory: 'Crear categoría',
+      columns: {
+        member: 'MIEMBRO',
+        role: 'ROL',
+        category: 'CATEGORÍA',
+        members: 'MIEMBROS',
+        tickets: 'TICKETS',
+        access: 'ACCESO',
+        status: 'ESTADO',
+      },
+      empty: {
+        membersTitle: 'Todavía no hay miembros',
+        membersDescription:
+          'Añade a alguien por su dirección de correo para empezar.',
+        categoriesTitle: 'Todavía no hay categorías',
+        categoriesDescription: 'Crea una para empezar a encaminar tickets.',
+      },
+      errorTitle: 'No se ha podido leer esta organización',
+      viewTickets: 'Ver los tickets de {{name}}',
+      open: 'Abrir {{name}}',
+      editRow: 'Editar {{name}}',
+      active: 'Activo',
+      invited: 'Invitado',
+      waitingForPerson: ' · esperando a la persona',
+      roleRows: {
+        ORG_ADMIN: {
+          badge: 'AO',
+          description: 'Acceso completo a la organización',
+          access: 'Todos los permisos',
+        },
+        AGENT: {
+          badge: 'AG',
+          description:
+            'Crea tickets y atiende las solicitudes de la organización',
+          access: 'Atender tickets',
+        },
+        MEMBER: {
+          badge: 'MI',
+          description: 'Crea y sigue sus propios tickets',
+          access: 'Sus tickets',
+        },
+      },
+      aside: {
+        rolesTitle: 'Resumen de permisos',
+        rolesDescription: 'Cómo se reparte el acceso por rol.',
+        categoriesTitle: 'Encaminamiento',
+        categoriesDescription: 'Tickets por categoría.',
+        membersTitle: 'Categorías de tickets',
+        membersDescription: 'Sirven para encaminar las solicitudes nuevas.',
+        apiKeysTitle: 'Uso de una clave',
+        apiKeysDescription:
+          'Una clave actúa solo sobre esta organización, con los permisos que se le dieron, hasta que caduca o se revoca.',
+        createTickets: 'Crear tickets',
+        handleTickets: 'Atender tickets',
+        manageMembers: 'Gestionar miembros',
+        manageCategories: 'Gestionar categorías',
+        accessRoles_one: '{{count}} rol de acceso',
+        accessRoles_other: '{{count}} roles de acceso',
+      },
+      feedback: {
+        roleReserved:
+          'Rol reservado para {{email}}: entra cuando cree su cuenta con esa dirección y la confirme.',
+        alreadyHad: '{{name}} ya tenía ese rol.',
+        nowHasAccess: '{{name}} ya tiene acceso a {{organization}}.',
+        accessUpdated:
+          'Se ha actualizado el acceso de {{name}} a la organización.',
+        detailsUpdated: 'Se han actualizado los datos de la organización.',
+        detailsUpdatedPreview:
+          'Se han actualizado los datos de la organización en esta vista previa.',
+        categorySaved: 'Se ha guardado la categoría «{{name}}».',
+        removed: '{{name}} ya no forma parte de la organización.',
+        reservationCancelled: 'Se ha cancelado la reserva para {{name}}.',
+        invitationPrepared: 'Invitación preparada para {{email}}.',
+      },
+    },
+    dialog: {
+      addMember: {
+        title: 'Añadir un miembro a la organización',
+        description:
+          'Invita a alguien a {{organization}} y asígnale el acceso que necesita.',
+        submit: 'Enviar invitación',
+        note: 'El acceso a los tickets depende del rol elegido. Una cuenta confirmada lo recibe en el acto; cualquier otra dirección lo deja reservado hasta que la persona cree la cuenta con ella y la confirme.',
+      },
+      editMember: {
+        title: 'Editar un miembro de la organización',
+        description: 'Cambia el acceso de {{name}} dentro de {{organization}}.',
+        submit: 'Guardar acceso',
+      },
+      settings: {
+        title: 'Ajustes de la organización',
+        description: 'Edita la identidad y los datos de {{organization}}.',
+        submit: 'Guardar cambios',
+      },
+      category: {
+        titleCreate: 'Crear una categoría de tickets',
+        titleEdit: 'Editar la categoría de tickets',
+        description:
+          'Configura cómo se clasifican y encaminan las solicitudes.',
+        submit: 'Guardar categoría',
+      },
+      deleteOrganization: {
+        title: '¿Eliminar {{organization}}?',
+        description:
+          'Los miembros pierden el acceso a la organización y sus tickets ya no se podrán modificar.',
+        submit: 'Eliminar organización',
+        confirmLabel: 'Escribe el nombre de la organización',
+      },
+      removeMember: {
+        title: '¿Quitar a {{name}} de {{organization}}?',
+        description:
+          'Esto quita el acceso a la organización. No elimina la cuenta de la plataforma.',
+        submit: 'Quitar miembro',
+        warning:
+          'La persona pierde el acceso a esta organización. Su cuenta de la plataforma y sus datos no se eliminan.',
+      },
+      remove: 'Quitar',
+      delete: 'Eliminar',
+      sending: 'Enviando…',
+      saving: 'Guardando…',
+      email: 'Dirección de correo',
+      emailPlaceholder: 'nombre@empresa.com',
+      role: 'Rol en la organización',
+      organizationName: 'Nombre de la organización',
+      description: 'Descripción',
+      member: 'Miembro',
+      categoryName: 'Nombre de la categoría',
+      ownAccess: {
+        title: 'Este es tu propio acceso',
+        text: 'No puedes cambiar tu propio rol ni quitarte desde aquí: bajarlo te dejaría dentro de la organización sin el acceso necesario para deshacerlo. Otro administrador puede cambiarlo por ti, y salir de la organización es una decisión aparte.',
+      },
+    },
+    stats: {
+      title: 'Los tickets en cifras',
+      total: 'Todos los tickets',
+      unassigned: 'Abiertos o en curso, sin agente',
+      firstResponse: 'Primera respuesta, de media',
+      noFirstResponse: 'Aún no hay primeras respuestas',
+      byStatus: 'Por estado',
+      byPriority: 'Por prioridad',
+      errorTitle: 'No se han podido leer las estadísticas',
+    },
+    apiKeys: {
+      create: 'Crear clave',
+      usage: 'Envía la clave en la cabecera X-API-Key.',
+      docs: 'Referencia de la API pública',
+      docsNote: 'El acceso lo da el equipo de la plataforma.',
+      loading: 'Cargando las claves',
+      errorTitle: 'No se han podido leer las claves',
+      emptyTitle: 'Todavía no hay claves',
+      emptyDescription:
+        'Crea una cuando una integración necesite llegar a esta organización.',
+      createdBy: 'Creada por {{username}} · {{date}}',
+      expires: 'Caduca el {{date}}',
+      expired: 'Caducó el {{date}}',
+      noExpiry: 'No caduca',
+      lastUsed: 'Último uso: {{date}}',
+      neverUsed: 'Sin usar',
+      revokedOn: 'Revocada el {{date}}',
+      status: { ACTIVE: 'Activa', EXPIRED: 'Caducada', REVOKED: 'Revocada' },
+      revoke: 'Revocar',
+      revokeLabel: 'Revocar {{name}}',
+      scopes: {
+        ticketsRead: 'Leer tickets',
+        ticketsWrite: 'Crear y modificar tickets',
+        commentsRead: 'Leer comentarios',
+        commentsWrite: 'Comentar tickets',
+        categoriesRead: 'Leer categorías',
+        categoriesWrite: 'Gestionar categorías',
+        statsRead: 'Leer estadísticas',
+      },
+      dialog: {
+        title: 'Crear una clave de API',
+        description:
+          'Ponle el nombre del sistema que la va a usar, y dale solo los permisos que necesita.',
+        name: 'Nombre',
+        namePlaceholder: 'Ejemplo: página de estado',
+        scopes: 'Permisos',
+        expiry: 'Caducidad',
+        expiryOptions: {
+          days30: 'En 30 días',
+          days90: 'En 90 días',
+          days180: 'En 180 días',
+          days365: 'En un año',
+          never: 'Nunca',
+        },
+        submit: 'Crear clave',
+        submitting: 'Creando…',
+      },
+      secret: {
+        title: 'Copia la clave ahora',
+        description:
+          'Es la única vez que se muestra: solo se guarda una huella de ella, así que nadie —ni un administrador— puede volver a enseñarla. Si la pierdes, revócala y crea otra.',
+        label: 'Clave de {{name}}',
+        copy: 'Copiar',
+        copied: 'Copiada',
+        copyFailed:
+          'Aquí no se ha podido copiar: selecciónala y cópiala a mano.',
+        done: 'Ya la he guardado',
+      },
+      revokeDialog: {
+        title: '¿Revocar {{name}}?',
+        description:
+          'Lo que la use deja de funcionar en el acto. Una clave revocada no se puede recuperar: para volver a dar acceso, crea una nueva.',
+        keep: 'Mantener la clave',
+        confirm: 'Revocar clave',
+      },
+      revoked: 'Se ha revocado {{name}}.',
+    },
+    leave: {
+      title: 'Salir de {{organization}}',
+      description:
+        'Pierdes en el acto el acceso a sus tickets. Tu cuenta no se ve afectada, y un administrador puede volver a darte un rol.',
+      lastAdmin:
+        'Eres su único administrador. Antes de salir, haz administrador a otro miembro: una organización siempre conserva uno.',
+      button: 'Salir de la organización',
+      confirmTitle: '¿Salir de {{organization}}?',
+      confirmDescription:
+        'Pierdes en el acto el acceso a {{organization}} y a sus tickets. Los tickets abiertos que tengas asignados vuelven a la cola sin asignar. Tu cuenta no se ve afectada.',
+      stay: 'Quedarme',
+      leaving: 'Saliendo…',
+      done: 'Has salido de {{organization}}.',
+    },
+    access: {
+      title: 'Roles y acceso',
+      summary: 'Resumen',
+      emailLabel: 'Dirección de correo',
+      emailPlaceholder: 'persona@empresa.com',
+      assign: 'Asignar rol',
+      assigning: 'Asignando…',
+      cancelReservation: 'Cancelar la reserva para {{email}}',
+      reservedBy: 'Reservado por {{name}} · {{date}}',
+      formerAdministrator: 'un antiguo administrador',
+      never: 'Nunca',
+      loadError: 'No se han podido cargar los roles',
+      reservationCancelled: 'Se ha cancelado la reserva para {{email}}.',
+      nothingWaiting: 'No hay nada en espera',
+      waiting: {
+        ACCOUNT: {
+          label: 'Esperando a la cuenta',
+          hint: 'Nadie ha registrado todavía esta dirección.',
+        },
+        VERIFICATION: {
+          label: 'Esperando a que se confirme el correo',
+          hint: 'La cuenta existe, pero su dirección aún no está confirmada.',
+        },
+      },
+      link: {
+        title: 'Cómo funciona el vínculo',
+        stepOnePlatform:
+          'Asignas el rol a una dirección de correo para toda la plataforma.',
+        stepOneOrganization:
+          'Asignas el rol a una dirección de correo en {{organization}}.',
+        stepTwo:
+          'La persona crea su propia cuenta con esa misma dirección, o ya tiene una.',
+        stepThree:
+          'El rol se activa en cuanto se confirma la dirección. Hasta entonces espera en la lista de abajo.',
+        protection:
+          'La confirmación es lo que protege el rol: cualquiera podría registrar la dirección de otra persona, pero solo su dueño puede confirmarla.',
+      },
+      matrix: {
+        title: 'Qué puede hacer cada rol',
+        description:
+          'Roles fijos: los mismos tres en todas las organizaciones, y el servidor los aplica en cada petición.',
+        label: 'Capacidades de cada rol de la organización',
+        capability: 'Capacidad',
+        yourRole: '(tu rol)',
+        yes: 'Sí',
+        no: 'No',
+      },
+      capabilities: {
+        createTickets: 'Abrir tickets y comentarlos',
+        readAllTickets: 'Ver todos los tickets de la organización',
+        changeStatus: 'Cambiar el estado y hacerse cargo de tickets',
+        internalNotes: 'Escribir notas internas',
+        readStats: 'Consultar las estadísticas de la organización',
+        assignOthers: 'Asignar tickets a otros agentes',
+        manageCategories: 'Gestionar categorías',
+        manageMembers: 'Asignar roles y gestionar miembros',
+        manageOrganization: 'Editar o eliminar la organización',
+        manageApiKeys: 'Gestionar claves de API',
+      },
+      none: {
+        description:
+          'Los roles se dan dentro de una organización, y todavía no hay ninguna que elegir.',
+        title: 'No hay ninguna organización seleccionada',
+        hint: 'Crea primero una organización; sus roles se gestionan aquí.',
+        goTo: 'Ir a organizaciones',
+      },
+      manage: {
+        eyebrow: 'ADMINISTRACIÓN DE LA ORGANIZACIÓN',
+        description:
+          'Da roles en {{organization}} a una dirección de correo, cámbialos y quita miembros. Una cuenta confirmada recibe el rol en el acto; cualquier otra dirección lo deja reservado hasta que la persona cree la cuenta con ella y la confirme.',
+        actingAsPlatformAdmin:
+          ' Estás actuando como administrador de la plataforma.',
+        cards: {
+          admins: 'Administradores',
+          agents: 'Agentes de soporte',
+          members: 'Miembros',
+          waiting: 'Esperando a la persona',
+        },
+        assignTitle: 'Asignar un rol por correo',
+        assignDescription: 'La dirección todavía no necesita tener cuenta.',
+        roleLabel: 'Rol en esta organización',
+        loading: 'Cargando los roles',
+        membersTitle: 'Miembros de {{organization}}',
+        membersDescription:
+          'Cambiar un rol se aplica en el acto. Una organización siempre conserva al menos un administrador.',
+        since: '{{email}} · desde el {{date}}',
+        you: '{{name}} (tú)',
+        roleOf: 'Rol de {{name}}',
+        removeFrom: 'Quitar a {{name}} de {{organization}}',
+        reservationsTitle: 'Reservado para una dirección de correo',
+        reservationsDescription:
+          'Roles dados a direcciones que todavía no tienen una cuenta confirmada. La persona entra cuando la confirma.',
+        reservationsEmpty:
+          'Cuando asignas un rol a una dirección sin cuenta confirmada, espera aquí.',
+        feedback: {
+          applied: '{{name}} ya tiene el rol {{role}} en {{organization}}.',
+          unchanged: '{{name}} ya tenía el rol {{role}}. No ha cambiado nada.',
+          reservedVerification:
+            '{{role}} reservado para {{email}}. Esa cuenta existe, pero su dirección no está confirmada: entra en {{organization}} en cuanto lo esté. Le hemos enviado un correo.',
+          reservedAccount:
+            '{{role}} reservado para {{email}}. Nadie ha registrado todavía esa dirección: entra en {{organization}} cuando cree su cuenta con ella y la confirme. Le hemos enviado un correo.',
+          changed: '{{name}} ya tiene el rol {{role}}.',
+          removed:
+            '{{name}} ya no forma parte de {{organization}}. Sus tickets abiertos han vuelto a la cola sin asignar.',
+        },
+        removeDialog: {
+          eyebrow: 'ROLES Y ACCESO',
+          title: '¿Quitar a {{name}}?',
+          description:
+            '{{name}} pierde en el acto el acceso a {{organization}} y a sus tickets. Sus tickets abiertos vuelven a la cola sin asignar. Su cuenta no se ve afectada.',
+          keep: 'Mantener al miembro',
+          confirm: 'Quitar miembro',
+        },
+        demoteDialog: {
+          title: '¿Renunciar a tu propia administración?',
+          description:
+            'Dejarás de administrar {{organization}}: esta pantalla, los miembros, las categorías y las claves de API dejarán de estar a tu alcance. Otro administrador tendría que devolverte el rol.',
+          keep: 'Seguir siendo administrador',
+          confirm: 'Pasar a {{role}}',
+        },
+      },
+      readOnly: {
+        descriptionAgent:
+          'Quién hace qué en {{organization}}. Los roles los asignan los administradores de la organización.',
+        descriptionMember:
+          'Tu acceso en {{organization}}, qué puede hacer cada rol y a quién pedir un cambio.',
+        yourRole: 'Tu rol',
+        needDifferent: '¿Necesitas otro rol?',
+        onlyAdmin:
+          'Solo un administrador de la organización puede cambiarlo. Escribe a uno de ellos desde Mensajes:',
+        noAdmin: 'Ahora mismo no se ha podido mostrar ningún administrador.',
+        peopleTitle: 'Personas de {{organization}}',
+        peopleDescription:
+          'Solo lectura. Los agentes ven quién se encarga de qué; los administradores lo gestionan.',
+        loading: 'Cargando los miembros',
+      },
+    },
+  },
+  admin: {
+    eyebrow: 'ADMINISTRACIÓN DE LA PLATAFORMA',
+    platformAdministrator: 'Administrador de la plataforma',
+    platformRole: {
+      USER: 'Usuario estándar',
+      GLOBAL_ADMIN: 'Administrador global',
+    },
+    accountState: {
+      ACTIVE: 'Activa',
+      SUSPENDED: 'Suspendida',
+      PENDING: 'Invitación pendiente',
+      CLOSED: 'Cerrada',
+    },
+    accessDenied: {
+      title: 'Acceso restringido',
+      description:
+        'Solo los administradores de la plataforma pueden abrir esta zona. Si la necesitas, pide acceso a uno de ellos.',
+      back: 'Volver al espacio de trabajo',
+    },
+    audit: {
+      title: 'Registro de auditoría',
+      description:
+        'Quién hizo qué, cuándo y desde dónde: roles de plataforma, suspensiones, borrados, organizaciones, claves de API y solicitudes de privacidad.',
+      entity: 'Afecta a',
+      allEntities: 'Todo',
+      action: 'Acción',
+      allActions: 'Todas las acciones',
+      person: 'Persona',
+      allPeople: 'Todo el mundo',
+      selectedPerson: 'La persona elegida',
+      from: 'Desde',
+      to: 'Hasta',
+      clear: 'Quitar filtros',
+      columns: {
+        when: 'CUÁNDO',
+        who: 'QUIÉN',
+        what: 'QUÉ',
+        on: 'SOBRE',
+        ip: 'DESDE',
+      },
+      noActor: 'El sistema o una cuenta borrada',
+      emptyTitle: 'No hay nada registrado',
+      emptyDescription: 'Ninguna entrada coincide con estos filtros.',
+      errorTitle: 'No se ha podido leer el registro de auditoría',
+      loading: 'Cargando el registro de auditoría',
+      total_one: '{{count}} entrada',
+      total_other: '{{count}} entradas',
+      pagination: 'Páginas del registro de auditoría',
+      autoRefresh: 'La primera página se refresca cada minuto.',
+      detailLoading: 'Cargando el detalle',
+      detailError: 'No se ha podido leer el detalle',
+      before: 'Antes',
+      after: 'Después',
+      nothing: 'Nada registrado',
+      entityId: 'Identificador',
+      userAgent: 'Navegador o cliente',
+      apiKey: 'Con la clave de API',
+      groups: {
+        accounts: 'Cuentas',
+        organizations: 'Organizaciones',
+        roles: 'Roles por correo',
+        credentials: 'Claves de API',
+        privacy: 'Privacidad',
+      },
+      actions: {
+        userCreated: 'Cuenta creada',
+        userRoleChanged: 'Rol de plataforma cambiado',
+        userStatusChanged: 'Cuenta suspendida o reactivada',
+        userPasswordRotated: 'Contraseña sustituida',
+        userDeleted: 'Cuenta cerrada',
+        userRestored: 'Cuenta restaurada',
+        userErased: 'Datos personales borrados',
+        organizationCreated: 'Organización creada',
+        organizationUpdated: 'Organización editada',
+        organizationDeleted: 'Organización eliminada',
+        memberInvited: 'Miembro añadido',
+        memberRoleChanged: 'Rol de un miembro cambiado',
+        memberRemoved: 'Miembro quitado',
+        roleReserved: 'Rol reservado para una dirección',
+        roleReservationCancelled: 'Reserva cancelada',
+        roleReservationClaimed: 'Rol reservado activado',
+        apiKeyCreated: 'Clave de API creada',
+        apiKeyRevoked: 'Clave de API revocada',
+        gdprExportConfirmed: 'Exportación de datos confirmada',
+        gdprDeleteConfirmed: 'Borrado de cuenta confirmado',
+      },
+      entities: {
+        User: 'Cuenta',
+        Organization: 'Organización',
+        OrganizationMember: 'Pertenencia',
+        PlatformRoleGrant: 'Rol de plataforma por correo',
+        OrganizationRoleGrant: 'Rol de organización por correo',
+        ApiKey: 'Clave de API',
+        GdprRequest: 'Solicitud de privacidad',
+      },
+    },
+    stats: {
+      title: 'Actividad de la plataforma',
+      tickets: 'Tickets',
+      openTickets: 'Abiertos o en curso',
+      messages: 'Mensajes de chat',
+      attachments: 'Adjuntos',
+      errorTitle: 'No se han podido leer las estadísticas de la plataforma',
+    },
+    users: {
+      title: 'Usuarios',
+      description:
+        'Gestiona las cuentas de la plataforma, su acceso a las organizaciones y su estado.',
+      invite: 'Invitar a un usuario',
+      cards: {
+        sampleUsers: 'Usuarios de ejemplo',
+        accounts: 'Cuentas',
+        active: 'Activas',
+        administrators: 'Administradores',
+        organizations: 'Organizaciones',
+      },
+      panelTitle: 'Usuarios de la plataforma',
+      search: 'Buscar usuarios de la plataforma',
+      searchPlaceholder: 'Busca por nombre o correo',
+      roles: 'Roles',
+      allRoles: 'Todos los roles',
+      states: 'Estados',
+      allStates: 'Todos los estados',
+      columns: {
+        user: 'USUARIO',
+        organization: 'ORGANIZACIÓN',
+        globalRole: 'ROL GLOBAL',
+        state: 'ESTADO',
+      },
+      loading: 'Cargando usuarios…',
+      edit: 'Editar a {{name}}',
+      emptyTitle: 'Ningún usuario coincide con estos filtros',
+      emptyDescription: 'Ajusta la búsqueda o los filtros de rol y estado.',
+      errorTitle: 'No se han podido leer los usuarios',
+      showingSample: 'Se muestran {{shown}} de {{total}} usuarios de ejemplo',
+      showing: 'Se muestran {{shown}} de {{total}} cuentas e invitaciones',
+      organizations_one: '{{count}} organización',
+      organizations_other: '{{count}} organizaciones',
+      invitedUser: 'Usuario invitado',
+      erasureOn: 'Datos borrados el {{date}}',
+      locked: {
+        primary:
+          'Es el administrador principal, creado al desplegar: su rol y su estado no se pueden cambiar desde aquí.',
+        self: 'Es tu propia cuenta: otro administrador tiene que cambiar tu rol o tu estado.',
+        email:
+          'La dirección de correo es la identidad para iniciar sesión y no se edita desde aquí. Suspender bloquea el acceso y se puede deshacer en cualquier momento; eliminar cierra la cuenta y borra sus datos personales 30 días después.',
+      },
+      feedback: {
+        invitationPrepared: 'Invitación preparada para {{email}}.',
+        updated: 'Se ha actualizado a {{name}}.',
+        platformReserved:
+          'Invitación enviada a {{email}}: la administración de la plataforma queda reservada hasta que cree la cuenta y confirme la dirección.',
+        platformApplied:
+          '{{name}} ya tenía cuenta y ahora es administrador de la plataforma.',
+        organizationFirst:
+          'Crea primero una organización: a un usuario estándar se le invita a una.',
+        roleReserved:
+          'Invitación enviada a {{email}}: el rol queda reservado hasta que cree la cuenta y confirme la dirección.',
+        roleApplied: '{{name}} ya tenía cuenta y ahora tiene el rol.',
+        closed:
+          'Se ha cerrado la cuenta de {{name}}. Sus datos personales se borrarán el {{date}}; hasta entonces puedes restaurarla.',
+        restored: 'Se ha restaurado la cuenta de {{name}}.',
+        erased: 'Se han borrado los datos personales de {{name}}.',
+      },
+    },
+    userDialog: {
+      inviteTitle: 'Invitar a un usuario',
+      editTitle: 'Editar un usuario de la plataforma',
+      inviteDescription:
+        'La persona crea su propia cuenta y su contraseña con esta dirección. El acceso que elijas queda reservado para ella y se activa cuando la confirme; en el acto si ya tiene una cuenta confirmada.',
+      editDescription:
+        'Actualiza la identidad, el rol y el estado de la cuenta de {{name}}.',
+      delete: 'Eliminar',
+      send: 'Enviar invitación',
+      save: 'Guardar cambios',
+      fullName: 'Nombre completo',
+      email: 'Dirección de correo',
+      platformAccess: 'Acceso a la plataforma',
+      initialOrganization: 'Organización inicial',
+      organizationRole: 'Rol en la organización',
+      accountState: 'Estado de la cuenta',
+      notes: {
+        globalAdmin:
+          'Un administrador de la plataforma puede actuar en todas las organizaciones sin ser miembro de ninguna.',
+        standardUser:
+          'Nada se activa hasta que la persona confirma la dirección: registrarla no basta, así que nadie puede quedarse con la invitación de otra persona.',
+        edit: 'Suspender bloquea el acceso y se puede deshacer en cualquier momento. Eliminar cierra la cuenta en el acto y borra sus datos personales 30 días después.',
+      },
+      deleteConfirm: {
+        title: '¿Eliminar a {{name}}?',
+        description:
+          '{{name}} ya no podrá iniciar sesión: todas sus sesiones se cierran ahora y la cuenta sale de la plataforma. Sus datos personales se borran definitivamente el {{date}}; hasta entonces puedes restaurar la cuenta. Los tickets que abrió se quedan, con el autor anonimizado.',
+        keep: 'Conservar la cuenta',
+        confirm: 'Eliminar la cuenta',
+      },
+    },
+    closedDialog: {
+      title: 'La cuenta de {{name}} está cerrada',
+      description:
+        'Ya no puede iniciar sesión. Sus datos personales se borrarán definitivamente el {{date}}. Hasta entonces puedes restaurarla, o borrarlos ya si la persona lo pide.',
+      restore: 'Restaurar la cuenta',
+      erase: 'Borrar los datos ahora',
+      eraseTitle: '¿Borrar ya los datos de {{name}}?',
+      eraseDescription:
+        'No se puede deshacer. Se borran su correo, su nombre, su foto, sus mensajes privados, sus ficheros y sus exportaciones de datos, y la dirección vuelve a quedar libre. Los tickets que abrió y sus comentarios se quedan, con el autor anonimizado.',
+      keep: 'Esperar al {{date}}',
+      eraseConfirm: 'Borrar ahora',
+    },
+    roles: {
+      title: 'Roles de la plataforma',
+      eyebrowDialog: 'ROLES DE LA PLATAFORMA',
+      description:
+        'Da la administración de la plataforma a una dirección de correo. Una cuenta confirmada la recibe en el acto; cualquier otra dirección la deja reservada hasta que la persona cree la cuenta con ella y la confirme.',
+      cards: {
+        administrators: 'Administradores de la plataforma',
+        waitingAccount: 'Esperando a una cuenta',
+        waitingVerification: 'Esperando a que se confirme el correo',
+      },
+      assignTitle: 'Asignar un rol de plataforma',
+      assignDescription:
+        'Toda cuenta empieza como usuario estándar. Para retirarle la administración a alguien, usa Retirar en la lista de abajo.',
+      roleToAssign: 'Rol que se asigna',
+      roleDescription:
+        'Gestiona todas las cuentas, organizaciones y roles de la plataforma, actúa en cualquier organización y consulta el registro de auditoría.',
+      loading: 'Cargando los roles de la plataforma',
+      administratorsDescription:
+        'Pueden gestionar toda la plataforma. El administrador principal se crea al desplegar y no se puede retirar desde aquí.',
+      you: 'Tú',
+      primary: 'Principal · protegido',
+      unconfirmed: 'Dirección sin confirmar',
+      suspended: 'Suspendida',
+      lastSignIn: 'Último inicio de sesión: {{date}}',
+      ownRole: 'Tu propio rol',
+      protected: 'Protegido',
+      withdraw: 'Retirar',
+      withdrawFrom: 'Retirar la administración de la plataforma a {{name}}',
+      reservationsTitle: 'Reservado para una dirección de correo',
+      reservationsDescription:
+        'Direcciones que pasarán a administrar la plataforma cuando exista la cuenta y se confirme la dirección.',
+      reservationsEmpty:
+        'Cuando asignas el rol a una dirección sin cuenta confirmada, espera aquí.',
+      feedback: {
+        applied:
+          '{{name}} ya es administrador de la plataforma. El cambio se aplica en el acto a su sesión actual.',
+        unchanged:
+          '{{name}} ya era administrador de la plataforma. No ha cambiado nada.',
+        reservedVerification:
+          'Reservado para {{email}}. Esa cuenta existe, pero su dirección no está confirmada: el rol se aplica en cuanto lo esté. Le hemos enviado un correo.',
+        reservedAccount:
+          'Reservado para {{email}}. Nadie ha registrado todavía esa dirección: el rol se aplica cuando cree su cuenta con ella y la confirme. Le hemos enviado un correo.',
+        withdrawn:
+          '{{name}} vuelve a ser un usuario estándar. Su cuenta y sus roles en las organizaciones no cambian.',
+        cancelled:
+          'Se ha cancelado la reserva para {{email}}. Confirmar esa dirección ya no da ningún rol.',
+      },
+      withdrawDialog: {
+        title: '¿Retirar la administración de la plataforma?',
+        description:
+          '{{name}} conserva su cuenta, sus organizaciones y sus roles en ellas. Lo que pierde, en el acto, es la administración de la plataforma.',
+        keep: 'Mantener el rol',
+        confirm: 'Retirar la administración',
+      },
+    },
+  },
+  session: {
+    suspended: {
+      title: 'Cuenta suspendida',
+      description:
+        'Tu acceso está en pausa. Si crees que es un error, contacta con un administrador de la plataforma.',
+      still: 'Tu cuenta sigue suspendida.',
+    },
+    waiting: {
+      title: 'Confirma tu correo para continuar',
+      description:
+        'Tu acceso está listo y sólo falta una cosa: confirmar {{email}}.',
+    },
+    noOrganization: {
+      title: 'Todavía no estás en ninguna organización',
+      description:
+        'Aún no eres miembro activo de ninguna organización. Pide a un administrador de organización que dé un rol a tu dirección, {{email}}; entrarás en cuanto lo haga.',
+      nothingYet:
+        'Todavía nada: tu dirección sigue sin pertenecer a ninguna organización. Deja esta página abierta y vuelve a comprobarlo dentro de un rato.',
+    },
+    checking: 'Comprobando…',
+    checkAgain: 'Comprobar de nuevo',
+  },
   errors: {
     common: {
       unexpected: 'Error inesperado. Inténtalo de nuevo.',
@@ -691,7 +1467,13 @@ export const es: Translation = {
       payloadTooLarge: 'La petición es demasiado grande.',
       malformedBody: 'No se ha podido leer la petición.',
       emptyPatch: 'No hay nada que actualizar.',
+      duplicate: 'Eso ya existe.',
+      internal: 'Algo ha fallado por nuestra parte. Inténtalo de nuevo.',
+      invalidIdentifier: 'Ese identificador no es válido.',
+      notFound: 'No existe, o no tienes acceso.',
       rateLimited: 'Demasiadas solicitudes. Inténtalo de nuevo en un minuto.',
+      routeNotFound: 'Esa dirección no existe.',
+      stillReferenced: 'No se puede borrar mientras algo lo siga usando.',
     },
     auth: {
       sessionExpired: 'Tu sesión ha caducado. Vuelve a iniciar sesión.',
@@ -707,9 +1489,9 @@ export const es: Translation = {
       accountDisabled: 'Esta cuenta está desactivada.',
       accountLocked: 'Esta cuenta está bloqueada temporalmente.',
       emailTaken: 'Ese correo electrónico ya está en uso.',
-      usernameTaken: 'Ese nombre de usuario ya está en uso.',
-      tokenInvalid: 'Este enlace no es válido o ha caducado.',
       refreshReused: 'Tu sesión ya no es válida. Inicia sesión de nuevo.',
+      tokenInvalid: 'Este enlace no es válido o ha caducado.',
+      usernameTaken: 'Ese nombre de usuario ya está en uso.',
     },
     password: {
       showPassword: 'Mostrar contraseña',
@@ -727,8 +1509,9 @@ export const es: Translation = {
     field: {
       required: 'Este campo es obligatorio.',
       invalid: 'Revisa este campo.',
+      tooShort: 'Este valor es demasiado corto.',
+      tooLong: 'Este valor es demasiado largo.',
     },
-    email: { invalid: 'Introduce un correo electrónico válido.' },
     username: {
       tooShort: 'Al menos 3 caracteres.',
       tooLong: 'Como máximo 32 caracteres.',
@@ -742,19 +1525,82 @@ export const es: Translation = {
       descriptionTooLong: 'La descripción es demasiado larga.',
       resolutionRequired:
         'Hace falta una resolución de al menos 20 caracteres.',
+      assigneeNotAgent:
+        'Sólo se puede asignar a un agente de esta organización.',
+      invalidTransition: 'El ticket no puede pasar a ese estado desde aquí.',
       locked: 'Este ticket ya no puede ser editado por su autor.',
+      notFound: 'Ese ticket no existe, o no tienes acceso.',
     },
-    comment: { empty: 'El comentario está vacío.' },
-    org: { nameTooShort: 'El nombre de la organización es demasiado corto.' },
+    comment: {
+      notFound: 'Ese comentario no existe, o no tienes acceso a él.',
+      empty: 'El comentario está vacío.',
+    },
+    org: {
+      nameTooShort: 'El nombre de la organización es demasiado corto.',
+      alreadyMember: 'Esa persona ya es miembro.',
+      cannotLowerOwnRole:
+        'No puedes bajarte el rol a ti mismo: tiene que hacerlo otro administrador, o puedes salir de la organización.',
+      lastAdmin:
+        'Una organización tiene que conservar al menos un administrador.',
+      notFound: 'Esa organización no existe, o no perteneces a ella.',
+      slugTaken: 'Esa dirección de organización ya está en uso.',
+    },
+    category: {
+      notFound: 'Esa categoría no existe en esta organización.',
+      nameTaken: 'Ya existe una categoría con ese nombre.',
+    },
+    apiKey: {
+      notFound: 'Esa clave de API no existe en esta organización.',
+      invalid: 'La clave de API falta, no es válida o está revocada.',
+      missingScope: 'La clave de API no tiene el permiso que hace falta.',
+      scopesRequired: 'Elige al menos un permiso.',
+    },
+    email: { invalid: 'Escribe una dirección de correo válida.' },
+    color: { invalid: 'Elige un color válido.' },
+    slug: { invalid: 'Sólo minúsculas, dígitos y guiones.' },
+    timezone: { invalid: 'Elige una zona horaria válida.' },
+    message: {
+      notFound: 'Ese mensaje no existe.',
+      empty: 'El mensaje está vacío.',
+    },
+    rbac: { forbidden: 'Tu rol no permite hacer esto.' },
     file: {
+      notFound: 'Ese fichero no existe, o no tienes acceso a él.',
       tooLarge: 'El fichero es demasiado grande.',
-      typeNotAllowed: 'Este tipo de fichero no está permitido.',
       imageUnreadable: 'No se ha podido leer la imagen.',
+      tooMany: 'Este ticket ya tiene el máximo de adjuntos.',
+      typeNotAllowed: 'Este tipo de fichero no está permitido.',
+      uploadRejected: 'El fichero se ha rechazado.',
+    },
+    friend: {
+      exists: 'Ya existe una amistad o una solicitud.',
+      self: 'No puedes añadirte a ti mismo como amigo.',
+      targetRequired: 'Indica a quién quieres añadir.',
     },
     gdpr: {
       pending: 'Ya hay una solicitud de este tipo pendiente.',
       tokenInvalid: 'Este código de confirmación no es válido o ha caducado.',
       usernameMismatch: 'El nombre de usuario no coincide con tu cuenta.',
+    },
+    auditLog: { notFound: 'Esa entrada del registro de auditoría no existe.' },
+    attachment: { notFound: 'Ese adjunto no existe, o no tienes acceso a él.' },
+    avatar: { notFound: 'No hay foto de perfil.' },
+    conversation: {
+      notFound: 'Esa conversación no existe, o no formas parte de ella.',
+    },
+    export: { notFound: 'Esa exportación no existe o ha caducado.' },
+    friendship: { notFound: 'Esa amistad o solicitud no existe.' },
+    member: { notFound: 'Esa persona no es miembro de esta organización.' },
+    organization: {
+      notFound: 'Esa organización no existe, o no perteneces a ella.',
+    },
+    reservation: { notFound: 'Esa reserva ya no existe.' },
+    session: { notFound: 'Esa sesión ya no existe.' },
+    thumbnail: { notFound: 'Esa vista previa no existe.' },
+    user: {
+      notFound: 'Esa cuenta no existe.',
+      notClosed:
+        'Solo se puede restaurar o borrar una cuenta cerrada que aún no se haya borrado.',
     },
   },
 };

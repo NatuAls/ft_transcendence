@@ -114,7 +114,7 @@ export const gdprPaths: Paths = {
       operationId: 'confirmDeletion',
       summary: 'Confirm the deletion',
       description:
-        'Token **and** username. Erases personal data and anonymises what has to stay for the tickets of others to keep making sense - an accepted trade-off under the right to erasure, and one the interface must state clearly.',
+        'Token **and** username. Erases the account at once - e-mail, username, profile, photo, private messages, notifications, memberships, sessions, files and data exports - and anonymises what has to stay for the tickets of others to keep making sense: the tickets the person opened and their comments stay under an anonymous author. An accepted trade-off under the right to erasure, and one the interface states. The address is free again afterwards.',
       security: session,
       requestBody: body('GdprConfirmInput'),
       responses: {

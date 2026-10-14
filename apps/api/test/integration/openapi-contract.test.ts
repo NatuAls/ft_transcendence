@@ -350,6 +350,33 @@ describe(
         `/admin/audit-logs?entityId=${person.id}&from=2026-01-01`,
         { token },
       );
+      // Una entrada entera, con el antes y el después que la lista omite.
+      const page = await conforms<{ data: Array<{ id: string }> }>(
+        200,
+        'GET',
+        '/admin/audit-logs',
+        '/admin/audit-logs?take=1',
+        { token },
+      );
+      const entry = `/admin/audit-logs/${page.body.data[0]!.id}`;
+      await conforms(200, 'GET', '/admin/audit-logs/{id}', entry, { token });
+      await conforms(403, 'GET', '/admin/audit-logs/{id}', entry, {
+        token: person.token,
+      });
+      await conforms(
+        404,
+        'GET',
+        '/admin/audit-logs/{id}',
+        '/admin/audit-logs/01a10730-0000-7000-8000-00000000dead',
+        { token },
+      );
+      await conforms(
+        400,
+        'GET',
+        '/admin/audit-logs/{id}',
+        '/admin/audit-logs/not-an-id',
+        { token },
+      );
     });
 
     it('organización: roles por correo, miembros y estadísticas', async (t) => {

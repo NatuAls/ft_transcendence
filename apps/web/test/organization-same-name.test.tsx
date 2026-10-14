@@ -159,7 +159,7 @@ describe('tres cuentas con el mismo nombre visible', () => {
     const dialog = await screen.findByRole('dialog');
     fireEvent.change(
       within(dialog).getByRole('combobox', { name: 'Organization role' }),
-      { target: { value: 'Member' } },
+      { target: { value: 'MEMBER' } },
     );
     fireEvent.click(
       within(dialog).getByRole('button', { name: 'Save access' }),

@@ -5,6 +5,7 @@ import { PreviewIdentitySelect } from '../app/PreviewIdentitySelect';
 import {
   can,
   previewMode,
+  type Permission,
   type PreviewIdentity,
   type ViewerSession,
 } from '../app/session';
@@ -58,11 +59,19 @@ const workspaceNavigation: Array<{
 const platformNavigation: Array<{
   icon: IconName;
   label: string;
+  /** Lo que hace falta para verla, además de administrar la plataforma. */
+  permission?: Permission;
   section: AppSection;
 }> = [
-  { icon: 'users', label: 'nav.admin', section: 'admin' },
+  { icon: 'users', label: 'nav.users', section: 'admin' },
   { icon: 'building', label: 'nav.organizations', section: 'organizations' },
   { icon: 'shield', label: 'nav.platformRoles', section: 'platform-roles' },
+  {
+    icon: 'history',
+    label: 'nav.auditLog',
+    permission: 'audit:read',
+    section: 'admin/audit',
+  },
 ];
 
 const mobileNavigation = workspaceNavigation
@@ -71,13 +80,14 @@ const mobileNavigation = workspaceNavigation
 
 const mobileTitles: Record<AppSection, string> = {
   account: 'nav.account',
-  admin: 'nav.admin',
+  admin: 'nav.users',
   messages: 'nav.messages',
   organization: 'nav.organization',
   organizations: 'nav.organizations',
   'organization-roles': 'nav.organizationRoles',
   people: 'nav.people',
   'platform-roles': 'nav.platformRoles',
+  'admin/audit': 'nav.auditLog',
   tickets: 'nav.tickets',
 };
 
@@ -188,15 +198,19 @@ export function AppShell({
               <span className="mt-5 px-3 pb-1 text-2xs tracking-[.08em] text-[#a9b9ba]">
                 {t('nav.platformGroup')}
               </span>
-              {platformNavigation.map((item) => (
-                <NavButton
-                  active={item.section === activeSection}
-                  icon={item.icon}
-                  key={item.section}
-                  label={t(item.label)}
-                  onClick={() => onNavigate(item.section)}
-                />
-              ))}
+              {platformNavigation
+                .filter(
+                  (item) => !item.permission || can(viewer, item.permission),
+                )
+                .map((item) => (
+                  <NavButton
+                    active={item.section === activeSection}
+                    icon={item.icon}
+                    key={item.section}
+                    label={t(item.label)}
+                    onClick={() => onNavigate(item.section)}
+                  />
+                ))}
             </>
           ) : null}
         </nav>
@@ -232,6 +246,7 @@ export function AppShell({
             onSignOut={onSignOut}
             previewIdentity={viewer.previewIdentity}
             showAdministration={showAdministration}
+            showAudit={can(viewer, 'audit:read')}
             placement="sidebar"
           >
             <span aria-hidden="true">•••</span>
@@ -323,6 +338,7 @@ export function AppShell({
               onSignOut={onSignOut}
               previewIdentity={viewer.previewIdentity}
               showAdministration={showAdministration}
+              showAudit={can(viewer, 'audit:read')}
               placement="topbar"
             >
               <Avatar
@@ -345,7 +361,7 @@ export function AppShell({
             <BrandMark className="!size-9 !rounded-[10px]" />
           </button>
           <strong className="text-center text-lg">
-            {mobileTitles[activeSection]}
+            {t(mobileTitles[activeSection])}
           </strong>
           <ProfileMenu
             className="justify-self-end"
@@ -355,6 +371,7 @@ export function AppShell({
             onSignOut={onSignOut}
             previewIdentity={viewer.previewIdentity}
             showAdministration={showAdministration}
+            showAudit={can(viewer, 'audit:read')}
             placement="mobile"
           >
             <Avatar
@@ -375,7 +392,7 @@ export function AppShell({
               active={item.section === activeSection}
               icon={item.icon}
               key={item.section}
-              label={item.label}
+              label={t(item.label)}
               mobile
               onClick={() => onNavigate(item.section)}
             />

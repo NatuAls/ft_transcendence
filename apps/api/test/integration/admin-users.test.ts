@@ -234,6 +234,37 @@ describe(
       );
     });
 
+    it('una entrada se abre entera, con su después, y sólo para un administrador', async (t) => {
+      if (!ready) return skip(t);
+      type Entries = { data: Array<{ id: string }> };
+      // La lista no trae el antes ni el después: los da la entrada sola.
+      const entries = await eventually(
+        () =>
+          api<Entries>(
+            'GET',
+            `/admin/audit-logs?entityId=${gamma.id}&action=user.role.changed`,
+            { token: admin.token },
+          ),
+        (response) => response.body.data.length > 0,
+      );
+      const path = `/admin/audit-logs/${entries.body.data[0]!.id}`;
+      const entry = await api<{
+        action: string;
+        actor: { id: string } | null;
+        after: { globalRole?: string } | null;
+      }>('GET', path, { token: admin.token });
+      assert.equal(entry.status, 200);
+      assert.equal(entry.body.action, 'user.role.changed');
+      assert.equal(entry.body.after?.globalRole, 'GLOBAL_ADMIN');
+      assert.equal(entry.body.actor?.id, admin.id);
+      const outsider = await registerUser(`${tag}o`);
+      assert.equal(
+        (await api('GET', path, { token: outsider.token })).status,
+        403,
+        'el registro es de la administración de la plataforma',
+      );
+    });
+
     it('una cuenta borrada desaparece de la lista y deja de entrar', async (t) => {
       if (!ready) return skip(t);
       const doomed = await registerUser(`${tag}z`);

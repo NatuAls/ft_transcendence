@@ -57,6 +57,23 @@ export async function initI18n() {
     fallbackLng: 'en',
     interpolation: { escapeValue: false }, // React ya escapa
     returnNull: false,
+    // Una clave de error que la API emite y aquí no está traducida se
+    // enseñaría tal cual —«errors.org.slugTaken»—, que es peor que el mensaje
+    // en inglés de antes. Para las de error se da el genérico en el idioma de
+    // la persona; para el resto se deja la clave, que en desarrollo es lo que
+    // permite ver qué falta. `api-error-keys.test.ts` vigila que no haga falta
+    // llegar aquí.
+    //
+    // Un `defaultValue` explícito gana siempre: quien lo pasa —el cambio de
+    // contraseña pasa el mensaje de la API— ha elegido un respaldo mejor que
+    // éste, y pisarlo sería empeorar la pantalla.
+    parseMissingKeyHandler: (key: string, defaultValue?: string) => {
+      if (defaultValue !== undefined && defaultValue !== key)
+        return defaultValue;
+      return key.startsWith('errors.') && key !== 'errors.common.unexpected'
+        ? i18next.t('errors.common.unexpected')
+        : key;
+    },
   });
   document.documentElement.lang = i18next.language;
   return i18next;

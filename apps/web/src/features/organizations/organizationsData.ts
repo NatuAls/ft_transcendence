@@ -1,14 +1,25 @@
+import type { OrgRole } from 'contracts';
 import type { OrganizationRecord } from '../../api/organizations';
 import type { ViewerSession } from '../../app/session';
 
+/**
+ * An organization as the screens use it. Only data: the role and the counters
+ * are turned into words where they are drawn, so they follow the language of
+ * the interface instead of the one it had when the list was loaded.
+ */
 export interface OrganizationSummary {
+  /** Members and tickets, when your role lets you see them. */
+  counts: { members: number; tickets: number } | null;
+  /** What its administrators wrote; empty when they wrote nothing. */
   description: string;
   id: string;
   initials: string;
   name: string;
-  roleLabel: string;
+  /** Preview only: the administrator invitation still waiting. */
+  pendingAdministrator?: string;
+  /** Your role in it; `null` when you reach it as a platform administrator. */
+  role: OrgRole | null;
   slug: string;
-  summary: string;
 }
 
 export const organizationCatalog = [
@@ -41,24 +52,21 @@ export const organizationCatalog = [
   },
 ] as const;
 
-const roleLabels = {
-  AGENT: 'Support agent',
-  MEMBER: 'Member',
-  ORG_ADMIN: 'Organization admin',
-} as const;
-
 export function organizationsForViewer(
   viewer: ViewerSession,
 ): OrganizationSummary[] {
   if (viewer.globalRole === 'GLOBAL_ADMIN') {
     return organizationCatalog.map((organization) => ({
+      counts: {
+        members: organization.members,
+        tickets: organization.openTickets,
+      },
       description: organization.description,
       id: organization.id,
       initials: organization.initials,
       name: organization.name,
-      roleLabel: 'Platform access',
+      role: null,
       slug: organization.slug,
-      summary: `${organization.members} members · ${organization.openTickets} open tickets`,
     }));
   }
 
@@ -69,17 +77,20 @@ export function organizationsForViewer(
     if (!organization) return [];
     return [
       {
+        counts:
+          membership.role === 'MEMBER'
+            ? null
+            : {
+                members: organization.members,
+                tickets: organization.openTickets,
+              },
         description:
           membership.organizationDescription ?? organization.description,
         id: organization.id,
         initials: organization.initials,
         name: organization.name,
-        roleLabel: roleLabels[membership.role],
+        role: membership.role,
         slug: organization.slug,
-        summary:
-          membership.role === 'MEMBER'
-            ? 'Your organization'
-            : `${organization.members} members · ${organization.openTickets} open tickets`,
       },
     ];
   });
@@ -110,19 +121,22 @@ export function getOrganizationInitials(value: string) {
 export function summaryFromRecord(
   record: OrganizationRecord,
 ): OrganizationSummary {
-  const members = record._count?.members ?? 0;
-  const tickets = record._count?.tickets ?? 0;
   return {
-    description:
-      record.description || 'Organization support and service requests.',
+    // A member sees their own tickets, not the organization's counters.
+    counts:
+      record.myRole === 'MEMBER'
+        ? null
+        : {
+            members: record._count?.members ?? 0,
+            tickets: record._count?.tickets ?? 0,
+          },
+    // Empty stays empty: a stand-in text here ended up pre-filled in the
+    // settings form and saved as if somebody had written it.
+    description: record.description ?? '',
     id: record.id,
     initials: getOrganizationInitials(record.name),
     name: record.name,
-    roleLabel: record.myRole ? roleLabels[record.myRole] : 'Platform access',
+    role: record.myRole ?? null,
     slug: record.slug,
-    summary:
-      record.myRole === 'MEMBER'
-        ? 'Your organization'
-        : `${members} ${members === 1 ? 'member' : 'members'} · ${tickets} ${tickets === 1 ? 'ticket' : 'tickets'}`,
   };
 }

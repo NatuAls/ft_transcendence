@@ -57,7 +57,7 @@ export const usersPaths: Paths = {
       operationId: 'listUsers',
       summary: 'List users (platform administration)',
       description:
-        'Only for GLOBAL_ADMIN. Paginated and filterable; it is the backing list of the administration panel and of the platform roles screen (`globalRole=GLOBAL_ADMIN` lists the administrators). Accounts deleted by their owner are not listed. Each row carries `isPrimary`: the recovery administrator created at deployment, which the API refuses to suspend, demote or delete.',
+        'Only for GLOBAL_ADMIN. Paginated and filterable; it is the backing list of the administration panel and of the platform roles screen (`globalRole=GLOBAL_ADMIN` lists the administrators). Erased accounts are never listed; accounts an administrator closed and that are still waiting for their erasure only with `includeClosed=true`, carrying `deletedAt` and `erasureDueAt`. Each row carries `isPrimary`: the recovery administrator created at deployment, which the API refuses to suspend, demote or delete.',
       security: session,
       parameters: [
         { $ref: '#/components/parameters/Page' },
@@ -73,6 +73,11 @@ export const usersPaths: Paths = {
         query('isActive', 'Only active or only suspended accounts.', {
           type: 'boolean',
         }),
+        query(
+          'includeClosed',
+          'Also the accounts an administrator closed whose personal data is not erased yet.',
+          { type: 'boolean' },
+        ),
         query('sort', 'Column to order by.', {
           type: 'string',
           enum: ['createdAt', 'username', 'email', 'lastLoginAt'],
@@ -270,7 +275,7 @@ export const usersPaths: Paths = {
       operationId: 'adminDeleteUser',
       summary: 'Delete a user (administration)',
       description:
-        'GLOBAL_ADMIN only, by user **id**. Soft delete: the account is disabled, its sessions revoked and it disappears from lists. Refused (403) on your own account and on the primary administrator. For the user-initiated path with e-mail confirmation, see the GDPR endpoints.',
+        'GLOBAL_ADMIN only, by user **id**. Closes the account: it can no longer sign in, its sessions are revoked and it leaves the lists. Its personal data is erased 30 days later by a scheduled job - until then `POST /users/{user}/restore` undoes the closure and `POST /users/{user}/erase` erases it at once. Refused (403) on your own account and on the primary administrator. For the user-initiated path, erased at once after an e-mail confirmation, see the GDPR endpoints.',
       security: session,
       parameters: [userId],
       responses: {
@@ -299,6 +304,44 @@ export const usersPaths: Paths = {
           },
         }),
         ...errs('400', '401', '403', '404'),
+      },
+    }),
+  },
+  '/users/{user}/restore': {
+    post: op({
+      tag: 'Users',
+      operationId: 'restoreUser',
+      summary: 'Restore a closed account',
+      description:
+        'GLOBAL_ADMIN only. Undoes the closure of an account while its personal data is still there: it signs in again, as it was. 409 for an account that is not closed or is already erased. Written to the audit trail.',
+      security: session,
+      parameters: [userId],
+      responses: {
+        '200': ok('Restored.', {
+          type: 'object',
+          properties: {
+            id: { type: 'string', format: 'uuid' },
+            username: { type: 'string' },
+            isActive: { type: 'boolean' },
+          },
+          required: ['id', 'username', 'isActive'],
+        }),
+        ...errs('401', '403', '404', '409'),
+      },
+    }),
+  },
+  '/users/{user}/erase': {
+    post: op({
+      tag: 'Users',
+      operationId: 'eraseUser',
+      summary: 'Erase a closed account now',
+      description:
+        'GLOBAL_ADMIN only. Erases the personal data of a closed account without waiting for the end of its 30 days - for when the person asks for it and can no longer sign in to do it. The same erasure as the GDPR deletion: e-mail, username, profile, photo, private messages, files and data exports go; the tickets the person opened and their comments stay under an anonymous author. The address is free again. 409 for an account that is not closed or is already erased. Written to the audit trail.',
+      security: session,
+      parameters: [userId],
+      responses: {
+        '204': noContent('Erased.'),
+        ...errs('401', '403', '404', '409'),
       },
     }),
   },

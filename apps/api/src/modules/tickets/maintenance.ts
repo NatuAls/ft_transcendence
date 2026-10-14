@@ -1,5 +1,8 @@
+import { ACCOUNT_ERASURE_GRACE_DAYS } from 'contracts';
 import { prisma } from '../../database/prisma.ts';
 import { createLogger } from '../../common/logger.ts';
+import { record } from '../audit/audit.service.ts';
+import { erase, pruneExpiredExports } from '../gdpr/gdpr.service.ts';
 import { AUTO_CLOSE_AFTER_MS } from './domain/state-machine.ts';
 
 const logger = createLogger('maintenance');
@@ -35,20 +38,63 @@ async function autoCloseResolvedTickets(): Promise<void> {
   logger.info(`auto-closed ${stale.length} resolved tickets`);
 }
 
-/** Expired sessions, used one-time tokens and stale GDPR artefacts. */
-async function pruneExpired(): Promise<void> {
-  const now = new Date();
-  const [sessions, tokens, requests] = await Promise.all([
+/**
+ * How long the audit trail keeps an entry: a year, long enough to answer for
+ * what was done on the platform and no longer. The privacy policy says so.
+ */
+export const AUDIT_RETENTION_DAYS = 365;
+
+/**
+ * Expired sessions, used one-time tokens, stale GDPR artefacts — the archive
+ * of an export whose download window has closed included — and audit entries
+ * older than `AUDIT_RETENTION_DAYS`.
+ */
+export async function pruneExpired(now = new Date()): Promise<void> {
+  const auditCutoff = new Date(
+    now.getTime() - AUDIT_RETENTION_DAYS * 86_400_000,
+  );
+  const [sessions, tokens, requests, audit] = await Promise.all([
     prisma.userSession.deleteMany({ where: { expiresAt: { lt: now } } }),
     prisma.verificationToken.deleteMany({ where: { expiresAt: { lt: now } } }),
     prisma.gdprRequest.updateMany({
       where: { status: 'AWAITING_CONFIRMATION', expiresAt: { lt: now } },
       data: { status: 'EXPIRED' },
     }),
+    prisma.auditLog.deleteMany({ where: { createdAt: { lt: auditCutoff } } }),
   ]);
+  const exports = await pruneExpiredExports();
   logger.info(
-    `pruned ${sessions.count} sessions, ${tokens.count} tokens, expired ${requests.count} GDPR requests`,
+    `pruned ${sessions.count} sessions, ${tokens.count} tokens, expired ${requests.count} GDPR requests, removed ${exports} export archives and ${audit.count} audit entries`,
   );
+}
+
+/**
+ * Accounts an administrator closed lose their personal data when their grace
+ * period ends. Every hour, so the date the screen announced holds to within
+ * the hour. Returns how many were erased.
+ */
+export async function eraseClosedAccounts(now = new Date()): Promise<number> {
+  const cutoff = new Date(
+    now.getTime() - ACCOUNT_ERASURE_GRACE_DAYS * 86_400_000,
+  );
+  const due = await prisma.user.findMany({
+    where: { deletedAt: { lte: cutoff }, erasedAt: null },
+    select: { id: true },
+    take: 100,
+  });
+  for (const { id } of due) {
+    await erase(id);
+    // Nobody did it: the system did, on the date it had announced.
+    await record({
+      actor: null,
+      action: 'user.erased',
+      entity: 'User',
+      entityId: id,
+      after: { by: 'grace period' },
+    });
+  }
+  if (due.length) logger.info(`erased ${due.length} closed accounts`);
+  return due.length;
 }
 
 function everyHour(fn: () => Promise<void>): void {
@@ -88,5 +134,8 @@ function dailyAt(hour: number, fn: () => Promise<void>): void {
 /** Wires the scheduled housekeeping jobs. Call once at boot. */
 export function startMaintenanceJobs(): void {
   everyHour(autoCloseResolvedTickets);
-  dailyAt(3, pruneExpired);
+  everyHour(async () => {
+    await eraseClosedAccounts();
+  });
+  dailyAt(3, () => pruneExpired());
 }

@@ -3,11 +3,11 @@ import type { ReactNode } from 'react';
 import type { OrgRole, ReservationWaitingFor } from 'contracts';
 import { getInitials } from '../../app/text';
 import { permissionsForOrganizationRole } from '../../app/session';
+import { useTranslation } from '../../core/i18n';
 import {
   organizationCapabilities,
+  organizationRoleLabel,
   organizationRoles,
-  waitingForHint,
-  waitingForLabel,
 } from './rolesGateway';
 
 /**
@@ -37,14 +37,38 @@ export function PageHeader({
   );
 }
 
+/**
+ * A translated sentence with one value in bold, wherever each language puts
+ * it. The value goes in as a React node, never inside the text: whatever a
+ * user typed as an organization name is shown, not interpreted as markup.
+ */
+export function Highlighted({
+  sentence,
+  value,
+}: {
+  sentence: (marker: string) => string;
+  value: string;
+}) {
+  const marker = '\u0000';
+  const [before, after = ''] = sentence(marker).split(marker);
+  return (
+    <>
+      {before}
+      <strong className="font-medium">{value}</strong>
+      {after}
+    </>
+  );
+}
+
 export function SummaryCards({
   items,
 }: {
   items: Array<{ label: string; value: number }>;
 }) {
+  const { t } = useTranslation();
   return (
     <section
-      aria-label="Summary"
+      aria-label={t('organization.access.summary')}
       className={`my-6 grid gap-3 max-md:grid-cols-2 ${items.length > 3 ? 'grid-cols-4' : 'grid-cols-3'}`}
     >
       {items.map((item) => (
@@ -139,13 +163,14 @@ export function Tag({
 }
 
 export function WaitingTag({ reason }: { reason: ReservationWaitingFor }) {
+  const { t } = useTranslation();
   return (
     <span className="grid justify-items-start gap-0.5">
       <Tag tone={reason === 'ACCOUNT' ? 'warning' : 'info'}>
-        {waitingForLabel[reason]}
+        {t(`organization.access.waiting.${reason}.label`)}
       </Tag>
       <small className="text-xs text-muted max-md:hidden">
-        {waitingForHint[reason]}
+        {t(`organization.access.waiting.${reason}.hint`)}
       </small>
     </span>
   );
@@ -154,16 +179,28 @@ export function WaitingTag({ reason }: { reason: ReservationWaitingFor }) {
 /**
  * The link explained in three steps, because the one thing an administrator
  * must understand is that assigning by address does NOT create the account.
+ * Without an organization, the role is the platform's.
  */
-export function HowTheLinkWorks({ scope }: { scope: string }) {
+export function HowTheLinkWorks({
+  organizationName,
+}: {
+  organizationName?: string;
+}) {
+  const { t } = useTranslation();
   const steps = [
-    `You assign the role to an e-mail address${scope}.`,
-    'The person creates their own account with that same address — or already has one.',
-    'The role becomes active the moment the address is confirmed. Until then it waits in the list below.',
+    organizationName
+      ? t('organization.access.link.stepOneOrganization', {
+          organization: organizationName,
+        })
+      : t('organization.access.link.stepOnePlatform'),
+    t('organization.access.link.stepTwo'),
+    t('organization.access.link.stepThree'),
   ];
   return (
     <aside className="grid content-start gap-4 rounded-md border border-border bg-surface p-5">
-      <h2 className="text-base font-medium">How the link works</h2>
+      <h2 className="text-base font-medium">
+        {t('organization.access.link.title')}
+      </h2>
       <ol className="grid gap-3">
         {steps.map((step, index) => (
           <li className="grid grid-cols-[28px_1fr] gap-2.5" key={step}>
@@ -184,10 +221,7 @@ export function HowTheLinkWorks({ scope }: { scope: string }) {
           name="shield"
           size={15}
         />
-        <span>
-          Confirmation is what protects the role: anybody could register
-          somebody else&apos;s address, but only its owner can confirm it.
-        </span>
+        <span>{t('organization.access.link.protection')}</span>
       </p>
     </aside>
   );
@@ -195,26 +229,27 @@ export function HowTheLinkWorks({ scope }: { scope: string }) {
 
 /** What each organization role can do, as a table a screen reader can walk. */
 export function CapabilityMatrix({ highlight }: { highlight?: OrgRole }) {
+  const { t } = useTranslation();
   return (
     <Panel
-      description="Fixed roles: the same three in every organization, enforced by the server on every request."
-      title="What each role can do"
+      description={t('organization.access.matrix.description')}
+      title={t('organization.access.matrix.title')}
     >
       {/* Scrolls sideways on a phone; focusable so a keyboard can scroll it. */}
       <div
-        aria-label="Capabilities of each organization role"
+        aria-label={t('organization.access.matrix.label')}
         className="overflow-x-auto border-t border-border focus-visible:outline-3 focus-visible:outline-focus"
         role="region"
         tabIndex={0}
       >
         <table className="w-full min-w-[520px] border-collapse text-left text-sm">
           <caption className="sr-only">
-            Capabilities of each organization role
+            {t('organization.access.matrix.label')}
           </caption>
           <thead className="bg-surface-secondary text-xs text-muted">
             <tr>
               <th className="px-5 py-2.5 font-medium" scope="col">
-                Capability
+                {t('organization.access.matrix.capability')}
               </th>
               {organizationRoles.map((role) => (
                 <th
@@ -222,9 +257,11 @@ export function CapabilityMatrix({ highlight }: { highlight?: OrgRole }) {
                   key={role.value}
                   scope="col"
                 >
-                  {role.label}
+                  {organizationRoleLabel(role.value)}
                   {role.value === highlight ? (
-                    <span className="block text-2xs">(your role)</span>
+                    <span className="block text-2xs">
+                      {t('organization.access.matrix.yourRole')}
+                    </span>
                   ) : null}
                 </th>
               ))}
@@ -237,7 +274,7 @@ export function CapabilityMatrix({ highlight }: { highlight?: OrgRole }) {
                 key={capability.permission}
               >
                 <th className="px-5 py-2.5 font-normal" scope="row">
-                  {capability.label}
+                  {t(`organization.access.capabilities.${capability.key}`)}
                 </th>
                 {organizationRoles.map((role) => {
                   const allowed = permissionsForOrganizationRole(
@@ -251,12 +288,16 @@ export function CapabilityMatrix({ highlight }: { highlight?: OrgRole }) {
                       {allowed ? (
                         <span className="text-success">
                           <span aria-hidden="true">✓</span>
-                          <span className="sr-only">Yes</span>
+                          <span className="sr-only">
+                            {t('organization.access.matrix.yes')}
+                          </span>
                         </span>
                       ) : (
                         <span className="text-muted">
                           <span aria-hidden="true">—</span>
-                          <span className="sr-only">No</span>
+                          <span className="sr-only">
+                            {t('organization.access.matrix.no')}
+                          </span>
                         </span>
                       )}
                     </td>
