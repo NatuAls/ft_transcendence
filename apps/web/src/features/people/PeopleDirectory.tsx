@@ -7,7 +7,7 @@ import * as social from '../../api/social';
 import { listMembers } from '../../api/roles';
 import { onPresenceChange } from '../../app/realtime';
 import { getInitials } from '../../app/text';
-import { openConversation } from '../messages/messagesApi';
+import { openConversation } from '../../api/messages';
 
 type PeopleTab = 'all' | 'colleagues' | 'requests';
 type Relation = 'friend' | 'incoming' | 'none' | 'outgoing';

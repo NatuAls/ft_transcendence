@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import * as social from '../../api/social';
 import { onPresenceChange } from '../../app/realtime';
 import { getInitials } from '../../app/text';
-import { openConversation } from '../messages/messagesApi';
+import { openConversation } from '../../api/messages';
 import { errorMessage } from '../../core/api/errors';
 import { useAsync } from '../../core/async/useAsync';
 
