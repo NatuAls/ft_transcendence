@@ -35,6 +35,12 @@ export const ca: Translation = {
     previewMode: 'Vista prèvia · dades locals',
     goToTickets: 'Ves als tiquets',
     mobileNavigation: 'Navegació mòbil',
+    accountMenu: 'Menú del compte',
+    legalNavigation: 'Informació legal i del servei',
+    serviceStatus: 'Estat del servei',
+    academicProject: 'HelpDesk Lite · un projecte acadèmic de 42 Barcelona',
+    crash:
+      "La interfície no s'ha pogut acabar de carregar. Les dades del teu navegador no s'han modificat.",
   },
   nav: {
     tickets: 'Tiquets',
@@ -44,7 +50,9 @@ export const ca: Translation = {
     account: 'Compte',
     admin: 'Administració',
     users: 'Usuaris',
+    platformUsers: 'Usuaris de la plataforma',
     organizations: 'Organitzacions',
+    yourOrganizations: 'Les teves organitzacions',
     platformRoles: 'Rols de plataforma',
     auditLog: 'Registre d’auditoria',
     organizationRoles: 'Rols i accés',
@@ -1422,6 +1430,28 @@ export const ca: Translation = {
         confirm: 'Retira l’administració',
       },
     },
+  },
+  session: {
+    suspended: {
+      title: 'Compte suspès',
+      description:
+        'El teu accés està en pausa. Si creus que és un error, contacta amb un administrador de la plataforma.',
+      still: 'El teu compte continua suspès.',
+    },
+    waiting: {
+      title: 'Confirma el teu correu per continuar',
+      description:
+        'El teu accés està a punt i només falta una cosa: confirmar {{email}}.',
+    },
+    noOrganization: {
+      title: 'Encara no ets a cap organització',
+      description:
+        "Encara no ets membre actiu de cap organització. Demana a un administrador d'organització que doni un rol a la teva adreça, {{email}}; hi entraràs tan bon punt ho faci.",
+      nothingYet:
+        "Encara res: la teva adreça continua sense pertànyer a cap organització. Deixa aquesta pàgina oberta i torna-ho a comprovar d'aquí a una estona.",
+    },
+    checking: 'Comprovant…',
+    checkAgain: 'Torna-ho a comprovar',
   },
   errors: {
     common: {

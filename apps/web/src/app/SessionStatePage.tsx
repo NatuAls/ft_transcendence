@@ -1,5 +1,6 @@
 import { Alert, BrandMark, Button, Icon } from 'ui';
 import { useState } from 'react';
+import { useTranslation } from '../core/i18n';
 import { PendingRolesNotice } from '../features/roles/PendingRolesNotice';
 import { LegalLinks } from '../layout/AppFooter';
 import { PreviewIdentitySelect } from './PreviewIdentitySelect';
@@ -28,6 +29,7 @@ export function SessionStatePage({
   onSignOut: () => void | Promise<void>;
   viewer: ViewerSession;
 }) {
+  const { t } = useTranslation();
   const suspended = kind === 'suspended';
   const [checking, setChecking] = useState(false);
   const [nothingYet, setNothingYet] = useState(false);
@@ -60,17 +62,21 @@ export function SessionStatePage({
           </span>
           <h1 className="mt-4 text-2xl font-medium">
             {suspended
-              ? 'Account suspended'
+              ? t('session.suspended.title')
               : waiting
-                ? 'Confirm your e-mail to continue'
-                : 'You are not in an organization yet'}
+                ? t('session.waiting.title')
+                : t('session.noOrganization.title')}
           </h1>
           <p className="mx-auto mt-2 max-w-[410px] text-sm leading-6 text-muted">
             {suspended
-              ? 'Your access is currently paused. Contact a platform administrator if you think this is a mistake.'
+              ? t('session.suspended.description')
               : waiting
-                ? `Your access is ready and waiting for one thing: confirming ${viewer.profile.email}.`
-                : `You are not an active member of an organization yet. Ask an organization administrator to give a role to your address, ${viewer.profile.email}; you will join as soon as they do.`}
+                ? t('session.waiting.description', {
+                    email: viewer.profile.email,
+                  })
+                : t('session.noOrganization.description', {
+                    email: viewer.profile.email,
+                  })}
           </p>
           {waiting ? (
             <PendingRolesNotice
@@ -89,16 +95,16 @@ export function SessionStatePage({
           {nothingYet ? (
             <Alert className="mt-6 text-left" tone="info">
               {suspended
-                ? 'Your account is still suspended.'
-                : 'Nothing yet: your address is still not a member of any organization. Leave this page open and check again in a while.'}
+                ? t('session.suspended.still')
+                : t('session.noOrganization.nothingYet')}
             </Alert>
           ) : null}
           <div className="mt-7 flex flex-wrap justify-center gap-2">
             <Button disabled={checking} onClick={() => void recheck()}>
-              {checking ? 'Checking…' : 'Check again'}
+              {checking ? t('session.checking') : t('session.checkAgain')}
             </Button>
             <Button onClick={() => void onSignOut()} variant="secondary">
-              Sign out
+              {t('common.actions.signOut')}
             </Button>
           </div>
         </section>

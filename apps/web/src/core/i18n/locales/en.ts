@@ -36,6 +36,12 @@ export const en = {
     previewMode: 'Frontend preview · local data',
     goToTickets: 'Go to tickets',
     mobileNavigation: 'Mobile navigation',
+    accountMenu: 'Account menu',
+    legalNavigation: 'Legal and service information',
+    serviceStatus: 'Service status',
+    academicProject: 'HelpDesk Lite · an academic project at 42 Barcelona',
+    crash:
+      'The interface could not finish rendering. Your browser data has not been changed.',
   },
   nav: {
     tickets: 'Tickets',
@@ -45,7 +51,9 @@ export const en = {
     account: 'Account',
     admin: 'Administration',
     users: 'Users',
+    platformUsers: 'Platform users',
     organizations: 'Organizations',
+    yourOrganizations: 'Your organizations',
     platformRoles: 'Platform roles',
     auditLog: 'Audit log',
     organizationRoles: 'Roles & access',
@@ -1412,6 +1420,30 @@ export const en = {
         confirm: 'Withdraw administration',
       },
     },
+  },
+  // La pantalla de quien ha entrado pero aún no puede trabajar: suspendido,
+  // sin organización o esperando a confirmar su dirección.
+  session: {
+    suspended: {
+      title: 'Account suspended',
+      description:
+        'Your access is currently paused. Contact a platform administrator if you think this is a mistake.',
+      still: 'Your account is still suspended.',
+    },
+    waiting: {
+      title: 'Confirm your e-mail to continue',
+      description:
+        'Your access is ready and waiting for one thing: confirming {{email}}.',
+    },
+    noOrganization: {
+      title: 'You are not in an organization yet',
+      description:
+        'You are not an active member of an organization yet. Ask an organization administrator to give a role to your address, {{email}}; you will join as soon as they do.',
+      nothingYet:
+        'Nothing yet: your address is still not a member of any organization. Leave this page open and check again in a while.',
+    },
+    checking: 'Checking…',
+    checkAgain: 'Check again',
   },
   // Las claves de error coinciden con el messageKey que devuelve la API:
   // t(error.messageKey) funciona sin mapas intermedios.

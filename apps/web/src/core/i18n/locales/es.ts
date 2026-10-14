@@ -35,6 +35,12 @@ export const es: Translation = {
     previewMode: 'Vista previa · datos locales',
     goToTickets: 'Ir a tickets',
     mobileNavigation: 'Navegación móvil',
+    accountMenu: 'Menú de cuenta',
+    legalNavigation: 'Información legal y del servicio',
+    serviceStatus: 'Estado del servicio',
+    academicProject: 'HelpDesk Lite · un proyecto académico de 42 Barcelona',
+    crash:
+      'La interfaz no ha podido terminar de cargarse. Los datos de tu navegador no se han modificado.',
   },
   nav: {
     tickets: 'Tickets',
@@ -44,7 +50,9 @@ export const es: Translation = {
     account: 'Cuenta',
     admin: 'Administración',
     users: 'Usuarios',
+    platformUsers: 'Usuarios de la plataforma',
     organizations: 'Organizaciones',
+    yourOrganizations: 'Tus organizaciones',
     platformRoles: 'Roles de plataforma',
     auditLog: 'Registro de auditoría',
     organizationRoles: 'Roles y acceso',
@@ -1428,6 +1436,28 @@ export const es: Translation = {
         confirm: 'Retirar la administración',
       },
     },
+  },
+  session: {
+    suspended: {
+      title: 'Cuenta suspendida',
+      description:
+        'Tu acceso está en pausa. Si crees que es un error, contacta con un administrador de la plataforma.',
+      still: 'Tu cuenta sigue suspendida.',
+    },
+    waiting: {
+      title: 'Confirma tu correo para continuar',
+      description:
+        'Tu acceso está listo y sólo falta una cosa: confirmar {{email}}.',
+    },
+    noOrganization: {
+      title: 'Todavía no estás en ninguna organización',
+      description:
+        'Aún no eres miembro activo de ninguna organización. Pide a un administrador de organización que dé un rol a tu dirección, {{email}}; entrarás en cuanto lo haga.',
+      nothingYet:
+        'Todavía nada: tu dirección sigue sin pertenecer a ninguna organización. Deja esta página abierta y vuelve a comprobarlo dentro de un rato.',
+    },
+    checking: 'Comprobando…',
+    checkAgain: 'Comprobar de nuevo',
   },
   errors: {
     common: {

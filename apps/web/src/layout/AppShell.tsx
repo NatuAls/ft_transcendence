@@ -361,7 +361,7 @@ export function AppShell({
             <BrandMark className="!size-9 !rounded-[10px]" />
           </button>
           <strong className="text-center text-lg">
-            {mobileTitles[activeSection]}
+            {t(mobileTitles[activeSection])}
           </strong>
           <ProfileMenu
             className="justify-self-end"
@@ -392,7 +392,7 @@ export function AppShell({
               active={item.section === activeSection}
               icon={item.icon}
               key={item.section}
-              label={item.label}
+              label={t(item.label)}
               mobile
               onClick={() => onNavigate(item.section)}
             />
