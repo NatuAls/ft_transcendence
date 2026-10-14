@@ -23,7 +23,12 @@ export const createTicketSchema = z.object({
 export const updateTicketSchema = z
   .object({
     title: z.string().trim().min(5).max(160).optional(),
-    description: z.string().trim().min(10).max(5000).optional(),
+    description: z
+      .string()
+      .trim()
+      .min(10, { message: 'errors.ticket.descriptionTooShort' })
+      .max(5000)
+      .optional(),
     priority: ticketPrioritySchema.optional(),
     categoryId: uuidSchema.nullable().optional(),
   })
