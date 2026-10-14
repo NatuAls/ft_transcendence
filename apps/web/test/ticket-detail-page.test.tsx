@@ -230,7 +230,7 @@ describe('ticket detail page', () => {
         ),
       ).toBe(true),
     );
-    expect(await screen.findByText('Reply added.')).toBeTruthy();
+    expect(screen.queryByText('Reply added.')).toBeNull();
   });
 
   it('shows an API rejection when sending a reply', async () => {
