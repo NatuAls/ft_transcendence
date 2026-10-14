@@ -6,6 +6,7 @@ export const en = {
       save: 'Save',
       cancel: 'Cancel',
       retry: 'Retry',
+      refresh: 'Refresh',
       close: 'Close',
       search: 'Search',
       signOut: 'Sign out',
@@ -14,6 +15,8 @@ export const en = {
       loading: 'Loading…',
       empty: 'Nothing here yet',
       error: 'Something went wrong',
+      refreshing: 'Refreshing…',
+      updatedAt: 'Updated {{time}} · refreshed every minute',
     },
     language: 'Language',
     notFound: {
@@ -530,6 +533,16 @@ export const en = {
         text: 'You cannot change your own role or remove yourself from here: lowering it would leave you inside the organization without the access needed to undo it. Another administrator can change it for you, and leaving the organization is a separate decision.',
       },
     },
+    stats: {
+      title: 'Tickets in numbers',
+      total: 'All tickets',
+      unassigned: 'Open or in progress, without an agent',
+      firstResponse: 'Average first response',
+      noFirstResponse: 'No first replies yet',
+      byStatus: 'By status',
+      byPriority: 'By priority',
+      errorTitle: 'The statistics could not be read',
+    },
     apiKeys: {
       create: 'Create key',
       usage: 'Send the key in the X-API-Key header.',
@@ -768,6 +781,14 @@ export const en = {
       description:
         'Only platform administrators can open this area. If you need it, ask one of them for access.',
       back: 'Return to workspace',
+    },
+    stats: {
+      title: 'Platform activity',
+      tickets: 'Tickets',
+      openTickets: 'Open or in progress',
+      messages: 'Chat messages',
+      attachments: 'Attachments',
+      errorTitle: 'The platform statistics could not be read',
     },
     users: {
       title: 'Users',

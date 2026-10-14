@@ -8,9 +8,11 @@ import { getInitials } from '../../app/text';
 import { organizationRoleLabel } from '../roles/rolesGateway';
 import { ApiKeysPanel } from './ApiKeysPanel';
 import { OrganizationDialog } from './OrganizationDialog';
+import { OrganizationStatsPanel } from './OrganizationStatsPanel';
 import { errorKey, isApiError } from '../../core/api/errors';
 import { AsyncState } from '../../core/async/AsyncState';
 import { useAsync } from '../../core/async/useAsync';
+import { useVisibleInterval } from '../../core/async/useVisibleInterval';
 import { useToast } from '../../core/feedback/useToast';
 import { useTranslation } from '../../core/i18n';
 import { RealtimeEvents } from '../../core/realtime/socket';
@@ -23,6 +25,7 @@ import {
   organizationFixture,
   roleRowsForMembers,
   rowKey,
+  sampleStats,
 } from './organizationData';
 import type {
   CategoryRow,
@@ -148,23 +151,18 @@ export function OrganizationPage({
         categoryRows: fixture.categories,
         createdById: null as string | null,
         memberRows: fixture.members,
-        openTickets: fixture.openTickets,
       };
     }
-    const [members, reservations, categories, stats, detail] =
-      await Promise.all([
-        canReadMembers ? rolesApi.listMembers(organizationId) : null,
-        canManageMembers
-          ? rolesApi.listOrganizationReservations(organizationId)
-          : null,
-        organizationsApi.listCategories(organizationId),
-        canReadStats
-          ? organizationsApi.getOrganizationStats(organizationId)
-          : null,
-        canManageOrganization
-          ? organizationsApi.getOrganization(organizationId)
-          : null,
-      ]);
+    const [members, reservations, categories, detail] = await Promise.all([
+      canReadMembers ? rolesApi.listMembers(organizationId) : null,
+      canManageMembers
+        ? rolesApi.listOrganizationReservations(organizationId)
+        : null,
+      organizationsApi.listCategories(organizationId),
+      canManageOrganization
+        ? organizationsApi.getOrganization(organizationId)
+        : null,
+    ]);
     return {
       categoryRows: categories.map((category): CategoryRow => ({
         description: category.description ?? '',
@@ -196,20 +194,23 @@ export function OrganizationPage({
           waitingFor: reservation.waitingFor,
         })),
       ],
-      // Sólo OPEN, igual que la tarjeta «Open» de la lista de tickets. Antes
-      // sumaba también IN_PROGRESS: los datos eran los mismos, pero la misma
-      // palabra contaba dos conjuntos distintos en dos pantallas — 7 aquí
-      // (6 abiertos + 1 en curso) contra 6 allí —, y parecía un error de
-      // cálculo. Quien quiera el desglose lo tiene en la lista.
-      openTickets: stats ? (stats.byStatus.OPEN ?? 0) : fixture.openTickets,
     };
-  }, [
-    canManageMembers,
-    canManageOrganization,
-    canReadMembers,
-    canReadStats,
-    organizationId,
-  ]);
+  }, [canManageMembers, canManageOrganization, canReadMembers, organizationId]);
+
+  /**
+   * Las cifras de tickets, aparte del resto: se refrescan solas cada minuto
+   * con la pestaña a la vista y con «Actualizar» (R14), y recargar con ellas
+   * miembros y categorías sería gastar por gastar. La tarjeta «Open tickets»
+   * y el panel leen de aquí, así que nunca enseñan dos cuentas distintas.
+   */
+  const statsQuery = useAsync(async () => {
+    if (!canReadStats || !organizationId) return null;
+    const stats = previewMode
+      ? sampleStats(fixture.openTickets)
+      : await organizationsApi.getOrganizationStats(organizationId);
+    return { at: Date.now(), stats };
+  }, [canReadStats, organizationId]);
+  useVisibleInterval(statsQuery.reload, 60_000, canReadStats);
 
   const memberRows = view.data?.memberRows ?? [];
   const categoryRows = view.data?.categoryRows ?? [];
@@ -217,7 +218,13 @@ export function OrganizationPage({
   // cuentas pueden llamarse igual.
   const [selectedKey, setSelectedKey] = useState('');
   const createdById = view.data?.createdById ?? null;
-  const openTickets = view.data?.openTickets ?? fixture.openTickets;
+  // Sólo OPEN, igual que la tarjeta «Open» de la lista de tickets. Antes
+  // sumaba también IN_PROGRESS: los datos eran los mismos, pero la misma
+  // palabra contaba dos conjuntos distintos en dos pantallas — 7 aquí
+  // (6 abiertos + 1 en curso) contra 6 allí —, y parecía un error de
+  // cálculo. Mientras no hay cifras, una raya: un 0 sería falso.
+  const stats = statsQuery.data?.stats;
+  const openTickets = stats ? String(stats.byStatus.OPEN ?? 0) : '—';
   const roleRows = roleRowsForMembers(memberRows);
   const reload = view.reload;
   // El último administrador no puede irse: la API lo rechaza, y la pantalla
@@ -663,7 +670,7 @@ export function OrganizationPage({
               ),
               t('organization.page.stats.agents'),
             ],
-            [String(openTickets), t('organization.page.stats.openTickets')],
+            [openTickets, t('organization.page.stats.openTickets')],
             [
               String(categoryRows.length),
               t('organization.page.stats.categories'),
@@ -698,6 +705,25 @@ export function OrganizationPage({
           </article>
         </section>
       )}
+      {canReadStats && stats ? (
+        <OrganizationStatsPanel
+          at={statsQuery.data!.at}
+          loading={statsQuery.status === 'loading'}
+          onRefresh={statsQuery.reload}
+          stats={stats}
+        />
+      ) : canReadStats && statsQuery.status === 'error' ? (
+        <div className="mb-5">
+          <AsyncState
+            error={statsQuery.error}
+            errorTitle={t('organization.stats.errorTitle')}
+            onRetry={statsQuery.reload}
+            status="error"
+          >
+            {null}
+          </AsyncState>
+        </div>
+      ) : null}
       {feedback ? (
         <Alert
           aria-live="polite"

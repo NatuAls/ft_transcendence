@@ -122,8 +122,9 @@ describe('de la organización a la lista de tickets', () => {
     await screen.findByText('Ana García');
 
     const tarjeta = screen.getByText('Open tickets').closest('article')!;
-    // La lista enseña «Open: 6» y aparte «In progress: 1».
-    expect(within(tarjeta).getByText('6')).toBeTruthy();
+    // La lista enseña «Open: 6» y aparte «In progress: 1». Las cifras llegan
+    // por su cuenta (se refrescan solas), así que se esperan.
+    expect(await within(tarjeta).findByText('6')).toBeTruthy();
     // Antes: 7, porque sumaba el que está en curso.
     expect(within(tarjeta).queryByText('7')).toBeNull();
   });
@@ -134,6 +135,6 @@ describe('de la organización a la lista de tickets', () => {
     await screen.findByText('Ana García');
 
     const tarjeta = screen.getByText('Open tickets').closest('article')!;
-    expect(within(tarjeta).getByText('0')).toBeTruthy();
+    expect(await within(tarjeta).findByText('0')).toBeTruthy();
   });
 });

@@ -1,4 +1,5 @@
 import type { OrgRole, ReservationWaitingFor } from 'contracts';
+import type { OrganizationStats } from '../../api/organizations';
 
 export type OrgTab = 'members' | 'roles' | 'categories' | 'apiKeys';
 export type OrganizationDialogKind =
@@ -171,4 +172,18 @@ export function labelFromEmail(email: string) {
     .filter(Boolean)
     .map((part) => part[0].toUpperCase() + part.slice(1))
     .join(' ');
+}
+
+/** Preview only: ticket figures that add up, around the sample open count. */
+export function sampleStats(open: number): OrganizationStats {
+  const byStatus = { OPEN: open, IN_PROGRESS: 5, RESOLVED: 8, CLOSED: 3 };
+  const total = open + 5 + 8 + 3;
+  const quarter = Math.floor(total / 4);
+  return {
+    avgFirstResponseSeconds: 8_100,
+    byPriority: { HIGH: quarter, LOW: quarter, MEDIUM: total - 2 * quarter },
+    byStatus,
+    total,
+    unassigned: Math.min(3, open),
+  };
 }

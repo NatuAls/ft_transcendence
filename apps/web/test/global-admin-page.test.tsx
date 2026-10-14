@@ -59,6 +59,15 @@ function api(extra: Parameters<typeof mockApi>[0] = {}) {
     'GET /admin/role-grants': reply('GET /admin/role-grants', 200, [
       platformReservation(),
     ]),
+    'GET /admin/stats': reply('GET /admin/stats', 200, {
+      users: 240,
+      activeUsers: 231,
+      organizations: 12,
+      tickets: 1830,
+      openTickets: 97,
+      messages: 5120,
+      attachments: 310,
+    }),
     ...extra,
   });
 }

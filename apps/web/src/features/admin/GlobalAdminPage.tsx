@@ -1,5 +1,5 @@
 import { Alert, Button, Icon, SelectField } from 'ui';
-import { useMemo, useRef, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 import { orgRoleSchema } from 'contracts';
 import * as adminApi from '../../api/admin';
 import * as rolesApi from '../../api/roles';
@@ -17,6 +17,7 @@ import type {
 import { errorKey } from '../../core/api/errors';
 import { AsyncState } from '../../core/async/AsyncState';
 import { useAsync } from '../../core/async/useAsync';
+import { useVisibleInterval } from '../../core/async/useVisibleInterval';
 import { useTranslation } from '../../core/i18n';
 
 /** An account of the API as the row the table already knows how to draw. */
@@ -45,7 +46,8 @@ export function GlobalAdminPage({
   currentUserId: string;
   organizations: OrganizationSummary[];
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const activityId = useId();
   const [dialog, setDialog] = useState<AdminDialogKind>(null);
   // Nadie elegido hasta que se abre una fila. Antes arrancaba con la primera
   // fila de MUESTRA también en la aplicación real.
@@ -91,6 +93,23 @@ export function GlobalAdminPage({
   const accounts: Record<string, adminApi.PlatformUser> =
     directory.data?.accounts ?? {};
   const reload = directory.reload;
+
+  /**
+   * Los contadores de toda la plataforma (PR 2.3). Aparte de la lista: ésta
+   * trae como mucho cien cuentas, y contar sobre ella se quedaba corto en
+   * cuanto hubiera más. Se refrescan solos cada minuto con la pestaña a la
+   * vista, y con «Refresh» (R14). La vista previa no tiene API: cuenta sobre
+   * sus filas de muestra, como antes.
+   */
+  const platform = useAsync(
+    async () =>
+      previewMode
+        ? null
+        : { at: Date.now(), stats: await adminApi.getPlatformStats() },
+    [],
+  );
+  useVisibleInterval(platform.reload, 60_000, !previewMode);
+  const platformStats = platform.data?.stats;
 
   const filteredUsers = useMemo(
     () =>
@@ -299,13 +318,19 @@ export function GlobalAdminPage({
       <section className="my-[26px] grid grid-cols-4 gap-3 max-[1000px]:grid-cols-2">
         {[
           [
-            String(users.filter((user) => user.state !== 'PENDING').length),
+            String(
+              platformStats?.users ??
+                users.filter((user) => user.state !== 'PENDING').length,
+            ),
             previewMode
               ? t('admin.users.cards.sampleUsers')
               : t('admin.users.cards.accounts'),
           ],
           [
-            String(users.filter((user) => user.state === 'ACTIVE').length),
+            String(
+              platformStats?.activeUsers ??
+                users.filter((user) => user.state === 'ACTIVE').length,
+            ),
             t('admin.users.cards.active'),
           ],
           [
@@ -329,7 +354,7 @@ export function GlobalAdminPage({
                 t('admin.users.cards.organizations'),
               ]
             : [
-                String(organizations.length),
+                String(platformStats?.organizations ?? organizations.length),
                 t('admin.users.cards.organizations'),
               ],
         ].map(([v, l]) => (
@@ -342,6 +367,70 @@ export function GlobalAdminPage({
           </article>
         ))}
       </section>
+      {platformStats ? (
+        <section
+          aria-labelledby={activityId}
+          className="-mt-3 mb-[26px] rounded-md border border-border bg-surface p-[18px]"
+        >
+          <header className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-base font-medium" id={activityId}>
+                {t('admin.stats.title')}
+              </h2>
+              <p aria-live="polite" className="mt-1.5 text-xs2 text-muted">
+                {platform.status === 'loading'
+                  ? t('common.state.refreshing')
+                  : t('common.state.updatedAt', {
+                      time: new Intl.DateTimeFormat(i18n.language, {
+                        timeStyle: 'short',
+                      }).format(platform.data!.at),
+                    })}
+              </p>
+            </div>
+            <Button
+              disabled={platform.status === 'loading'}
+              onClick={platform.reload}
+              size="compact"
+              variant="secondary"
+            >
+              {t('common.actions.refresh')}
+            </Button>
+          </header>
+          <dl className="mt-4 grid grid-cols-4 gap-3 max-[1000px]:grid-cols-2">
+            {(
+              [
+                ['tickets', platformStats.tickets],
+                // OPEN o IN_PROGRESS: así lo cuenta la API, y así se dice.
+                // «Open» a secas sería la palabra de un solo estado.
+                ['openTickets', platformStats.openTickets],
+                ['messages', platformStats.messages],
+                ['attachments', platformStats.attachments],
+              ] as const
+            ).map(([key, value]) => (
+              <div
+                className="grid gap-1 rounded-md bg-surface-secondary p-4"
+                key={key}
+              >
+                <dt className="text-xs2 text-muted">
+                  {t(`admin.stats.${key}`)}
+                </dt>
+                <dd className="text-lg font-medium tabular-nums">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      ) : platform.status === 'error' ? (
+        <div className="-mt-3 mb-[26px]">
+          <AsyncState
+            error={platform.error}
+            errorTitle={t('admin.stats.errorTitle')}
+            onRetry={platform.reload}
+            status="error"
+          >
+            {null}
+          </AsyncState>
+        </div>
+      ) : null}
       <section className="overflow-hidden rounded-md border border-border bg-surface">
         {feedback ? (
           <Alert

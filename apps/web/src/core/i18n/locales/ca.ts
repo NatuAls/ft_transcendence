@@ -6,6 +6,7 @@ export const ca: Translation = {
       save: 'Desa',
       cancel: 'Cancel·la',
       retry: 'Torna-ho a provar',
+      refresh: 'Actualitza',
       close: 'Tanca',
       search: 'Cerca',
       signOut: 'Tanca la sessió',
@@ -14,6 +15,8 @@ export const ca: Translation = {
       loading: 'Carregant…',
       empty: 'Encara no hi ha res aquí',
       error: 'Alguna cosa ha fallat',
+      refreshing: 'S’està actualitzant…',
+      updatedAt: 'Actualitzat: {{time}} · es refresca cada minut',
     },
     language: 'Idioma',
     notFound: {
@@ -535,6 +538,16 @@ export const ca: Translation = {
         text: 'No pots canviar el teu propi rol ni treure’t des d’aquí: rebaixar-lo et deixaria dins de l’organització sense l’accés necessari per desfer-ho. Un altre administrador el pot canviar per tu, i sortir de l’organització és una decisió a part.',
       },
     },
+    stats: {
+      title: 'Els tiquets en xifres',
+      total: 'Tots els tiquets',
+      unassigned: 'Oberts o en curs, sense agent',
+      firstResponse: 'Primera resposta, de mitjana',
+      noFirstResponse: 'Encara no hi ha primeres respostes',
+      byStatus: 'Per estat',
+      byPriority: 'Per prioritat',
+      errorTitle: 'No s’han pogut llegir les estadístiques',
+    },
     apiKeys: {
       create: 'Crea una clau',
       usage: 'Envia la clau a la capçalera X-API-Key.',
@@ -769,6 +782,14 @@ export const ca: Translation = {
       description:
         'Només els administradors de la plataforma poden obrir aquesta zona. Si la necessites, demana accés a un d’ells.',
       back: 'Torna a l’espai de treball',
+    },
+    stats: {
+      title: 'Activitat de la plataforma',
+      tickets: 'Tiquets',
+      openTickets: 'Oberts o en curs',
+      messages: 'Missatges de xat',
+      attachments: 'Adjunts',
+      errorTitle: 'No s’han pogut llegir les estadístiques de la plataforma',
     },
     users: {
       title: 'Usuaris',

@@ -80,3 +80,19 @@ export async function setGlobalRole(
 export async function deleteUser(id: string): Promise<void> {
   await request(`/users/${id}`, { method: 'DELETE' });
 }
+
+/** Platform-wide counters: deleted accounts and organizations do not count. */
+export interface PlatformStats {
+  activeUsers: number;
+  attachments: number;
+  messages: number;
+  /** OPEN or IN_PROGRESS: «open» in the broad sense, not the status alone. */
+  openTickets: number;
+  organizations: number;
+  tickets: number;
+  users: number;
+}
+
+export function getPlatformStats(): Promise<PlatformStats> {
+  return request('/admin/stats');
+}

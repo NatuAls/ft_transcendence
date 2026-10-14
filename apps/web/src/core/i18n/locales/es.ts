@@ -6,6 +6,7 @@ export const es: Translation = {
       save: 'Guardar',
       cancel: 'Cancelar',
       retry: 'Reintentar',
+      refresh: 'Actualizar',
       close: 'Cerrar',
       search: 'Buscar',
       signOut: 'Cerrar sesión',
@@ -14,6 +15,8 @@ export const es: Translation = {
       loading: 'Cargando…',
       empty: 'Aún no hay nada aquí',
       error: 'Algo ha salido mal',
+      refreshing: 'Actualizando…',
+      updatedAt: 'Actualizado: {{time}} · se refresca cada minuto',
     },
     language: 'Idioma',
     notFound: {
@@ -542,6 +545,16 @@ export const es: Translation = {
         text: 'No puedes cambiar tu propio rol ni quitarte desde aquí: bajarlo te dejaría dentro de la organización sin el acceso necesario para deshacerlo. Otro administrador puede cambiarlo por ti, y salir de la organización es una decisión aparte.',
       },
     },
+    stats: {
+      title: 'Los tickets en cifras',
+      total: 'Todos los tickets',
+      unassigned: 'Abiertos o en curso, sin agente',
+      firstResponse: 'Primera respuesta, de media',
+      noFirstResponse: 'Aún no hay primeras respuestas',
+      byStatus: 'Por estado',
+      byPriority: 'Por prioridad',
+      errorTitle: 'No se han podido leer las estadísticas',
+    },
     apiKeys: {
       create: 'Crear clave',
       usage: 'Envía la clave en la cabecera X-API-Key.',
@@ -778,6 +791,14 @@ export const es: Translation = {
       description:
         'Solo los administradores de la plataforma pueden abrir esta zona. Si la necesitas, pide acceso a uno de ellos.',
       back: 'Volver al espacio de trabajo',
+    },
+    stats: {
+      title: 'Actividad de la plataforma',
+      tickets: 'Tickets',
+      openTickets: 'Abiertos o en curso',
+      messages: 'Mensajes de chat',
+      attachments: 'Adjuntos',
+      errorTitle: 'No se han podido leer las estadísticas de la plataforma',
     },
     users: {
       title: 'Usuarios',
