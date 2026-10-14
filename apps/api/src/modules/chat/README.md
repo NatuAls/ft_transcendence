@@ -5,7 +5,9 @@ El chat usa la infraestructura Socket.IO existente del API:
 - namespace: `/rt`
 - path: `/socket.io`
 - autenticación: `auth.token` con el access token JWT
-- sala privada: `conv:{conversationId}`
+- sala privada del hilo: `conv:{conversationId}`
+- salas personales de los participantes: `user:{userId}` para actualizar las
+  listas de conversaciones abiertas en cualquier pestaña
 
 ## Cliente
 
