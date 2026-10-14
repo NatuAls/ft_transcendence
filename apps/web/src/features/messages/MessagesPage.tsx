@@ -48,7 +48,7 @@ export function MessagesPage({
 }: {
   initialPerson?: string;
   onOpenProfile: (personName: string) => void;
-  onViewTickets: (personName: string) => void;
+  onViewTickets: (personId: string, personName: string) => void;
 }) {
   const previewInitialConversation =
     initialConversations.find(
@@ -523,7 +523,7 @@ export function MessagesPage({
             <button
               aria-label={`View tickets related to ${active.name} (2)`}
               className="min-h-10 shrink-0 rounded-sm px-2 text-xs2 text-primary hover:bg-surface-secondary focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-focus max-[360px]:px-1.5"
-              onClick={() => onViewTickets(active.name)}
+              onClick={() => onViewTickets(active.userId ?? '', active.name)}
               type="button"
             >
               <span className="max-md:hidden">View tickets (2)</span>
