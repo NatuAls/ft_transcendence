@@ -38,7 +38,8 @@ export const es: Translation = {
     accountMenu: 'Menú de cuenta',
     legalNavigation: 'Información legal y del servicio',
     serviceStatus: 'Estado del servicio',
-    academicProject: 'HelpDesk Lite · ft_transcendence un proyecto académico de 42 Barcelona',
+    academicProject:
+      'HelpDesk Lite · ft_transcendence un proyecto académico de 42 Barcelona',
     crash:
       'La interfaz no ha podido terminar de cargarse. Los datos de tu navegador no se han modificado.',
   },
@@ -219,6 +220,7 @@ export const es: Translation = {
       searchLabel: 'Buscar conversaciones',
       searchPlaceholder: 'Buscar conversaciones',
       empty: 'No se han encontrado conversaciones.',
+      unreadCount: '{{count}} sin leer',
       dialogEyebrow: 'MENSAJES',
       dialogDescription: 'Elige a un compañero para iniciar una conversación.',
       colleagueSearchLabel: 'Buscar compañeros',
@@ -229,9 +231,9 @@ export const es: Translation = {
     thread: {
       backToConversations: 'Volver a conversaciones',
       viewProfile: 'Ver el perfil de {{name}}',
-      viewTicketsAria: 'Ver tickets relacionados con {{name}} ({{count}})',
-      viewTickets: 'Ver tickets ({{count}})',
-      mobileTickets: 'Tickets ({{count}})',
+      viewTicketsAria: 'Ver tickets relacionados con {{name}}',
+      viewTickets: 'Ver tickets',
+      mobileTickets: 'Tickets',
       loadingOlder: 'Cargando mensajes anteriores…',
       empty: 'Aún no hay mensajes.',
       online: 'En línea',
