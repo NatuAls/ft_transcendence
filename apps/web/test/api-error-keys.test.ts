@@ -37,16 +37,26 @@ function fuentes(dir: string): string[] {
   });
 }
 
-/** Todas las claves `errors.<grupo>.<clave>` que aparecen en el código de la API. */
+/**
+ * Todas las claves `errors.<grupo>.<clave>` que aparecen en el código de la
+ * API: las escritas tal cual y las que construye `resourceNotFound('ticket')`
+ * —`errors.ticket.notFound`—, que no están escritas en ningún sitio. Hasta el
+ * 14/10 sólo se leían las primeras, y de las segundas, 17, estaban traducidas
+ * dos.
+ */
 const clavesDeLaApi = [
   ...new Set(
-    [...fuentes(API_SRC), ...fuentes(CONTRACTS_SRC)].flatMap((fichero) =>
-      [
-        ...readFileSync(fichero, 'utf8').matchAll(
-          /errors\.[a-zA-Z]+\.[a-zA-Z]+/g,
+    [...fuentes(API_SRC), ...fuentes(CONTRACTS_SRC)].flatMap((fichero) => {
+      const texto = readFileSync(fichero, 'utf8');
+      return [
+        ...[...texto.matchAll(/errors\.[a-zA-Z]+\.[a-zA-Z]+/g)].map(
+          (coincidencia) => coincidencia[0],
         ),
-      ].map((coincidencia) => coincidencia[0]),
-    ),
+        ...[...texto.matchAll(/resourceNotFound\(\s*'([a-zA-Z]+)'\s*\)/g)].map(
+          (coincidencia) => `errors.${coincidencia[1]}.notFound`,
+        ),
+      ];
+    }),
   ),
 ].sort();
 
@@ -65,6 +75,7 @@ describe('las claves de error de la API están traducidas', () => {
   it('encuentra las claves, para que la prueba no pase por estar vacía', () => {
     expect(clavesDeLaApi.length).toBeGreaterThan(30);
     expect(clavesDeLaApi).toContain('errors.org.lastAdmin');
+    expect(clavesDeLaApi).toContain('errors.apiKey.notFound');
   });
 
   for (const [codigo, traducciones] of Object.entries(idiomas)) {

@@ -1017,7 +1017,10 @@ export const es: Translation = {
       locked: 'Su autor ya no puede editar este ticket.',
       notFound: 'Ese ticket no existe, o no tienes acceso.',
     },
-    comment: { empty: 'El comentario está vacío.' },
+    comment: {
+      notFound: 'Ese comentario no existe, o no tienes acceso a él.',
+      empty: 'El comentario está vacío.',
+    },
     org: {
       nameTooShort: 'El nombre de la organización es demasiado corto.',
       alreadyMember: 'Esa persona ya es miembro.',
@@ -1028,8 +1031,12 @@ export const es: Translation = {
       notFound: 'Esa organización no existe, o no perteneces a ella.',
       slugTaken: 'Esa dirección de organización ya está en uso.',
     },
-    category: { nameTaken: 'Ya existe una categoría con ese nombre.' },
+    category: {
+      notFound: 'Esa categoría no existe en esta organización.',
+      nameTaken: 'Ya existe una categoría con ese nombre.',
+    },
     apiKey: {
+      notFound: 'Esa clave de API no existe en esta organización.',
       invalid: 'La clave de API falta, no es válida o está revocada.',
       missingScope: 'La clave de API no tiene el permiso que hace falta.',
       scopesRequired: 'Elige al menos un permiso.',
@@ -1038,9 +1045,13 @@ export const es: Translation = {
     color: { invalid: 'Elige un color válido.' },
     slug: { invalid: 'Sólo minúsculas, dígitos y guiones.' },
     timezone: { invalid: 'Elige una zona horaria válida.' },
-    message: { empty: 'El mensaje está vacío.' },
+    message: {
+      notFound: 'Ese mensaje no existe.',
+      empty: 'El mensaje está vacío.',
+    },
     rbac: { forbidden: 'Tu rol no permite hacer esto.' },
     file: {
+      notFound: 'Ese fichero no existe, o no tienes acceso a él.',
       tooLarge: 'El fichero es demasiado grande.',
       imageUnreadable:
         'No se ha podido leer la imagen: está dañada o no es una imagen.',
@@ -1058,5 +1069,20 @@ export const es: Translation = {
       tokenInvalid: 'El enlace de confirmación no es válido o ha caducado.',
       usernameMismatch: 'El nombre de usuario no coincide con tu cuenta.',
     },
+    attachment: { notFound: 'Ese adjunto no existe, o no tienes acceso a él.' },
+    avatar: { notFound: 'No hay foto de perfil.' },
+    conversation: {
+      notFound: 'Esa conversación no existe, o no formas parte de ella.',
+    },
+    export: { notFound: 'Esa exportación no existe o ha caducado.' },
+    friendship: { notFound: 'Esa amistad o solicitud no existe.' },
+    member: { notFound: 'Esa persona no es miembro de esta organización.' },
+    organization: {
+      notFound: 'Esa organización no existe, o no perteneces a ella.',
+    },
+    reservation: { notFound: 'Esa reserva ya no existe.' },
+    session: { notFound: 'Esa sesión ya no existe.' },
+    thumbnail: { notFound: 'Esa vista previa no existe.' },
+    user: { notFound: 'Esa cuenta no existe.' },
   },
 };

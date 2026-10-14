@@ -1007,7 +1007,10 @@ export const ca: Translation = {
       locked: 'El seu autor ja no pot editar aquest tiquet.',
       notFound: 'Aquest tiquet no existeix, o no hi tens accés.',
     },
-    comment: { empty: 'El comentari és buit.' },
+    comment: {
+      notFound: 'Aquest comentari no existeix, o no hi tens accés.',
+      empty: 'El comentari és buit.',
+    },
     org: {
       nameTooShort: "El nom de l'organització és massa curt.",
       alreadyMember: 'Aquesta persona ja és membre.',
@@ -1018,8 +1021,12 @@ export const ca: Translation = {
       notFound: 'Aquesta organització no existeix, o no hi pertanys.',
       slugTaken: "Aquesta adreça d'organització ja està en ús.",
     },
-    category: { nameTaken: 'Ja existeix una categoria amb aquest nom.' },
+    category: {
+      notFound: 'Aquesta categoria no existeix en aquesta organització.',
+      nameTaken: 'Ja existeix una categoria amb aquest nom.',
+    },
     apiKey: {
+      notFound: 'Aquesta clau d’API no existeix en aquesta organització.',
       invalid: "La clau d'API falta, no és vàlida o està revocada.",
       missingScope: "La clau d'API no té el permís que cal.",
       scopesRequired: 'Tria com a mínim un permís.',
@@ -1028,9 +1035,13 @@ export const ca: Translation = {
     color: { invalid: 'Tria un color vàlid.' },
     slug: { invalid: 'Només minúscules, dígits i guionets.' },
     timezone: { invalid: 'Tria una zona horària vàlida.' },
-    message: { empty: 'El missatge és buit.' },
+    message: {
+      notFound: 'Aquest missatge no existeix.',
+      empty: 'El missatge és buit.',
+    },
     rbac: { forbidden: 'El teu rol no permet fer això.' },
     file: {
+      notFound: 'Aquest fitxer no existeix, o no hi tens accés.',
       tooLarge: 'El fitxer és massa gran.',
       imageUnreadable:
         "No s'ha pogut llegir la imatge: està malmesa o no és una imatge.",
@@ -1048,5 +1059,22 @@ export const ca: Translation = {
       tokenInvalid: "L'enllaç de confirmació no és vàlid o ha caducat.",
       usernameMismatch: "El nom d'usuari no coincideix amb el teu compte.",
     },
+    attachment: { notFound: 'Aquest adjunt no existeix, o no hi tens accés.' },
+    avatar: { notFound: 'No hi ha foto de perfil.' },
+    conversation: {
+      notFound: 'Aquesta conversa no existeix, o no en formes part.',
+    },
+    export: { notFound: 'Aquesta exportació no existeix o ha caducat.' },
+    friendship: { notFound: 'Aquesta amistat o sol·licitud no existeix.' },
+    member: {
+      notFound: 'Aquesta persona no és membre d’aquesta organització.',
+    },
+    organization: {
+      notFound: 'Aquesta organització no existeix, o no en formes part.',
+    },
+    reservation: { notFound: 'Aquesta reserva ja no existeix.' },
+    session: { notFound: 'Aquesta sessió ja no existeix.' },
+    thumbnail: { notFound: 'Aquesta previsualització no existeix.' },
+    user: { notFound: 'Aquest compte no existeix.' },
   },
 };

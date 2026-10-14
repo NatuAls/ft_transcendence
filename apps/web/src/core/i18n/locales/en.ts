@@ -1005,7 +1005,10 @@ export const en = {
       locked: 'This ticket can no longer be edited by its author.',
       notFound: 'That ticket does not exist, or you do not have access to it.',
     },
-    comment: { empty: 'The comment is empty.' },
+    comment: {
+      notFound: 'That comment does not exist, or you do not have access to it.',
+      empty: 'The comment is empty.',
+    },
     org: {
       nameTooShort: 'Organization name is too short.',
       alreadyMember: 'That person is already a member.',
@@ -1015,8 +1018,12 @@ export const en = {
       notFound: 'That organization does not exist, or you do not belong to it.',
       slugTaken: 'That organization address is already in use.',
     },
-    category: { nameTaken: 'A category with that name already exists.' },
+    category: {
+      notFound: 'That category does not exist in this organization.',
+      nameTaken: 'A category with that name already exists.',
+    },
     apiKey: {
+      notFound: 'That API key does not exist in this organization.',
       invalid: 'The API key is missing, invalid or revoked.',
       missingScope: 'The API key does not have the permission this needs.',
       scopesRequired: 'Choose at least one permission.',
@@ -1025,9 +1032,13 @@ export const en = {
     color: { invalid: 'Choose a valid colour.' },
     slug: { invalid: 'Only lowercase letters, digits and hyphens.' },
     timezone: { invalid: 'Choose a valid time zone.' },
-    message: { empty: 'The message is empty.' },
+    message: {
+      notFound: 'That message does not exist.',
+      empty: 'The message is empty.',
+    },
     rbac: { forbidden: 'Your role does not allow this.' },
     file: {
+      notFound: 'That file does not exist, or you do not have access to it.',
       tooLarge: 'The file is too large.',
       imageUnreadable:
         'The image could not be read: it is damaged or not really an image.',
@@ -1045,6 +1056,24 @@ export const en = {
       tokenInvalid: 'The confirmation link is invalid or has expired.',
       usernameMismatch: 'The username you typed does not match your account.',
     },
+    attachment: {
+      notFound:
+        'That attachment does not exist, or you do not have access to it.',
+    },
+    avatar: { notFound: 'There is no profile picture.' },
+    conversation: {
+      notFound: 'That conversation does not exist, or you are not part of it.',
+    },
+    export: { notFound: 'That export does not exist or has expired.' },
+    friendship: { notFound: 'That friendship or request does not exist.' },
+    member: { notFound: 'That person is not a member of this organization.' },
+    organization: {
+      notFound: 'That organization does not exist, or you do not belong to it.',
+    },
+    reservation: { notFound: 'That reservation does not exist any more.' },
+    session: { notFound: 'That session does not exist any more.' },
+    thumbnail: { notFound: 'That preview does not exist.' },
+    user: { notFound: 'That account does not exist.' },
   },
 };
 
