@@ -125,6 +125,12 @@ export function ProfileMenu({
           >
             Profile settings
           </MenuItem>
+          <MenuItem
+            icon="ticket"
+            onClick={() => navigate('account/preferences')}
+          >
+            Preferences
+          </MenuItem>
           <MenuItem icon="shield" onClick={() => navigate('account/privacy')}>
             Privacy &amp; data
           </MenuItem>
