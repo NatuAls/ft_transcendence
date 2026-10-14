@@ -187,6 +187,7 @@ export function CreateTicketPage({
                 className="min-h-[130px] w-full min-w-0 resize-y rounded-[10px] border border-border bg-[#f7faf8] p-4 text-sm leading-[1.2] text-ink max-md:min-h-[120px]"
                 minLength={10}
                 maxLength={5000}
+                name="description"
                 onChange={(event) => setDescription(event.target.value)}
                 placeholder={t('tickets.create.fields.descriptionPlaceholder')}
                 required

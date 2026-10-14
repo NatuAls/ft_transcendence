@@ -320,6 +320,7 @@ export function TicketListPage({
             <span className="sr-only">{t('tickets.list.searchLabel')}</span>
             <input
               className="min-w-0 flex-1 border-0 bg-transparent text-ink outline-0 focus-visible:!outline-none"
+              name="ticketSearch"
               onChange={(event) => {
                 setQuery(event.target.value);
                 setPage(1);

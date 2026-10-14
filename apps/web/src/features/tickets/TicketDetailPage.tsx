@@ -627,6 +627,7 @@ export function TicketDetailPage({
                         </span>
                         <textarea
                           className="min-h-24 min-w-0 resize-y rounded-sm border border-border p-[13px] max-md:min-h-12 max-md:pr-14"
+                          name="reply"
                           onChange={(event) => setReply(event.target.value)}
                           onKeyDown={(event) => {
                             if (
@@ -651,6 +652,7 @@ export function TicketDetailPage({
                           <input
                             checked={isInternal}
                             className="size-4 rounded-sm border-border text-primary focus:ring-primary"
+                            name="internalNote"
                             onChange={(e) => setIsInternal(e.target.checked)}
                             type="checkbox"
                           />
@@ -874,6 +876,7 @@ export function TicketDetailPage({
             <span>{t('tickets.detail.resolution')}</span>
             <textarea
               className="min-h-28 resize-y rounded-sm border border-border p-3"
+              name="resolution"
               onChange={(event) => setResolution(event.target.value)}
               placeholder={t('tickets.detail.resolutionPlaceholder')}
               value={resolution}
@@ -992,6 +995,7 @@ export function TicketDetailPage({
           <div className="my-2 grid gap-2">
             <textarea
               className="min-h-32 resize-y rounded-sm border border-border p-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              name="commentBody"
               onChange={(event) => setEditingCommentBody(event.target.value)}
               value={editingCommentBody}
             />

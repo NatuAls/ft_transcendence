@@ -413,6 +413,7 @@ export function PeopleDirectory({
         <span className="sr-only">Search people</span>
         <input
           className="min-w-0 flex-1 border-0 bg-transparent outline-0 focus-visible:!outline-none"
+          name="peopleSearch"
           onChange={(event) => {
             setQuery(event.target.value);
             if (event.target.value.trim().length >= 2) setTab('all');

@@ -75,6 +75,7 @@ export function RelatedTicketsPage({
             <span className="sr-only">{t('tickets.related.searchLabel')}</span>
             <input
               className="border-0 bg-transparent outline-0 max-[900px]:flex-1"
+              name="ticketSearch"
               onChange={(event) => setQuery(event.target.value)}
               placeholder={t('tickets.related.searchPlaceholder')}
               type="search"
