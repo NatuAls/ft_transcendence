@@ -279,6 +279,8 @@ export const en = {
     common: {
       show: 'Show',
       hide: 'Hide',
+      showPassword: 'Show password',
+      hidePassword: 'Hide password',
       terms: 'Terms of Service',
       privacy: 'Privacy Policy',
       secureFooter: 'Secure access · Privacy-first',
@@ -642,6 +644,8 @@ export const en = {
       refreshReused: 'Your session is no longer valid. Please sign in again.',
     },
     password: {
+      showPassword: 'Show password',
+      hidePassword: 'Hide password',
       required: 'Password is required.',
       tooShort: 'At least 10 characters.',
       tooLong: 'At most 128 characters.',

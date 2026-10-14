@@ -285,6 +285,8 @@ export const ca: Translation = {
     common: {
       show: 'Mostra',
       hide: 'Oculta',
+      showPassword: 'Mostra la contrasenya',
+      hidePassword: 'Oculta la contrasenya',
       terms: 'Termes del servei',
       privacy: 'Política de privacitat',
       secureFooter: 'Accés segur · Privacitat primer',
@@ -656,6 +658,8 @@ export const ca: Translation = {
       refreshReused: 'La sessió ja no és vàlida. Inicia sessió de nou.',
     },
     password: {
+      showPassword: 'Mostra la contrasenya',
+      hidePassword: 'Oculta la contrasenya',
       required: 'La contrasenya és obligatòria.',
       tooShort: 'Com a mínim 10 caràcters.',
       tooLong: 'Com a màxim 128 caràcters.',

@@ -283,6 +283,8 @@ export const es: Translation = {
     common: {
       show: 'Mostrar',
       hide: 'Ocultar',
+      showPassword: 'Mostrar contraseña',
+      hidePassword: 'Ocultar contraseña',
       terms: 'Términos del servicio',
       privacy: 'Política de privacidad',
       secureFooter: 'Acceso seguro · Privacidad primero',
@@ -655,6 +657,8 @@ export const es: Translation = {
       refreshReused: 'Tu sesión ya no es válida. Inicia sesión de nuevo.',
     },
     password: {
+      showPassword: 'Mostrar contraseña',
+      hidePassword: 'Ocultar contraseña',
       required: 'La contraseña es obligatoria.',
       tooShort: 'Al menos 10 caracteres.',
       tooLong: 'Como máximo 128 caracteres.',
