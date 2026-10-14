@@ -1,6 +1,7 @@
 import { Alert, Avatar, Button, EmptyState, Icon } from 'ui';
 import { useMemo, useState } from 'react';
 import { previewMode } from '../../app/session';
+import { useTranslation } from '../../core/i18n';
 import { PeopleDirectory } from './PeopleDirectory';
 import {
   incomingRequestNames,
@@ -50,6 +51,7 @@ function PreviewPeoplePage({
   currentUserName: string;
   onOpenProfile: (personName: string) => void;
 }) {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<PeopleTab>('all');
   const [connected, setConnected] = useState(initialConnections);
   const [dismissedRequests, setDismissedRequests] = useState<string[]>([]);
@@ -65,7 +67,7 @@ function PreviewPeoplePage({
     const normalizedQuery = query.trim().toLowerCase();
     return people.filter((person) => {
       if (person.name === currentUserName) return false;
-      const matchesQuery = `${person.name} ${person.role} ${person.team}`
+      const matchesQuery = `${person.name} ${t(person.role)} ${person.team}`
         .toLowerCase()
         .includes(normalizedQuery);
       if (!matchesQuery) return false;
@@ -73,15 +75,15 @@ function PreviewPeoplePage({
       if (tab === 'requests') return pendingRequests.includes(person.name);
       return true;
     });
-  }, [connected, currentUserName, pendingRequests, query, tab]);
+  }, [connected, currentUserName, pendingRequests, query, tab, t]);
 
   function resolveRequest(personName: string, accept: boolean) {
     setDismissedRequests((current) => [...current, personName]);
     if (accept) setConnected((current) => [...current, personName]);
     setFeedback(
       accept
-        ? `${personName} was added to your colleagues.`
-        : `The request from ${personName} was declined.`,
+        ? t('people.feedback.addedToColleagues', { name: personName })
+        : t('people.feedback.requestDeclined', { name: personName }),
     );
   }
 
@@ -89,17 +91,17 @@ function PreviewPeoplePage({
     <div className="mx-auto max-w-[1160px] p-10 max-md:px-4 max-md:py-6">
       <header>
         <span className="text-xs2 tracking-[.08em] text-muted max-md:hidden">
-          DIRECTORY
+          {t('people.eyebrow')}
         </span>
         <h1 className="my-2 text-[1.875rem] font-medium max-md:text-[1.375rem]">
-          People
+          {t('people.title')}
         </h1>
         <p className="text-sm text-muted max-md:text-xs">
           {tab === 'requests'
-            ? 'Review incoming requests and track invitations you have sent.'
+            ? t('people.preview.descriptionRequests')
             : tab === 'colleagues'
-              ? 'View your colleagues, check availability and start a conversation.'
-              : 'Find colleagues, manage connections and start a conversation.'}
+              ? t('people.preview.descriptionColleagues')
+              : t('people.preview.descriptionAll')}
         </p>
       </header>
       <label className="my-5 mt-7 flex h-[42px] w-80 items-center gap-[9px] rounded-sm border border-border bg-surface px-[13px] focus-within:border-focus focus-within:outline-3 focus-within:outline-focus max-md:my-2.5 max-md:mt-5 max-md:w-full">
@@ -107,20 +109,20 @@ function PreviewPeoplePage({
         <input
           className="min-w-0 flex-1 border-0 bg-transparent outline-0 focus-visible:!outline-none"
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search people"
+          placeholder={t('people.preview.searchPlaceholder')}
           type="search"
           value={query}
         />
       </label>
       <nav
-        aria-label="People filters"
+        aria-label={t('people.filtersLabel')}
         className="mb-5 flex gap-1 border-b border-border max-md:justify-around"
       >
         {(
           [
-            ['all', 'All people'],
-            ['colleagues', 'Colleagues'],
-            ['requests', 'Requests'],
+            ['all', t('people.tabs.all')],
+            ['colleagues', t('people.tabs.colleagues')],
+            ['requests', t('people.tabs.requests')],
           ] as const
         ).map(([value, label]) => (
           <button
@@ -133,14 +135,16 @@ function PreviewPeoplePage({
             {label}
             {value === 'requests' && (
               <small className="inline-flex items-center rounded-full bg-warning-surface px-[7px] py-0.5 text-3xs leading-none text-warning max-md:hidden">
-                {pendingRequests.length} pending
+                {t('people.pending', { count: pendingRequests.length })}
               </small>
             )}
           </button>
         ))}
       </nav>
       {tab === 'requests' && (
-        <h2 className="mb-4 text-base font-medium">Connection requests</h2>
+        <h2 className="mb-4 text-base font-medium">
+          {t('people.connectionRequests')}
+        </h2>
       )}
       {feedback ? (
         <Alert
@@ -164,7 +168,9 @@ function PreviewPeoplePage({
             >
               <div className="flex items-start justify-between max-md:relative">
                 <button
-                  aria-label={`View ${person.name}'s profile`}
+                  aria-label={t('people.actions.viewProfileOf', {
+                    name: person.name,
+                  })}
                   className="rounded-full"
                   onClick={() => onOpenProfile(person.name)}
                   type="button"
@@ -177,7 +183,7 @@ function PreviewPeoplePage({
                 <span
                   className={`inline-flex items-center gap-[5px] text-2xs before:size-1.5 before:rounded-full before:bg-current before:content-[''] max-md:absolute max-md:-top-2 max-md:-left-1 max-md:rounded-full max-md:bg-surface max-md:px-1 max-md:py-0.5 max-md:text-4xs ${person.status === 'Online' ? 'text-success' : person.status === 'Away' ? 'text-warning' : 'text-muted'}`}
                 >
-                  {person.status}
+                  {t(`people.status.${person.status.toLowerCase()}`)}
                 </span>
               </div>
               <button
@@ -189,7 +195,7 @@ function PreviewPeoplePage({
                   {person.name}
                 </h2>
                 <p className="min-h-9 text-xs2 text-muted max-md:min-h-0 max-md:text-2xs">
-                  {person.role} · {person.team}
+                  {t(person.role)} · {person.team}
                 </p>
               </button>
               <footer className="mt-4 flex items-center justify-between border-t border-border pt-[14px] max-md:m-0 max-md:border-0 max-md:p-0 max-md:[&_.ui-button]:!min-h-[34px] max-md:[&_.ui-button]:!min-w-[75px] max-md:[&_.ui-button]:!px-[9px]">
@@ -198,7 +204,7 @@ function PreviewPeoplePage({
                   onClick={() => onOpenProfile(person.name)}
                   type="button"
                 >
-                  View profile
+                  {t('people.actions.viewProfile')}
                 </button>
                 {incoming ? (
                   <div className="flex min-w-0 gap-2 [&_.ui-button]:!min-w-0 [&_.ui-button]:!px-4 max-md:[&_.ui-button]:!min-w-[75px] max-md:[&_.ui-button]:!px-[9px]">
@@ -206,29 +212,33 @@ function PreviewPeoplePage({
                       onClick={() => resolveRequest(person.name, false)}
                       variant="ghost"
                     >
-                      Decline
+                      {t('people.actions.decline')}
                     </Button>
                     <Button onClick={() => resolveRequest(person.name, true)}>
-                      Accept
+                      {t('people.actions.accept')}
                     </Button>
                   </div>
                 ) : isConnected ? (
                   <span className="rounded-sm bg-surface-secondary px-3 py-[9px] text-xs2 text-muted">
-                    Connected
+                    {t('people.actions.connected')}
                   </span>
                 ) : isPending ? (
                   <span className="rounded-sm bg-warning-surface px-3 py-[9px] text-xs2 text-warning">
-                    Pending
+                    {t('people.actions.pending')}
                   </span>
                 ) : (
                   <Button
                     onClick={() => {
                       setSentRequests((current) => [...current, person.name]);
-                      setFeedback(`Connection request sent to ${person.name}.`);
+                      setFeedback(
+                        t('people.feedback.requestSent', {
+                          name: person.name,
+                        }),
+                      );
                     }}
                     size="compact"
                   >
-                    Connect
+                    {t('people.actions.connect')}
                   </Button>
                 )}
               </footer>
@@ -238,15 +248,17 @@ function PreviewPeoplePage({
         {!visiblePeople.length ? (
           <div className="col-span-full">
             <EmptyState
-              description="Try another search or filter."
-              title="No people match this view"
+              description={t('people.empty.tryAnother')}
+              title={t('people.empty.noMatch')}
             />
           </div>
         ) : null}
       </section>
       {tab === 'requests' && (
         <section className="mt-6">
-          <h2 className="mb-4 text-base font-medium">Sent requests</h2>
+          <h2 className="mb-4 text-base font-medium">
+            {t('people.sentRequests')}
+          </h2>
           <div className="grid grid-cols-3 gap-[14px] max-md:grid-cols-1 max-md:gap-[9px]">
             {people
               .filter(
@@ -261,7 +273,9 @@ function PreviewPeoplePage({
                 >
                   <div className="flex items-start justify-between max-md:relative">
                     <button
-                      aria-label={`View ${person.name}'s profile`}
+                      aria-label={t('people.actions.viewProfileOf', {
+                        name: person.name,
+                      })}
                       className="rounded-full"
                       onClick={() => onOpenProfile(person.name)}
                       type="button"
@@ -274,7 +288,7 @@ function PreviewPeoplePage({
                     <span
                       className={`inline-flex items-center gap-[5px] text-2xs before:size-1.5 before:rounded-full before:bg-current before:content-[''] max-md:absolute max-md:-top-2 max-md:-left-1 max-md:rounded-full max-md:bg-surface max-md:px-1 max-md:py-0.5 max-md:text-4xs ${person.status === 'Online' ? 'text-success' : person.status === 'Away' ? 'text-warning' : 'text-muted'}`}
                     >
-                      {person.status}
+                      {t(`people.status.${person.status.toLowerCase()}`)}
                     </span>
                   </div>
                   <button
@@ -286,7 +300,7 @@ function PreviewPeoplePage({
                       {person.name}
                     </h3>
                     <p className="min-h-9 text-xs2 text-muted max-md:min-h-0 max-md:text-2xs">
-                      {person.role} · {person.team}
+                      {t(person.role)} · {person.team}
                     </p>
                   </button>
                   <footer className="mt-4 flex items-center justify-between border-t border-border pt-[14px] max-md:m-0 max-md:border-0 max-md:p-0">
@@ -295,10 +309,10 @@ function PreviewPeoplePage({
                       onClick={() => onOpenProfile(person.name)}
                       type="button"
                     >
-                      View profile
+                      {t('people.actions.viewProfile')}
                     </button>
                     <span className="rounded-sm bg-warning-surface px-3 py-[9px] text-xs2 text-warning">
-                      Pending
+                      {t('people.actions.pending')}
                     </span>
                   </footer>
                 </article>
