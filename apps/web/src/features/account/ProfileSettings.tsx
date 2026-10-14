@@ -218,6 +218,7 @@ export function ProfileSettings({
           />
         </div>
         <TextField
+          autoComplete="username"
           label={t('account.profile.username')}
           name="username"
           className="[&_.ui-field__input]:cursor-not-allowed [&_.ui-field__input]:bg-surface-secondary [&_.ui-field__input]:text-muted"
@@ -225,6 +226,7 @@ export function ProfileSettings({
           value={draft.username}
         />
         <TextField
+          autoComplete="email"
           label={t('account.profile.email')}
           name="email"
           onChange={(event) => updateDraft('email', event.target.value)}

@@ -376,7 +376,7 @@ export function ExportRequested({
         {t('account.privacy.export.confirmHelp')}
       </Alert>
       <TextField
-        autoComplete="off"
+        autoComplete="one-time-code"
         label={t('account.privacy.export.confirmationCode')}
         onChange={(event) => setValue(event.target.value)}
         placeholder={t('account.privacy.export.codePlaceholder')}
@@ -612,14 +612,14 @@ export function DeleteAccount({
             {t('account.privacy.delete.irreversibleDescription')}
           </Alert>
           <TextField
-            autoComplete="off"
+            autoComplete="one-time-code"
             label={t('account.privacy.delete.confirmationCode')}
             onChange={(event) => setCode(event.target.value)}
             placeholder={t('account.privacy.delete.codePlaceholder')}
             value={code}
           />
           <TextField
-            autoComplete="off"
+            autoComplete="username"
             label={t('account.privacy.delete.usernameConfirmation')}
             onChange={(event) => setUsername(event.target.value)}
             placeholder={profile.username}

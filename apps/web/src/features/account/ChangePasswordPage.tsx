@@ -1,4 +1,4 @@
-import { Alert, Button, TextField } from 'ui';
+import { Alert, Button, IconButton, TextField } from 'ui';
 import { changePasswordSchema } from 'contracts';
 import { useState, type FormEvent } from 'react';
 import { changePassword } from '../../api/auth';
@@ -29,6 +29,9 @@ export function ChangePasswordPage({
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [failure, setFailure] = useState('');
   const [saving, setSaving] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -95,33 +98,90 @@ export function ChangePasswordPage({
         onSubmit={submit}
       >
         <Alert tone="warning">{t('account.password.sessionWarning')}</Alert>
-        <TextField
-          autoComplete="current-password"
-          error={fieldErrors.currentPassword}
-          label={t('account.password.current')}
-          name="currentPassword"
-          onChange={(event) => setCurrentPassword(event.target.value)}
-          type="password"
-          value={currentPassword}
-        />
-        <TextField
-          autoComplete="new-password"
-          error={fieldErrors.password}
-          label={t('account.password.new')}
-          name="password"
-          onChange={(event) => setPassword(event.target.value)}
-          type="password"
-          value={password}
-        />
-        <TextField
-          autoComplete="new-password"
-          error={fieldErrors.confirmPassword}
-          label={t('account.password.confirm')}
-          name="confirmPassword"
-          onChange={(event) => setConfirmPassword(event.target.value)}
-          type="password"
-          value={confirmPassword}
-        />
+        <div className="relative">
+          <TextField
+            autoComplete="current-password"
+            error={fieldErrors.currentPassword}
+            label={t('account.password.current')}
+            name="currentPassword"
+            onChange={(event) => setCurrentPassword(event.target.value)}
+            type={showCurrentPassword ? 'text' : 'password'}
+            value={currentPassword}
+          />
+          <IconButton
+            aria-label={
+              showCurrentPassword
+                ? t('account.password.hidePassword')
+                : t('account.password.showPassword')
+            }
+            aria-pressed={showCurrentPassword}
+            className="absolute right-3 bottom-0 flex h-12 items-center border-0 bg-transparent px-1 text-xs2 font-medium text-muted hover:text-primary hover:underline md:h-[52px] md:text-xs"
+            icon={showCurrentPassword ? 'eye-off' : 'eye'}
+            label={
+              showCurrentPassword
+                ? t('account.password.hidePassword')
+                : t('account.password.showPassword')
+            }
+            onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+            size="sm"
+          />
+        </div>
+        <div className="relative">
+          <TextField
+            autoComplete="new-password"
+            error={fieldErrors.password}
+            label={t('account.password.new')}
+            name="password"
+            onChange={(event) => setPassword(event.target.value)}
+            type={showPassword ? 'text' : 'password'}
+            value={password}
+          />
+          <IconButton
+            aria-label={
+              showPassword
+                ? t('account.password.hidePassword')
+                : t('account.password.showPassword')
+            }
+            aria-pressed={showPassword}
+            className="absolute right-3 bottom-0 flex h-12 items-center border-0 bg-transparent px-1 text-xs2 font-medium text-muted hover:text-primary hover:underline md:h-[52px] md:text-xs"
+            icon={showPassword ? 'eye-off' : 'eye'}
+            label={
+              showPassword
+                ? t('account.password.hidePassword')
+                : t('account.password.showPassword')
+            }
+            onClick={() => setShowPassword(!showPassword)}
+            size="sm"
+          />
+        </div>
+        <div className="relative">
+          <TextField
+            autoComplete="new-password"
+            error={fieldErrors.confirmPassword}
+            label={t('account.password.confirm')}
+            name="confirmPassword"
+            onChange={(event) => setConfirmPassword(event.target.value)}
+            type={showConfirmPassword ? 'text' : 'password'}
+            value={confirmPassword}
+          />
+          <IconButton
+            aria-label={
+              showConfirmPassword
+                ? t('account.password.hidePassword')
+                : t('account.password.showPassword')
+            }
+            aria-pressed={showConfirmPassword}
+            className="absolute right-3 bottom-0 flex h-12 items-center border-0 bg-transparent px-1 text-xs2 font-medium text-muted hover:text-primary hover:underline md:h-[52px] md:text-xs"
+            icon={showConfirmPassword ? 'eye-off' : 'eye'}
+            label={
+              showConfirmPassword
+                ? t('account.password.hidePassword')
+                : t('account.password.showPassword')
+            }
+            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+            size="sm"
+          />
+        </div>
         {failure ? <Alert tone="danger">{failure}</Alert> : null}
         <div className="flex justify-end gap-3 max-md:flex-col-reverse">
           <Button onClick={onBack} type="button" variant="secondary">

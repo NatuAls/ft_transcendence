@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { loginSchema } from 'contracts';
-import { Alert, Button, Checkbox, TextField } from 'ui';
+import { Alert, Button, Checkbox, IconButton, TextField } from 'ui';
 import { AuthBrandPanel, BrandHeader } from './AuthBrand';
 import { login, type AuthResponse } from '../../api/auth';
 import { LanguageSwitcher } from '../../core/i18n/LanguageSwitcher';
@@ -155,14 +155,23 @@ export function SignInPage({
                   onChange={handleChange(setPassword)}
                   required
                 />
-                <button
-                  type="button"
+                <IconButton
+                  aria-label={
+                    showPassword
+                      ? t('auth.common.hidePassword')
+                      : t('auth.common.showPassword')
+                  }
+                  aria-pressed={showPassword}
                   className="absolute right-3 bottom-0 flex h-12 items-center border-0 bg-transparent px-1 text-xs2 font-medium text-muted hover:text-primary hover:underline md:h-[52px] md:text-xs"
+                  icon={showPassword ? 'eye-off' : 'eye'}
+                  label={
+                    showPassword
+                      ? t('auth.common.hidePassword')
+                      : t('auth.common.showPassword')
+                  }
                   onClick={() => setShowPassword(!showPassword)}
-                  tabIndex={-1} // Evita que el usuario caiga aquí accidentalmente al usar la tecla Tab
-                >
-                  {showPassword ? t('auth.common.hide') : t('auth.common.show')}
-                </button>
+                  size="sm"
+                />
               </div>
             </div>
             {/* La API tenía /auth/forgot-password desde el principio y esta

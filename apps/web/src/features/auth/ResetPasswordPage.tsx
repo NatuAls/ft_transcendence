@@ -1,4 +1,4 @@
-import { Alert, BrandMark, Button, Icon, TextField } from 'ui';
+import { Alert, BrandMark, Button, Icon, IconButton, TextField } from 'ui';
 import { resetPasswordSchema } from 'contracts';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { resetPassword } from '../../api/verification';
@@ -158,14 +158,23 @@ export function ResetPasswordPage({
                   type={show ? 'text' : 'password'}
                   value={password}
                 />
-                <button
+                <IconButton
+                  aria-label={
+                    show
+                      ? t('auth.common.hidePassword')
+                      : t('auth.common.showPassword')
+                  }
+                  aria-pressed={show}
                   className="absolute right-3 bottom-0 flex h-12 items-center border-0 bg-transparent px-1 text-xs2 font-medium text-muted hover:text-primary hover:underline md:h-[52px] md:text-xs"
+                  icon={show ? 'eye-off' : 'eye'}
+                  label={
+                    show
+                      ? t('auth.common.hidePassword')
+                      : t('auth.common.showPassword')
+                  }
                   onClick={() => setShow(!show)}
-                  tabIndex={-1}
-                  type="button"
-                >
-                  {show ? t('auth.common.hide') : t('auth.common.show')}
-                </button>
+                  size="sm"
+                />
               </div>
               <TextField
                 autoComplete="new-password"

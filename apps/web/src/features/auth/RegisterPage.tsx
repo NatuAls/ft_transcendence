@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { registerSchema } from 'contracts';
-import { Alert, Button, Checkbox, Icon, TextField } from 'ui';
+import { Alert, Button, Checkbox, Icon, IconButton, TextField } from 'ui';
 import { AuthBrandPanel, BrandHeader } from './AuthBrand';
 import { register, type AuthResponse } from '../../api/auth';
 import { errorKey } from '../../core/api/errors';
@@ -195,7 +195,6 @@ export function RegisterPage({
             <TextField
               label={t('auth.register.firstName')}
               name="FirstName"
-              autoComplete="name"
               placeholder={t('auth.register.firstNamePlaceholder')}
               value={firstName}
               onChange={handleChange(setFirstName)}
@@ -204,7 +203,6 @@ export function RegisterPage({
             <TextField
               label={t('auth.register.lastName')}
               name="lastName"
-              autoComplete="lastName"
               placeholder={t('auth.register.lastNamePlaceholder')}
               value={lastName}
               onChange={handleChange(setLastName)}
@@ -247,14 +245,23 @@ export function RegisterPage({
                   minLength={10}
                   required
                 />
-                <button
-                  type="button"
+                <IconButton
+                  aria-label={
+                    showPassword
+                      ? t('auth.common.hidePassword')
+                      : t('auth.common.showPassword')
+                  }
+                  aria-pressed={showPassword}
                   className="absolute right-3 bottom-0 flex h-12 items-center border-0 bg-transparent px-1 text-xs2 font-medium text-muted hover:text-primary hover:underline md:h-[52px] md:text-xs"
+                  icon={showPassword ? 'eye-off' : 'eye'}
+                  label={
+                    showPassword
+                      ? t('auth.common.hidePassword')
+                      : t('auth.common.showPassword')
+                  }
                   onClick={() => setShowPassword(!showPassword)}
-                  tabIndex={-1} // Evita que el usuario caiga aquí accidentalmente al usar la tecla Tab
-                >
-                  {showPassword ? t('auth.common.hide') : t('auth.common.show')}
-                </button>
+                  size="sm"
+                />
               </div>
               <ul className="mt-2 grid list-none gap-1 p-0 text-xs2">
                 <li
@@ -296,16 +303,23 @@ export function RegisterPage({
                   onChange={handleChange(setConfirmPassword)}
                   required
                 />
-                <button
-                  type="button"
+                <IconButton
+                  aria-label={
+                    showConfirmPassword
+                      ? t('auth.common.hidePassword')
+                      : t('auth.common.showPassword')
+                  }
+                  aria-pressed={showConfirmPassword}
                   className="absolute right-3 bottom-0 flex h-12 items-center border-0 bg-transparent px-1 text-xs2 font-medium text-muted hover:text-primary hover:underline md:h-[52px] md:text-xs"
+                  icon={showConfirmPassword ? 'eye-off' : 'eye'}
+                  label={
+                    showConfirmPassword
+                      ? t('auth.common.hidePassword')
+                      : t('auth.common.showPassword')
+                  }
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  tabIndex={-1} // Evita que el usuario caiga aquí accidentalmente al usar la tecla Tab
-                >
-                  {showConfirmPassword
-                    ? t('auth.common.hide')
-                    : t('auth.common.show')}
-                </button>
+                  size="sm"
+                />
               </div>
               {matchError && (
                 <p className="mt-1 flex items-center gap-1 text-xs2 text-danger">
