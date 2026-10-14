@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ViewerSession } from '../../app/session';
 import { previewMode } from '../../app/session';
+import { useTranslation } from '../../core/i18n';
 import {
   listConversations,
   listMessages,
@@ -8,6 +9,7 @@ import {
   openConversation,
   searchUsers,
   sendMessage as sendChatMessage,
+  type ApiConversation,
   type ApiMessage,
   type ChatUser,
 } from '../../api/messages';
@@ -65,6 +67,27 @@ function replaceOrAppend(
   return updated;
 }
 
+function toConversation(row: ApiConversation): Conversation | null {
+  if (!row.participant) return null;
+  const name = row.participant.profile?.displayName ?? row.participant.username;
+  return {
+    id: row.id,
+    userId: row.participant.id,
+    username: row.participant.username,
+    avatarUrl: row.participant.profile?.avatarUrl ?? null,
+    initials: name.slice(0, 2).toUpperCase(),
+    name,
+    online: row.participant.profile?.isOnline ?? false,
+    preview: row.lastMessage?.body ?? '',
+    previewKey: row.lastMessage ? undefined : 'messages.data.noMessages',
+    role: 'messages.roles.colleague',
+    time: row.lastMessageAt
+      ? new Date(row.lastMessageAt).toLocaleDateString()
+      : '',
+    timeKey: row.lastMessageAt ? undefined : 'messages.data.newConversation',
+  };
+}
+
 export function MessagesPage({
   viewer,
   initialPerson,
@@ -76,6 +99,7 @@ export function MessagesPage({
   onOpenProfile: (personName: string) => void;
   onViewTickets: (personId: string, personName: string) => void;
 }) {
+  const { t } = useTranslation();
   const previewInitialConversation =
     initialConversations.find(
       (conversation) => conversation.name === initialPerson,
@@ -112,39 +136,22 @@ export function MessagesPage({
   ) ??
     conversations[0] ?? {
       initials: '?',
-      name: 'Selecciona una conversación',
+      name: t('messages.data.selectConversation'),
       preview: '',
       role: '',
       time: '',
     };
   const activeConversationId = active.id;
 
-  useEffect(() => {
+  const loadConversations = useCallback(() => {
     if (previewMode) return;
-    let cancelled = false;
     void listConversations()
       .then((rows) => {
-        if (cancelled) return;
-        const loaded = rows.flatMap((row) => {
-          if (!row.participant) return [];
-          const name =
-            row.participant.profile?.displayName ?? row.participant.username;
-          return [
-            {
-              id: row.id,
-              userId: row.participant.id,
-              username: row.participant.username,
-              initials: name.slice(0, 2).toUpperCase(),
-              name,
-              online: row.participant.profile?.isOnline ?? false,
-              preview: row.lastMessage?.body ?? 'No messages yet',
-              role: 'Colleague',
-              time: row.lastMessageAt
-                ? new Date(row.lastMessageAt).toLocaleDateString()
-                : 'New',
-            },
-          ];
-        });
+        const loaded = rows
+          .map(toConversation)
+          .filter((conversation): conversation is Conversation =>
+            Boolean(conversation),
+          );
         setConversations(loaded);
         if (initialPerson) {
           const matching = loaded.find((conversation) =>
@@ -154,10 +161,11 @@ export function MessagesPage({
         }
       })
       .catch((error: unknown) => console.error('Unable to load chat', error));
-    return () => {
-      cancelled = true;
-    };
-  }, [initialPerson]);
+  }, [initialPerson, setConversations, setSelected]);
+
+  useEffect(() => {
+    loadConversations();
+  }, [loadConversations]);
 
   useEffect(() => {
     if (previewMode || !newConversationOpen || candidateQuery.trim().length < 2)
@@ -212,7 +220,10 @@ export function MessagesPage({
     if (activeConversationId) loadThread(activeConversationId);
   }
 
-  useRealtimeEvent(RealtimeEvents.connected, recargarHilo);
+  useRealtimeEvent(RealtimeEvents.connected, () => {
+    recargarHilo();
+    loadConversations();
+  });
   useRealtimeEvent(RealtimeEvents.messageCreated, (payload) => {
     const incoming = (payload as { message?: ApiMessage }).message;
     if (!incoming || incoming.conversationId !== activeConversationId) return;
@@ -331,12 +342,15 @@ export function MessagesPage({
         id: conversation.id,
         userId: user.id,
         username: user.username,
+        avatarUrl: user.profile?.avatarUrl ?? null,
         initials: name.slice(0, 2).toUpperCase(),
         name,
         online: user.profile?.isOnline,
-        preview: 'No messages yet',
-        role: 'Colleague',
-        time: 'Now',
+        preview: '',
+        previewKey: 'messages.data.noMessages',
+        role: 'messages.roles.colleague',
+        time: '',
+        timeKey: 'messages.data.now',
       };
       setConversations((current) => [
         item,
@@ -379,12 +393,12 @@ export function MessagesPage({
     >
       <header className="messages-heading shrink-0 max-[1100px]:hidden">
         <span className="text-xs2 tracking-[.08em] text-muted">
-          CONVERSATIONS
+          {t('messages.eyebrow')}
         </span>
-        <h1 className="my-2 text-[1.875rem] font-medium">Messages</h1>
-        <p className="mb-7 text-sm text-muted">
-          Stay connected with colleagues through persistent conversations.
-        </p>
+        <h1 className="my-2 text-[1.875rem] font-medium">
+          {t('messages.title')}
+        </h1>
+        <p className="mb-7 text-sm text-muted">{t('messages.description')}</p>
       </header>
       <section className="grid min-h-0 flex-1 grid-cols-[330px_minmax(0,1fr)] overflow-hidden rounded-md border border-border bg-surface md:max-[1100px]:grid-cols-[260px_minmax(0,1fr)] max-md:block max-md:h-auto max-md:overflow-visible max-md:border-0">
         <ConversationList
