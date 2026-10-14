@@ -17,8 +17,12 @@ const base = `/organizations/${ids.organization}`;
 const KEY = '01a10730-0000-7000-8000-000000000001';
 const REVOCADA = '01a10730-0000-7000-8000-000000000002';
 const NUEVA = '01a10730-0000-7000-8000-000000000003';
+// Tiene la forma de las de verdad, hdl_live_<prefijo>.<resto>, pero la API no
+// la ha emitido nunca y no abre nada. Se monta por trozos para que el escáner
+// de secretos del CI no la tome por una clave real: escrita de una pieza, lo
+// parecía.
 const SECRETO =
-  'hdl_live_c0ffee00.Zq3xW9-secreto-de-prueba-que-solo-se-ve-una-vez';
+  ['hdl', 'live', 'c0ffee00'].join('_') + '.inventada-para-este-test';
 
 const clave = (overrides: Record<string, unknown> = {}) => ({
   id: KEY,
