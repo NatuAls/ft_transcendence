@@ -48,6 +48,7 @@ function detectLanguage(): Language {
 export async function initI18n() {
   if (i18next.isInitialized) return i18next;
   await i18next.use(initReactI18next).init({
+    showSupportNotice: false,
     resources: {
       en: { translation: en },
       es: { translation: es },
