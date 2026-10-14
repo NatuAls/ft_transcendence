@@ -191,6 +191,7 @@ export function WorkspacePage({
           onViewTickets={(personId, personName) =>
             navigate('related-tickets', { personId, person: personName })
           }
+          viewer={viewer}
         />
       );
     case 'related-tickets': {

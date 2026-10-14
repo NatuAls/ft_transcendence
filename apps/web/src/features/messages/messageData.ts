@@ -1,3 +1,5 @@
+import type { ApiMessage } from '../../api/messages';
+
 export interface Conversation {
   id?: string;
   userId?: string;
@@ -8,6 +10,14 @@ export interface Conversation {
   preview: string;
   role: string;
   time: string;
+}
+
+export type MessageStatus = 'sent' | 'sending' | 'error';
+
+export interface MessageItem extends ApiMessage {
+  status: MessageStatus;
+  retryId?: string;
+  read?: boolean;
 }
 
 /**
