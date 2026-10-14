@@ -13,6 +13,7 @@ export interface Conversation {
   role: string;
   time: string;
   timeKey?: string;
+  unreadCount?: number;
 }
 
 export type MessageStatus = 'sent' | 'sending' | 'error';

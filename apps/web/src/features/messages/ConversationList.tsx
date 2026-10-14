@@ -47,7 +47,7 @@ export function ConversationList({
           )
           .map((candidate) => ({
             id: `preview-${candidate.name.toLowerCase().replaceAll(' ', '-')}`,
-            profile: { displayName: candidate.name },
+            profile: { avatarUrl: null, displayName: candidate.name },
             username: candidate.name.toLowerCase().replaceAll(' ', '.'),
           }))
       : []
@@ -96,21 +96,33 @@ export function ConversationList({
                 online={conversation.online}
                 src={conversation.avatarUrl ?? undefined}
               />
-              <span className="grid gap-1.5">
+              <span className="grid min-w-0 gap-1.5">
                 <strong className="text-xs font-medium">
                   {conversation.name}
                 </strong>
-                <small className="text-3xs text-muted">
+                <small className="truncate text-3xs text-muted">
                   {conversation.previewKey
                     ? t(conversation.previewKey)
                     : conversation.preview}
                 </small>
               </span>
-              <time className="text-3xs text-muted">
-                {conversation.timeKey
-                  ? t(conversation.timeKey)
-                  : conversation.time}
-              </time>
+              <span className="grid justify-items-end gap-1">
+                <time className="text-3xs text-muted">
+                  {conversation.timeKey
+                    ? t(conversation.timeKey)
+                    : conversation.time}
+                </time>
+                {conversation.unreadCount ? (
+                  <span
+                    aria-label={t('messages.sidebar.unreadCount', {
+                      count: conversation.unreadCount,
+                    })}
+                    className="grid min-w-4 place-items-center rounded-full bg-primary px-1 text-3xs text-surface"
+                  >
+                    {conversation.unreadCount}
+                  </span>
+                ) : null}
+              </span>
             </button>
           ))}
           {!conversations.length ? (

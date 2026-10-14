@@ -43,7 +43,7 @@ const previewMessages: MessageItem[] = [
     conversationId: 'preview-conversation-maya',
     createdAt: '2026-09-28T12:05:00.000Z',
     editedAt: null,
-    id: 'preview-message-2',
+    id: 'preview-message-9',
     sender: { id: 'preview-current-user', username: 'preview.user' },
     status: 'sent',
   },
@@ -85,6 +85,7 @@ function toConversation(row: ApiConversation): Conversation | null {
       ? new Date(row.lastMessageAt).toLocaleDateString()
       : '',
     timeKey: row.lastMessageAt ? undefined : 'messages.data.newConversation',
+    unreadCount: row.unreadCount,
   };
 }
 
@@ -133,38 +134,51 @@ export function MessagesPage({
   const [scrollToBottomToken, setScrollToBottomToken] = useState(0);
   const active = conversations.find(
     (conversation) => conversationKey(conversation) === selected,
-  ) ??
-    conversations[0] ?? {
-      initials: '?',
-      name: t('messages.data.selectConversation'),
-      preview: '',
-      role: '',
-      time: '',
-    };
+  ) ?? {
+    initials: '?',
+    name: t('messages.data.selectConversation'),
+    preview: '',
+    role: '',
+    time: '',
+  };
   const activeConversationId = active.id;
 
-  const loadConversations = useCallback(() => {
-    if (previewMode) return;
-    void listConversations()
-      .then((rows) => {
-        const loaded = rows
-          .map(toConversation)
-          .filter((conversation): conversation is Conversation =>
-            Boolean(conversation),
-          );
-        setConversations(loaded);
-        if (initialPerson) {
-          const matching = loaded.find((conversation) =>
-            [conversation.name, conversation.username].includes(initialPerson),
-          );
-          if (matching) setSelected(conversationKey(matching));
-        }
-      })
-      .catch((error: unknown) => console.error('Unable to load chat', error));
-  }, [initialPerson, setConversations, setSelected]);
+  const loadConversations = useCallback(
+    (selectInitialPerson = false) => {
+      if (previewMode) return;
+      void listConversations()
+        .then((rows) => {
+          const loaded = rows
+            .map(toConversation)
+            .filter((conversation): conversation is Conversation =>
+              Boolean(conversation),
+            );
+          setConversations(loaded);
+          if (selectInitialPerson && initialPerson) {
+            const matching = loaded.find((conversation) =>
+              [conversation.name, conversation.username].includes(
+                initialPerson,
+              ),
+            );
+            if (matching) {
+              setSelected(conversationKey(matching));
+              setConversations((current) =>
+                current.map((conversation) =>
+                  conversation.id === matching.id
+                    ? { ...conversation, unreadCount: 0 }
+                    : conversation,
+                ),
+              );
+            }
+          }
+        })
+        .catch((error: unknown) => console.error('Unable to load chat', error));
+    },
+    [initialPerson, setConversations, setSelected],
+  );
 
   useEffect(() => {
-    loadConversations();
+    loadConversations(true);
   }, [loadConversations]);
 
   useEffect(() => {
@@ -188,6 +202,25 @@ export function MessagesPage({
   }, [candidateQuery, newConversationOpen]);
 
   useConversationRoom(activeConversationId);
+
+  const clearConversationUnreadCount = useCallback(
+    (conversationId: string) => {
+      setConversations((current) =>
+        current.map((conversation) =>
+          conversation.id === conversationId
+            ? { ...conversation, unreadCount: 0 }
+            : conversation,
+        ),
+      );
+    },
+    [setConversations],
+  );
+
+  const markActiveConversationAsRead = useCallback(
+    (conversationId: string) =>
+      previewMode ? Promise.resolve() : markConversationRead(conversationId),
+    [],
+  );
 
   const loadThread = useCallback(
     (conversationId: string) => {
@@ -213,8 +246,37 @@ export function MessagesPage({
     if (!activeConversationId) return;
     if (previewMode) return;
     loadThread(activeConversationId);
-    void markConversationRead(activeConversationId).catch(() => undefined);
-  }, [activeConversationId, loadThread]);
+    void markActiveConversationAsRead(activeConversationId).catch(
+      () => undefined,
+    );
+  }, [activeConversationId, loadThread, markActiveConversationAsRead]);
+
+  useEffect(() => {
+    if (!activeConversationId || previewMode) return;
+    const markReadWhenVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      void markActiveConversationAsRead(activeConversationId).catch(
+        () => undefined,
+      );
+    };
+    window.addEventListener('focus', markReadWhenVisible);
+    document.addEventListener('visibilitychange', markReadWhenVisible);
+    return () => {
+      window.removeEventListener('focus', markReadWhenVisible);
+      document.removeEventListener('visibilitychange', markReadWhenVisible);
+    };
+  }, [activeConversationId, markActiveConversationAsRead]);
+
+  useEffect(() => {
+    const closeActiveConversation = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && selected && !newConversationOpen)
+        setSelected(null);
+    };
+    document.addEventListener('keydown', closeActiveConversation);
+    return () => {
+      document.removeEventListener('keydown', closeActiveConversation);
+    };
+  }, [newConversationOpen, selected]);
 
   function recargarHilo() {
     if (activeConversationId) loadThread(activeConversationId);
@@ -226,15 +288,43 @@ export function MessagesPage({
   });
   useRealtimeEvent(RealtimeEvents.messageCreated, (payload) => {
     const incoming = (payload as { message?: ApiMessage }).message;
-    if (!incoming || incoming.conversationId !== activeConversationId) return;
+    if (!incoming?.conversationId) return;
+
+    const isActiveConversation =
+      incoming.conversationId === activeConversationId;
+    if (isActiveConversation) {
+      clearConversationUnreadCount(incoming.conversationId);
+      // An incoming message in the visible thread is immediately considered
+      // read. Refresh the summary after the PATCH so the server count cannot
+      // overwrite the optimistic zero with a stale unread value.
+      void markActiveConversationAsRead(incoming.conversationId)
+        .then(() => loadConversations())
+        .catch(() => undefined);
+    } else {
+      // message.created is also delivered to the user's personal room. Reload
+      // the summaries so preview, timestamp, unread count and ordering come
+      // from the API.
+      loadConversations();
+    }
+
+    // Keep the existing active-thread update direct and deduplicated. The
+    // list refresh above must not replace or reload the open thread.
+    if (incoming.conversationId !== activeConversationId) return;
     setRemoteMessages((current) =>
       replaceOrAppend(current, withStatus(incoming)),
     );
     setScrollToBottomToken((token) => token + 1);
   });
   useRealtimeEvent(RealtimeEvents.messageRead, (payload) => {
-    const conversationId = (payload as { conversationId?: string })
-      .conversationId;
+    const { conversationId, userId } = payload as {
+      conversationId?: string;
+      userId?: string;
+    };
+    if (!conversationId) return;
+    if (userId === viewer.id) {
+      clearConversationUnreadCount(conversationId);
+      loadConversations();
+    }
     if (conversationId !== activeConversationId) return;
     setRemoteMessages((current) =>
       current.map((item) =>
@@ -407,6 +497,7 @@ export function MessagesPage({
           query={query}
           onQueryChange={setQuery}
           onSelect={(conversation) => {
+            if (conversation.id) clearConversationUnreadCount(conversation.id);
             setSelected(conversationKey(conversation));
             if (previewMode) {
               setRemoteMessages(

@@ -76,17 +76,16 @@ export function MessageThread({
         <button
           aria-label={t('messages.thread.viewTicketsAria', {
             name: active.name,
-            count: 2,
           })}
           className="min-h-10 shrink-0 rounded-sm px-2 text-xs2 text-primary hover:bg-surface-secondary focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-focus max-[360px]:px-1.5"
           onClick={onViewTickets}
           type="button"
         >
           <span className="max-md:hidden">
-            {t('messages.thread.viewTickets', { count: 2 })}
+            {t('messages.thread.viewTickets')}
           </span>
           <span className="hidden max-md:inline">
-            {t('messages.thread.mobileTickets', { count: 2 })}
+            {t('messages.thread.mobileTickets')}
           </span>
         </button>
       </header>
