@@ -6,6 +6,7 @@ import { getInitials } from '../../app/text';
 import { openConversation } from '../../api/messages';
 import { errorMessage } from '../../core/api/errors';
 import { useAsync } from '../../core/async/useAsync';
+import { useTranslation } from '../../core/i18n';
 
 type Relation =
   | { kind: 'friend'; since: string }
@@ -14,16 +15,10 @@ type Relation =
   | { kind: 'outgoing' }
   | { kind: 'self' };
 
-const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' });
-const monthFormat = new Intl.DateTimeFormat(undefined, {
-  month: 'long',
-  year: 'numeric',
-});
-
 const roleLabels: Record<string, string> = {
-  AGENT: 'Support agent',
-  MEMBER: 'Member',
-  ORG_ADMIN: 'Organization admin',
+  AGENT: 'people.roles.supportAgent',
+  MEMBER: 'people.roles.member',
+  ORG_ADMIN: 'people.roles.organizationAdmin',
 };
 
 /** A person's public profile, from `GET /users/:username`. */
@@ -40,6 +35,14 @@ export function ProfileView({
   onMessage: (username: string) => void;
   username: string;
 }) {
+  const { t, i18n } = useTranslation();
+  const dateFormat = new Intl.DateTimeFormat(i18n.language, {
+    dateStyle: 'medium',
+  });
+  const monthFormat = new Intl.DateTimeFormat(i18n.language, {
+    month: 'long',
+    year: 'numeric',
+  });
   const [feedback, setFeedback] = useState('');
   const [failure, setFailure] = useState('');
   const [busy, setBusy] = useState(false);
@@ -106,7 +109,7 @@ export function ProfileView({
       setFeedback(done);
       reload();
     } catch (error) {
-      setFailure(errorMessage(error, 'The request could not be completed.'));
+      setFailure(errorMessage(error, t('people.errors.requestFailed')));
     } finally {
       setBusy(false);
     }
@@ -115,7 +118,7 @@ export function ProfileView({
   if (loading) {
     return (
       <div className="mx-auto max-w-[1160px] p-10 max-md:px-4 max-md:py-6">
-        <LoadingState label="Loading profile" />
+        <LoadingState label={t('people.profile.loading')} />
       </div>
     );
   }
@@ -124,12 +127,12 @@ export function ProfileView({
     return (
       <div className="mx-auto max-w-[1160px] p-10 max-md:px-4 max-md:py-6">
         <button className="text-primary" onClick={onBack} type="button">
-          ← People
+          ← {t('people.title')}
         </button>
         <div className="mt-7">
           <EmptyState
-            description="The account may have been deleted, or the link is wrong."
-            title="This profile does not exist"
+            description={t('people.profile.missingDescription')}
+            title={t('people.profile.missingTitle')}
           />
         </div>
       </div>
@@ -147,7 +150,7 @@ export function ProfileView({
         onClick={onBack}
         type="button"
       >
-        ← People
+        ← {t('people.title')}
       </button>
       <section className="mt-7 grid grid-cols-[84px_1fr_auto] items-center gap-x-5 rounded-md border border-border bg-surface p-[30px] max-md:mt-0 max-md:flex max-md:flex-col max-md:p-6 max-md:text-center">
         <Avatar
@@ -169,10 +172,12 @@ export function ProfileView({
             className={`inline-flex items-center gap-[5px] text-2xs before:size-1.5 before:rounded-full before:bg-current before:content-[''] ${isOnline ? 'text-success' : 'text-muted'}`}
           >
             {isOnline
-              ? 'Online'
+              ? t('people.status.online')
               : lastSeenAt
-                ? `Last seen ${dateFormat.format(new Date(lastSeenAt))}`
-                : 'Offline'}
+                ? t('people.status.lastSeen', {
+                    date: dateFormat.format(new Date(lastSeenAt)),
+                  })
+                : t('people.status.offline')}
           </span>
           {profile.bio ? (
             <p className="mt-4 max-w-[620px] text-[0.8125rem] leading-[1.55] text-muted">
@@ -183,7 +188,7 @@ export function ProfileView({
         <div className="flex gap-2 max-md:mt-5 max-md:w-full max-md:[&_.ui-button]:flex-1">
           {relation.kind === 'self' ? (
             <Button onClick={onEditOwnProfile} variant="secondary">
-              Edit your profile
+              {t('people.actions.editProfile')}
             </Button>
           ) : relation.kind === 'friend' ? (
             <>
@@ -197,26 +202,26 @@ export function ProfileView({
                       setFailure(
                         errorMessage(
                           error,
-                          'The conversation could not be opened.',
+                          t('people.errors.conversationFailed'),
                         ),
                       );
                       setBusy(false);
                     });
                 }}
               >
-                Send message
+                {t('people.actions.sendMessage')}
               </Button>
               <Button
                 disabled={busy}
                 onClick={() =>
                   void act(
                     () => social.removeFriend(profile.id),
-                    `${name} was removed from your friends.`,
+                    t('people.feedback.friendRemoved', { name }),
                   )
                 }
                 variant="secondary"
               >
-                Remove friend
+                {t('people.actions.removeFriend')}
               </Button>
             </>
           ) : relation.kind === 'incoming' ? (
@@ -227,11 +232,11 @@ export function ProfileView({
                   void act(
                     () =>
                       social.answerFriendRequest(relation.requestId, 'ACCEPT'),
-                    `${name} is now one of your friends.`,
+                    t('people.feedback.friendAdded', { name }),
                   )
                 }
               >
-                Accept request
+                {t('people.actions.acceptRequest')}
               </Button>
               <Button
                 disabled={busy}
@@ -239,12 +244,12 @@ export function ProfileView({
                   void act(
                     () =>
                       social.answerFriendRequest(relation.requestId, 'DECLINE'),
-                    `The request from ${name} was declined.`,
+                    t('people.feedback.requestDeclined', { name }),
                   )
                 }
                 variant="secondary"
               >
-                Decline
+                {t('people.actions.decline')}
               </Button>
             </>
           ) : relation.kind === 'outgoing' ? (
@@ -253,12 +258,12 @@ export function ProfileView({
               onClick={() =>
                 void act(
                   () => social.removeFriend(profile.id),
-                  `Your request to ${name} was withdrawn.`,
+                  t('people.feedback.requestWithdrawn', { name }),
                 )
               }
               variant="secondary"
             >
-              Withdraw request
+              {t('people.actions.withdrawRequest')}
             </Button>
           ) : (
             <Button
@@ -266,11 +271,11 @@ export function ProfileView({
               onClick={() =>
                 void act(
                   () => social.sendFriendRequest(profile.id),
-                  `Friend request sent to ${name}.`,
+                  t('people.feedback.requestSent', { name }),
                 )
               }
             >
-              Add friend
+              {t('people.actions.addFriend')}
             </Button>
           )}
         </div>
@@ -287,17 +292,19 @@ export function ProfileView({
       ) : null}
       <div className="mt-5 grid grid-cols-[1fr_340px] gap-5 max-md:mt-3 max-md:block">
         <section className="rounded-md border border-border bg-surface p-[25px] max-md:p-[18px]">
-          <h2 className="mb-5 text-base font-medium">About</h2>
+          <h2 className="mb-5 text-base font-medium">
+            {t('people.profile.about')}
+          </h2>
           <dl className="grid grid-cols-2 gap-5">
             <div>
               <dt className="text-3xs tracking-[.06em] text-muted">
-                JOB TITLE
+                {t('people.profile.jobTitle')}
               </dt>
               <dd className="mt-[5px] text-xs">{profile.jobTitle || '—'}</dd>
             </div>
             <div>
               <dt className="text-3xs tracking-[.06em] text-muted">
-                MEMBER SINCE
+                {t('people.profile.memberSince')}
               </dt>
               <dd className="mt-[5px] text-xs">
                 {monthFormat.format(new Date(profile.createdAt))}
@@ -305,7 +312,7 @@ export function ProfileView({
             </div>
             <div>
               <dt className="text-3xs tracking-[.06em] text-muted">
-                TICKETS OPENED
+                {t('people.profile.ticketsOpened')}
               </dt>
               <dd className="mt-[5px] text-xs">
                 {profile.stats.ticketsCreated}
@@ -313,7 +320,7 @@ export function ProfileView({
             </div>
             <div>
               <dt className="text-3xs tracking-[.06em] text-muted">
-                TICKETS HANDLED
+                {t('people.profile.ticketsHandled')}
               </dt>
               <dd className="mt-[5px] text-xs">
                 {profile.stats.ticketsAssigned}
@@ -322,7 +329,9 @@ export function ProfileView({
           </dl>
         </section>
         <aside className="rounded-md border border-border bg-surface p-[25px] max-md:mt-3 max-md:p-[18px]">
-          <h2 className="mb-5 text-base font-medium">Organizations</h2>
+          <h2 className="mb-5 text-base font-medium">
+            {t('people.profile.organizations')}
+          </h2>
           {profile.organizations.length ? (
             <ul className="grid gap-3">
               {profile.organizations.map((organization) => (
@@ -332,17 +341,23 @@ export function ProfileView({
                 >
                   <span>{organization.name}</span>
                   <span className="text-muted">
-                    {roleLabels[organization.role] ?? organization.role}
+                    {roleLabels[organization.role]
+                      ? t(roleLabels[organization.role])
+                      : organization.role}
                   </span>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-xs text-muted">Not in any organization.</p>
+            <p className="text-xs text-muted">
+              {t('people.profile.noOrganizations')}
+            </p>
           )}
           {relation.kind === 'friend' ? (
             <p className="mt-5 rounded-sm bg-surface-secondary p-3 text-center text-xs text-muted">
-              Friends since {dateFormat.format(new Date(relation.since))}
+              {t('people.status.friendsSince', {
+                date: dateFormat.format(new Date(relation.since)),
+              })}
             </p>
           ) : null}
         </aside>
