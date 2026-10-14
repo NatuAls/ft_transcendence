@@ -3,6 +3,7 @@ import { RealtimeContext } from './context';
 import {
   onRealtime,
   rooms,
+  RealtimeEvents,
   type RealtimeEvent,
   type RealtimeHandler,
 } from './socket';
@@ -55,4 +56,10 @@ export function useConversationRoom(conversationId: string | undefined) {
       rooms.unsubscribeConversation(conversationId);
     };
   }, [conversationId]);
+
+  // Socket.IO pierde las salas dinámicas después de reconectar. Volvemos a
+  // entrar cuando el proveedor común anuncia que el socket está conectado.
+  useRealtimeEvent(RealtimeEvents.connected, () => {
+    if (conversationId) void rooms.subscribeConversation(conversationId);
+  });
 }
