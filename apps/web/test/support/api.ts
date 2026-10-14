@@ -37,10 +37,15 @@ export function apiError(
   code: string,
   message: string,
 ): Reply {
+  const messageKeys: Record<string, string> = {
+    AUTH_TOKEN_INVALID: 'errors.auth.tokenInvalid',
+    AUTH_WRONG_PASSWORD: 'errors.auth.wrongPassword',
+    RATE_LIMITED: 'errors.common.rateLimited',
+  };
   return reply(operation, status, {
     statusCode: status,
     code,
-    messageKey: `errors.test.${code}`,
+    messageKey: messageKeys[code] ?? `errors.test.${code}`,
     message,
     requestId: '01a10712-4c1e-7b3d-a0f2-9be1d07c5a11',
     timestamp: '2026-10-04T10:00:00.000Z',
