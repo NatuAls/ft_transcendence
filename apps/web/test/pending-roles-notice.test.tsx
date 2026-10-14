@@ -1,7 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { PendingRolesNotice } from '../src/features/roles/PendingRolesNotice';
+import { initI18n } from '../src/core/i18n';
 import { apiError, mockApi, reply } from './support/api';
+
+beforeAll(() => initI18n());
 
 const pending = [
   {

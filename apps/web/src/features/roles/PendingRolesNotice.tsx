@@ -3,7 +3,7 @@ import { useState } from 'react';
 import type { PendingRole } from 'contracts';
 import { resendVerification } from '../../api/verification';
 import { previewMode } from '../../app/session';
-import { pendingRoleText } from './rolesGateway';
+import { useTranslation } from '../../core/i18n';
 
 /**
  * Tells somebody whose address is not confirmed that an administrator has
@@ -19,6 +19,7 @@ export function PendingRolesNotice({
   emailVerified: boolean;
   pendingRoles: PendingRole[];
 }) {
+  const { t } = useTranslation();
   const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'failed'>(
     'idle',
   );
@@ -39,22 +40,28 @@ export function PendingRolesNotice({
       className={`text-left ${className}`.trim()}
       title={
         pendingRoles.length === 1
-          ? 'A role is waiting for you'
-          : `${pendingRoles.length} roles are waiting for you`
+          ? t('account.pendingRoles.title_one')
+          : t('account.pendingRoles.title_other', {
+              count: pendingRoles.length,
+            })
       }
       tone="info"
     >
       <ul className="my-1 list-disc pl-5">
         {pendingRoles.map((role) => (
           <li key={`${role.scope}-${role.organizationName ?? ''}`}>
-            {pendingRoleText(role)}
+            {role.scope === 'PLATFORM'
+              ? t('account.pendingRoles.platformAdmin')
+              : t('account.pendingRoles.organizationRole', {
+                  role: t(`account.roles.${role.role}`),
+                  organization:
+                    role.organizationName ??
+                    t('account.pendingRoles.organizationFallback'),
+                })}
           </li>
         ))}
       </ul>
-      <p>
-        An administrator gave it to your e-mail address. It becomes active as
-        soon as you confirm the address with the link we sent you.
-      </p>
+      <p>{t('account.pendingRoles.description')}</p>
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <Button
           disabled={state === 'sending' || state === 'sent'}
@@ -62,13 +69,15 @@ export function PendingRolesNotice({
           size="compact"
           variant="secondary"
         >
-          {state === 'sending' ? 'Sending…' : 'Send the link again'}
+          {state === 'sending'
+            ? t('account.pendingRoles.sending')
+            : t('account.pendingRoles.resend')}
         </Button>
         <span aria-live="polite" className="text-xs">
           {state === 'sent'
-            ? 'Sent. Open the newest message; older links no longer work.'
+            ? t('account.pendingRoles.sent')
             : state === 'failed'
-              ? 'It could not be sent. Try again in a minute.'
+              ? t('account.pendingRoles.failed')
               : ''}
         </span>
       </div>

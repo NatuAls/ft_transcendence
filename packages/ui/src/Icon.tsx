@@ -8,6 +8,8 @@ export type IconName =
   | 'chevron-left'
   | 'chevron-right'
   | 'close'
+  | 'eye'
+  | 'eye-off'
   | 'logout'
   | 'message'
   | 'menu'
@@ -29,6 +31,9 @@ const paths: Record<IconName, string> = {
   'chevron-left': 'm15 18-6-6 6-6',
   'chevron-right': 'm9 18 6-6-6-6',
   close: 'M6 6l12 12M18 6 6 18',
+  eye: 'M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Zm10 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z',
+  'eye-off':
+    'm3 3 18 18M10.58 10.58A2 2 0 0 0 12 15a2 2 0 0 0 1.42-.58M9.88 5.09A10.7 10.7 0 0 1 12 4c6.5 0 10 8 10 8a18.5 18.5 0 0 1-3.17 4.11M6.61 6.61C3.96 8.31 2 12 2 12s3.5 8 10 8a10.7 10.7 0 0 0 2.12-.21',
   logout: 'M10 17l5-5-5-5m5 5H3m11-8h5a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-5',
   message: 'M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8Z',
   menu: 'M4 7h16M4 12h16M4 17h16',

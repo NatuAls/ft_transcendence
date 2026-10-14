@@ -2,7 +2,8 @@ import { Alert, Button, Dialog, LoadingState } from 'ui';
 import { useState } from 'react';
 import { AsyncState } from '../../core/async/AsyncState';
 import { useAsync } from '../../core/async/useAsync';
-import { errorMessage } from '../../core/api/errors';
+import { errorKey } from '../../core/api/errors';
+import { useTranslation } from '../../core/i18n';
 import {
   listSessions,
   revokeSession,
@@ -12,37 +13,32 @@ import {
 import { previewMode } from '../../app/session';
 import { AccountHeader } from './AccountHeader';
 
-const dateTime = new Intl.DateTimeFormat(undefined, {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-});
-
-/** "Chrome on macOS" from a user agent: enough to recognise a device. */
-function describeDevice(userAgent: string | null): string {
-  if (!userAgent) return 'Unknown device';
+/** Recognises a device from its user agent and translates its description. */
+function browserAndSystem(userAgent: string | null) {
+  if (!userAgent) return { browser: 'unknown', system: '' };
   const browser = /Edg\//.test(userAgent)
-    ? 'Edge'
+    ? 'edge'
     : /Firefox\//.test(userAgent)
-      ? 'Firefox'
+      ? 'firefox'
       : /Chrome\//.test(userAgent)
-        ? 'Chrome'
+        ? 'chrome'
         : /Safari\//.test(userAgent)
-          ? 'Safari'
+          ? 'safari'
           : /curl|node|axios|python/i.test(userAgent)
-            ? 'Script or command line'
-            : 'Browser';
+            ? 'script'
+            : 'browser';
   const system = /Android/.test(userAgent)
-    ? 'Android'
+    ? 'android'
     : /iPhone|iPad/.test(userAgent)
-      ? 'iOS'
+      ? 'ios'
       : /Mac OS X/.test(userAgent)
-        ? 'macOS'
+        ? 'macos'
         : /Windows/.test(userAgent)
-          ? 'Windows'
+          ? 'windows'
           : /Linux/.test(userAgent)
-            ? 'Linux'
+            ? 'linux'
             : '';
-  return system ? `${browser} on ${system}` : browser;
+  return { browser, system };
 }
 
 const previewSessions: DeviceSession[] = [
@@ -79,6 +75,20 @@ export function SessionsPage({
   onBack: () => void;
   onSignedOut: () => void;
 }) {
+  const { t, i18n } = useTranslation();
+  const dateTime = new Intl.DateTimeFormat(i18n.language, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
+  const describeDevice = (userAgent: string | null) => {
+    const { browser, system } = browserAndSystem(userAgent);
+    return system
+      ? t('account.sessions.device', {
+          browser: t(`account.sessions.browsers.${browser}`),
+          system: t(`account.sessions.systems.${system}`),
+        })
+      : t(`account.sessions.browsers.${browser}`);
+  };
   const [feedback, setFeedback] = useState('');
   const [failure, setFailure] = useState('');
   const [busyId, setBusyId] = useState('');
@@ -106,11 +116,13 @@ export function SessionsPage({
         await revokeSession(session.id);
       }
       setFeedback(
-        `${describeDevice(session.userAgent)} was signed out. It has to sign in again to come back.`,
+        t('account.sessions.revoked', {
+          device: describeDevice(session.userAgent),
+        }),
       );
       if (!previewMode) devices.reload();
     } catch (error) {
-      setFailure(errorMessage(error, 'The device could not be signed out.'));
+      setFailure(t(errorKey(error)));
     } finally {
       setBusyId('');
     }
@@ -132,11 +144,11 @@ export function SessionsPage({
         onClick={onBack}
         type="button"
       >
-        ‹ Account
+        {t('account.back')}
       </button>
       <AccountHeader
-        description="Every device signed in to your account. Sign out the ones you do not recognise."
-        title="Sessions & devices"
+        description={t('account.sessions.description')}
+        title={t('account.sessions.title')}
       />
       {feedback ? (
         <Alert aria-live="polite" className="mt-5" role="status" tone="success">
@@ -150,12 +162,12 @@ export function SessionsPage({
       ) : null}
       <section className="mt-6 overflow-hidden rounded-md border border-border bg-surface">
         <AsyncState
-          emptyDescription="Reload the page if you have just signed in."
-          emptyTitle="No active sessions"
+          emptyDescription={t('account.sessions.emptyDescription')}
+          emptyTitle={t('account.sessions.emptyTitle')}
           error={devices.error}
-          errorTitle="The sessions could not be read"
+          errorTitle={t('account.sessions.errorTitle')}
           isEmpty={!sessions.length}
-          loading={<LoadingState label="Loading sessions" />}
+          loading={<LoadingState label={t('account.sessions.loading')} />}
           onRetry={devices.reload}
           status={devices.status}
         >
@@ -170,28 +182,35 @@ export function SessionsPage({
                     {describeDevice(session.userAgent)}
                     {session.current ? (
                       <span className="rounded-full bg-success-surface px-2.5 py-0.5 text-xs font-medium text-success">
-                        This device
+                        {t('account.sessions.thisDevice')}
                       </span>
                     ) : null}
                   </strong>
                   <small className="text-xs text-muted">
-                    Signed in {dateTime.format(new Date(session.createdAt))}
-                    {' · '}last active{' '}
-                    {dateTime.format(new Date(session.lastUsedAt))}
-                    {session.ip ? ` · ${session.ip}` : ''}
+                    {t('account.sessions.activity', {
+                      signedIn: dateTime.format(new Date(session.createdAt)),
+                      lastActive: dateTime.format(new Date(session.lastUsedAt)),
+                      ip: session.ip
+                        ? t('account.sessions.ip', { ip: session.ip })
+                        : '',
+                    })}
                   </small>
                 </div>
                 {session.current ? (
-                  <span className="text-xs text-muted">Current</span>
+                  <span className="text-xs text-muted">
+                    {t('account.sessions.current')}
+                  </span>
                 ) : (
                   <Button
-                    aria-label={`Sign out ${describeDevice(session.userAgent)}`}
+                    aria-label={t('account.sessions.signOutDevice', {
+                      device: describeDevice(session.userAgent),
+                    })}
                     disabled={busyId === session.id}
                     onClick={() => void revoke(session)}
                     size="compact"
                     variant="secondary"
                   >
-                    Sign out
+                    {t('common.actions.signOut')}
                   </Button>
                 )}
               </li>
@@ -201,27 +220,28 @@ export function SessionsPage({
       </section>
       <section className="mt-5 flex items-center justify-between gap-4 rounded-md border border-border bg-surface p-5 max-md:grid">
         <div>
-          <h2 className="text-base font-medium">Sign out everywhere</h2>
+          <h2 className="text-base font-medium">
+            {t('account.sessions.signOutEverywhere')}
+          </h2>
           <p className="mt-1 text-xs leading-5 text-muted">
-            Closes every session, this one included. Use it if you think
-            somebody else has access to your account, then change your password.
+            {t('account.sessions.signOutEverywhereDescription')}
           </p>
         </div>
         <Button onClick={() => setConfirmAll(true)} variant="destructive">
-          Sign out everywhere
+          {t('account.sessions.signOutEverywhere')}
         </Button>
       </section>
       {confirmAll ? (
         <Dialog
-          description="Every device, this one included, will have to sign in again."
-          eyebrow="SESSIONS"
+          description={t('account.sessions.confirmDescription')}
+          eyebrow={t('account.sessions.eyebrow')}
           footer={
             <>
               <Button onClick={() => setConfirmAll(false)} variant="secondary">
-                Cancel
+                {t('common.actions.cancel')}
               </Button>
               <Button type="submit" variant="destructive">
-                Sign out everywhere
+                {t('account.sessions.signOutEverywhere')}
               </Button>
             </>
           }
@@ -230,7 +250,7 @@ export function SessionsPage({
             event.preventDefault();
             void revokeAll();
           }}
-          title="Sign out of every device?"
+          title={t('account.sessions.confirmTitle')}
         />
       ) : null}
     </div>

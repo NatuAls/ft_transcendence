@@ -210,7 +210,7 @@ export function AppShell({
         <div className="relative mt-auto flex items-center rounded-sm">
           <button
             className="flex min-w-0 flex-1 items-center gap-2.5 border-0 bg-transparent px-2 py-3 text-left font-[inherit] text-inherit"
-            onClick={() => onNavigate('account/profile')}
+            onClick={() => onNavigate('account')}
             type="button"
           >
             <Avatar

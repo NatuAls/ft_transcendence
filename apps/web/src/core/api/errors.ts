@@ -94,6 +94,31 @@ export function fieldErrorsFromIssues(
   return campos;
 }
 
+/** Traduce los mensajes de validación locales a las claves oficiales. */
+export function fieldErrorKey(message: string): string {
+  const keys: Record<string, string> = {
+    'Enter a valid e-mail address.': 'errors.email.invalid',
+    'This field is required.': 'errors.field.required',
+    'Use at least 10 characters.': 'errors.password.tooShort',
+    'Use at most 128 characters.': 'errors.password.tooLong',
+    'Add a lowercase letter.': 'errors.password.needsLowercase',
+    'Add an uppercase letter.': 'errors.password.needsUppercase',
+    'Add a digit.': 'errors.password.needsDigit',
+    'Add a symbol, such as ! or -.': 'errors.password.needsSymbol',
+    'The two passwords do not match.': 'errors.password.mismatch',
+    'You have to accept the terms to continue.': 'errors.terms.required',
+  };
+  const codes: Record<string, string> = {
+    invalid_type: 'errors.field.required',
+    too_small: 'errors.password.tooShort',
+    too_big: 'errors.password.tooLong',
+  };
+  if (codes[message]) return codes[message];
+  return message.startsWith('errors.')
+    ? message
+    : (keys[message] ?? 'errors.field.invalid');
+}
+
 /**
  * Una frase para las claves que de verdad se repiten. Mientras las pantallas
  * no estén traducidas, esto es lo que ve el usuario; cuando lo estén, se
@@ -116,6 +141,7 @@ function describeFieldCode(code: string): string {
     too_small: 'This value is too short.',
     too_big: 'This value is too long.',
   };
+  if (code.startsWith('Too small')) return frases['invalid_type'];
   if (frases[code]) return frases[code];
   // Un mensaje que no es una clave ya viene escrito para leerse.
   return code.startsWith('errors.') ? 'Check this field.' : code;

@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { registerSchema } from 'contracts';
-import { Alert, Button, Checkbox, TextField } from 'ui';
+import { Alert, Button, Checkbox, Icon, IconButton, TextField } from 'ui';
 import { AuthBrandPanel, BrandHeader } from './AuthBrand';
 import { register, type AuthResponse } from '../../api/auth';
+import { errorKey } from '../../core/api/errors';
+import { LanguageSwitcher } from '../../core/i18n/LanguageSwitcher';
 import { useTranslation } from '../../core/i18n';
 
 export interface RegisterValues {
@@ -57,7 +59,7 @@ export function RegisterPage({
 
   const matchError =
     confirmPassword.length > 0 && password !== confirmPassword
-      ? "The passwords don't match."
+      ? t('errors.password.mismatch')
       : null;
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -65,7 +67,7 @@ export function RegisterPage({
     setError(null);
 
     if (password !== confirmPassword) {
-      setError("The passwords don't match.");
+      setError(t('errors.password.mismatch'));
       return;
     }
 
@@ -104,13 +106,7 @@ export function RegisterPage({
       // El token ya se guardó en auth.ts. Pasamos el usuario al componente padre (ej. para redirigir)
       void onSubmit(authData.user);
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(
-          err.message.startsWith('errors.') ? t(err.message) : err.message,
-        );
-      } else {
-        setError(t('errors.common.unexpected'));
-      }
+      setError(t(errorKey(err)));
     } finally {
       setIsSubmitting(false);
     }
@@ -131,12 +127,12 @@ export function RegisterPage({
         tone="register"
         title={
           <>
-            A calmer way to
+            {t('auth.register.brandLine1')}
             <br />
-            ask for help.
+            {t('auth.register.brandLine2')}
           </>
         }
-        description="Create an account to report issues, follow progress and stay connected with your organization."
+        description={t('auth.register.brandDescription')}
         insight={
           <section
             className="mt-36 max-w-[452px] rounded-lg bg-[#365e62] p-6"
@@ -146,12 +142,12 @@ export function RegisterPage({
               className="mb-[21px] text-xs2 font-medium text-[#bfd8cf] uppercase"
               id="benefits-heading"
             >
-              Built for clarity
+              {t('auth.register.benefitsTitle')}
             </h2>
             <ul className="grid list-none gap-[15px] p-0 text-[0.8125rem] text-[#f7faf8] [&_li]:flex [&_li]:items-center [&_li]:gap-3 [&_li]:before:grid [&_li]:before:size-5 [&_li]:before:shrink-0 [&_li]:before:place-items-center [&_li]:before:rounded-full [&_li]:before:bg-[#bfd8cf] [&_li]:before:text-xs2 [&_li]:before:font-medium [&_li]:before:text-[#183039] [&_li]:before:content-['✓']">
-              <li>One request, one clear owner</li>
-              <li>Visible status at every step</li>
-              <li>Your data stays under your control</li>
+              <li>{t('auth.register.benefitOwner')}</li>
+              <li>{t('auth.register.benefitStatus')}</li>
+              <li>{t('auth.register.benefitData')}</li>
             </ul>
           </section>
         }
@@ -161,12 +157,15 @@ export function RegisterPage({
         <div className="md:hidden">
           <BrandHeader />
         </div>
+        <div className="mt-4 flex justify-end md:absolute md:top-6 md:right-6 md:mt-0">
+          <LanguageSwitcher />
+        </div>
         <header className="mx-4 mt-[39px] mb-[22px] md:hidden">
           <h1 className="text-[1.75rem] leading-[1.2] font-medium">
-            Create your account
+            {t('auth.register.createTitle')}
           </h1>
           <p className="mt-2.5 text-[0.8125rem] leading-[1.45] text-muted">
-            Register to report issues and follow their resolution.
+            {t('auth.register.mobileDescription')}
           </p>
         </header>
 
@@ -176,16 +175,16 @@ export function RegisterPage({
         >
           <header className="mb-8 hidden md:block">
             <p className="mb-[17px] text-xs2 font-medium tracking-[.01em] text-primary uppercase">
-              Create your account
+              {t('auth.register.createTitle')}
             </p>
             <h1
               className="text-[1.75rem] leading-[1.2] font-medium"
               id="register-heading"
             >
-              Start with HelpDesk Lite
+              {t('auth.register.title')}
             </h1>
             <p className="mt-2.5 text-[0.8125rem] leading-[1.45] text-muted">
-              Your account starts as a standard user.
+              {t('auth.register.description')}
             </p>
           </header>
 
@@ -194,43 +193,41 @@ export function RegisterPage({
             onSubmit={handleSubmit}
           >
             <TextField
-              label="First Name"
+              label={t('auth.register.firstName')}
               name="FirstName"
-              autoComplete="name"
-              placeholder="Ana"
+              placeholder={t('auth.register.firstNamePlaceholder')}
               value={firstName}
               onChange={handleChange(setFirstName)}
               required
             />
             <TextField
-              label="Last Name"
+              label={t('auth.register.lastName')}
               name="lastName"
-              autoComplete="lastName"
-              placeholder="Ruiz"
+              placeholder={t('auth.register.lastNamePlaceholder')}
               value={lastName}
               onChange={handleChange(setLastName)}
               required
             />
             <div>
               <TextField
-                label="Username"
+                label={t('auth.register.username')}
                 name="user"
                 autoComplete="username"
-                placeholder="aruiz"
+                placeholder={t('auth.register.usernamePlaceholder')}
                 value={username}
                 onChange={handleChange(setUsername)}
                 required
               />
               <p className="mt-[5px] text-xs2 leading-[1.4] text-muted">
-                Choose carefully: your username cannot be changed later.
+                {t('auth.register.usernameHelp')}
               </p>
             </div>
             <TextField
-              label="Email address"
+              label={t('auth.register.email')}
               name="email"
               type="email"
               autoComplete="email"
-              placeholder="ana@company.com"
+              placeholder={t('auth.register.emailPlaceholder')}
               value={email}
               onChange={handleChange(setEmail)}
               required
@@ -238,84 +235,107 @@ export function RegisterPage({
             <div>
               <div className="relative">
                 <TextField
-                  label="Password"
+                  label={t('auth.register.password')}
                   name="password"
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="new-password"
-                  placeholder="••••••••••"
+                  placeholder={t('auth.register.passwordPlaceholder')}
                   value={password}
                   onChange={handleChange(setPassword)}
                   minLength={10}
                   required
                 />
-                <button
-                  type="button"
+                <IconButton
+                  aria-label={
+                    showPassword
+                      ? t('auth.common.hidePassword')
+                      : t('auth.common.showPassword')
+                  }
+                  aria-pressed={showPassword}
                   className="absolute right-3 bottom-0 flex h-12 items-center border-0 bg-transparent px-1 text-xs2 font-medium text-muted hover:text-primary hover:underline md:h-[52px] md:text-xs"
+                  icon={showPassword ? 'eye-off' : 'eye'}
+                  label={
+                    showPassword
+                      ? t('auth.common.hidePassword')
+                      : t('auth.common.showPassword')
+                  }
                   onClick={() => setShowPassword(!showPassword)}
-                  tabIndex={-1} // Evita que el usuario caiga aquí accidentalmente al usar la tecla Tab
-                >
-                  {showPassword ? 'Hide' : 'Show'}
-                </button>
+                  size="sm"
+                />
               </div>
               <ul className="mt-2 grid list-none gap-1 p-0 text-xs2">
                 <li
                   className={`flex items-center gap-1.5 ${hasMinLength ? 'font-bold text-success' : 'text-muted'}`}
                 >
-                  {hasMinLength ? '✓' : '•'} At least 10 characters
+                  {hasMinLength ? '✓' : '•'} {t('auth.register.ruleMinLength')}
                 </li>
                 <li
                   className={`flex items-center gap-1.5 ${hasUpperCase ? 'font-bold text-success' : 'text-muted'}`}
                 >
-                  {hasUpperCase ? '✓' : '•'} One uppercase letter
+                  {hasUpperCase ? '✓' : '•'} {t('auth.register.ruleUppercase')}
                 </li>
                 <li
                   className={`flex items-center gap-1.5 ${hasLowerCase ? 'font-bold text-success' : 'text-muted'}`}
                 >
-                  {hasLowerCase ? '✓' : '•'} One lowercase letter
+                  {hasLowerCase ? '✓' : '•'} {t('auth.register.ruleLowercase')}
                 </li>
                 <li
                   className={`flex items-center gap-1.5 ${hasNumber ? 'font-bold text-success' : 'text-muted'}`}
                 >
-                  {hasNumber ? '✓' : '•'} One number
+                  {hasNumber ? '✓' : '•'} {t('auth.register.ruleNumber')}
                 </li>
                 <li
                   className={`flex items-center gap-1.5 ${hasSymbol ? 'font-bold text-success' : 'text-muted'}`}
                 >
-                  {hasSymbol ? '✓' : '•'} One special character
+                  {hasSymbol ? '✓' : '•'} {t('auth.register.ruleSymbol')}
                 </li>
               </ul>
             </div>
             <div>
               <div className="relative">
                 <TextField
-                  label="Confirm Password"
+                  label={t('auth.register.confirmPassword')}
                   name="confirmPassword"
                   type={showConfirmPassword ? 'text' : 'password'}
                   autoComplete="new-password"
-                  placeholder="••••••••••"
+                  placeholder={t('auth.register.passwordPlaceholder')}
                   value={confirmPassword}
                   onChange={handleChange(setConfirmPassword)}
                   required
                 />
-                <button
-                  type="button"
+                <IconButton
+                  aria-label={
+                    showConfirmPassword
+                      ? t('auth.common.hidePassword')
+                      : t('auth.common.showPassword')
+                  }
+                  aria-pressed={showConfirmPassword}
                   className="absolute right-3 bottom-0 flex h-12 items-center border-0 bg-transparent px-1 text-xs2 font-medium text-muted hover:text-primary hover:underline md:h-[52px] md:text-xs"
+                  icon={showConfirmPassword ? 'eye-off' : 'eye'}
+                  label={
+                    showConfirmPassword
+                      ? t('auth.common.hidePassword')
+                      : t('auth.common.showPassword')
+                  }
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  tabIndex={-1} // Evita que el usuario caiga aquí accidentalmente al usar la tecla Tab
-                >
-                  {showConfirmPassword ? 'Hide' : 'Show'}
-                </button>
+                  size="sm"
+                />
               </div>
               {matchError && (
-                <p className="mt-1 text-xs2 text-danger">✗ {matchError}</p>
+                <p className="mt-1 flex items-center gap-1 text-xs2 text-danger">
+                  <Icon aria-hidden="true" name="close" size={14} />
+                  {matchError}
+                </p>
               )}
             </div>
             <Checkbox
               className="items-start text-xs leading-[1.65] text-ink md:items-center md:text-[0.8125rem] md:text-muted [&_a]:text-inherit"
               label={
                 <>
-                  I accept the <a href="#terms">Terms of Service</a> and{' '}
-                  <a href="#privacy-policy">Privacy Policy</a>
+                  {t('auth.register.acceptPrefix')}{' '}
+                  <a href="#terms">{t('auth.common.terms')}</a>{' '}
+                  {t('auth.register.acceptAnd')}{' '}
+                  <a href="#privacy-policy">{t('auth.common.privacy')}</a>
                 </>
               }
               checked={acceptedTerms}
@@ -335,12 +355,14 @@ export function RegisterPage({
                 isSubmitting
               }
             >
-              {isSubmitting ? 'Creating account...' : 'Create account'}
+              {isSubmitting
+                ? t('auth.register.submitting')
+                : t('auth.register.submit')}
             </Button>
           </form>
 
           <div className="mt-6 flex justify-between gap-3 text-[0.8125rem] text-muted md:mt-[31px] md:justify-center [&_a]:font-medium [&_a]:text-primary [&_a]:no-underline hover:[&_a]:underline">
-            <span>Already have an account?</span>
+            <span>{t('auth.register.alreadyHaveAccount')}</span>
             <a
               href="#login"
               onClick={(event) => {
@@ -348,13 +370,13 @@ export function RegisterPage({
                 onSignIn();
               }}
             >
-              Sign in
+              {t('auth.register.signIn')}
             </a>
           </div>
         </section>
 
         <footer className="mx-4 mt-[49px] text-left text-xs text-muted md:hidden">
-          <p>Secure access · Privacy-first</p>
+          <p>{t('auth.common.secureFooter')}</p>
         </footer>
       </section>
     </main>

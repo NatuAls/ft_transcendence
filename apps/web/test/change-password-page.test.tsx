@@ -1,8 +1,11 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '../src/core/feedback/ToastProvider';
 import { ChangePasswordPage } from '../src/features/account/ChangePasswordPage';
+import { initI18n } from '../src/core/i18n';
 import { apiError, mockApi, reply } from './support/api';
+
+beforeAll(() => initI18n());
 
 function renderPage(onSignOut = vi.fn()) {
   return render(
