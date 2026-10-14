@@ -1,6 +1,6 @@
 import type { OrgRole, ReservationWaitingFor } from 'contracts';
 
-export type OrgTab = 'members' | 'roles' | 'categories';
+export type OrgTab = 'members' | 'roles' | 'categories' | 'apiKeys';
 export type OrganizationDialogKind =
   'add-member' | 'edit-member' | 'settings' | 'category' | 'delete' | null;
 export type DeleteContext = 'edit-member' | 'settings' | null;

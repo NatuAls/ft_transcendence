@@ -393,11 +393,13 @@ export const es: Translation = {
         members: 'Miembros',
         roles: 'Roles de acceso',
         categories: 'Categorías',
+        apiKeys: 'Claves de API',
       },
       title: {
         members: 'Miembros y acceso',
         roles: 'Roles de acceso y permisos',
         categories: 'Categorías de tickets',
+        apiKeys: 'Claves de API',
       },
       description: {
         members: 'Los cambios solo se aplican dentro de {{organization}}.',
@@ -405,6 +407,8 @@ export const es: Translation = {
           'Revisa los niveles de acceso fijos que se usan en {{organization}}.',
         categories:
           'Crea categorías para clasificar y encaminar las solicitudes de soporte.',
+        apiKeys:
+          'Deja que otro sistema trabaje con {{organization}} a través de la API pública, solo con los permisos que elijas.',
       },
       addMember: 'Añadir miembro',
       createCategory: 'Crear categoría',
@@ -456,6 +460,9 @@ export const es: Translation = {
         categoriesDescription: 'Tickets por categoría.',
         membersTitle: 'Categorías de tickets',
         membersDescription: 'Sirven para encaminar las solicitudes nuevas.',
+        apiKeysTitle: 'Uso de una clave',
+        apiKeysDescription:
+          'Una clave actúa solo sobre esta organización, con los permisos que se le dieron, hasta que caduca o se revoca.',
         createTickets: 'Crear tickets',
         handleTickets: 'Atender tickets',
         manageMembers: 'Gestionar miembros',
@@ -534,6 +541,73 @@ export const es: Translation = {
         title: 'Este es tu propio acceso',
         text: 'No puedes cambiar tu propio rol ni quitarte desde aquí: bajarlo te dejaría dentro de la organización sin el acceso necesario para deshacerlo. Otro administrador puede cambiarlo por ti, y salir de la organización es una decisión aparte.',
       },
+    },
+    apiKeys: {
+      create: 'Crear clave',
+      usage: 'Envía la clave en la cabecera X-API-Key.',
+      docs: 'Referencia de la API pública',
+      docsNote: 'El acceso lo da el equipo de la plataforma.',
+      loading: 'Cargando las claves',
+      errorTitle: 'No se han podido leer las claves',
+      emptyTitle: 'Todavía no hay claves',
+      emptyDescription:
+        'Crea una cuando una integración necesite llegar a esta organización.',
+      createdBy: 'Creada por {{username}} · {{date}}',
+      expires: 'Caduca el {{date}}',
+      expired: 'Caducó el {{date}}',
+      noExpiry: 'No caduca',
+      lastUsed: 'Último uso: {{date}}',
+      neverUsed: 'Sin usar',
+      revokedOn: 'Revocada el {{date}}',
+      status: { ACTIVE: 'Activa', EXPIRED: 'Caducada', REVOKED: 'Revocada' },
+      revoke: 'Revocar',
+      revokeLabel: 'Revocar {{name}}',
+      scopes: {
+        ticketsRead: 'Leer tickets',
+        ticketsWrite: 'Crear y modificar tickets',
+        commentsRead: 'Leer comentarios',
+        commentsWrite: 'Comentar tickets',
+        categoriesRead: 'Leer categorías',
+        categoriesWrite: 'Gestionar categorías',
+        statsRead: 'Leer estadísticas',
+      },
+      dialog: {
+        title: 'Crear una clave de API',
+        description:
+          'Ponle el nombre del sistema que la va a usar, y dale solo los permisos que necesita.',
+        name: 'Nombre',
+        namePlaceholder: 'Ejemplo: página de estado',
+        scopes: 'Permisos',
+        expiry: 'Caducidad',
+        expiryOptions: {
+          days30: 'En 30 días',
+          days90: 'En 90 días',
+          days180: 'En 180 días',
+          days365: 'En un año',
+          never: 'Nunca',
+        },
+        submit: 'Crear clave',
+        submitting: 'Creando…',
+      },
+      secret: {
+        title: 'Copia la clave ahora',
+        description:
+          'Es la única vez que se muestra: solo se guarda una huella de ella, así que nadie —ni un administrador— puede volver a enseñarla. Si la pierdes, revócala y crea otra.',
+        label: 'Clave de {{name}}',
+        copy: 'Copiar',
+        copied: 'Copiada',
+        copyFailed:
+          'Aquí no se ha podido copiar: selecciónala y cópiala a mano.',
+        done: 'Ya la he guardado',
+      },
+      revokeDialog: {
+        title: '¿Revocar {{name}}?',
+        description:
+          'Lo que la use deja de funcionar en el acto. Una clave revocada no se puede recuperar: para volver a dar acceso, crea una nueva.',
+        keep: 'Mantener la clave',
+        confirm: 'Revocar clave',
+      },
+      revoked: 'Se ha revocado {{name}}.',
     },
     leave: {
       title: 'Salir de {{organization}}',

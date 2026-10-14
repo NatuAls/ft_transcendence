@@ -209,6 +209,7 @@ export function WorkspacePage({
               (membership) => membership.organizationId === organizationId,
             )
           }
+          canManageApiKeys={can(viewer, 'apiKey:manage')}
           canManageCategories={can(viewer, 'category:write')}
           canManageMembers={can(viewer, 'member:invite')}
           canManageOrganization={can(viewer, 'organization:update')}

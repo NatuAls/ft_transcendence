@@ -6,6 +6,7 @@ import * as rolesApi from '../../api/roles';
 import { previewMode } from '../../app/session';
 import { getInitials } from '../../app/text';
 import { organizationRoleLabel } from '../roles/rolesGateway';
+import { ApiKeysPanel } from './ApiKeysPanel';
 import { OrganizationDialog } from './OrganizationDialog';
 import { errorKey, isApiError } from '../../core/api/errors';
 import { AsyncState } from '../../core/async/AsyncState';
@@ -54,6 +55,7 @@ interface TableRow {
 
 export function OrganizationPage({
   canLeave = false,
+  canManageApiKeys = false,
   canManageCategories,
   canManageMembers,
   canManageOrganization,
@@ -78,6 +80,8 @@ export function OrganizationPage({
    * administrator who is not a member has nothing to leave.
    */
   canLeave?: boolean;
+  /** `apiKey:manage`: the API keys tab. */
+  canManageApiKeys?: boolean;
   canManageCategories: boolean;
   canManageMembers: boolean;
   canManageOrganization: boolean;
@@ -128,6 +132,7 @@ export function OrganizationPage({
   const [failure, setFailure] = useState('');
   const [confirmingLeave, setConfirmingLeave] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [creatingKey, setCreatingKey] = useState(false);
 
   /**
    * Todo lo que esta pantalla lee de la API, en una sola carga: las filas que
@@ -331,14 +336,16 @@ export function OrganizationPage({
             name: organizationRoleLabel(row.role),
             second: t('organization.members', { count: row.members }),
           }))
-        : categoryRows.map((row) => ({
-            badge: row.initials,
-            category: row,
-            detail: row.description,
-            key: rowKey(row),
-            name: row.name,
-            second: t('organization.tickets', { count: row.tickets }),
-          }));
+        : tab === 'categories'
+          ? categoryRows.map((row) => ({
+              badge: row.initials,
+              category: row,
+              detail: row.description,
+              key: rowKey(row),
+              name: row.name,
+              second: t('organization.tickets', { count: row.tickets }),
+            }))
+          : [];
   const tableGridClass =
     tab === 'members'
       ? 'grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_44px]'
@@ -362,6 +369,10 @@ export function OrganizationPage({
 
   function openCreateDialog() {
     if (tab === 'roles') return;
+    if (tab === 'apiKeys') {
+      setCreatingKey(true);
+      return;
+    }
     setSelectedName('');
     setSelectedKey('');
     setDeleteContext(null);
@@ -714,14 +725,17 @@ export function OrganizationPage({
               </p>
             </div>
             {(tab === 'members' && canManageMembers) ||
-            (tab === 'categories' && canManageCategories) ? (
+            (tab === 'categories' && canManageCategories) ||
+            (tab === 'apiKeys' && canManageApiKeys) ? (
               <Button
                 className="max-md:!min-h-9 max-md:!px-2.5"
                 onClick={openCreateDialog}
               >
                 {tab === 'members'
                   ? t('organization.page.addMember')
-                  : t('organization.page.createCategory')}
+                  : tab === 'apiKeys'
+                    ? t('organization.apiKeys.create')
+                    : t('organization.page.createCategory')}
               </Button>
             ) : null}
           </header>
@@ -736,161 +750,179 @@ export function OrganizationPage({
                     id: 'categories',
                     label: t('organization.page.tabs.categories'),
                   },
+                  ...(canManageApiKeys
+                    ? [
+                        {
+                          id: 'apiKeys' as const,
+                          label: t('organization.page.tabs.apiKeys'),
+                        },
+                      ]
+                    : []),
                 ]}
                 label={t('organization.page.tabsLabel')}
                 onChange={setTab}
               />
             </div>
           ) : null}
-          <div className="organization-table" role="table">
-            <div
-              className={`grid items-center gap-3 bg-surface-secondary px-[18px] py-[11px] text-3xs text-muted max-md:hidden ${tableGridClass}`}
-              role="row"
-            >
-              <span>
-                {tab === 'members'
-                  ? t('organization.page.columns.member')
-                  : tab === 'roles'
-                    ? t('organization.page.columns.role')
-                    : t('organization.page.columns.category')}
-              </span>
-              {tab !== 'categories' || canReadStats ? (
+          {tab === 'apiKeys' ? (
+            <ApiKeysPanel
+              creating={creatingKey}
+              onCreatingChange={setCreatingKey}
+              organizationId={organizationId}
+            />
+          ) : (
+            <div className="organization-table" role="table">
+              <div
+                className={`grid items-center gap-3 bg-surface-secondary px-[18px] py-[11px] text-3xs text-muted max-md:hidden ${tableGridClass}`}
+                role="row"
+              >
                 <span>
                   {tab === 'members'
-                    ? t('organization.page.columns.role')
+                    ? t('organization.page.columns.member')
                     : tab === 'roles'
-                      ? t('organization.page.columns.members')
-                      : t('organization.page.columns.tickets')}
+                      ? t('organization.page.columns.role')
+                      : t('organization.page.columns.category')}
                 </span>
-              ) : null}
-              {tab !== 'categories' ? (
-                <span>
-                  {tab === 'roles'
-                    ? t('organization.page.columns.access')
-                    : t('organization.page.columns.status')}
-                </span>
-              ) : null}
-              {tab !== 'roles' ? <span aria-hidden="true" /> : null}
-            </div>
-            <AsyncState
-              emptyDescription={
-                tab === 'members'
-                  ? t('organization.page.empty.membersDescription')
-                  : t('organization.page.empty.categoriesDescription')
-              }
-              emptyTitle={
-                tab === 'members'
-                  ? t('organization.page.empty.membersTitle')
-                  : t('organization.page.empty.categoriesTitle')
-              }
-              error={view.error}
-              errorTitle={t('organization.page.errorTitle')}
-              isEmpty={!rows.length}
-              onRetry={reload}
-              status={view.status}
-            >
-              {rows.map((row) => {
-                const editor = tab === 'members' ? 'edit-member' : 'category';
-                const canEdit =
+                {tab !== 'categories' || canReadStats ? (
+                  <span>
+                    {tab === 'members'
+                      ? t('organization.page.columns.role')
+                      : tab === 'roles'
+                        ? t('organization.page.columns.members')
+                        : t('organization.page.columns.tickets')}
+                  </span>
+                ) : null}
+                {tab !== 'categories' ? (
+                  <span>
+                    {tab === 'roles'
+                      ? t('organization.page.columns.access')
+                      : t('organization.page.columns.status')}
+                  </span>
+                ) : null}
+                {tab !== 'roles' ? <span aria-hidden="true" /> : null}
+              </div>
+              <AsyncState
+                emptyDescription={
                   tab === 'members'
-                    ? canManageMembers &&
-                      (row.member?.waitingFor === null || !previewMode)
-                    : tab === 'categories'
-                      ? canManageCategories
-                      : false;
-                const canOpen = tab === 'categories' || canEdit;
-                return (
-                  <div
-                    className={`grid border-t border-border ${tableGridClass} ${rowMobileGridClass}`}
-                    key={row.key}
-                    role="row"
-                  >
-                    <button
-                      aria-label={
-                        tab === 'categories'
-                          ? t('organization.page.viewTickets', {
-                              name: row.name,
-                            })
-                          : t('organization.page.open', { name: row.name })
-                      }
-                      className={`grid min-h-[68px] w-full items-center gap-3 px-[18px] py-[11px] text-left enabled:hover:bg-surface-secondary disabled:cursor-default max-md:col-span-1 max-md:grid-cols-[minmax(0,1fr)_auto] max-md:p-3 ${rowContentClass}`}
-                      disabled={!canOpen}
-                      onClick={() => {
-                        setSelectedName(row.name);
-                        setSelectedKey(row.key);
-                        // El ID, no el nombre: la lista de tickets filtra por
-                        // `categoryId` contra la API, y con el nombre ésta
-                        // respondía 400 («Could not load tickets»). Las filas
-                        // de muestra no traen ID y caen al nombre, que es lo
-                        // que entiende la lista de la vista previa.
-                        if (row.category)
-                          onOpenCategory(row.category.id ?? row.category.name);
-                        else if (canEdit) setDialog(editor);
-                      }}
-                      type="button"
+                    ? t('organization.page.empty.membersDescription')
+                    : t('organization.page.empty.categoriesDescription')
+                }
+                emptyTitle={
+                  tab === 'members'
+                    ? t('organization.page.empty.membersTitle')
+                    : t('organization.page.empty.categoriesTitle')
+                }
+                error={view.error}
+                errorTitle={t('organization.page.errorTitle')}
+                isEmpty={!rows.length}
+                onRetry={reload}
+                status={view.status}
+              >
+                {rows.map((row) => {
+                  const editor = tab === 'members' ? 'edit-member' : 'category';
+                  const canEdit =
+                    tab === 'members'
+                      ? canManageMembers &&
+                        (row.member?.waitingFor === null || !previewMode)
+                      : tab === 'categories'
+                        ? canManageCategories
+                        : false;
+                  const canOpen = tab === 'categories' || canEdit;
+                  return (
+                    <div
+                      className={`grid border-t border-border ${tableGridClass} ${rowMobileGridClass}`}
+                      key={row.key}
+                      role="row"
                     >
-                      <span className="flex items-center gap-2.5">
-                        <b className="grid size-8 place-items-center rounded-full bg-surface-secondary text-3xs text-primary">
-                          {row.badge}
-                        </b>
-                        <span className="grid gap-1">
-                          <strong className="text-xs">{row.name}</strong>
-                          <small className="text-2xs text-muted max-md:max-w-[180px] max-md:overflow-hidden max-md:text-ellipsis max-md:whitespace-nowrap">
-                            {row.detail}
-                          </small>
-                        </span>
-                      </span>
-                      {tab !== 'categories' || canReadStats ? (
-                        <span className="text-2xs text-muted">
-                          {row.second}
-                        </span>
-                      ) : null}
-                      {tab !== 'categories' ? (
-                        <span className="flex items-center gap-1.5 text-2xs text-muted">
-                          {row.member ? (
-                            <i
-                              className={`size-1.5 rounded-full ${row.member.waitingFor ? 'bg-warning' : 'bg-success'}`}
-                            />
-                          ) : null}
-                          {row.member ? (
-                            row.member.waitingFor ? (
-                              <>
-                                {t('organization.page.invited')}
-                                <span className="max-md:hidden">
-                                  {t('organization.page.waitingForPerson')}
-                                </span>
-                              </>
-                            ) : (
-                              t('organization.page.active')
-                            )
-                          ) : (
-                            row.access
-                          )}
-                        </span>
-                      ) : null}
-                    </button>
-                    {canEdit ? (
-                      <IconButton
-                        label={t('organization.page.editRow', {
-                          name: row.name,
-                        })}
-                        icon="more"
+                      <button
+                        aria-label={
+                          tab === 'categories'
+                            ? t('organization.page.viewTickets', {
+                                name: row.name,
+                              })
+                            : t('organization.page.open', { name: row.name })
+                        }
+                        className={`grid min-h-[68px] w-full items-center gap-3 px-[18px] py-[11px] text-left enabled:hover:bg-surface-secondary disabled:cursor-default max-md:col-span-1 max-md:grid-cols-[minmax(0,1fr)_auto] max-md:p-3 ${rowContentClass}`}
+                        disabled={!canOpen}
                         onClick={() => {
                           setSelectedName(row.name);
                           setSelectedKey(row.key);
-                          setDeleteContext(null);
-                          setDialog(editor);
+                          // El ID, no el nombre: la lista de tickets filtra por
+                          // `categoryId` contra la API, y con el nombre ésta
+                          // respondía 400 («Could not load tickets»). Las filas
+                          // de muestra no traen ID y caen al nombre, que es lo
+                          // que entiende la lista de la vista previa.
+                          if (row.category)
+                            onOpenCategory(
+                              row.category.id ?? row.category.name,
+                            );
+                          else if (canEdit) setDialog(editor);
                         }}
-                        size="sm"
-                      />
-                    ) : tab !== 'roles' ? (
-                      <span aria-hidden="true" />
-                    ) : null}
-                  </div>
-                );
-              })}
-            </AsyncState>
-          </div>
+                        type="button"
+                      >
+                        <span className="flex items-center gap-2.5">
+                          <b className="grid size-8 place-items-center rounded-full bg-surface-secondary text-3xs text-primary">
+                            {row.badge}
+                          </b>
+                          <span className="grid gap-1">
+                            <strong className="text-xs">{row.name}</strong>
+                            <small className="text-2xs text-muted max-md:max-w-[180px] max-md:overflow-hidden max-md:text-ellipsis max-md:whitespace-nowrap">
+                              {row.detail}
+                            </small>
+                          </span>
+                        </span>
+                        {tab !== 'categories' || canReadStats ? (
+                          <span className="text-2xs text-muted">
+                            {row.second}
+                          </span>
+                        ) : null}
+                        {tab !== 'categories' ? (
+                          <span className="flex items-center gap-1.5 text-2xs text-muted">
+                            {row.member ? (
+                              <i
+                                className={`size-1.5 rounded-full ${row.member.waitingFor ? 'bg-warning' : 'bg-success'}`}
+                              />
+                            ) : null}
+                            {row.member ? (
+                              row.member.waitingFor ? (
+                                <>
+                                  {t('organization.page.invited')}
+                                  <span className="max-md:hidden">
+                                    {t('organization.page.waitingForPerson')}
+                                  </span>
+                                </>
+                              ) : (
+                                t('organization.page.active')
+                              )
+                            ) : (
+                              row.access
+                            )}
+                          </span>
+                        ) : null}
+                      </button>
+                      {canEdit ? (
+                        <IconButton
+                          label={t('organization.page.editRow', {
+                            name: row.name,
+                          })}
+                          icon="more"
+                          onClick={() => {
+                            setSelectedName(row.name);
+                            setSelectedKey(row.key);
+                            setDeleteContext(null);
+                            setDialog(editor);
+                          }}
+                          size="sm"
+                        />
+                      ) : tab !== 'roles' ? (
+                        <span aria-hidden="true" />
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </AsyncState>
+            </div>
+          )}
         </section>
         {canReadStats ? (
           <aside className="min-w-0 w-full rounded-md border border-border bg-surface p-5 max-[900px]:mt-4 max-md:hidden">
@@ -915,11 +947,13 @@ export function OrganizationPage({
                     count: roles,
                   }),
                 }))
-              : categoryRows.slice(0, 4).map((row) => ({
-                  key: rowKey(row),
-                  label: row.name,
-                  value: t('organization.tickets', { count: row.tickets }),
-                }))
+              : tab === 'apiKeys'
+                ? []
+                : categoryRows.slice(0, 4).map((row) => ({
+                    key: rowKey(row),
+                    label: row.name,
+                    value: t('organization.tickets', { count: row.tickets }),
+                  }))
             ).map(({ key, label, value }) => (
               <div
                 className="mt-[18px] grid grid-cols-[12px_1fr_auto] gap-[7px]"
