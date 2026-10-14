@@ -1,3 +1,5 @@
+// Primero: fija la configuración de zod antes de que se cree ningún esquema.
+import './core/zod';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles/global.css';

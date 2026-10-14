@@ -72,6 +72,7 @@ export function ConversationList({
           <span className="sr-only">Search conversations</span>
           <input
             className="min-w-0 border-0 bg-transparent outline-0 focus-visible:!outline-none"
+            name="conversationSearch"
             onChange={(event) => onQueryChange(event.target.value)}
             placeholder="Search conversations"
             type="search"
@@ -120,6 +121,7 @@ export function ConversationList({
             <input
               className="min-h-10 w-full min-w-0 rounded-sm border border-border px-3"
               aria-label="Search colleagues"
+              name="colleagueSearch"
               onChange={(event) => onCandidateQueryChange(event.target.value)}
               placeholder="Search by username"
               type="search"

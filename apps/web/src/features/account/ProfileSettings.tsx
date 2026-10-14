@@ -181,6 +181,7 @@ export function ProfileSettings({
           <input
             accept="image/png,image/jpeg,image/gif,image/webp"
             className="sr-only"
+            name="avatar"
             onChange={(event) => changeAvatar(event.target.files?.[0])}
             ref={inputRef}
             type="file"

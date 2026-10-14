@@ -57,6 +57,8 @@ export async function initI18n() {
     fallbackLng: 'en',
     interpolation: { escapeValue: false }, // React ya escapa
     returnNull: false,
+    // Desde la 25.x i18next anuncia Locize en la consola en cada carga.
+    showSupportNotice: false,
     // Una clave de error que la API emite y aquí no está traducida se
     // enseñaría tal cual —«errors.org.slugTaken»—, que es peor que el mensaje
     // en inglés de antes. Para las de error se da el genérico en el idioma de
