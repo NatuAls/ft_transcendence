@@ -143,6 +143,10 @@ export function WorkspacePage({
           canChangeStatus={can(viewer, 'ticket:changeStatus')}
           canReopenTickets={can(viewer, 'ticket:reopen')}
           canSelfAssign={can(viewer, 'ticket:selfAssign')}
+          canUpdate={can(viewer, 'ticket:update')}
+          canDelete={can(viewer, 'ticket:delete')}
+          canCreateInternal={can(viewer, 'comment:createInternal')}
+          canViewInternal={can(viewer, 'comment:createInternal')}
           currentUserId={viewer.id}
           key={ticketId}
           onBack={() =>
@@ -183,10 +187,18 @@ export function WorkspacePage({
           key={location.params.get('person') ?? 'messages'}
           initialPerson={location.params.get('person') ?? undefined}
           onOpenProfile={(person) => navigate('people-profile', { person })}
-          onViewTickets={(person) => navigate('related-tickets', { person })}
+          onViewTickets={(personId, personName) =>
+            navigate('related-tickets', { personId, person: personName })
+          }
         />
       );
-    case 'related-tickets':
+    case 'related-tickets': {
+      const personId = location.params.get('personId') ?? '';
+      const personName =
+        personId &&
+        location.params.get('person') !== 'Selecciona una conversación'
+          ? (location.params.get('person') ?? '')
+          : '';
       return (
         <RelatedTicketsPage
           onBack={() => navigate('messages')}
@@ -194,9 +206,12 @@ export function WorkspacePage({
           onOpenTicket={(ticketId) =>
             navigate('ticket-detail', { id: ticketId })
           }
-          personName={location.params.get('person') ?? 'Maya Singh'}
+          organizationId={organizationId}
+          personId={personId}
+          personName={personName}
         />
       );
+    }
     case 'organization':
       return (
         <OrganizationPage
