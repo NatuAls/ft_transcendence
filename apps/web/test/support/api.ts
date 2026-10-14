@@ -54,6 +54,7 @@ export function apiError(
   code: string,
   message: string,
 ): Reply {
+  // (Los tres códigos que se mapeaban aquí a mano salen igual del catálogo.)
   return reply(operation, status, {
     statusCode: status,
     code,

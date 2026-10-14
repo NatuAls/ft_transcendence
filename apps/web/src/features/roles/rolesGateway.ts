@@ -2,7 +2,6 @@ import type {
   AssignOrganizationRoleInput,
   AssignPlatformRoleInput,
   OrgRole,
-  PendingRole,
   OrganizationRoleAssignment,
   OrganizationRoleReservation,
   PlatformRoleAssignment,
@@ -75,28 +74,6 @@ export function organizationRoleLabel(role: OrgRole) {
 
 export function organizationRoleDescription(role: OrgRole) {
   return i18next.t(`organization.roleDescription.${role}`);
-}
-
-/** «Support agent in Acme Support», in the language of the interface. */
-export function roleInOrganizationText(
-  role: OrgRole,
-  organizationName?: string | null,
-) {
-  return i18next.t('organization.roleInOrganization', {
-    organization:
-      organizationName ?? i18next.t('organization.someOrganization'),
-    role: organizationRoleLabel(role),
-  });
-}
-
-export function platformAdministratorText() {
-  return i18next.t('admin.platformAdministrator');
-}
-
-export function pendingRoleText(role: PendingRole) {
-  return role.scope === 'PLATFORM'
-    ? platformAdministratorText()
-    : roleInOrganizationText(role.role as OrgRole, role.organizationName);
 }
 
 /** A date in the language of the interface, not in the browser's. */

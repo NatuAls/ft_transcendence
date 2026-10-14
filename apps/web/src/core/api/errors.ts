@@ -89,6 +89,8 @@ export function fieldErrorsFromIssues(
   issues: ReadonlyArray<{
     code?: string;
     message: string;
+    minimum?: unknown;
+    origin?: string;
     path: ReadonlyArray<PropertyKey>;
   }>,
 ): Record<string, string> {
@@ -103,10 +105,73 @@ export function fieldErrorsFromIssues(
         // characters») y lo que de verdad dice está en el código.
         issue.message.startsWith('errors.')
           ? issue.message
-          : (issue.code ?? issue.message),
+          : requiredWhenEmpty(issue),
       );
   }
   return campos;
+}
+
+/**
+ * `min(1)` es «obligatorio»: un campo vacío no es «demasiado corto». El dato
+ * está en el propio aviso de Zod —su mínimo—, así que vale en cualquier
+ * idioma, sin mirar la frase en inglés que trae.
+ */
+function requiredWhenEmpty(issue: {
+  code?: string;
+  message: string;
+  minimum?: unknown;
+  origin?: string;
+}): string {
+  if (
+    issue.code === 'too_small' &&
+    Number(issue.minimum) === 1 &&
+    issue.origin !== 'number'
+  )
+    return 'invalid_type';
+  return issue.code ?? issue.message;
+}
+
+/**
+ * La clave de un error de campo, para las pantallas que traducen ellas mismas
+ * con `t(fieldErrorKey(…))`.
+ *
+ * Acepta las tres formas en que puede llegar: una clave `errors.*`, una de
+ * las frases en inglés que devolvía `fieldErrorsFromIssues` hasta el 13/10, o
+ * —lo que devuelve ahora— el texto ya traducido al idioma activo, que se
+ * busca entre las traducciones de errores de ese idioma. Así esas pantallas
+ * enseñan el mensaje concreto, y no el genérico, en los tres idiomas.
+ */
+export function fieldErrorKey(message: string): string {
+  const keys: Record<string, string> = {
+    'Enter a valid e-mail address.': 'errors.email.invalid',
+    'This field is required.': 'errors.field.required',
+    'Use at least 10 characters.': 'errors.password.tooShort',
+    'Use at most 128 characters.': 'errors.password.tooLong',
+    'Add a lowercase letter.': 'errors.password.needsLowercase',
+    'Add an uppercase letter.': 'errors.password.needsUppercase',
+    'Add a digit.': 'errors.password.needsDigit',
+    'Add a symbol, such as ! or -.': 'errors.password.needsSymbol',
+    'The two passwords do not match.': 'errors.password.mismatch',
+    'You have to accept the terms to continue.': 'errors.terms.required',
+  };
+  const codes: Record<string, string> = {
+    invalid_type: 'errors.field.required',
+    too_small: 'errors.password.tooShort',
+    too_big: 'errors.password.tooLong',
+  };
+  if (codes[message]) return codes[message];
+  if (message.startsWith('errors.')) return message;
+  return keys[message] ?? errorKeyOfText(message) ?? 'errors.field.invalid';
+}
+
+/** La clave `errors.*` cuyo texto, en el idioma activo, es exactamente éste. */
+function errorKeyOfText(text: string): string | undefined {
+  const bundle = i18next.getResourceBundle(i18next.language, 'translation') as
+    { errors?: Record<string, Record<string, unknown>> } | undefined;
+  for (const [group, entries] of Object.entries(bundle?.errors ?? {}))
+    for (const [name, value] of Object.entries(entries))
+      if (value === text) return `errors.${group}.${name}`;
+  return undefined;
 }
 
 /**

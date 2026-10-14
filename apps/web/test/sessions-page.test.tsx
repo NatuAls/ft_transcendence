@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   fireEvent,
   render,
@@ -7,8 +7,11 @@ import {
   within,
 } from '@testing-library/react';
 import { SessionsPage } from '../src/features/account/SessionsPage';
+import { initI18n } from '../src/core/i18n';
 import { mockApi, reply } from './support/api';
 import { deviceSession, ids } from './support/fixtures';
+
+beforeAll(() => initI18n());
 
 const iphone =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1';

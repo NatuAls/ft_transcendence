@@ -2,15 +2,13 @@ import { BrandMark, Button, Icon, LoadingState } from 'ui';
 import { useEffect, useRef, useState } from 'react';
 import { verifyEmail } from '../../api/verification';
 import { previewMode, type ViewerSession } from '../../app/session';
-import {
-  platformAdministratorText,
-  roleInOrganizationText,
-} from '../roles/rolesGateway';
+import { LanguageSwitcher } from '../../core/i18n/LanguageSwitcher';
+import { useTranslation } from '../../core/i18n';
 
 type State =
   | { kind: 'checking' }
   | { kind: 'missing' }
-  | { kind: 'failed'; message: string }
+  | { kind: 'failed'; messageKey: string }
   | { kind: 'done'; viewer: ViewerSession | null };
 
 /**
@@ -32,6 +30,7 @@ export function VerifyEmailPage({
   onVerified: () => Promise<ViewerSession | null>;
   token: string;
 }) {
+  const { t } = useTranslation();
   const [state, setState] = useState<State>(
     token ? { kind: 'checking' } : { kind: 'missing' },
   );
@@ -49,11 +48,7 @@ export function VerifyEmailPage({
       .then(() => onVerified())
       .then((viewer) => setState({ kind: 'done', viewer }))
       .catch(() =>
-        setState({
-          kind: 'failed',
-          message:
-            'This link is not valid any more: it was already used, it expired after 24 hours, or a newer one was sent.',
-        }),
+        setState({ kind: 'failed', messageKey: 'auth.verify.invalidLink' }),
       );
   }, [onVerified, token]);
 
@@ -61,10 +56,13 @@ export function VerifyEmailPage({
   const access = viewer
     ? [
         ...(viewer.globalRole === 'GLOBAL_ADMIN'
-          ? [platformAdministratorText()]
+          ? [t('auth.verify.platformAdmin')]
           : []),
         ...viewer.memberships.map((membership) =>
-          roleInOrganizationText(membership.role, membership.organizationName),
+          t('auth.verify.organizationRole', {
+            role: t(`auth.verify.roles.${membership.role}`),
+            organization: membership.organizationName,
+          }),
         ),
       ]
     : [];
@@ -72,10 +70,13 @@ export function VerifyEmailPage({
   return (
     <main className="grid min-h-dvh place-items-center bg-canvas p-5">
       <section className="w-full max-w-[520px] rounded-lg border border-border bg-surface p-8 text-center shadow-sm max-sm:p-6">
+        <div className="mb-4 flex justify-end">
+          <LanguageSwitcher />
+        </div>
         <BrandMark className="mx-auto !size-12" />
         {state.kind === 'checking' ? (
           <div className="mt-6">
-            <LoadingState label="Confirming your e-mail address" />
+            <LoadingState label={t('auth.verify.checking')} />
           </div>
         ) : (
           <>
@@ -90,10 +91,10 @@ export function VerifyEmailPage({
             </span>
             <h1 className="mt-4 text-2xl font-medium">
               {state.kind === 'done'
-                ? 'Address confirmed'
+                ? t('auth.verify.doneTitle')
                 : state.kind === 'missing'
-                  ? 'Nothing to confirm'
-                  : 'The link did not work'}
+                  ? t('auth.verify.missingTitle')
+                  : t('auth.verify.failedTitle')}
             </h1>
             <p
               aria-live="polite"
@@ -102,16 +103,16 @@ export function VerifyEmailPage({
             >
               {state.kind === 'done'
                 ? viewer
-                  ? 'Your e-mail address is confirmed. Any role an administrator had reserved for it is now active.'
-                  : 'Your e-mail address is confirmed. Sign in to use your account, including any role an administrator had reserved for it.'
+                  ? t('auth.verify.doneWithSession')
+                  : t('auth.verify.doneWithoutSession')
                 : state.kind === 'missing'
-                  ? 'This page opens from the link in the confirmation e-mail. Open the newest message and follow its link.'
-                  : `${state.message} Sign in and ask for a new one from the notice on your screen.`}
+                  ? t('auth.verify.missingDescription')
+                  : `${t(state.messageKey)} ${t('auth.verify.failedDescription')}`}
             </p>
             {access.length ? (
               <div className="mx-auto mt-5 max-w-[410px] rounded-md border border-border bg-surface-secondary p-4 text-left">
                 <span className="text-xs font-medium text-muted">
-                  YOUR ACCESS NOW
+                  {t('auth.verify.accessNow')}
                 </span>
                 <ul className="mt-2 grid gap-1 text-sm">
                   {access.map((item) => (
@@ -132,7 +133,7 @@ export function VerifyEmailPage({
               className="mt-7"
               onClick={() => onContinue(Boolean(viewer))}
             >
-              {viewer ? 'Continue to HelpDesk Lite' : 'Go to sign in'}
+              {viewer ? t('auth.verify.continue') : t('auth.verify.goToSignIn')}
             </Button>
           </>
         )}

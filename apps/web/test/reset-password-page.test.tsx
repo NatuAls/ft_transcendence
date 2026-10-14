@@ -1,8 +1,11 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { ForgotPasswordPage } from '../src/features/auth/ForgotPasswordPage';
 import { ResetPasswordPage } from '../src/features/auth/ResetPasswordPage';
+import { initI18n } from '../src/core/i18n';
 import { apiError, mockApi, reply } from './support/api';
+
+beforeAll(() => initI18n());
 
 /**
  * Recuperación de contraseña, de punta a punta.
@@ -87,7 +90,6 @@ describe('reset password page', () => {
     type('Repeat the new password', 'corta');
     fireEvent.click(screen.getByRole('button', { name: 'Change my password' }));
 
-    // Los errores de campo salen ya traducidos de `en.ts` (13/10).
     expect(screen.getByText('At least 10 characters.')).toBeTruthy();
     expect(calls).toHaveLength(0);
   });
