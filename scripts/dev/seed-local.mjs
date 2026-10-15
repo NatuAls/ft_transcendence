@@ -35,11 +35,21 @@
 //  plataforma: hace falta para probar lo que un administrador puede hacerle a
 //  otro, y para no quedarse sin nadie si se toca la cuenta principal.
 // =============================================================================
-import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { randomBytes } from 'node:crypto';
 
 const RAIZ = resolve(import.meta.dirname, '../..');
+// Por HTTPS cuando está el certificado local de `make cert`, como sirve Vite.
+const WEB = existsSync(resolve(RAIZ, 'config/local-tls/localhost.crt'))
+  ? 'https://localhost:5173'
+  : 'http://localhost:5173';
 const API = process.env.API_BASE_URL ?? 'http://127.0.0.1:5000';
 const V1 = `${API}/api/v1`;
 const MAILPIT = process.env.MAILPIT_URL ?? 'http://127.0.0.1:8025';
@@ -676,9 +686,9 @@ async function main() {
     ]),
     '## Dónde probar',
     '',
-    'Aplicación ............ http://localhost:5173',
+    `Aplicación ............ ${WEB}`,
     'Buzón (Mailpit) ....... http://localhost:8025',
-    'Documentación de la API http://localhost:5000/api/v1/docs',
+    `Documentación de la API ${WEB}/api/v1/docs`,
     '',
     '## Notas',
     '',

@@ -59,7 +59,7 @@ services:
       - dev_network
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-mi_usuario}:${POSTGRES_PASSWORD:-mi_password}@db:5432/${POSTGRES_DB:-mi_base_datos}?schema=public
-      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
+      - CORS_ORIGINS=${CORS_ORIGINS:-https://localhost:5173,https://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:5173}
       - PORT=5000
       - NODE_ENV=${NODE_ENV:-development}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
@@ -85,11 +85,13 @@ services:
       # métricas). Vacío = no definida (ver optionalEnv en config/env.ts), así
       # que quien no tenga .env sigue igual que antes.
       - METRICS_TOKEN=${METRICS_TOKEN:-}
-      # Donde responde la web, para los enlaces que viajan por correo. Aquí
-      # hace falta a la fuerza: Vite reenvía /api al 5000 con `changeOrigin`,
-      # así que la API veía `Host: localhost:5000` y escribía los enlaces
-      # contra el puerto de la API, por https y sin nada que los sirva.
-      - APP_PUBLIC_ORIGIN=${APP_PUBLIC_ORIGIN:-http://localhost:5173}
+      # Donde responde la web, para los enlaces que viajan por correo. Vacío,
+      # la API lo deduce de la petición: Vite reenvía /api con `changeOrigin`
+      # (la API ve `Host: api:5000`), pero también con `xfwd`, que le pasa en
+      # X-Forwarded-Proto y X-Forwarded-Host el esquema y el host por los que
+      # entró el navegador. Así el enlace sale por https://localhost:5173 con
+      # el certificado local (make cert) y por http sin él.
+      - APP_PUBLIC_ORIGIN=${APP_PUBLIC_ORIGIN:-}
       - BOOTSTRAP_ADMIN_EMAIL=${BOOTSTRAP_ADMIN_EMAIL:-}
       - BOOTSTRAP_ADMIN_USERNAME=${BOOTSTRAP_ADMIN_USERNAME:-}
       - BOOTSTRAP_ADMIN_PASSWORD=${BOOTSTRAP_ADMIN_PASSWORD:-}

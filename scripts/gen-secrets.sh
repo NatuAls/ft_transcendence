@@ -446,7 +446,7 @@ chmod 600 "$ENV_FILE"
 case "$ENV_NAME" in
   dev)
     PG_USER="helpdesk_admin"; PG_DB="helpdesk_dev"
-    ORIGINS="http://localhost:5173,http://127.0.0.1:5173"
+    ORIGINS="https://localhost:5173,https://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:5173"
     MAIL="HelpDesk Lite <no-reply@helpdesk.local>"
     NODE_ENVIRONMENT="development"; LOGLEVEL="debug"; SEED="true"
     ;;
@@ -539,14 +539,12 @@ replace BOOTSTRAP_ADMIN_PASSWORD     "$ADMIN_PASS"
 replace BOOTSTRAP_ADMIN_DISPLAY_NAME "Administración"
 replace BOOTSTRAP_ADMIN_ROTATE       "0"
 
-# Origen de los enlaces que viajan por correo. En desarrollo hay que decirlo:
-# la web está en el 5173 y la API en el 5000, así que deducirlo de la petición
-# daba enlaces contra el puerto de la API. En el servidor se deja vacío porque
-# detrás del proxy la web y la API comparten host.
-case "$ENV_NAME" in
-  dev) replace APP_PUBLIC_ORIGIN "http://localhost:5173" ;;
-  *)   replace APP_PUBLIC_ORIGIN "" ;;
-esac
+# Origen de los enlaces que viajan por correo. Vacío en todos los entornos: se
+# deduce de la petición. En el servidor, porque detrás del proxy la web y la API
+# comparten host; en desarrollo, porque Vite le pasa a la API el esquema y el
+# host del navegador (`xfwd` en vite.config.ts), y así el enlace sale por https
+# con el certificado local (make cert) y por http sin él.
+replace APP_PUBLIC_ORIGIN ""
 
 replace DOCS_GATEWAY_TOKEN "$(rand 32)"
 # En desarrollo no hay proxy delante de la API: con `gateway` la documentación

@@ -36,6 +36,9 @@ config/prometheus/metrics_token*
 
 # Nginx SSL Certificates
 config/nginx/certs/
+# Certificado HTTPS del entorno local (make cert). Su autoridad vive fuera del
+# repositorio, en ~/.local/share/helpdesk-lite/local-ca.
+config/local-tls/
 *.key
 *.crt
 
