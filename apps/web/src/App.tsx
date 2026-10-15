@@ -43,7 +43,12 @@ import {
   type OrganizationSummary,
 } from './features/organizations/organizationsData';
 import { AppShell } from './layout/AppShell';
-import { logout, refreshSession, type AuthResponse } from './api/auth';
+import {
+  getAccessToken,
+  logout,
+  refreshSession,
+  type AuthResponse,
+} from './api/auth';
 import { listOrganizations } from './api/organizations';
 import { setUnauthorizedHandler } from './core/api/client';
 import { RealtimeEvents } from './core/realtime/socket';
@@ -262,6 +267,13 @@ function App() {
    */
   useEffect(() => {
     if (previewMode) return;
+    // Con la sesión ya abierta en esta página no hay nada que restaurar. El
+    // efecto vuelve a correr en cada cambio de ruta, porque es el que manda al
+    // inicio de sesión a quien entra sin sesión en una ruta privada, y eso
+    // renovaba la sesión en cada navegación: una rotación de la cookie por
+    // pantalla, y cualquiera que se cortase a medias (una recarga justo
+    // entonces) dejaba al navegador con la cookie ya gastada.
+    if (getAccessToken()) return;
     let cancelado = false;
     let temporizador: number | undefined;
     let intento = 0;

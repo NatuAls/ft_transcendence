@@ -1,7 +1,7 @@
 /**
  * ============================================================================
- *  Los atajos de base de datos de las pruebas: los dos de las de roles, y al
- *  final los del borrado de cuentas.
+ *  Los atajos de base de datos de las pruebas: los dos de las de roles, los
+ *  del borrado de cuentas y, al final, el del reloj de las sesiones.
  *
  *  El resto de la suite habla sólo por HTTP, y estas pruebas también, salvo en
  *  dos puntos que por diseño NO tienen camino HTTP:
@@ -167,4 +167,25 @@ export async function auditEntryExists(id: string): Promise<boolean> {
     [id],
   );
   return (rowCount ?? 0) > 0;
+}
+
+// -----------------------------------------------------------------------------
+
+/**
+ * Hace como si el refresh token de `cookie` se hubiera rotado hace `seconds`
+ * segundos: así se prueba lo que pasa cuando vuelve pasado el margen de una
+ * respuesta perdida, sin esperarlo. En la base sólo está su hash.
+ */
+export async function backdateRotation(
+  cookie: string,
+  seconds: number,
+): Promise<void> {
+  const token = /(?:^|;\s*)hd_refresh=([^;]+)/.exec(cookie)?.[1];
+  if (!token) throw new Error('la cookie no lleva hd_refresh');
+  await db().query(
+    `UPDATE user_sessions
+     SET "revokedAt" = "revokedAt" - make_interval(secs => $2::int)
+     WHERE "refreshTokenHash" = $1`,
+    [createHash('sha256').update(token).digest('hex'), seconds],
+  );
 }
