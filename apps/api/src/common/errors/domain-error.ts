@@ -151,6 +151,14 @@ export const Errors = {
       'errors.ticket.locked',
       'This ticket can no longer be edited by its author.',
     ),
+  // Dos cambios simultáneos sobre el mismo ticket: el segundo se comprobó
+  // contra un estado que ya no existe, y se rechaza en vez de pisar al primero.
+  ticketChanged: () =>
+    conflict(
+      'TICKET_CHANGED',
+      'errors.ticket.changed',
+      'The ticket changed in the meantime. Reload it and try again.',
+    ),
 
   // organizations
   slugTaken: () =>

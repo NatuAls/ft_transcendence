@@ -1853,6 +1853,8 @@ export const en = {
       assigneeNotAgent: 'Only an agent of this organization can be assigned.',
       invalidTransition: 'The ticket cannot move to that state from here.',
       locked: 'This ticket can no longer be edited by its author.',
+      changed:
+        'Someone changed this ticket in the meantime. Reload it and try again.',
       notFound: 'That ticket does not exist, or you do not have access to it.',
     },
     comment: {

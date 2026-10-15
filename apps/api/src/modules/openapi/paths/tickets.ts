@@ -176,7 +176,7 @@ export const ticketsPaths: Paths = {
       operationId: 'changeTicketStatus',
       summary: 'Change the state',
       description:
-        'Goes through the state machine: only the declared transitions are accepted, and moving to RESOLVED requires a resolution of at least 20 characters. An invalid transition answers 409, never a silent 200.',
+        'Goes through the state machine: only the declared transitions are accepted, and moving to RESOLVED requires a resolution of at least 20 characters. An invalid transition answers 409, never a silent 200. So does a change that lost a race: the update only applies if the ticket is still in the state it was checked against, so of two simultaneous changes the second gets 409 `TICKET_CHANGED` instead of being recorded twice.',
       security: session,
       parameters: [{ $ref: '#/components/parameters/IdPath' }],
       requestBody: body('ChangeStatusInput'),
@@ -192,13 +192,13 @@ export const ticketsPaths: Paths = {
       operationId: 'assignTicket',
       summary: 'Assign the ticket',
       description:
-        'AGENT or above. Assigning to `null` puts it back in the unassigned queue. The assignee is notified.',
+        'AGENT or above. Assigning to `null` puts it back in the unassigned queue. The assignee is notified. If the assignee changed since it was read (two agents taking the ticket at once), 409 `TICKET_CHANGED`.',
       security: session,
       parameters: [{ $ref: '#/components/parameters/IdPath' }],
       requestBody: body('AssignTicketInput'),
       responses: {
         '200': ok('Updated ticket.', ref('Ticket')),
-        ...errs('400', '401', '403', '404'),
+        ...errs('400', '401', '403', '404', '409'),
       },
     }),
   },
