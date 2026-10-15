@@ -951,12 +951,10 @@ this note.
 - Refined product and usability behaviour across ticket workflows,
   organization membership, platform administration, conversations, global
   search, status presentation and responsive actions.
-- Audited and corrected the interface at 320 px, 375 px, 768 px and 1440 px,
-  covering mobile ticket layouts, message composer breakpoints, table-to-card
+- Audited and corrected responsive behaviour across desktop, tablet and
+  mobile, covering ticket layouts, message composer breakpoints, table-to-card
   adaptations, touch targets, keyboard interaction and horizontal-overflow
   prevention.
-- Wrote and maintained the front-end integration guide, front-end guide,
-  shared UI documentation and front-end/back-end integration specifications.
 
 **Key challenges and solutions**
 
