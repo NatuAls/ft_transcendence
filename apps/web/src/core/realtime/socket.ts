@@ -6,7 +6,7 @@
 // con ticket.subscribe / conversation.subscribe y el servidor re-comprueba
 // el permiso antes de aceptar (ack { ok }).
 import { io, type Socket } from 'socket.io-client';
-import { getAccessToken } from '../../api/auth';
+import { getAccessToken, refreshSession } from '../../api/auth';
 
 /** Nombres exactos que emite la API (apps/api/src/database/events.ts). */
 export const RealtimeEvents = {
@@ -54,6 +54,30 @@ let socket: Socket | null = null;
 const statusListeners = new Set<(status: RealtimeStatus) => void>();
 let status: RealtimeStatus = 'disconnected';
 
+/**
+ * El access token dura poco tiempo. Socket.IO puede intentar reconectar mucho
+ * después del login, así que no basta con reutilizar ciegamente el token que
+ * había en memoria: el servidor cerraría cada intento y Chrome mostraría
+ * varios WebSocket fallidos. Solo se inspecciona `exp` para decidir si hay que
+ * pedir un refresh; la firma siempre la valida la API.
+ */
+function tokenNeedsRefresh(token: string | null): boolean {
+  if (!token) return true;
+  try {
+    const encodedPayload = token.split('.')[1];
+    if (!encodedPayload) return true;
+    const payload = JSON.parse(
+      atob(encodedPayload.replace(/-/g, '+').replace(/_/g, '/')),
+    ) as { exp?: unknown };
+    return (
+      typeof payload.exp !== 'number' ||
+      payload.exp * 1000 <= Date.now() + 30_000
+    );
+  } catch {
+    return true;
+  }
+}
+
 function setStatus(next: RealtimeStatus) {
   status = next;
   statusListeners.forEach((fn) => fn(next));
@@ -74,8 +98,21 @@ export function connectRealtime(): Socket {
   setStatus('connecting');
   socket = io('/rt', {
     path: '/socket.io',
-    // El token puede cambiar (refresh cada 15 min): se lee en cada (re)conexión.
-    auth: (cb) => cb({ token: getAccessToken() ?? '' }),
+    // El token p`uede cambiar (refresh cada 15 min): se comprueba en cada
+    // (re)conexión para no reintentar con un JWT caducado.
+    auth: async (cb) => {
+      let token = getAccessToken();
+      if (tokenNeedsRefresh(token)) {
+        try {
+          const session = await refreshSession();
+          token = session?.accessToken ?? token;
+        } catch {
+          // La API seguirá rechazando el socket si está temporalmente caída;
+          // Socket.IO podrá reintentarlo cuando vuelva a estar disponible.
+        }
+      }
+      cb({ token: token ?? '' });
+    },
     withCredentials: true,
     transports: ['websocket', 'polling'],
     reconnection: true,
