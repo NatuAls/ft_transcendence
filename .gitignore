@@ -2,6 +2,7 @@ node_modules
 .env
 .env-observabilidad
 .env.*
+.env_*
 !.env.example
 !.env-observabilidad.example
 dist
