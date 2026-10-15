@@ -230,7 +230,8 @@ function App() {
   );
 
   /**
-   * Que te metan en una organización, o te saquen, cambia el selector.
+   * Que te metan en una organización, te saquen o te cambien el rol cambia
+   * lo que puedes ver y hacer.
    *
    * El servidor avisa al socket de la persona afectada (`user:<id>`) y además
    * le mete en la sala de la organización nueva. Sin escucharlo, la
@@ -251,6 +252,12 @@ function App() {
     if (esSobreMi(payload)) void reloadSession();
   });
   useRealtimeEvent(RealtimeEvents.memberRemoved, (payload) => {
+    if (esSobreMi(payload)) void reloadSession();
+  });
+  // Sin esto, a quien le cambiaban el rol se le quedaba la pantalla del rol
+  // anterior hasta recargar a mano: botones que la API rechaza y, en la
+  // organización, las estadísticas pedidas cada minuto con un 403 cada vez.
+  useRealtimeEvent(RealtimeEvents.memberUpdated, (payload) => {
     if (esSobreMi(payload)) void reloadSession();
   });
 
