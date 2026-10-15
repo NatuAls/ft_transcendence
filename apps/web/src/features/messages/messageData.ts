@@ -4,12 +4,16 @@ export interface Conversation {
   id?: string;
   userId?: string;
   username?: string;
+  avatarUrl?: string | null;
   initials: string;
   name: string;
   online?: boolean;
   preview: string;
+  previewKey?: string;
   role: string;
   time: string;
+  timeKey?: string;
+  unreadCount?: number;
 }
 
 export type MessageStatus = 'sent' | 'sending' | 'error';
@@ -45,16 +49,18 @@ export const initialConversations: Conversation[] = [
     name: 'Maya Singh',
     online: true,
     preview: 'I can reproduce the issue…',
-    role: 'Support agent',
+    role: 'messages.roles.supportAgent',
     time: '2 min',
+    timeKey: 'messages.preview.time2Min',
   },
   {
     id: 'preview-conversation-john',
     initials: 'JL',
     name: 'John Lee',
     preview: 'Thank you for the update.',
-    role: 'Member',
+    role: 'messages.roles.member',
     time: '1 h',
+    timeKey: 'messages.preview.time1Hour',
   },
   {
     id: 'preview-conversation-lena',
@@ -62,24 +68,27 @@ export const initialConversations: Conversation[] = [
     name: 'Lena Patel',
     online: true,
     preview: 'Can we review this tomorrow?',
-    role: 'Product designer',
+    role: 'messages.roles.productDesigner',
     time: 'Yesterday',
+    timeKey: 'messages.preview.yesterday',
   },
   {
     id: 'preview-conversation-mia',
     initials: 'MC',
     name: 'Mia Chen',
     preview: 'The new member is active.',
-    role: 'Organization admin',
+    role: 'messages.roles.organizationAdmin',
     time: 'Mon',
+    timeKey: 'messages.preview.monday',
   },
   {
     id: 'preview-conversation-carlos',
     initials: 'CV',
     name: 'Carlos Vega',
     preview: 'I closed the billing request.',
-    role: 'Support agent',
+    role: 'messages.roles.supportAgent',
     time: 'Fri',
+    timeKey: 'messages.preview.friday',
   },
 ];
 
@@ -90,14 +99,14 @@ export const newConversationCandidates: Conversation[] = [
     initials: 'NK',
     name: 'Noah Kim',
     preview: 'Start a new conversation',
-    role: 'Finance operations',
+    role: 'messages.roles.financeOperations',
     time: 'Now',
   },
   {
     initials: 'SO',
     name: 'Sam Okafor',
     preview: 'Start a new conversation',
-    role: 'Platform administrator',
+    role: 'messages.roles.platformAdministrator',
     time: 'Now',
   },
 ];

@@ -37,7 +37,8 @@ export interface RealtimeServer {
 
 /**
  * Rooms, never global broadcast:
- *   user:{id}     every tab of one user      -> notifications, account changes
+ *   user:{id}     every tab of one user      -> notifications, account changes,
+ *                                               conversation-list messages
  *   org:{id}      members of an organization -> ticket / category / member events
  *   ticket:{id}   whoever has it open        -> comments, attachments, diffs
  *   conv:{id}     the two chat participants  -> messages, read receipts

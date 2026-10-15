@@ -4,7 +4,7 @@ import { Alert, Button, Checkbox, IconButton, TextField } from 'ui';
 import { AuthBrandPanel, BrandHeader } from './AuthBrand';
 import { login, type AuthResponse } from '../../api/auth';
 import { LanguageSwitcher } from '../../core/i18n/LanguageSwitcher';
-import { errorKey } from '../../core/api/errors';
+import { ApiError, errorKey } from '../../core/api/errors';
 import { useTranslation } from '../../core/i18n';
 
 export interface SignInValues {
@@ -59,7 +59,16 @@ export function SignInPage({
       // Si fue exitoso, pasamos el usuario al router/padre
       void onSubmit(authData.user);
     } catch (err: unknown) {
-      setError(t(errorKey(err)));
+      // Un usuario inexistente y una contraseña incorrecta deben mostrar el
+      // mismo mensaje. La API responde 401 en ambos casos para no revelar si
+      // una dirección está registrada (enumeración de usuarios). Este fallback
+      // también mantiene el mensaje correcto si la respuesta no trae el
+      // `messageKey` esperado.
+      if (err instanceof ApiError && err.status === 401) {
+        setError(t('errors.auth.invalidCredentials'));
+      } else {
+        setError(t(errorKey(err)));
+      }
     } finally {
       setIsSubmitting(false);
     }

@@ -1,4 +1,5 @@
 import { Button } from 'ui';
+import { useTranslation } from '../../core/i18n';
 
 export function MessageComposer({
   value,
@@ -11,6 +12,7 @@ export function MessageComposer({
   onSendMessage: () => void;
   disabled: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <form
       className="grid grid-cols-[1fr_42px] items-center gap-2.5 border-t border-border p-[15px] max-md:px-0 max-md:py-[11px]"
@@ -20,7 +22,7 @@ export function MessageComposer({
       }}
     >
       <label className="sr-only" htmlFor="message-composer-input">
-        Write a message
+        {t('messages.composer.label')}
       </label>
       <textarea
         className="min-h-12 max-h-28 resize-y rounded-sm border border-border px-[14px] py-3"
@@ -36,13 +38,13 @@ export function MessageComposer({
             onSendMessage();
           }
         }}
-        placeholder="Write a message…"
+        placeholder={t('messages.composer.placeholder')}
         rows={1}
         value={value}
       />
       <Button
         className="!min-w-[42px] !p-0"
-        aria-label="Send message"
+        aria-label={t('messages.composer.send')}
         disabled={disabled}
         type="submit"
       >

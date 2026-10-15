@@ -8,6 +8,7 @@ import { listMembers } from '../../api/roles';
 import { onPresenceChange } from '../../app/realtime';
 import { getInitials } from '../../app/text';
 import { openConversation } from '../../api/messages';
+import { useTranslation } from '../../core/i18n';
 
 type PeopleTab = 'all' | 'colleagues' | 'requests';
 type Relation = 'friend' | 'incoming' | 'none' | 'outgoing';
@@ -23,8 +24,6 @@ interface Person {
   since?: string;
   username: string;
 }
-
-const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' });
 
 function personFrom(
   user: social.PublicPerson,
@@ -59,6 +58,10 @@ export function PeopleDirectory({
   onOpenProfile: (username: string) => void;
   organizationId: string;
 }) {
+  const { t, i18n } = useTranslation();
+  const dateFormat = new Intl.DateTimeFormat(i18n.language, {
+    dateStyle: 'medium',
+  });
   const [tab, setTab] = useState<PeopleTab>('colleagues');
   const [found, setFound] = useState<Person[]>([]);
   const [query, setQuery] = useState('');
@@ -209,7 +212,7 @@ export function PeopleDirectory({
       setFeedback(done);
       reload();
     } catch (error) {
-      setFailure(errorMessage(error, 'The request could not be completed.'));
+      setFailure(errorMessage(error, t('people.errors.requestFailed')));
     } finally {
       setBusyId('');
     }
@@ -221,16 +224,18 @@ export function PeopleDirectory({
       await openConversation(person.id);
       onMessage(person.username);
     } catch (error) {
-      setFailure(errorMessage(error, 'The conversation could not be opened.'));
+      setFailure(errorMessage(error, t('people.errors.conversationFailed')));
       setBusyId('');
     }
   }
 
   function presenceLabel(person: Person) {
-    if (person.isOnline) return 'Online';
+    if (person.isOnline) return t('people.status.online');
     return person.lastSeenAt
-      ? `Last seen ${dateFormat.format(new Date(person.lastSeenAt))}`
-      : 'Offline';
+      ? t('people.status.lastSeen', {
+          date: dateFormat.format(new Date(person.lastSeenAt)),
+        })
+      : t('people.status.offline');
   }
 
   function actions(person: Person) {
@@ -245,12 +250,12 @@ export function PeopleDirectory({
               void act(
                 person,
                 () => social.answerFriendRequest(requestId, 'DECLINE'),
-                `The request from ${person.name} was declined.`,
+                t('people.feedback.requestDeclined', { name: person.name }),
               )
             }
             variant="ghost"
           >
-            Decline
+            {t('people.actions.decline')}
           </Button>
           <Button
             disabled={busy}
@@ -258,11 +263,11 @@ export function PeopleDirectory({
               void act(
                 person,
                 () => social.answerFriendRequest(requestId, 'ACCEPT'),
-                `${person.name} is now one of your friends.`,
+                t('people.feedback.friendAdded', { name: person.name }),
               )
             }
           >
-            Accept
+            {t('people.actions.accept')}
           </Button>
         </div>
       );
@@ -276,22 +281,24 @@ export function PeopleDirectory({
             size="compact"
             variant="secondary"
           >
-            Message
+            {t('people.actions.message')}
           </Button>
           <Button
-            aria-label={`Remove ${person.name} from your friends`}
+            aria-label={t('people.actions.removeFriendOf', {
+              name: person.name,
+            })}
             disabled={busy}
             onClick={() =>
               void act(
                 person,
                 () => social.removeFriend(person.id),
-                `${person.name} was removed from your friends.`,
+                t('people.feedback.friendRemoved', { name: person.name }),
               )
             }
             size="compact"
             variant="ghost"
           >
-            Remove
+            {t('people.actions.remove')}
           </Button>
         </div>
       );
@@ -299,19 +306,21 @@ export function PeopleDirectory({
     if (person.relation === 'outgoing') {
       return (
         <Button
-          aria-label={`Withdraw the request to ${person.name}`}
+          aria-label={t('people.actions.withdrawRequestTo', {
+            name: person.name,
+          })}
           disabled={busy}
           onClick={() =>
             void act(
               person,
               () => social.removeFriend(person.id),
-              `Your request to ${person.name} was withdrawn.`,
+              t('people.feedback.requestWithdrawn', { name: person.name }),
             )
           }
           size="compact"
           variant="ghost"
         >
-          Withdraw request
+          {t('people.actions.withdrawRequest')}
         </Button>
       );
     }
@@ -322,12 +331,12 @@ export function PeopleDirectory({
           void act(
             person,
             () => social.sendFriendRequest(person.id),
-            `Friend request sent to ${person.name}.`,
+            t('people.feedback.requestSent', { name: person.name }),
           )
         }
         size="compact"
       >
-        Add friend
+        {t('people.actions.addFriend')}
       </Button>
     );
   }
@@ -340,7 +349,9 @@ export function PeopleDirectory({
       >
         <div className="flex items-start justify-between max-md:row-span-2">
           <button
-            aria-label={`View ${person.name}'s profile`}
+            aria-label={t('people.actions.viewProfileOf', {
+              name: person.name,
+            })}
             className="rounded-full"
             onClick={() => onOpenProfile(person.username)}
             type="button"
@@ -369,7 +380,7 @@ export function PeopleDirectory({
           <p className="min-h-9 text-xs2 text-muted max-md:min-h-0">
             @{person.username}
             {person.relation === 'friend' && person.since
-              ? ` · Friends since ${dateFormat.format(new Date(person.since))}`
+              ? ` · ${t('people.status.friendsSince', { date: dateFormat.format(new Date(person.since)) })}`
               : ''}
             <span className="hidden max-md:inline">
               {' · '}
@@ -383,7 +394,7 @@ export function PeopleDirectory({
             onClick={() => onOpenProfile(person.username)}
             type="button"
           >
-            View profile
+            {t('people.actions.viewProfile')}
           </button>
           {actions(person)}
         </footer>
@@ -395,22 +406,22 @@ export function PeopleDirectory({
     <div className="mx-auto max-w-[1160px] p-10 max-md:px-4 max-md:py-6">
       <header>
         <span className="text-xs2 tracking-[.08em] text-muted max-md:hidden">
-          DIRECTORY
+          {t('people.eyebrow')}
         </span>
         <h1 className="my-2 text-[1.875rem] font-medium max-md:text-[1.375rem]">
-          People
+          {t('people.title')}
         </h1>
         <p className="text-sm text-muted max-md:text-xs">
           {tab === 'requests'
-            ? 'Answer the friend requests you received and follow the ones you sent.'
+            ? t('people.directory.descriptionRequests')
             : tab === 'colleagues'
-              ? 'Your friends, whether they are online right now, and a message away.'
-              : 'Colleagues of your organization, and anybody you search for by name or username.'}
+              ? t('people.directory.descriptionColleagues')
+              : t('people.directory.descriptionAll')}
         </p>
       </header>
       <label className="my-5 mt-7 flex h-[42px] w-80 items-center gap-[9px] rounded-sm border border-border bg-surface px-[13px] focus-within:border-focus focus-within:outline-3 focus-within:outline-focus max-md:my-2.5 max-md:mt-5 max-md:w-full">
         <Icon name="search" size={16} />
-        <span className="sr-only">Search people</span>
+        <span className="sr-only">{t('people.searchLabel')}</span>
         <input
           className="min-w-0 flex-1 border-0 bg-transparent outline-0 focus-visible:!outline-none"
           name="peopleSearch"
@@ -418,20 +429,20 @@ export function PeopleDirectory({
             setQuery(event.target.value);
             if (event.target.value.trim().length >= 2) setTab('all');
           }}
-          placeholder="Search by name or username"
+          placeholder={t('people.directory.searchPlaceholder')}
           type="search"
           value={query}
         />
       </label>
       <nav
-        aria-label="People filters"
+        aria-label={t('people.filtersLabel')}
         className="mb-5 flex gap-1 border-b border-border max-md:justify-around"
       >
         {(
           [
-            ['colleagues', `Friends (${friends.length})`],
-            ['requests', 'Requests'],
-            ['all', 'Find people'],
+            ['colleagues', t('people.tabs.friends', { count: friends.length })],
+            ['requests', t('people.tabs.requests')],
+            ['all', t('people.tabs.findPeople')],
           ] as const
         ).map(([value, label]) => (
           <button
@@ -444,7 +455,7 @@ export function PeopleDirectory({
             {label}
             {value === 'requests' && incoming.length ? (
               <small className="inline-flex items-center rounded-full bg-warning-surface px-[7px] py-0.5 text-3xs leading-none text-warning">
-                {incoming.length} pending
+                {t('people.pending', { count: incoming.length })}
               </small>
             ) : null}
           </button>
@@ -467,14 +478,16 @@ export function PeopleDirectory({
       ) : null}
       <AsyncState
         error={directory.error}
-        errorTitle="People could not be read"
-        loading={<LoadingState label="Loading people" />}
+        errorTitle={t('people.directory.errorTitle')}
+        loading={<LoadingState label={t('people.directory.loading')} />}
         onRetry={reload}
         status={directory.status}
       >
         <>
           {tab === 'requests' ? (
-            <h2 className="mb-4 text-base font-medium">Received</h2>
+            <h2 className="mb-4 text-base font-medium">
+              {t('people.receivedRequests')}
+            </h2>
           ) : null}
           <section className="grid grid-cols-3 gap-[14px] max-[1000px]:grid-cols-2 max-md:grid-cols-1 max-md:gap-[9px]">
             {visible.map(card)}
@@ -483,17 +496,17 @@ export function PeopleDirectory({
                 <EmptyState
                   description={
                     tab === 'colleagues'
-                      ? 'Find people by name or username and send them a friend request.'
+                      ? t('people.empty.findDescription')
                       : tab === 'requests'
-                        ? 'Nobody is waiting for your answer.'
-                        : 'Type at least two characters to search the whole platform.'
+                        ? t('people.empty.requestsDescription')
+                        : t('people.empty.searchDescription')
                   }
                   title={
                     tab === 'colleagues'
-                      ? 'No friends yet'
+                      ? t('people.empty.noFriends')
                       : tab === 'requests'
-                        ? 'No pending requests'
-                        : 'Nobody matches this search'
+                        ? t('people.empty.noPendingRequests')
+                        : t('people.empty.noSearchMatch')
                   }
                 />
               </div>
@@ -501,7 +514,9 @@ export function PeopleDirectory({
           </section>
           {tab === 'requests' && outgoing.length ? (
             <section className="mt-6">
-              <h2 className="mb-4 text-base font-medium">Sent</h2>
+              <h2 className="mb-4 text-base font-medium">
+                {t('people.sentRequests')}
+              </h2>
               <div className="grid grid-cols-3 gap-[14px] max-[1000px]:grid-cols-2 max-md:grid-cols-1 max-md:gap-[9px]">
                 {outgoing.map(card)}
               </div>
