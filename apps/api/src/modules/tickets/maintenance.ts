@@ -18,12 +18,16 @@ async function autoCloseResolvedTickets(): Promise<void> {
   if (stale.length === 0) return;
 
   for (const ticket of stale) {
-    await prisma.$transaction([
-      prisma.ticket.update({
-        where: { id: ticket.id },
+    await prisma.$transaction(async (tx) => {
+      // Only if it is still resolved: someone may have reopened or closed it
+      // since it was read, and their change must not be overwritten or
+      // recorded twice (the same rule as changeStatus).
+      const { count } = await tx.ticket.updateMany({
+        where: { id: ticket.id, status: 'RESOLVED' },
         data: { status: 'CLOSED', closedAt: new Date() },
-      }),
-      prisma.ticketHistory.create({
+      });
+      if (count === 0) return;
+      await tx.ticketHistory.create({
         data: {
           ticketId: ticket.id,
           changedById: ticket.createdById,
@@ -32,8 +36,8 @@ async function autoCloseResolvedTickets(): Promise<void> {
           newValue: 'CLOSED',
           note: 'Automatically closed after 7 days without confirmation',
         },
-      }),
-    ]);
+      });
+    });
   }
   logger.info(`auto-closed ${stale.length} resolved tickets`);
 }

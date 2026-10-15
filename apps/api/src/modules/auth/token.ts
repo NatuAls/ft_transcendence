@@ -52,7 +52,8 @@ function accessTtlSeconds(): number {
  * has already been replaced comes back, we treat it as theft and revoke the
  * ENTIRE family, logging that device chain out everywhere. That is the
  * standard OAuth 2.1 mitigation and it is what makes a stolen refresh token
- * useful only once.
+ * useful only once. The one exception is an answer that never arrived (see
+ * LOST_ANSWER_WINDOW_MS).
  */
 export async function issueTokens(
   user: { id: string; username: string; email: string; globalRole: GlobalRole },
@@ -132,8 +133,12 @@ export async function rotateTokens(
 
   if (!session) throw Errors.tokenInvalid();
 
-  // Replay of an already-rotated or revoked token => assume compromise.
-  if (session.replacedById || session.revokedAt) {
+  // Replay of an already-rotated or revoked token => assume compromise,
+  // unless it is the answer to a rotation that never arrived.
+  if (
+    (session.replacedById || session.revokedAt) &&
+    !(await voidLostReplacement(session))
+  ) {
     await revokeFamily(session.familyId);
     throw Errors.refreshReused();
   }
@@ -152,10 +157,47 @@ export async function rotateTokens(
   });
   await prisma.userSession.update({
     where: { id: session.id },
-    data: { replacedById: newSession?.id, revokedAt: new Date() },
+    // After a lost answer it keeps the time of its first rotation, so the
+    // window does not move forward with every retry.
+    data: {
+      replacedById: newSession?.id,
+      revokedAt: session.revokedAt ?? new Date(),
+    },
   });
 
   return { ...issued, userId: session.userId };
+}
+
+/**
+ * How long after a rotation its previous token may still come back as an
+ * answer that never arrived, rather than as a theft.
+ *
+ * A browser can ask for a rotation and never store the answer: the page
+ * reloads or the tab closes with the request in flight, or the network drops
+ * it. The rotation has already happened here, so the browser comes back with
+ * the previous token, and taking that for theft revoked the family and signed
+ * the person out. Within this window, and only while the token that replaced
+ * it has never been used, that replacement is voided and a new pair is issued
+ * instead. Anything else is still a replay.
+ */
+const LOST_ANSWER_WINDOW_MS = 30_000;
+
+/**
+ * Voids the unused replacement of a token rotated moments ago. Atomic: of two
+ * requests replaying the same token, only one gets it.
+ */
+async function voidLostReplacement(session: {
+  replacedById: string | null;
+  revokedAt: Date | null;
+}): Promise<boolean> {
+  if (!session.replacedById || !session.revokedAt) return false;
+  if (Date.now() - session.revokedAt.getTime() > LOST_ANSWER_WINDOW_MS)
+    return false;
+  const { count } = await prisma.userSession.updateMany({
+    where: { id: session.replacedById, revokedAt: null, replacedById: null },
+    data: { revokedAt: new Date() },
+  });
+  return count === 1;
 }
 
 export async function revokeByRefreshToken(

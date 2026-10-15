@@ -1,4 +1,4 @@
-import { describe, it, before } from 'node:test';
+import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   api,
@@ -11,6 +11,12 @@ import {
   unique,
   type TestUser,
 } from './helpers.ts';
+import {
+  backdateRotation,
+  closeDb,
+  dbAvailable,
+  DB_SKIP_MESSAGE,
+} from './db.ts';
 
 /**
  * Ciclo de vida de la sesión, extremo a extremo.
@@ -32,6 +38,7 @@ describe(
       up = await apiIsUp();
       if (up) user = await registerUser('auth');
     });
+    after(closeDb);
 
     it('registra, devuelve access token y cookie de refresh HttpOnly', async (t) => {
       if (!up) return t.skip(SKIP_MESSAGE);
@@ -109,8 +116,14 @@ describe(
         cookie: session.cookie,
       });
       assert.equal(first.status, 200, 'el primer refresh debe funcionar');
-      const rotated = cookieHeader(first.cookies);
+      // El navegador legítimo sigue con el token nuevo y lo usa…
+      const second = await api('POST', '/auth/refresh', {
+        cookie: cookieHeader(first.cookies),
+      });
+      assert.equal(second.status, 200);
+      const current = cookieHeader(second.cookies);
 
+      // …y el de antes vuelve: ya no puede ser una respuesta que no llegó.
       const replay = await api<{ code: string }>('POST', '/auth/refresh', {
         cookie: session.cookie,
       });
@@ -118,13 +131,99 @@ describe(
       assert.equal(replay.body.code, 'AUTH_REFRESH_REUSED');
 
       const afterBreach = await api('POST', '/auth/refresh', {
-        cookie: rotated,
+        cookie: current,
       });
       assert.equal(
         afterBreach.status,
         401,
         'la familia entera queda revocada tras detectar el robo',
       );
+    });
+
+    it('una renovación cuya respuesta no llegó no cierra la sesión', async (t) => {
+      if (!up) return t.skip(SKIP_MESSAGE);
+      const session = await login(user.email);
+
+      // La API rota, pero el navegador no llega a guardar la respuesta (una
+      // recarga con la petición en vuelo) y vuelve con el token de antes.
+      const lost = await api('POST', '/auth/refresh', {
+        cookie: session.cookie,
+      });
+      assert.equal(lost.status, 200);
+      const retry = await api('POST', '/auth/refresh', {
+        cookie: session.cookie,
+      });
+      assert.equal(
+        retry.status,
+        200,
+        'dentro del margen, el token de antes recibe un par nuevo',
+      );
+      const next = await api('POST', '/auth/refresh', {
+        cookie: cookieHeader(retry.cookies),
+      });
+      assert.equal(next.status, 200, 'y la sesión sigue con él');
+
+      // Si el sustituto que «no llegó» aparece después, alguien lo tenía: eso
+      // sí es un robo, y cae la familia entera.
+      const ghost = await api<{ code: string }>('POST', '/auth/refresh', {
+        cookie: cookieHeader(lost.cookies),
+      });
+      assert.equal(ghost.status, 401);
+      assert.equal(ghost.body.code, 'AUTH_REFRESH_REUSED');
+      assert.equal(
+        (
+          await api('POST', '/auth/refresh', {
+            cookie: cookieHeader(next.cookies),
+          })
+        ).status,
+        401,
+      );
+    });
+
+    it('pasado el margen, el token de antes vuelve a ser un robo', async (t) => {
+      if (!up) return t.skip(SKIP_MESSAGE);
+      if (!dbAvailable()) return t.skip(DB_SKIP_MESSAGE);
+      const session = await login(user.email);
+
+      const lost = await api('POST', '/auth/refresh', {
+        cookie: session.cookie,
+      });
+      assert.equal(lost.status, 200);
+      await backdateRotation(session.cookie, 60);
+
+      const replay = await api<{ code: string }>('POST', '/auth/refresh', {
+        cookie: session.cookie,
+      });
+      assert.equal(replay.status, 401);
+      assert.equal(replay.body.code, 'AUTH_REFRESH_REUSED');
+      assert.equal(
+        (
+          await api('POST', '/auth/refresh', {
+            cookie: cookieHeader(lost.cookies),
+          })
+        ).status,
+        401,
+        'y la familia entera queda revocada',
+      );
+    });
+
+    it('una renovación rechazada borra también las cookies de la sesión', async (t) => {
+      if (!up) return t.skip(SKIP_MESSAGE);
+      // Sin esto, la pista legible (`hd_session`) sobrevivía a la sesión, y
+      // cada carga de la página volvía a pedir una renovación imposible: un
+      // 401 en la consola por recarga.
+      for (const cookie of [
+        'hd_refresh=no-es-un-token; hd_session=1',
+        'hd_session=1',
+      ]) {
+        const refused = await api('POST', '/auth/refresh', { cookie });
+        assert.equal(refused.status, 401);
+        const cleared = refused.cookies
+          .filter((setCookie) => /Expires=Thu, 01 Jan 1970/.test(setCookie))
+          .map((setCookie) => setCookie.split('=')[0])
+          .sort();
+        assert.deepEqual(cleared, ['hd_refresh', 'hd_session']);
+      }
     });
 
     // -- revocación del access token ------------------------------------------

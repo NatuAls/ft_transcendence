@@ -38,8 +38,19 @@ all: up-dev
 
 up-dev:
 	@bash scripts/gen-secrets.sh
+	@DEV_PROJECT=$(DEV_PROJECT) bash scripts/dev/local-cert.sh --ensure
 	@$(COMPOSE) $(COMPOSE_DEV) up --build --detach
 	@printf "$(GREEN)Containers started successfully.$(NC)\n"
+	@if [ -s config/local-tls/localhost.crt ]; then \
+		printf "Web: $(WHITE)https://localhost:5173$(NC)\n"; \
+	else \
+		printf "Web: $(WHITE)http://localhost:5173$(NC)\n"; \
+	fi
+
+# HTTPS en local con un certificado de confianza (scripts/dev/local-cert.sh).
+# `make` ya lo crea si falta; esto es para verlo o rehacerlo a propósito.
+cert: ## Certificado HTTPS de confianza para https://localhost:5173 (si ya hay uno, pregunta antes de rehacerlo; FORCE=1 no pregunta)
+	@DEV_PROJECT=$(DEV_PROJECT) bash scripts/dev/local-cert.sh $(if $(FORCE),--force,)
 
 down-dev:
 	@$(COMPOSE) $(COMPOSE_DEV) down
@@ -229,4 +240,4 @@ images:
 re: fclean up-dev
 
 
-.PHONY: all up-dev down-dev up-prod down-prod build ci deploy-staging deploy-prod propuesta it clean fclean prune-global logs ps images re
+.PHONY: all up-dev cert down-dev up-prod down-prod build ci deploy-staging deploy-prod propuesta it clean fclean prune-global logs ps images re
