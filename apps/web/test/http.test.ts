@@ -9,6 +9,7 @@ import {
 import { getAccessToken, saveAccessToken } from '../src/api/auth';
 import { apiError, mockApi, reply } from './support/api';
 import { adminUser, page } from './support/fixtures';
+import { jwt } from './support/jwt';
 
 describe('the API client', () => {
   it('sends the access token and JSON only when there is a body', async () => {
@@ -149,14 +150,58 @@ describe('the API client', () => {
     expect(errorMessage(failure)).toContain('did not answer');
   });
 
-  it('renews an expired session once and repeats the request', async () => {
+  it('renews a token about to expire before using it, without a 401 first', async () => {
+    // Antes salía con el token caducado, volvía con un 401 —que Chrome anota
+    // en rojo en la consola— y sólo entonces se renovaba y se repetía.
     document.cookie = 'hd_session=1';
-    saveAccessToken('expired');
+    saveAccessToken(jwt(10));
+    const fresh = jwt(900);
+    const { calls } = mockApi({
+      'GET /admin/role-grants': (call) =>
+        call.headers['authorization'] === `Bearer ${fresh}`
+          ? reply('GET /admin/role-grants', 200, [])
+          : apiError(
+              'GET /admin/role-grants',
+              401,
+              'AUTH_TOKEN_INVALID',
+              'Token is invalid or expired.',
+            ),
+      'POST /auth/refresh': {
+        status: 200,
+        body: { accessToken: fresh, user: {} },
+      },
+    });
+    await expect(request('/admin/role-grants')).resolves.toEqual([]);
+    expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
+      'POST /auth/refresh',
+      'GET /admin/role-grants',
+    ]);
+    expect(getAccessToken()).toBe(fresh);
+  });
+
+  it('does not renew a token that is still good', async () => {
+    document.cookie = 'hd_session=1';
+    saveAccessToken(jwt(900));
+    const { calls } = mockApi({
+      'GET /admin/role-grants': reply('GET /admin/role-grants', 200, []),
+    });
+    await request('/admin/role-grants');
+    expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
+      'GET /admin/role-grants',
+    ]);
+  });
+
+  it('renews once and repeats the request when the server refuses a token that looks good', async () => {
+    // Un token revocado en el servidor (cerrar las demás sesiones, cambiar la
+    // contraseña) parece válido hasta que la API lo rechaza.
+    document.cookie = 'hd_session=1';
+    saveAccessToken(jwt(600));
+    const fresh = jwt(900);
     let attempts = 0;
     const { calls } = mockApi({
       'GET /admin/role-grants': (call) => {
         attempts += 1;
-        return call.headers['authorization'] === 'Bearer fresh'
+        return call.headers['authorization'] === `Bearer ${fresh}`
           ? reply('GET /admin/role-grants', 200, [])
           : apiError(
               'GET /admin/role-grants',
@@ -167,7 +212,7 @@ describe('the API client', () => {
       },
       'POST /auth/refresh': {
         status: 200,
-        body: { accessToken: 'fresh', user: {} },
+        body: { accessToken: fresh, user: {} },
       },
     });
     await expect(request('/admin/role-grants')).resolves.toEqual([]);
@@ -177,7 +222,7 @@ describe('the API client', () => {
       'POST /auth/refresh',
       'GET /admin/role-grants',
     ]);
-    expect(getAccessToken()).toBe('fresh');
+    expect(getAccessToken()).toBe(fresh);
   });
 
   it('gives up after one renewal: a second 401 is a real one', async () => {
