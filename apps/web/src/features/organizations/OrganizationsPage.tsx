@@ -188,6 +188,7 @@ export function OrganizationsPage({
           <span className="sr-only">{t('organization.list.search')}</span>
           <input
             className="w-[90%] border-0 bg-transparent outline-0 focus-visible:!outline-none"
+            name="organizationSearch"
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t('organization.list.search')}
             type="search"

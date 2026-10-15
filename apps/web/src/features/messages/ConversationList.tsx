@@ -76,6 +76,7 @@ export function ConversationList({
           <span className="sr-only">{t('messages.sidebar.searchLabel')}</span>
           <input
             className="min-w-0 border-0 bg-transparent outline-0 focus-visible:!outline-none"
+            name="conversationSearch"
             onChange={(event) => onQueryChange(event.target.value)}
             placeholder={t('messages.sidebar.searchPlaceholder')}
             type="search"
@@ -143,6 +144,7 @@ export function ConversationList({
             <input
               className="min-h-10 w-full min-w-0 rounded-sm border border-border px-3"
               aria-label={t('messages.sidebar.colleagueSearchLabel')}
+              name="colleagueSearch"
               onChange={(event) => onCandidateQueryChange(event.target.value)}
               placeholder={t('messages.sidebar.colleagueSearchPlaceholder')}
               type="search"

@@ -108,6 +108,7 @@ function PreviewPeoplePage({
         <Icon name="search" size={16} />
         <input
           className="min-w-0 flex-1 border-0 bg-transparent outline-0 focus-visible:!outline-none"
+          name="peopleSearch"
           onChange={(event) => setQuery(event.target.value)}
           placeholder={t('people.preview.searchPlaceholder')}
           type="search"

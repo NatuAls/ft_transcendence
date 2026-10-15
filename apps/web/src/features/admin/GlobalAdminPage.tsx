@@ -485,6 +485,7 @@ export function GlobalAdminPage({
             <span className="sr-only">{t('admin.users.search')}</span>
             <input
               className="min-w-0 flex-1 border-0 bg-transparent outline-0 focus-visible:!outline-none"
+              name="userSearch"
               onChange={(event) => setQuery(event.target.value)}
               placeholder={t('admin.users.searchPlaceholder')}
               ref={searchRef}
