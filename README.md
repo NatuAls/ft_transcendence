@@ -170,8 +170,8 @@ on, not a nominal split: they match the commit history of the areas named.
 | Subject role | Assigned member(s) |
 |---|---|
 | Product Owner | arhea |
-| Project Manager / Scrum Master | login |
-| Technical Lead / Architect | login |
+| Project Manager / Scrum Master | elerazo- |
+| Technical Lead / Architect |  fcela-ga, nalesso, israetor  |
 | Developers | fcela-ga, nalesso, arhea, elerazo-, israetor |
 
 | Member | Role(s) | Responsibilities |
@@ -974,14 +974,62 @@ this note.
   focus management, keyboard navigation, accessible labels, touch targets and
   responsive behaviour at the target viewport sizes.
 
-### elerazo- — Front end
+### elerazo- — Scrum Master - Developer
 
-*Draft from the history; Elizabeth to confirm and add the challenges.*
+- Managed the task backlog and assigned work to team members according to the
+  project areas and priorities, keeping ownership and dependencies visible.
+- Organised and scheduled follow-up meetings to coordinate progress, review
+  blockers and agree the next steps for the project.
 
-- Built most of the chat: the Messages screen — conversations, messages and
-  unread counts — and its own realtime service on top of the socket layer.
-- Connected sign-in between the front end and the API, and documented it.
-- Set up the Makefile that the team has used since August.
+- Code: GitHub, feature branches (backend, frontend, dev-ops) merged
+  into develop through pull requests reviewed by another member; main
+  only receives develop and is what production runs. Pull request
+  template with a merge checklist; CODEOWNERS for the infrastructure paths.
+- Documentation: Notion workspace (endpoints, integration guides) and the
+  Markdown files in this repository.
+- Communication: WhatsApp and Discord for the day to day, Slack for the
+  threads that needed to stay findable.
+- Task tracking: Trello for the board, Notion for the written material
+  (endpoints, integration guides and the meeting notes).
+- Meetings: in person at the campus and remote, with *minutes written down*,
+  progress reports and periodic audits of the state of the project. Those
+  audits are what produced the pending-work inventories that drove the last
+  weeks of the project, and the reason several defects were found before an
+  evaluator would have found them.
+- How the work was split: by area rather than by ticket, which is what the
+  commit history shows — infrastructure and API on one side, the interface on
+  the other, and the modules assigned to whoever owned the area they touched.
+  «Team Information» above names who took each one.
+
+- Delivered the Messages area end to end: conversation discovery and creation,
+  paginated threads, optimistic sending with retry states, read receipts, and
+  server-backed unread counts. The view keeps the active thread current while
+  refreshing inactive conversation summaries without duplicating messages.
+
+- Built the chat realtime client on the shared Socket.IO layer. It authenticates
+  the handshake with the session access token, joins and leaves authorised
+  conversation rooms, restores that subscription after reconnecting, and
+  consumes message.created and message.read events to update messages,
+  read state and unread badges immediately.
+
+- Connected sign-in to the API and documented the frontend–backend contract:
+  validated credentials are submitted to /auth/login, the access token stays
+  in memory, the refresh token remains in an HttpOnly cookie, and the shared
+  HTTP client renews the session once before retrying an expired request.
+
+- Improved the messaging UX and accessibility: Escape deselects an open chat
+  only when no dialog is active; toast notifications provide consistent
+  feedback; the thread owns a bounded, smooth scroll area that follows new or
+  loaded messages while requesting older history at its top; and all Messages
+  copy is translated through the application i18n catalogues.
+
+- Set up and maintained the team Makefile used since August, with reproducible
+  development and production Compose targets, local TLS/secrets setup, seeded
+  development data, local CI and guarded cleanup commands.
+
+-  At the foundation of the project, *elerazo- and israetor collaborated* on
+-  designing and defining the main backend structure, selecting the technology
+-  stack, and setting up the base Docker/DevOps environment
 
 ### israetor — Reviews and infrastructure
 
