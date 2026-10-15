@@ -744,9 +744,9 @@ export function TicketDetailPage({
                       </h3>
                       <div className="flex items-center gap-2.5 text-xs">
                         <Avatar
-                            className="!size-[38px] !basis-[38px]"
-                            initials={getInitials(ticket.authorDisplayName)}
-                            src={ticket.authorAvatarUrl}
+                          className="!size-[38px] !basis-[38px]"
+                          initials={getInitials(ticket.authorDisplayName)}
+                          src={ticket.authorAvatarUrl}
                         />
                         {ticket.authorDisplayName}
                       </div>
