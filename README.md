@@ -955,5 +955,5 @@ every package manifest declares them with npm's convention for code that grants
 no licence (`"license": "UNLICENSED"`, next to `"private": true`).
 
 The third-party dependencies keep their own licences. The interface icons are
-drawn from [Lucide](https://lucide.dev) (ISC; some derive from Feather, MIT),
-whose notices are reproduced in [`LICENSE`](LICENSE).
+the project's own: inline SVG drawn for the design system and served by its own
+component, with no third-party icon set.

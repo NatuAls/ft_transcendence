@@ -1,6 +1,5 @@
-// Iconos dibujados a partir de Lucide (https://lucide.dev, licencia ISC; los
-// que vienen de Feather, MIT), adaptados al grosor de trazo del design system.
-// Sus avisos de licencia están en LICENSE, en la raíz del repositorio.
+// Iconos propios: SVG en línea dibujados para el design system y servidos por
+// este componente, sin ninguna colección ni dependencia de iconos de terceros.
 import type { SVGAttributes } from 'react';
 
 export type IconName =
