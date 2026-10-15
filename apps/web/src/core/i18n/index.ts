@@ -78,7 +78,27 @@ export async function initI18n() {
     },
   });
   document.documentElement.lang = i18next.language;
+  followLanguageOfOtherTabs();
   return i18next;
+}
+
+/**
+ * El idioma elegido en una pestaña llega a las demás del mismo navegador.
+ *
+ * `setLanguage` lo guarda en `localStorage`, y el navegador avisa a las otras
+ * pestañas con el evento `storage` (a la que lo ha escrito, no). Sin esto, cada
+ * pestaña se quedaba con su idioma hasta recargar.
+ */
+function followLanguageOfOtherTabs() {
+  window.addEventListener('storage', (event) => {
+    const lang = event.newValue;
+    if (event.key !== STORAGE_KEY || !lang) return;
+    if (!(LANGUAGES as readonly string[]).includes(lang)) return;
+    if (lang === i18next.language) return;
+    void i18next.changeLanguage(lang).then(() => {
+      document.documentElement.lang = lang;
+    });
+  });
 }
 
 /** Cambia el idioma en la interfaz; la pantalla de cuenta lo persiste en la API. */
