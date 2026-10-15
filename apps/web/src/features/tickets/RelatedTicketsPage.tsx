@@ -1,6 +1,6 @@
 import { Button, Icon, SelectField } from 'ui';
 import { TicketListResults } from './TicketListResults';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { searchTickets } from '../../api/tickets';
 import { useAsync } from '../../core/async/useAsync';
 import { AsyncState } from '../../core/async/AsyncState';
@@ -31,8 +31,10 @@ export function RelatedTicketsPage({
 
   const ticketsQuery = useAsync(
     async (signal) => {
-      const apiStatus = status === 'all' ? undefined : status.toUpperCase().replace(' ', '_');
-      const apiPriority = priority === 'all' ? undefined : priority.toUpperCase();
+      const apiStatus =
+        status === 'all' ? undefined : status.toUpperCase().replace(' ', '_');
+      const apiPriority =
+        priority === 'all' ? undefined : priority.toUpperCase();
 
       return searchTickets(
         organizationId,
@@ -55,10 +57,6 @@ export function RelatedTicketsPage({
   const totalTickets = apiResponse?.meta.total ?? 0;
   const pageCount = apiResponse?.meta.pages ?? 1;
 
-  useEffect(() => {
-    setPage(1);
-  }, [query, status, priority]);
-
   return (
     <div className="mx-auto max-w-[1160px] p-10 max-[900px]:px-4 max-[900px]:py-6">
       <button className="p-0 text-primary" onClick={onBack} type="button">
@@ -77,7 +75,7 @@ export function RelatedTicketsPage({
         </div>
         <Button onClick={onNewTicket}>＋ {t('tickets.new')}</Button>
       </header>
-      
+
       <section className="my-[26px] overflow-hidden rounded-md border border-border bg-surface">
         <header className="flex items-center justify-between p-[18px] max-[900px]:block">
           <div>
@@ -94,7 +92,10 @@ export function RelatedTicketsPage({
             <input
               className="border-0 bg-transparent outline-0 focus:ring-0 max-[900px]:flex-1"
               name="ticketSearch"
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setPage(1);
+              }}
               placeholder={t('tickets.related.searchPlaceholder')}
               type="search"
               value={query}
@@ -106,7 +107,10 @@ export function RelatedTicketsPage({
           <SelectField
             hideLabel
             label={t('tickets.related.statuses')}
-            onChange={(event) => setStatus(event.target.value)}
+            onChange={(event) => {
+              setStatus(event.target.value);
+              setPage(1);
+            }}
             value={status}
           >
             <option value="all">{t('tickets.filters.status.all')}</option>
@@ -120,7 +124,10 @@ export function RelatedTicketsPage({
           <SelectField
             hideLabel
             label={t('tickets.related.priorities')}
-            onChange={(event) => setPriority(event.target.value)}
+            onChange={(event) => {
+              setPriority(event.target.value);
+              setPage(1);
+            }}
             value={priority}
           >
             <option value="all">{t('tickets.filters.priority.all')}</option>
@@ -155,7 +162,7 @@ export function RelatedTicketsPage({
             onShowAllMobile={() => setShowAllMobile(true)}
             pageCount={pageCount}
             pageSize={pageSize}
-            showCreatedBy={false} 
+            showCreatedBy={false}
             showAllMobile={showAllMobile}
           />
         </AsyncState>
