@@ -133,7 +133,7 @@ export interface TicketDetail {
   categoryId: string | null;
   authorDisplayName: string;
   authorId: string;
-  authorAvatarUrl: string | null;
+  authorAvatarUrl?: string;
   assigneeDisplayName?: string | null;
   assigneeId: string | null;
   assigneeAvatarUrl: string | null;
@@ -148,7 +148,7 @@ export interface TicketComment {
     displayName: string;
     id: string;
     username: string;
-    avatarUrl: string | null;
+    avatarUrl?: string;
   };
   body: string;
   createdAt: string;
@@ -202,7 +202,7 @@ interface TicketCommentApi {
 function toTicketComment(row: TicketCommentApi): TicketComment {
   return {
     author: {
-      avatarUrl: row.author.profile?.avatarUrl ?? null,
+      avatarUrl: row.author.profile?.avatarUrl ?? undefined,
       displayName: row.author.profile?.displayName || row.author.username,
       id: row.author.id,
       username: row.author.username,
@@ -260,7 +260,7 @@ export function toTicketDetail(row: TicketDetailApi): TicketDetail {
     categoryColor: row.category?.color ?? null,
     authorDisplayName: row.createdBy.profile.displayName,
     authorId: row.createdBy.id,
-    authorAvatarUrl: row.createdBy.profile.avatarUrl,
+    authorAvatarUrl: row.createdBy.profile.avatarUrl ?? undefined,
     assigneeDisplayName: row.assignedTo?.profile.displayName ?? null,
     assigneeId: row.assignedTo?.id ?? null,
     assigneeAvatarUrl: row.assignedTo?.profile.avatarUrl ?? null,

@@ -149,6 +149,7 @@ export function WorkspacePage({
           canCreateInternal={can(viewer, 'comment:createInternal')}
           canViewInternal={can(viewer, 'comment:createInternal')}
           currentUserId={viewer.id}
+          currentUserAvatar={avatarUrl}
           key={ticketId}
           onBack={() =>
             navigate('tickets', getTicketFilterParams(location.params))
