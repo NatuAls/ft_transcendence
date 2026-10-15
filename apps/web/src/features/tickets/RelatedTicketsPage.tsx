@@ -1,7 +1,9 @@
-import { Button, Icon, LoadingState, SelectField, StatusBadge } from 'ui';
-import { useMemo, useState } from 'react';
-import { searchTickets, type TicketData } from '../../api/tickets';
+import { Button, Icon, SelectField } from 'ui';
+import { TicketListResults } from './TicketListResults';
+import { useState, useEffect } from 'react';
+import { searchTickets } from '../../api/tickets';
 import { useAsync } from '../../core/async/useAsync';
+import { AsyncState } from '../../core/async/AsyncState';
 import { useTranslation } from '../../core/i18n';
 
 export function RelatedTicketsPage({
@@ -23,24 +25,39 @@ export function RelatedTicketsPage({
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('all');
   const [priority, setPriority] = useState('all');
-  const response = useAsync(
-    (signal) =>
-      searchTickets(
+  const [page, setPage] = useState(1);
+  const [showAllMobile, setShowAllMobile] = useState(false);
+  const pageSize = 30;
+
+  const ticketsQuery = useAsync(
+    async (signal) => {
+      const apiStatus = status === 'all' ? undefined : status.toUpperCase().replace(' ', '_');
+      const apiPriority = priority === 'all' ? undefined : priority.toUpperCase();
+
+      return searchTickets(
         organizationId,
-        { createdById: personId, q: query || undefined, take: 100 },
+        {
+          createdById: personId,
+          q: query.trim() || undefined,
+          status: apiStatus,
+          priority: apiPriority,
+          page,
+          take: pageSize,
+        },
         signal,
-      ),
-    [organizationId, personId, query],
+      );
+    },
+    [organizationId, personId, query, status, priority, page],
   );
-  const visibleTickets = useMemo(
-    () =>
-      (response.data?.data ?? []).filter(
-        (ticket) =>
-          (status === 'all' || ticket.status === status) &&
-          (priority === 'all' || ticket.priority === priority),
-      ),
-    [priority, response.data?.data, status],
-  );
+
+  const apiResponse = ticketsQuery.data;
+  const currentTickets = apiResponse?.data ?? [];
+  const totalTickets = apiResponse?.meta.total ?? 0;
+  const pageCount = apiResponse?.meta.pages ?? 1;
+
+  useEffect(() => {
+    setPage(1);
+  }, [query, status, priority]);
 
   return (
     <div className="mx-auto max-w-[1160px] p-10 max-[900px]:px-4 max-[900px]:py-6">
@@ -60,6 +77,7 @@ export function RelatedTicketsPage({
         </div>
         <Button onClick={onNewTicket}>＋ {t('tickets.new')}</Button>
       </header>
+      
       <section className="my-[26px] overflow-hidden rounded-md border border-border bg-surface">
         <header className="flex items-center justify-between p-[18px] max-[900px]:block">
           <div>
@@ -67,14 +85,14 @@ export function RelatedTicketsPage({
               {t('tickets.related.heading')}
             </h2>
             <span className="text-2xs text-muted">
-              {t('tickets.related.results', { count: visibleTickets.length })}
+              {t('tickets.related.results', { count: totalTickets })}
             </span>
           </div>
-          <label className="rounded-sm border border-border px-3 py-[9px] max-[900px]:mt-[14px] max-[900px]:flex">
-            <Icon className="mr-1" name="search" size={14} />
+          <label className="rounded-sm border border-border px-3 py-[9px] max-[900px]:mt-[14px] max-[900px]:flex focus-within:border-focus focus-within:outline-3 focus-within:outline-focus">
+            <Icon className="mr-1 text-muted" name="search" size={14} />
             <span className="sr-only">{t('tickets.related.searchLabel')}</span>
             <input
-              className="border-0 bg-transparent outline-0 max-[900px]:flex-1"
+              className="border-0 bg-transparent outline-0 focus:ring-0 max-[900px]:flex-1"
               name="ticketSearch"
               onChange={(event) => setQuery(event.target.value)}
               placeholder={t('tickets.related.searchPlaceholder')}
@@ -83,6 +101,7 @@ export function RelatedTicketsPage({
             />
           </label>
         </header>
+
         <div className="flex gap-2 border-t border-border px-[18px] py-2.5">
           <SelectField
             hideLabel
@@ -110,41 +129,36 @@ export function RelatedTicketsPage({
             <option value="LOW">{t('tickets.priority.LOW')}</option>
           </SelectField>
         </div>
-        {response.status === 'loading' && !response.data ? (
-          <LoadingState />
-        ) : null}
-        {visibleTickets.map((ticket: TicketData) => (
-          <button
-            className="grid w-full grid-cols-[90px_2fr_1fr_1fr_1fr_110px] items-center gap-2.5 border-t border-border px-[18px] py-[14px] text-left text-2xs"
-            key={ticket.id}
-            onClick={() => onOpenTicket(ticket.id)}
-            type="button"
-          >
-            <span>#{ticket.id.slice(0, 8)}</span>
-            <strong>{ticket.title}</strong>
-            <span>{ticket.authorDisplayName}</span>
-            <StatusBadge
-              tone={
-                ticket.status === 'OPEN'
-                  ? 'open'
-                  : ticket.status === 'IN_PROGRESS'
-                    ? 'progress'
-                    : ticket.status === 'RESOLVED'
-                      ? 'resolved'
-                      : 'closed'
-              }
-            >
-              {t(`tickets.status.${ticket.status}`)}
-            </StatusBadge>
-            <span>{t(`tickets.priority.${ticket.priority}`)}</span>
-            <span>{ticket.updatedAt ?? ticket.createdAt}</span>
-          </button>
-        ))}
-        {response.status !== 'loading' && !visibleTickets.length ? (
-          <p className="border-t border-border p-[30px] text-center text-muted">
-            {t('tickets.related.empty')}
-          </p>
-        ) : null}
+
+        <AsyncState
+          emptyDescription={
+            query || status !== 'all' || priority !== 'all'
+              ? t('tickets.list.empty.filteredDescription')
+              : undefined
+          }
+          emptyTitle={
+            query || status !== 'all' || priority !== 'all'
+              ? t('tickets.empty')
+              : t('tickets.related.empty', 'No related tickets match.')
+          }
+          error={ticketsQuery.error}
+          errorTitle={t('tickets.list.errorTitle')}
+          isEmpty={currentTickets.length === 0}
+          onRetry={ticketsQuery.reload}
+          status={ticketsQuery.status}
+        >
+          <TicketListResults
+            activePage={page}
+            filteredTickets={currentTickets}
+            onOpenTicket={onOpenTicket}
+            onPageChange={setPage}
+            onShowAllMobile={() => setShowAllMobile(true)}
+            pageCount={pageCount}
+            pageSize={pageSize}
+            showCreatedBy={false} 
+            showAllMobile={showAllMobile}
+          />
+        </AsyncState>
       </section>
     </div>
   );
