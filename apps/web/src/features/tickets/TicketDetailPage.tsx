@@ -1,4 +1,5 @@
 import {
+  Avatar,
   Button,
   Dialog,
   Icon,
@@ -48,6 +49,7 @@ interface TicketDetailPageProps {
   canCreateInternal: boolean;
   canViewInternal: boolean;
   currentUserId: string;
+  currentUserAvatar?: string;
   organizationName: string;
   organizationId: string;
   onBack: () => void;
@@ -74,6 +76,7 @@ export function TicketDetailPage({
   canCreateInternal,
   canViewInternal,
   currentUserId,
+  currentUserAvatar,
   organizationName,
   organizationId,
   onBack,
@@ -531,9 +534,11 @@ export function TicketDetailPage({
                           key={comment.id}
                         >
                           {comment.author.id !== currentUserId ? (
-                            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-surface-secondary text-2xs text-primary">
-                              {getInitials(comment.author.displayName)}
-                            </span>
+                            <Avatar
+                              className="!size-[38px] !basis-[38px]"
+                              initials={getInitials(comment.author.displayName)}
+                              src={comment.author.avatarUrl}
+                            />
                           ) : null}
                           <div className="max-w-[78%] max-md:max-w-[82%]">
                             <small className="flex items-center gap-2 text-xs2 text-muted">
@@ -590,9 +595,11 @@ export function TicketDetailPage({
                             ) : null}
                           </div>
                           {comment.author.id === currentUserId ? (
-                            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-surface-secondary text-2xs text-ink">
-                              {getInitials(comment.author.displayName)}
-                            </span>
+                            <Avatar
+                              className="!size-[38px] !basis-[38px]"
+                              initials={getInitials(comment.author.displayName)}
+                              src={currentUserAvatar}
+                            />
                           ) : null}
                         </article>
                       ))}
@@ -736,12 +743,11 @@ export function TicketDetailPage({
                         {t('tickets.detail.requester')}
                       </h3>
                       <div className="flex items-center gap-2.5 text-xs">
-                        <span className="grid size-8 shrink-0 place-items-center rounded-full bg-warning-surface text-2xs text-warning">
-                          {ticket.authorDisplayName
-                            .split(' ')
-                            .map((part) => part[0])
-                            .join('')}
-                        </span>
+                        <Avatar
+                            className="!size-[38px] !basis-[38px]"
+                            initials={getInitials(ticket.authorDisplayName)}
+                            src={ticket.authorAvatarUrl}
+                        />
                         {ticket.authorDisplayName}
                       </div>
                     </>
