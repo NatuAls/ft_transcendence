@@ -49,7 +49,35 @@ async function parseError(response: Response): Promise<ApiError> {
   const body = (await response
     .json()
     .catch(() => ({}))) as Partial<ApiErrorBody>;
-  return new ApiError(body, response.status);
+  return apiErrorFrom(body, response.status);
+}
+
+/**
+ * El error de la API tal cual, o lo que de verdad ha pasado si la respuesta no
+ * trae su sobre de error.
+ *
+ * Sin sobre, quien contesta no es la API sino lo que tiene delante —el proxy de
+ * Vite en desarrollo, nginx en producción—, casi siempre porque la API está
+ * parada o reiniciándose. Las pantallas enseñaban entonces «Error inesperado»;
+ * ahora dicen que el servidor no está disponible, como ya hacía la de acceso.
+ */
+function apiErrorFrom(body: Partial<ApiErrorBody>, status: number): ApiError {
+  if (body.messageKey) return new ApiError(body, status);
+  if (status === 429)
+    return new ApiError(
+      {
+        ...body,
+        code: 'RATE_LIMITED',
+        messageKey: 'errors.common.rateLimited',
+      },
+      status,
+    );
+  if (status >= 500)
+    return new ApiError(
+      { ...body, messageKey: 'errors.common.serverUnavailable' },
+      status,
+    );
+  return new ApiError(body, status);
 }
 
 export async function request<T>(
@@ -130,24 +158,28 @@ export function upload<T>(
     xhr.onerror = () => reject(new NetworkError('xhr'));
     xhr.onload = () => {
       if (xhr.status === 401 && !retried) {
-        void refreshSession().then((session) => {
-          if (session) resolve(upload<T>(path, form, onProgress, true));
-          else {
-            clearAccessToken();
-            onUnauthorized();
-            reject(
-              new ApiError(
-                {
-                  statusCode: 401,
-                  code: 'UNAUTHORIZED',
-                  messageKey: 'errors.auth.sessionExpired',
-                  message: 'Unauthorized',
-                },
-                401,
-              ),
-            );
-          }
-        });
+        void refreshSession()
+          .then((session) => {
+            if (session) resolve(upload<T>(path, form, onProgress, true));
+            else {
+              clearAccessToken();
+              onUnauthorized();
+              reject(
+                new ApiError(
+                  {
+                    statusCode: 401,
+                    code: 'UNAUTHORIZED',
+                    messageKey: 'errors.auth.sessionExpired',
+                    message: 'Unauthorized',
+                  },
+                  401,
+                ),
+              );
+            }
+          })
+          // Sin esto, un servidor que no contesta al renovar dejaba la subida
+          // colgada para siempre: la promesa no se resolvía ni se rechazaba.
+          .catch((error: unknown) => reject(new NetworkError(error)));
         return;
       }
       let body: Partial<ApiErrorBody> & Record<string, unknown> = {};
@@ -157,7 +189,7 @@ export function upload<T>(
         /* sin cuerpo */
       }
       if (xhr.status >= 200 && xhr.status < 300) resolve(body as T);
-      else reject(new ApiError(body, xhr.status));
+      else reject(apiErrorFrom(body, xhr.status));
     };
     xhr.send(form);
   });

@@ -116,11 +116,46 @@ export class SessionUnreachable extends Error {
   }
 }
 
+/** El cerrojo con el que las pestañas del navegador se turnan para renovar. */
+const REFRESH_LOCK = 'helpdesk-session-refresh';
+/** Lo más que una renovación puede tener esperando a las demás pestañas. */
+const REFRESH_TIMEOUT_MS = 15_000;
+
+/**
+ * Ejecuta `work` cuando ninguna otra pestaña esté renovando la sesión.
+ *
+ * Cada renovación gasta la cookie de refresco y deja otra nueva, y la API toma
+ * la reutilización de una ya gastada por un token robado: revoca la familia y
+ * la sesión se cierra en todas las pestañas. Dos pestañas que renovaban a la vez
+ * —al restaurar el navegador, o con sus tokens caducando juntos— mandaban la
+ * misma cookie y provocaban justo eso. Con el cerrojo, la segunda espera a que
+ * la primera termine y sale ya con la cookie nueva. Sin Web Locks (un navegador
+ * antiguo, las pruebas) se renueva sin turno, como antes.
+ */
+function inTurn<T>(work: () => Promise<T>): Promise<T> {
+  const locks = typeof navigator === 'undefined' ? undefined : navigator.locks;
+  return locks ? locks.request(REFRESH_LOCK, work) : work();
+}
+
+/**
+ * Corta la renovación si el servidor no contesta: con el cerrojo, una que se
+ * quedase colgada dejaría esperando a todas las demás pestañas.
+ */
+function timeoutSignal(ms: number): AbortSignal | undefined {
+  return typeof AbortSignal.timeout === 'function'
+    ? AbortSignal.timeout(ms)
+    : undefined;
+}
+
 /**
  * Renueva la sesión a partir de la cookie de refresco.
  *
- * `null` significa UNA cosa: el servidor ha contestado que no hay sesión que
- * renovar. Si no contesta, lanza `SessionUnreachable`.
+ * `null` significa UNA cosa: la API ha contestado que no hay sesión que renovar
+ * (401 o 403). Cualquier otra respuesta no dice nada de la sesión y lanza
+ * `SessionUnreachable`: ni la red caída, ni el 5xx con el que contesta el proxy
+ * de delante —Vite en desarrollo, nginx en producción— cuando la API está
+ * parada, ni un 429 del limitador. Confundirlos echaba al inicio de sesión a
+ * quien recargaba durante un reinicio de la API, con la sesión todavía viva.
  */
 export function refreshSession(): Promise<AuthResponse | null> {
   if (refreshPromise) return refreshPromise;
@@ -130,12 +165,16 @@ export function refreshSession(): Promise<AuthResponse | null> {
     .some((cookie) => cookie.startsWith('hd_session='));
   if (!hasSessionHint) return Promise.resolve(null);
 
-  refreshPromise = fetch(`${API_URL}/auth/refresh`, {
-    method: 'POST',
-    credentials: 'include',
-  })
+  refreshPromise = inTurn(() =>
+    fetch(`${API_URL}/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+      signal: timeoutSignal(REFRESH_TIMEOUT_MS),
+    }),
+  )
     .then(async (response) => {
-      if (!response.ok) return null;
+      if (response.status === 401 || response.status === 403) return null;
+      if (!response.ok) throw new SessionUnreachable(`HTTP ${response.status}`);
       const body = await readJson<AuthResponse>(response);
       if (!body?.accessToken)
         throw new SessionUnreachable('The refresh response was empty.');
@@ -143,7 +182,9 @@ export function refreshSession(): Promise<AuthResponse | null> {
       return body;
     })
     .catch((cause: unknown) => {
-      throw new SessionUnreachable(cause);
+      throw cause instanceof SessionUnreachable
+        ? cause
+        : new SessionUnreachable(cause);
     })
     .finally(() => {
       refreshPromise = null;

@@ -1,15 +1,57 @@
 import { describe, it, before } from 'node:test';
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import {
   addMember,
   api,
   apiIsUp,
   createOrganization,
   createTicket,
+  multipart,
+  PNG_1X1,
   registerUser,
   SKIP_MESSAGE,
   type TestUser,
 } from './helpers.ts';
+
+/**
+ * Lo que una respuesta deja saber, sin lo que cambia en cada petición (la
+ * ruta, el `requestId`, la hora). Dos huellas iguales no se pueden distinguir.
+ */
+function huella(response: { status: number; body: unknown }) {
+  const body = (response.body ?? {}) as Record<string, unknown>;
+  return {
+    status: response.status,
+    code: body['code'],
+    messageKey: body['messageKey'],
+    message: body['message'],
+  };
+}
+
+/**
+ * Cada intento sobre lo ajeno contesta exactamente lo mismo que el mismo
+ * intento sobre un identificador inventado, y es un 404: «no existe».
+ */
+async function mismaRespuesta(
+  token: string,
+  ajenos: Array<[string, string, unknown?]>,
+  inventados: Array<[string, string, unknown?]>,
+) {
+  for (const [i, [method, path, body]] of ajenos.entries()) {
+    const [, pathInventado, bodyInventado] = inventados[i]!;
+    const ajeno = await api(method, path, { token, body });
+    const inventado = await api(method, pathInventado, {
+      token,
+      body: bodyInventado,
+    });
+    assert.deepEqual(
+      huella(ajeno),
+      huella(inventado),
+      `${method} ${path} no puede distinguirse de un recurso que no existe`,
+    );
+    assert.equal(ajeno.status, 404, `${method} ${path}`);
+  }
+}
 
 /**
  * Aislamiento multi-inquilino.
@@ -32,6 +74,8 @@ describe(
   () => {
     let up = false;
     let memberOfA: TestUser;
+    let otherMemberOfA: TestUser;
+    let agentOfA: TestUser;
     let adminOfA: TestUser;
     let adminOfB: TestUser;
     let orgA = '';
@@ -45,11 +89,15 @@ describe(
 
       adminOfA = await registerUser('tenA');
       memberOfA = await registerUser('tenM');
+      otherMemberOfA = await registerUser('tenM2');
+      agentOfA = await registerUser('tenAg');
       adminOfB = await registerUser('tenB');
 
       orgA = await createOrganization(adminOfA.token);
       orgB = await createOrganization(adminOfB.token);
       await addMember(adminOfA.token, orgA, memberOfA.username, 'MEMBER');
+      await addMember(adminOfA.token, orgA, otherMemberOfA.username, 'MEMBER');
+      await addMember(adminOfA.token, orgA, agentOfA.username, 'AGENT');
 
       ticketOfA = (await createTicket(memberOfA.token, orgA)).id;
       ticketOfB = (
@@ -122,25 +170,130 @@ describe(
 
     it('los tickets ajenos no se leen, ni se editan, ni se comentan', async (t) => {
       if (!up) return t.skip(SKIP_MESSAGE);
-      const attempts: Array<[string, string, unknown?]> = [
-        ['GET', `/tickets/${ticketOfB}`],
-        ['GET', `/tickets/${ticketOfB}/history`],
-        ['GET', `/tickets/${ticketOfB}/comments`],
-        ['GET', `/tickets/${ticketOfB}/attachments`],
-        ['PATCH', `/tickets/${ticketOfB}`, { priority: 'LOW' }],
-        ['DELETE', `/tickets/${ticketOfB}`],
-        ['POST', `/tickets/${ticketOfB}/comments`, { body: 'intruso' }],
+      // Y la respuesta es la de un ticket que no existe, idéntica: un 403, o un
+      // 404 con otro código («no eres miembro»), confirmaba que éste existe.
+      const attempts = (id: string): Array<[string, string, unknown?]> => [
+        ['GET', `/tickets/${id}`],
+        ['GET', `/tickets/${id}/history`],
+        ['GET', `/tickets/${id}/comments`],
+        ['GET', `/tickets/${id}/attachments`],
+        ['PATCH', `/tickets/${id}`, { priority: 'LOW' }],
+        ['DELETE', `/tickets/${id}`],
+        ['POST', `/tickets/${id}/comments`, { body: 'intruso' }],
       ];
-      for (const [method, path, body] of attempts) {
-        const response = await api(method, path, {
+      await mismaRespuesta(
+        memberOfA.token,
+        attempts(ticketOfB),
+        attempts(randomUUID()),
+      );
+    });
+
+    it('un MEMBER tampoco distingue el ticket de un compañero de uno que no existe', async (t) => {
+      if (!up) return t.skip(SKIP_MESSAGE);
+      const attempts = (id: string): Array<[string, string, unknown?]> => [
+        ['GET', `/tickets/${id}`],
+        ['GET', `/tickets/${id}/comments`],
+        ['GET', `/tickets/${id}/attachments`],
+      ];
+      await mismaRespuesta(
+        otherMemberOfA.token,
+        attempts(ticketOfA),
+        attempts(randomUUID()),
+      );
+    });
+
+    it('los adjuntos ajenos tampoco: ni se suben ni se descargan', async (t) => {
+      if (!up) return t.skip(SKIP_MESSAGE);
+      const adjunto = await api<{ id: string }>(
+        'POST',
+        `/tickets/${ticketOfB}/attachments`,
+        { token: adminOfB.token, ...multipart('b.png', 'image/png', PNG_1X1) },
+      );
+      assert.equal(adjunto.status, 201);
+
+      const subir = (id: string) =>
+        api('POST', `/tickets/${id}/attachments`, {
           token: memberOfA.token,
-          body,
+          ...multipart('intruso.png', 'image/png', PNG_1X1),
         });
-        assert.ok(
-          response.status === 403 || response.status === 404,
-          `${method} ${path} devolvió ${response.status}`,
+      assert.deepEqual(
+        huella(await subir(ticketOfB)),
+        huella(await subir(randomUUID())),
+        'subir a un ticket ajeno contesta como si no existiese',
+      );
+      await mismaRespuesta(
+        memberOfA.token,
+        [['GET', `/attachments/${adjunto.body.id}`]],
+        [['GET', `/attachments/${randomUUID()}`]],
+      );
+    });
+
+    it('el adjunto de una nota interna no existe para el autor del ticket', async (t) => {
+      if (!up) return t.skip(SKIP_MESSAGE);
+      // El autor (MEMBER) lee su ticket, pero no las notas internas: tampoco lo
+      // que cuelga de ellas, aunque tenga el identificador.
+      const nota = await api<{ id: string }>(
+        'POST',
+        `/tickets/${ticketOfA}/comments`,
+        {
+          token: agentOfA.token,
+          body: { body: 'Nota interna con una captura', isInternal: true },
+        },
+      );
+      assert.equal(nota.status, 201);
+      const adjunto = await api<{ id: string }>(
+        'POST',
+        `/tickets/${ticketOfA}/comments/${nota.body.id}/attachments`,
+        {
+          token: agentOfA.token,
+          ...multipart('nota.png', 'image/png', PNG_1X1),
+        },
+      );
+      assert.equal(adjunto.status, 201);
+
+      await mismaRespuesta(
+        memberOfA.token,
+        [['GET', `/attachments/${adjunto.body.id}`]],
+        [['GET', `/attachments/${randomUUID()}`]],
+      );
+      const subir = (comentario: string) =>
+        api(
+          'POST',
+          `/tickets/${ticketOfA}/comments/${comentario}/attachments`,
+          {
+            token: memberOfA.token,
+            ...multipart('autor.png', 'image/png', PNG_1X1),
+          },
         );
-      }
+      assert.deepEqual(
+        huella(await subir(nota.body.id)),
+        huella(await subir(randomUUID())),
+        'colgar un fichero de la nota interna contesta como si no existiese',
+      );
+      // Quien sí ve las notas internas lo descarga.
+      const descarga = await api('GET', `/attachments/${adjunto.body.id}`, {
+        token: agentOfA.token,
+      });
+      assert.equal(descarga.status, 200);
+    });
+
+    it('una clave de la API pública tampoco distingue un ticket ajeno de uno que no existe', async (t) => {
+      if (!up) return t.skip(SKIP_MESSAGE);
+      const clave = await api<{ secret: string }>(
+        'POST',
+        `/organizations/${orgA}/api-keys`,
+        {
+          token: adminOfA.token,
+          body: { name: 'aislamiento', scopes: ['tickets:read'] },
+        },
+      );
+      assert.equal(clave.status, 201);
+      const leer = (id: string) =>
+        api('GET', `/public/tickets/${id}`, { apiKey: clave.body.secret });
+      assert.deepEqual(
+        huella(await leer(ticketOfB)),
+        huella(await leer(randomUUID())),
+      );
     });
 
     it('crear un ticket en una organización ajena no cuela', async (t) => {
@@ -222,10 +375,11 @@ describe(
 
     it('y lo que no lista, tampoco lo abre: las dos puertas dicen lo mismo', async (t) => {
       if (!up) return t.skip(SKIP_MESSAGE);
+      // Lo que no le sale en la lista no existe para él: 404, no 403.
       assert.equal(
         (await api('GET', `/tickets/${ajeno}`, { token: miembro.token }))
           .status,
-        403,
+        404,
       );
       assert.equal(
         (await api('GET', `/tickets/${propio}`, { token: miembro.token }))

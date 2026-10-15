@@ -6,9 +6,10 @@ import './styles/global.css';
 import App from './App.tsx';
 import { AppErrorBoundary } from './app/AppErrorBoundary';
 import { initI18n } from './core/i18n';
-import { applyTheme } from './core/theme';
+import { applyTheme, followThemeOfOtherTabs } from './core/theme';
 
 applyTheme('system');
+followThemeOfOtherTabs();
 await initI18n();
 
 createRoot(document.getElementById('root')!).render(

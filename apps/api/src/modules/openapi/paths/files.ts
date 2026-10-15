@@ -106,7 +106,7 @@ export const filesPaths: Paths = {
       operationId: 'downloadAttachment',
       summary: 'Download an attachment',
       description:
-        'Access is re-checked against the ticket: being able to guess the id is not enough. Served with `Content-Disposition: attachment`, so nothing is rendered inline in the browser.',
+        'Access is re-checked against the ticket: being able to guess the id is not enough. An attachment whose ticket the caller cannot read, or that hangs from an internal note they cannot see, answers exactly the same 404 as one that does not exist. Served with `Content-Disposition: attachment`, so nothing is rendered inline in the browser.',
       security: session,
       parameters: [{ $ref: '#/components/parameters/IdPath' }],
       responses: {

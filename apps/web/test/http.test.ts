@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { request } from '../src/core/api/client';
-import { ApiError, NetworkError, errorMessage } from '../src/core/api/errors';
+import { request, upload } from '../src/core/api/client';
+import {
+  ApiError,
+  NetworkError,
+  errorKey,
+  errorMessage,
+} from '../src/core/api/errors';
 import { getAccessToken, saveAccessToken } from '../src/api/auth';
 import { apiError, mockApi, reply } from './support/api';
 import { adminUser, page } from './support/fixtures';
@@ -72,6 +77,69 @@ describe('the API client', () => {
     expect(failure).toBeInstanceOf(ApiError);
     expect(failure).toMatchObject({ status: 502, code: 'UNKNOWN' });
     expect(errorMessage(failure)).toContain('502');
+    // Y lo que dice es lo que pasa: sin el sobre de la API, es la API la que
+    // no está (15/10: las estadísticas decían «Error inesperado»).
+    expect(errorKey(failure)).toBe('errors.common.serverUnavailable');
+  });
+
+  it('says the server is unavailable whatever the proxy answers with', async () => {
+    // Vite contesta 500 sin cuerpo cuando la API está parada.
+    mockApi({ 'GET /users': { status: 500, body: undefined } });
+    const failure = await request('/users').catch((error: unknown) => error);
+    expect(errorKey(failure)).toBe('errors.common.serverUnavailable');
+  });
+
+  it('keeps the API own message when the 5xx does carry its envelope', async () => {
+    // El 500 de la propia API (error-handler.ts) sí trae su sobre.
+    mockApi({
+      'GET /users': {
+        status: 500,
+        body: {
+          statusCode: 500,
+          code: 'INTERNAL_ERROR',
+          messageKey: 'errors.common.internal',
+          message: 'Internal server error',
+        },
+      },
+    });
+    const failure = await request('/users').catch((error: unknown) => error);
+    expect(errorKey(failure)).toBe('errors.common.internal');
+  });
+
+  it('names the rate limit when nginx answers 429 without an envelope', async () => {
+    mockApi({ 'GET /users': { status: 429, body: undefined } });
+    const failure = await request('/users').catch((error: unknown) => error);
+    expect(failure).toMatchObject({ status: 429, code: 'RATE_LIMITED' });
+    expect(errorKey(failure)).toBe('errors.common.rateLimited');
+  });
+
+  it('does not leave an upload hanging when the renewal finds no server', async () => {
+    // La subida recibe un 401 y la renovación se encuentra el proxy con la API
+    // parada. Antes, la promesa de la subida no se resolvía nunca.
+    document.cookie = 'hd_session=1';
+    class SubidaFalsa {
+      status = 0;
+      responseText = '';
+      withCredentials = false;
+      upload: { onprogress: unknown } = { onprogress: null };
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      open() {}
+      setRequestHeader() {}
+      send() {
+        this.status = 401;
+        queueMicrotask(() => this.onload?.());
+      }
+    }
+    vi.stubGlobal('XMLHttpRequest', SubidaFalsa);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('', { status: 502 })),
+    );
+    const failure = await upload('/users/me/avatar', new FormData()).catch(
+      (error: unknown) => error,
+    );
+    expect(failure).toBeInstanceOf(NetworkError);
   });
 
   it('separates a server that refuses from a network that is not there', async () => {

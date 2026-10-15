@@ -22,7 +22,7 @@ import { SessionsPage } from './SessionsPage';
 import { AsyncState } from '../../core/async/AsyncState';
 import { useAsync } from '../../core/async/useAsync';
 import { useToast } from '../../core/feedback/useToast';
-import { applyTheme } from '../../core/theme';
+import { applyTheme, chooseTheme } from '../../core/theme';
 import {
   DeleteAccount,
   ExportReady,
@@ -291,7 +291,7 @@ function PreferencesPage({
   ) {
     setSaving(field);
     if (field === 'timezone') onChange(String(value));
-    if (field === 'theme') applyTheme(String(value));
+    if (field === 'theme') chooseTheme(String(value));
     preferences.setData((current) =>
       current ? { ...current, [field]: value } : current,
     );
@@ -306,7 +306,7 @@ function PreferencesPage({
         current ? { ...current, [field]: previous[field] } : current,
       );
       if (field === 'timezone') onChange(previous.timezone);
-      if (field === 'theme') applyTheme(previous.theme);
+      if (field === 'theme') chooseTheme(previous.theme);
       toast.error(error);
     } finally {
       setSaving(null);

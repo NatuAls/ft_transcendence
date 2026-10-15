@@ -1802,6 +1802,8 @@ export const ca: Translation = {
       invalidIdentifier: 'Aquest identificador no és vàlid.',
       notFound: 'No existeix, o no hi tens accés.',
       rateLimited: 'Massa sol·licituds. Torna-ho a provar d’aquí a un minut.',
+      serverUnavailable:
+        'El servidor no està disponible temporalment. Torna-ho a provar.',
       routeNotFound: 'Aquesta adreça no existeix.',
       stillReferenced:
         'No es pot esborrar mentre alguna cosa encara ho faci servir.',

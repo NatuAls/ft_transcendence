@@ -1,3 +1,5 @@
+// Iconos propios: SVG en línea dibujados para el design system y servidos por
+// este componente, sin ninguna colección ni dependencia de iconos de terceros.
 import type { SVGAttributes } from 'react';
 
 export type IconName =

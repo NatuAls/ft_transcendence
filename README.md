@@ -950,5 +950,10 @@ this note.
 **Educational use only.** This is an academic project built for the
 ft_transcendence subject at 42 Barcelona. It is published so it can be read and
 evaluated, not for reuse: no permission is granted to use it, in whole or in
-part, in any other product. The third-party dependencies keep their own
-licences.
+part, in any other product. The full terms are in [`LICENSE`](LICENSE), and
+every package manifest declares them with npm's convention for code that grants
+no licence (`"license": "UNLICENSED"`, next to `"private": true`).
+
+The third-party dependencies keep their own licences. The interface icons are
+the project's own: inline SVG drawn for the design system and served by its own
+component, with no third-party icon set.

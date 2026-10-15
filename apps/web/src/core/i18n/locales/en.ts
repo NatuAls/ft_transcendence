@@ -1796,6 +1796,8 @@ export const en = {
       invalidIdentifier: 'That identifier is not valid.',
       notFound: 'It does not exist, or you do not have access to it.',
       rateLimited: 'Too many requests. Please try again in a minute.',
+      serverUnavailable:
+        'The server is temporarily unavailable. Please try again.',
       routeNotFound: 'That address does not exist.',
       stillReferenced: 'It cannot be deleted while something still uses it.',
     },
