@@ -137,7 +137,7 @@ export const ticketsPaths: Paths = {
       operationId: 'getTicket',
       summary: 'Ticket detail',
       description:
-        'Includes reporter, assignee, category and counters. A caller outside the organization gets 404.',
+        "Includes reporter, assignee, category and counters. A caller who cannot read it — outside the organization, or a MEMBER asking for somebody else's ticket — gets exactly the same 404 as for a ticket that does not exist, so the answer never confirms that it exists. The same holds for everything under the ticket (history, comments, attachments).",
       security: session,
       parameters: [{ $ref: '#/components/parameters/IdPath' }],
       responses: { '200': ok('Ticket.', ref('Ticket')), ...errs('401', '404') },

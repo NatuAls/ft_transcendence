@@ -57,6 +57,25 @@ function subject(actor: RequestActor, membership?: RequestMembership) {
   };
 }
 
+/**
+ * Si quien pregunta puede leer el ticket: administrador de plataforma, o
+ * miembro de SU organización con `ticket:read` (AGENT o más, o su autor).
+ */
+export function canReadTicket(
+  actor: RequestActor,
+  membership: RequestMembership | undefined,
+  ticket: { organizationId: string; createdById: string },
+): boolean {
+  if (
+    actor.globalRole !== 'GLOBAL_ADMIN' &&
+    membership?.organizationId !== ticket.organizationId
+  )
+    return false;
+  return canPolicy('ticket:read', subject(actor, membership), {
+    ownerId: ticket.createdById,
+  });
+}
+
 function canAccessConversation(
   actor: RequestActor,
   membership: RequestMembership | undefined,
@@ -135,18 +154,19 @@ export async function findOne(
     where: { id },
     select: TICKET_SELECT,
   });
-  if (!ticket) throw Errors.resourceNotFound('ticket');
-
-  const isGlobalAdmin = actor.globalRole === 'GLOBAL_ADMIN';
+  // Lo que no se puede leer no existe para quien pregunta, y se contesta igual
+  // que a un identificador inventado. Un 403, o un 404 con otro código («no
+  // eres miembro»), confirmaba que el ticket existe: en otra organización, o
+  // de otra persona si pregunta un MEMBER. Es la regla de orgScope() aplicada
+  // al ticket y a todo lo que cuelga de él: historial, comentarios, adjuntos.
   if (
-    !isGlobalAdmin &&
-    (!membership || membership.organizationId !== ticket.organizationId)
-  ) {
-    throw Errors.notAMember();
-  }
-  assertPolicy('ticket:read', subject(actor, membership), {
-    ownerId: ticket.createdBy.id,
-  });
+    !ticket ||
+    !canReadTicket(actor, membership, {
+      organizationId: ticket.organizationId,
+      createdById: ticket.createdBy.id,
+    })
+  )
+    throw Errors.resourceNotFound('ticket');
   return ticket;
 }
 
