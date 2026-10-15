@@ -249,11 +249,7 @@ export function PrivacyPage({
               <small className="block text-2xs text-muted">
                 {t('account.privacy.legal.privacyDescription')}
               </small>
-              <Icon
-                className="shrink-0"
-                name="chevron-right"
-                size={18}
-              />
+              <Icon className="shrink-0" name="chevron-right" size={18} />
             </button>
             <button
               className="flex w-full items-center justify-between gap-4 border-t border-border py-[14px] text-left"
@@ -266,11 +262,7 @@ export function PrivacyPage({
               <small className="block text-2xs text-muted">
                 {t('account.privacy.legal.termsDescription')}
               </small>
-              <Icon
-                className="shrink-0"
-                name="chevron-right"
-                size={18}
-              />
+              <Icon className="shrink-0" name="chevron-right" size={18} />
             </button>
           </section>
         </main>
