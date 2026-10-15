@@ -1,12 +1,8 @@
 *This project has been created as part of the 42 curriculum by fcela-ga,
-nalesso, elerazo-, israetor and TODO(42 login) — GitHub `arielrhea`.*
+nalesso, arhea, elerazo- and israetor.*
 
-<!-- Two things are still open, and both can only be closed by the person they
-     belong to: Aren's 42 login, and the «How AI was used» line of each member.
-     The «Individual Contributions» sections are a draft taken from the commit
-     history so that nobody starts from a blank page: each person corrects
-     their own and deletes the note. Everything else describes the code as it
-     is. -->
+<!-- Required project roles and personal declarations marked with placeholders
+     must be completed and approved by the team member they belong to. -->
 
 # HelpDesk Lite
 
@@ -44,7 +40,8 @@ Key features:
   actions.
 - Privacy Policy and Terms of Service with real content, linked from the
   footer of every screen.
-- User locale (English / Spanish), timezone and theme stored per account.
+- User locale (English / Spanish / Catalan), timezone and theme stored per
+  account.
 - Operations: CI with tests and security scans, staging and production
   pipelines with approval gate and automatic rollback, encrypted backups
   with weekly restore drills, Prometheus/Grafana/Loki observability and
@@ -146,7 +143,20 @@ drafted is not a declaration.
   sign-up, is documented in «Users, organizations and roles».
 - **nalesso:** _to be written by Nahuel — which tools, for what, and what was
   reviewed or rewritten by hand._
-- **arielrhea:** _to be written by Aren._
+- **arhea:** I used OpenAI Codex as a pair programming, design review and
+  quality assurance tool throughout the front end work. It assisted me in
+  exploring and refining the HelpDesk Lite concept, reviewing the Penpot
+  design, planning user flows and responsive variants, scaffolding and
+  refactoring React and TypeScript components, migrating the application
+  progressively from plain CSS to Tailwind CSS v4, developing the shared UI
+  design system, drafting technical documentation and auditing responsive,
+  accessibility and interaction behaviour. I defined and approved the product
+  and visual direction, reviewed and iterated every proposed change, and
+  validated the resulting work with Prettier, ESLint, TypeScript checks,
+  production builds, browser tests at 320 px, 375 px, 768 px and 1440 px, CI
+  and team review. AI generated output was not accepted blindly: incorrect or
+  overly broad suggestions were corrected, and all retained code had to be
+  verified before integration.
 - **elerazo-:** _to be written by Elizabeth._
 - **israetor:** _to be written by Israel._
 
@@ -155,11 +165,20 @@ drafted is not a declaration.
 Five members. The roles below are what each person actually spent their time
 on, not a nominal split: they match the commit history of the areas named.
 
+### Required project roles
+
+| Subject role | Assigned member(s) |
+|---|---|
+| Product Owner | arhea |
+| Project Manager / Scrum Master | login |
+| Technical Lead / Architect | login |
+| Developers | fcela-ga, nalesso, arhea, elerazo-, israetor |
+
 | Member | Role(s) | Responsibilities |
 |---|---|---|
 | fcela-ga | DevOps / infrastructure · back end | The back end: data model and Prisma, the API and its structure, the public API; roles by e-mail, GDPR and the screens that complete those modules. And the whole of operations: CI/CD and both deployments, hosting and security hardening, backups and recovery, observability and alerting, operations documentation |
 | nalesso | Infrastructure · front end | The Docker setup of the whole project (images, dev and production composes) and CI/CD together with fcela-ga; the shared front-end infrastructure merged in #53 (HTTP client, async state, toasts, i18n, realtime) |
-| TODO(42 login) — GitHub `arielrhea` | Front end (lead) | The design system in `packages/ui` and the bulk of the interface: style base with semantic tokens, the screens and their responsive behaviour. The largest front-end contribution of the project |
+| arhea | Product Owner · Developer · Frontend lead / UI & UX | HelpDesk Lite product concept, Penpot prototypes and user flows, shared design system, React application architecture and integration specifications, responsive and accessible interfaces, Tailwind v4 migration, role-aware UX |
 | elerazo- | Chat · front end | Most of the chat, screen and realtime service, the sign-in connection between front and back, and the Makefile |
 | israetor | Reviews · infrastructure | Pinned the Node version in the images, and reviewed and merged most of the pull requests, the infrastructure ones included |
 
@@ -783,12 +802,13 @@ memory.
 | Notifications & e-mail | fcela-ga | In-app + SMTP, user preferences |
 | Public API | fcela-ga | Scoped API keys, per-key rate limits |
 | GDPR export/delete, audit log | fcela-ga | Export and deletion requests with an e-mailed code, a second factor on deletion, a background ZIP build and anonymisation of what other people depend on; the audit log records who did what |
-| Front end (all screens) | arielrhea (design system and most screens) · elerazo- · nalesso | Sign in / register, workspace, organizations, ticket list / detail / create, people and profiles, messages, account and privacy, global admin, legal pages |
+| Front end (all screens) | arhea (design system and most screens) · elerazo- · nalesso | Sign in / register, workspace, organizations, ticket list / detail / create, people and profiles, messages, account and privacy, global admin, legal pages |
 | Roles by e-mail address, platform and organization | fcela-ga | Two screens that give a role to an address; applied at once to a verified account, otherwise reserved and claimed when the address is verified (never at sign-up); the e-mail verification route that makes the claim possible; a notice of what is waiting for an unverified account |
-| Administration wired to the API | arielrhea (screens) · fcela-ga (integration) | Users (list, invite, edit, suspend, change role, delete), Organizations (list, create with its first administrator), Organization settings (edit, delete, members, categories), real active organization and role-dependent views |
+| Administration wired to the API | arhea (screens) · fcela-ga (integration) | Users (list, invite, edit, suspend, change role, delete), Organizations (list, create with its first administrator), Organization settings (edit, delete, members, categories), real active organization and role-dependent views |
 | Friends, presence, profiles, sessions, avatar | fcela-ga | Friends and requests with live online status, public profiles, a realtime connection for the whole signed-in session, devices with the current one marked and sign-out per device, the default avatar and "Remove photo" |
-| Legal footer | arielrhea (pages) · fcela-ga (footer) | Privacy Policy, Terms of Service and status page linked from every screen, including the session-state screens and the status page |
+| Legal footer | arhea (pages) · fcela-ga (footer) | Privacy Policy, Terms of Service and status page linked from every screen, including the session-state screens and the status page |
 | Shared front-end infrastructure | nalesso | One HTTP client with session renewal, async state with its four states, toasts, i18n (en/es/ca) and the realtime provider |
+| Advanced search and ticket discovery | arhea (search and filter UX) · nalesso (front-end/API integration and global search) · fcela-ga (search API and integration tests) | Global search across tickets and people, plus ticket text search with status, priority and category filters, creation-date sorting, server-side pagination and filter state reflected in the URL |
 | CI/CD pipelines | fcela-ga | Reusable CI (lint, types, tests, Trivy, gitleaks), staging/production deploys with approval gate and rollback |
 | Hosting & security hardening | fcela-ga | Oracle VM, Cloudflare, origin closed to Cloudflare ranges (VCN + iptables), fail2ban, least-privilege DB roles, security headers, rate limits |
 | Health checks & status page | fcela-ga | Liveness and readiness probes, a per-area public traffic light that hides infrastructure detail, and a status page at `/status` served as a static file so it stays up when the application does not |
@@ -798,7 +818,7 @@ memory.
 
 ## Modules
 
-Thirteen modules, **22 points**. The maximum that counts is 19 (14 plus 5 of
+Fourteen modules, **23 points**. The maximum that counts is 19 (14 plus 5 of
 bonus), so the margin is deliberate: a module an evaluator rejects does not
 take the project down with it.
 
@@ -807,20 +827,21 @@ built by more than one person, both are named.
 
 | Module | Type | Points | Owner | Implementation |
 |---|---|---|---|---|
-| Custom-made design system with reusable components | Minor | 1 | arielrhea | 15 generic reusable components in `packages/ui` — the module asks for ten — built on semantic tokens rather than raw values: a `@theme` palette (canvas, surface, border, ink, muted, primary and the four feedback colours), one type scale, shared radii and a typed `Icon` set. `packages/ui/README.md` is the catalogue: every component with its API, its variants, what it is used for, and the keyboard and accessibility behaviour it guarantees. `BrandMark` is exported too but deliberately not counted, because it is product branding and not a generic component |
+| Custom-made design system with reusable components | Minor | 1 | arhea | 15 generic reusable components in `packages/ui` — the module asks for ten — built on semantic tokens rather than raw values: a `@theme` palette (canvas, surface, border, ink, muted, primary and the four feedback colours), one type scale, shared radii and a typed `Icon` set. `packages/ui/README.md` is the catalogue: every component with its API, its variants, what it is used for, and the keyboard and accessibility behaviour it guarantees. `BrandMark` is exported too but deliberately not counted, because it is product branding and not a generic component |
 | Public API with authentication, rate limiting and documentation | Major | 2 | fcela-ga | 14 endpoints with `X-API-Key` (Argon2id secret shown once), per-key scopes, 60/min and 1000/h limits and organization tenancy; OpenAPI 3.0.3 with 110 operations generated from the Zod contracts, browsable at `/api/v1/docs` behind two independent doors, and a test that fails if any route is undocumented. See «Public API» above |
 | CI/CD pipeline with automated testing and deployment | Major | 2 | fcela-ga | Seven CI jobs on every pull request, images built once per SHA on a native ARM64 runner and promoted by SHA, a production gate enforced in code (`scripts/ci/prod-gate.mjs`) because environment reviewers do not pause anything in a private repository, encrypted pre-deploy backup, smoke test and automatic rollback, and the whole pipeline reproducible locally with `make ci` / `make deploy-*`. See «Continuous Integration and Delivery» above |
 | Monitoring system with Prometheus and Grafana | Major | 2 | fcela-ga | `compose.observability.yml`: Prometheus 3.14, Grafana 13.2, Alertmanager, five exporters and blackbox probes; nine application metrics behind `METRICS_TOKEN`; 23 alert rules with runbooks, delivery verified by e-mail and Telegram. See «Observability and Alerting» above |
 | Health check and status page system with automated backups and disaster recovery | Minor | 1 | fcela-ga | Liveness, readiness and a public per-area traffic light (`/api/health`, `/ready`, `/status`), the last one answering with full detail only to the operation token; a status page at `/status` served as a static file so it survives both the application bundle and the API; nightly AES-256 backups to Oracle Object Storage, `restore.sh` with integrity checks and a weekly automated restore drill with the recovery time measured; seven alert rules watch backups and drills, three of them on the absence of the metric. See «Health checks, the status page and recovery» above |
 | GDPR compliance features | Minor | 1 | fcela-ga | The module's four subpoints, end to end from the browser: request your data (`POST /gdpr/export`), deletion with confirmation (`POST /gdpr/delete`, needing both the e-mailed code **and** your own username typed back), export in a readable format (a ZIP of JSON built in the background and served through a short-lived authenticated download) and confirmation e-mails at every step. Content other people depend on is anonymised rather than erased, which is what the regulation allows. See «Privacy and data rights» below |
-| Standard user management and authentication | Major | 2 | fcela-ga (API, friends, profile, sessions and avatar) · arielrhea (profile and account screens) | The module's four requirements, from the browser and against the API: profile editing; avatar upload re-encoded to WebP without EXIF, with the initials as default avatar and "Remove photo" that also deletes the file; friends with requests both ways and **live** online status (one Socket.IO connection for the whole signed-in session, `presence.changed` followed by the screens); a profile page with presence, organizations and activity. On top, revocable sessions with the current device marked, which the Terms of Service promise. See «Users, organizations and roles» above |
-| Advanced permissions system | Major | 2 | fcela-ga (RBAC, roles by e-mail, role screens) · arielrhea (users screen) | Users CRUD (list, invite, edit, suspend, change role, delete) with your own account and the primary administrator locked; five fixed roles on two levels decided by one pure policy function on every request; roles given **by e-mail address** at platform and organization level, reaching the account only when the address is verified; and screens that change with the role — the same «Roles & access» route is three different screens for `MEMBER`, `AGENT` and `ORG_ADMIN`. 19 integration cases cover the assignment and the membership rules around it, 7 more the platform user administration, and the web tests check that each role sees its own screen and that the interface never offers what the API refuses. See «Users, organizations and roles» above |
-| Organization system | Major | 2 | fcela-ga (API and the wiring to it) · arielrhea (organization screens) | Create (with its first administrator given by e-mail), edit and delete organizations; add users by e-mail address and remove them; the active organization taken from the API and switchable; inside it, categories created and edited, members re-roled, and per-organization statistics — every rule enforced again by the server (`orgScope`, 404 rather than 403 to outsiders, the last-administrator rule). See «Users, organizations and roles» above |
-| Use a framework for both front end and back end | Major | 2 | arielrhea (front) · fcela-ga (back) | React 19 with TypeScript and Vite 8 on the front; Express 5 on Node 24 on the back. Both typed end to end by the Zod contracts of `packages/contracts`, which are the same objects the two sides validate against |
+| Standard user management and authentication | Major | 2 | fcela-ga (API, friends, profile, sessions and avatar) · arhea (profile and account screens) | The module's four requirements, from the browser and against the API: profile editing; avatar upload re-encoded to WebP without EXIF, with the initials as default avatar and "Remove photo" that also deletes the file; friends with requests both ways and **live** online status (one Socket.IO connection for the whole signed-in session, `presence.changed` followed by the screens); a profile page with presence, organizations and activity. On top, revocable sessions with the current device marked, which the Terms of Service promise. See «Users, organizations and roles» above |
+| Advanced permissions system | Major | 2 | fcela-ga (RBAC, roles by e-mail, role screens) · arhea (users screen) | Users CRUD (list, invite, edit, suspend, change role, delete) with your own account and the primary administrator locked; five fixed roles on two levels decided by one pure policy function on every request; roles given **by e-mail address** at platform and organization level, reaching the account only when the address is verified; and screens that change with the role — the same «Roles & access» route is three different screens for `MEMBER`, `AGENT` and `ORG_ADMIN`. 19 integration cases cover the assignment and the membership rules around it, 7 more the platform user administration, and the web tests check that each role sees its own screen and that the interface never offers what the API refuses. See «Users, organizations and roles» above |
+| Organization system | Major | 2 | fcela-ga (API and the wiring to it) · arhea (organization screens) | Create (with its first administrator given by e-mail), edit and delete organizations; add users by e-mail address and remove them; the active organization taken from the API and switchable; inside it, categories created and edited, members re-roled, and per-organization statistics — every rule enforced again by the server (`orgScope`, 404 rather than 403 to outsiders, the last-administrator rule). See «Users, organizations and roles» above |
+| Use a framework for both front end and back end | Major | 2 | arhea (front) · fcela-ga (back) | React 19 with TypeScript and Vite 8 on the front; Express 5 on Node 24 on the back. Both typed end to end by the Zod contracts of `packages/contracts`, which are the same objects the two sides validate against |
 | Use a database ORM | Minor | 1 | fcela-ga | Prisma 7 with `@prisma/adapter-pg` and versioned migrations applied on every deploy; 22 tables with their constraints and cascades |
 | Real-time features with WebSockets | Major | 2 | fcela-ga (socket layer, rooms, presence, event bus) · elerazo- (the chat's realtime service) · nalesso (front-end provider) | Socket.IO with rooms per user, organization, ticket and conversation, and no global broadcast: one-to-one chat with unread counts, and presence held by one connection for the whole session that People and Profile follow live. Verified with two browsers: online at once, offline sixty seconds after leaving |
 | User interaction features | Major | 2 | elerazo- (chat) · fcela-ga (friendships API, friends and profile screens) | One-to-one chat; friendships with requests both ways, accept, decline and withdraw; public profiles with presence, organizations, role in each and activity; and finding people among the colleagues of the active organization or across the platform |
-| **Total** | | **22** | | |
+| Advanced search functionality | Minor | 1 | arhea (search and filter UX) · nalesso (front-end/API integration and global search) · fcela-ga (search API and integration tests) | Ticket search connected end to end to the API, with text queries, status, priority and category filters, creation-date sorting and server-side pagination. Filter state is reflected in the URL, and global search queries tickets and people through the API. |
+| **Total** | | **23** | | |
 
 ## Individual Contributions
 
@@ -899,17 +920,61 @@ this note.
   internationalisation in three languages and the realtime provider. It is what
   the rest of the screens are now built on.
 
-### TODO(42 login) — GitHub `arielrhea` — Front end
+### arhea — Product Owner · Frontend lead / UI & UX
 
-*Draft from the history; Aren to confirm and add the challenges.*
+- Defined the HelpDesk Lite product concept and translated it into the
+  application's information architecture, user journeys and interface
+  structure.
+- Designed and iterated the UI/UX in Penpot, including visual foundations,
+  reusable component patterns, user flows and responsive layouts for desktop,
+  tablet and mobile.
+- Established the initial front-end engineering foundation by configuring the
+  shared UI and contracts packages, Prettier, ESLint, the pull-request template
+  and standardized Node.js and npm versions.
+- Built the initial React and TypeScript application architecture, including
+  the application shell, navigation, routing, error boundaries and interfaces
+  for authentication, tickets, account and privacy settings, people,
+  organizations, messaging, administration and legal content.
+- Created the shared design system in `packages/ui`: 15 reusable components
+  plus the project BrandMark, semantic colour and typography tokens, component
+  variants and a typed inline SVG icon system. The components include
+  documented keyboard, focus, ARIA, disabled, error, loading, empty and
+  responsive behaviour.
+- Led the progressive migration from plain CSS to Tailwind CSS v4, completing
+  it by functional area while preserving the custom visual language and
+  removing the replaced legacy styles.
+- Designed and refined role-aware experiences for Members, Agents,
+  Organization Administrators and Global Administrators, including
+  active-organization context, organization switching and invitations,
+  suspended and no-organization states, permission-dependent actions, agent
+  self-assignment and administrator reassignment.
+- Refined product and usability behaviour across ticket workflows,
+  organization membership, platform administration, conversations, global
+  search, status presentation and responsive actions.
+- Audited and corrected the interface at 320 px, 375 px, 768 px and 1440 px,
+  covering mobile ticket layouts, message composer breakpoints, table-to-card
+  adaptations, touch targets, keyboard interaction and horizontal-overflow
+  prevention.
+- Wrote and maintained the front-end integration guide, front-end guide,
+  shared UI documentation and front-end/back-end integration specifications.
 
-- Built the design system in `packages/ui`: 15 generic reusable components with
-  their semantic palette, type scale, icons and the documented keyboard and
-  accessibility behaviour (`packages/ui/README.md`).
-- Migrated the application from plain CSS to Tailwind v4 with its own tokens
-  (PR #43), which is what closed the mandatory CSS requirement.
-- The bulk of the interface and its responsive behaviour across desktop, tablet
-  and phone. The largest front-end contribution of the project.
+**Key challenges and solutions**
+
+- **Design-to-code at scale:** The prototype included numerous screens, roles
+  and edge states while the backend contract was still evolving. I organized
+  the application into feature-based modules, created shared typed components
+  and used deterministic preview scenarios so that every role and state could
+  be reviewed before API integration.
+- **Migration to Tailwind CSS v4:** Replacing the feature-specific CSS without
+  changing the established interface required an incremental migration. Each
+  functional area was migrated separately using semantic tokens and shared
+  components, followed by formatting, linting, TypeScript and production-build
+  validation.
+- **Responsive and accessible workflows:** Complex tables, dialogs and
+  permission-dependent actions had to remain usable across desktop, tablet and
+  phone. I introduced dedicated mobile adaptations and systematically verified
+  focus management, keyboard navigation, accessible labels, touch targets and
+  responsive behaviour at the target viewport sizes.
 
 ### elerazo- — Front end
 
