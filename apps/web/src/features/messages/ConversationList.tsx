@@ -1,5 +1,6 @@
 import { Avatar, Dialog, Icon, IconButton } from 'ui';
 import type { ChatUser } from '../../api/messages';
+import { useTranslation } from '../../core/i18n';
 import {
   conversationKey,
   newConversationCandidates,
@@ -35,6 +36,7 @@ export function ConversationList({
   onStartConversation: (user: ChatUser) => void;
   previewMode: boolean;
 }) {
+  const { t } = useTranslation();
   const visibleCandidates = previewMode
     ? newConversationOpen && candidateQuery.trim().length >= 2
       ? newConversationCandidates
@@ -45,7 +47,7 @@ export function ConversationList({
           )
           .map((candidate) => ({
             id: `preview-${candidate.name.toLowerCase().replaceAll(' ', '-')}`,
-            profile: { displayName: candidate.name },
+            profile: { avatarUrl: null, displayName: candidate.name },
             username: candidate.name.toLowerCase().replaceAll(' ', '.'),
           }))
       : []
@@ -59,22 +61,24 @@ export function ConversationList({
     <>
       <aside className="conversation-list flex min-h-0 flex-col border-r border-border max-md:border-0">
         <div className="flex h-[62px] items-center justify-between px-5 max-md:hidden">
-          <h2 className="text-base font-medium">Conversations</h2>
+          <h2 className="text-base font-medium">
+            {t('messages.sidebar.title')}
+          </h2>
           <IconButton
             icon="plus"
-            label="New conversation"
+            label={t('messages.sidebar.newConversation')}
             onClick={onNewConversation}
             size="sm"
           />
         </div>
         <label className="mx-4 mb-2 flex h-[38px] items-center gap-2 rounded-sm border border-border px-2.5 focus-within:border-focus focus-within:outline-3 focus-within:outline-focus max-md:mx-0 max-md:mt-4 max-md:mb-[18px] max-md:h-11">
           <Icon name="search" size={15} />
-          <span className="sr-only">Search conversations</span>
+          <span className="sr-only">{t('messages.sidebar.searchLabel')}</span>
           <input
             className="min-w-0 border-0 bg-transparent outline-0 focus-visible:!outline-none"
             name="conversationSearch"
             onChange={(event) => onQueryChange(event.target.value)}
-            placeholder="Search conversations"
+            placeholder={t('messages.sidebar.searchPlaceholder')}
             type="search"
             value={query}
           />
@@ -91,45 +95,64 @@ export function ConversationList({
                 className="!size-[34px] !basis-[34px] !text-2xs"
                 initials={conversation.initials}
                 online={conversation.online}
+                src={conversation.avatarUrl ?? undefined}
               />
-              <span className="grid gap-1.5">
+              <span className="grid min-w-0 gap-1.5">
                 <strong className="text-xs font-medium">
                   {conversation.name}
                 </strong>
-                <small className="text-3xs text-muted">
-                  {conversation.preview}
+                <small className="truncate text-3xs text-muted">
+                  {conversation.previewKey
+                    ? t(conversation.previewKey)
+                    : conversation.preview}
                 </small>
               </span>
-              <time className="text-3xs text-muted">{conversation.time}</time>
+              <span className="grid justify-items-end gap-1">
+                <time className="text-3xs text-muted">
+                  {conversation.timeKey
+                    ? t(conversation.timeKey)
+                    : conversation.time}
+                </time>
+                {conversation.unreadCount ? (
+                  <span
+                    aria-label={t('messages.sidebar.unreadCount', {
+                      count: conversation.unreadCount,
+                    })}
+                    className="grid min-w-4 place-items-center rounded-full bg-primary px-1 text-3xs text-surface"
+                  >
+                    {conversation.unreadCount}
+                  </span>
+                ) : null}
+              </span>
             </button>
           ))}
           {!conversations.length ? (
             <p className="px-4 py-7 text-center text-xs2 text-muted">
-              No conversations found.
+              {t('messages.sidebar.empty')}
             </p>
           ) : null}
         </div>
       </aside>
       {newConversationOpen ? (
         <Dialog
-          description="Choose a colleague to begin a conversation."
-          eyebrow="MESSAGES"
+          description={t('messages.sidebar.dialogDescription')}
+          eyebrow={t('messages.sidebar.dialogEyebrow')}
           onClose={onCloseNewConversation}
-          title="New conversation"
+          title={t('messages.sidebar.newConversation')}
         >
           <div className="grid min-w-0 gap-1.5 p-[5px]">
             <input
               className="min-h-10 w-full min-w-0 rounded-sm border border-border px-3"
-              aria-label="Search colleagues"
+              aria-label={t('messages.sidebar.colleagueSearchLabel')}
               name="colleagueSearch"
               onChange={(event) => onCandidateQueryChange(event.target.value)}
-              placeholder="Search by username"
+              placeholder={t('messages.sidebar.colleagueSearchPlaceholder')}
               type="search"
               value={candidateQuery}
             />
             {!candidateQuery.trim() || candidateQuery.trim().length < 2 ? (
               <p className="text-xs text-muted">
-                Write at least 2 characters to search.
+                {t('messages.sidebar.minimumSearch')}
               </p>
             ) : null}
             {visibleCandidates.map((user) => (
@@ -144,6 +167,7 @@ export function ConversationList({
                   initials={(user.profile?.displayName ?? user.username)
                     .slice(0, 2)
                     .toUpperCase()}
+                  src={user.profile?.avatarUrl ?? undefined}
                 />
                 <span className="grid gap-1">
                   <strong>{user.profile?.displayName ?? user.username}</strong>
@@ -155,7 +179,9 @@ export function ConversationList({
               </button>
             ))}
             {candidateQuery.trim().length >= 2 && !visibleCandidates.length ? (
-              <p className="text-xs text-muted">No users found.</p>
+              <p className="text-xs text-muted">
+                {t('messages.sidebar.noUsers')}
+              </p>
             ) : null}
           </div>
         </Dialog>

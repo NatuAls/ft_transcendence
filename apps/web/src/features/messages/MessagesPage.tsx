@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ViewerSession } from '../../app/session';
 import { previewMode } from '../../app/session';
+import { useTranslation } from '../../core/i18n';
 import {
   listConversations,
   listMessages,
@@ -8,6 +9,7 @@ import {
   openConversation,
   searchUsers,
   sendMessage as sendChatMessage,
+  type ApiConversation,
   type ApiMessage,
   type ChatUser,
 } from '../../api/messages';
@@ -41,7 +43,7 @@ const previewMessages: MessageItem[] = [
     conversationId: 'preview-conversation-maya',
     createdAt: '2026-09-28T12:05:00.000Z',
     editedAt: null,
-    id: 'preview-message-2',
+    id: 'preview-message-9',
     sender: { id: 'preview-current-user', username: 'preview.user' },
     status: 'sent',
   },
@@ -65,6 +67,28 @@ function replaceOrAppend(
   return updated;
 }
 
+function toConversation(row: ApiConversation): Conversation | null {
+  if (!row.participant) return null;
+  const name = row.participant.profile?.displayName ?? row.participant.username;
+  return {
+    id: row.id,
+    userId: row.participant.id,
+    username: row.participant.username,
+    avatarUrl: row.participant.profile?.avatarUrl ?? null,
+    initials: name.slice(0, 2).toUpperCase(),
+    name,
+    online: row.participant.profile?.isOnline ?? false,
+    preview: row.lastMessage?.body ?? '',
+    previewKey: row.lastMessage ? undefined : 'messages.data.noMessages',
+    role: 'messages.roles.colleague',
+    time: row.lastMessageAt
+      ? new Date(row.lastMessageAt).toLocaleDateString()
+      : '',
+    timeKey: row.lastMessageAt ? undefined : 'messages.data.newConversation',
+    unreadCount: row.unreadCount,
+  };
+}
+
 export function MessagesPage({
   viewer,
   initialPerson,
@@ -76,6 +100,7 @@ export function MessagesPage({
   onOpenProfile: (personName: string) => void;
   onViewTickets: (personId: string, personName: string) => void;
 }) {
+  const { t } = useTranslation();
   const previewInitialConversation =
     initialConversations.find(
       (conversation) => conversation.name === initialPerson,
@@ -109,55 +134,52 @@ export function MessagesPage({
   const [scrollToBottomToken, setScrollToBottomToken] = useState(0);
   const active = conversations.find(
     (conversation) => conversationKey(conversation) === selected,
-  ) ??
-    conversations[0] ?? {
-      initials: '?',
-      name: 'Selecciona una conversación',
-      preview: '',
-      role: '',
-      time: '',
-    };
+  ) ?? {
+    initials: '?',
+    name: t('messages.data.selectConversation'),
+    preview: '',
+    role: '',
+    time: '',
+  };
   const activeConversationId = active.id;
 
+  const loadConversations = useCallback(
+    (selectInitialPerson = false) => {
+      if (previewMode) return;
+      void listConversations()
+        .then((rows) => {
+          const loaded = rows
+            .map(toConversation)
+            .filter((conversation): conversation is Conversation =>
+              Boolean(conversation),
+            );
+          setConversations(loaded);
+          if (selectInitialPerson && initialPerson) {
+            const matching = loaded.find((conversation) =>
+              [conversation.name, conversation.username].includes(
+                initialPerson,
+              ),
+            );
+            if (matching) {
+              setSelected(conversationKey(matching));
+              setConversations((current) =>
+                current.map((conversation) =>
+                  conversation.id === matching.id
+                    ? { ...conversation, unreadCount: 0 }
+                    : conversation,
+                ),
+              );
+            }
+          }
+        })
+        .catch((error: unknown) => console.error('Unable to load chat', error));
+    },
+    [initialPerson, setConversations, setSelected],
+  );
+
   useEffect(() => {
-    if (previewMode) return;
-    let cancelled = false;
-    void listConversations()
-      .then((rows) => {
-        if (cancelled) return;
-        const loaded = rows.flatMap((row) => {
-          if (!row.participant) return [];
-          const name =
-            row.participant.profile?.displayName ?? row.participant.username;
-          return [
-            {
-              id: row.id,
-              userId: row.participant.id,
-              username: row.participant.username,
-              initials: name.slice(0, 2).toUpperCase(),
-              name,
-              online: row.participant.profile?.isOnline ?? false,
-              preview: row.lastMessage?.body ?? 'No messages yet',
-              role: 'Colleague',
-              time: row.lastMessageAt
-                ? new Date(row.lastMessageAt).toLocaleDateString()
-                : 'New',
-            },
-          ];
-        });
-        setConversations(loaded);
-        if (initialPerson) {
-          const matching = loaded.find((conversation) =>
-            [conversation.name, conversation.username].includes(initialPerson),
-          );
-          if (matching) setSelected(conversationKey(matching));
-        }
-      })
-      .catch((error: unknown) => console.error('Unable to load chat', error));
-    return () => {
-      cancelled = true;
-    };
-  }, [initialPerson]);
+    loadConversations(true);
+  }, [loadConversations]);
 
   useEffect(() => {
     if (previewMode || !newConversationOpen || candidateQuery.trim().length < 2)
@@ -180,6 +202,25 @@ export function MessagesPage({
   }, [candidateQuery, newConversationOpen]);
 
   useConversationRoom(activeConversationId);
+
+  const clearConversationUnreadCount = useCallback(
+    (conversationId: string) => {
+      setConversations((current) =>
+        current.map((conversation) =>
+          conversation.id === conversationId
+            ? { ...conversation, unreadCount: 0 }
+            : conversation,
+        ),
+      );
+    },
+    [setConversations],
+  );
+
+  const markActiveConversationAsRead = useCallback(
+    (conversationId: string) =>
+      previewMode ? Promise.resolve() : markConversationRead(conversationId),
+    [],
+  );
 
   const loadThread = useCallback(
     (conversationId: string) => {
@@ -205,25 +246,85 @@ export function MessagesPage({
     if (!activeConversationId) return;
     if (previewMode) return;
     loadThread(activeConversationId);
-    void markConversationRead(activeConversationId).catch(() => undefined);
-  }, [activeConversationId, loadThread]);
+    void markActiveConversationAsRead(activeConversationId).catch(
+      () => undefined,
+    );
+  }, [activeConversationId, loadThread, markActiveConversationAsRead]);
+
+  useEffect(() => {
+    if (!activeConversationId || previewMode) return;
+    const markReadWhenVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      void markActiveConversationAsRead(activeConversationId).catch(
+        () => undefined,
+      );
+    };
+    window.addEventListener('focus', markReadWhenVisible);
+    document.addEventListener('visibilitychange', markReadWhenVisible);
+    return () => {
+      window.removeEventListener('focus', markReadWhenVisible);
+      document.removeEventListener('visibilitychange', markReadWhenVisible);
+    };
+  }, [activeConversationId, markActiveConversationAsRead]);
+
+  useEffect(() => {
+    const closeActiveConversation = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && selected && !newConversationOpen)
+        setSelected(null);
+    };
+    document.addEventListener('keydown', closeActiveConversation);
+    return () => {
+      document.removeEventListener('keydown', closeActiveConversation);
+    };
+  }, [newConversationOpen, selected]);
 
   function recargarHilo() {
     if (activeConversationId) loadThread(activeConversationId);
   }
 
-  useRealtimeEvent(RealtimeEvents.connected, recargarHilo);
+  useRealtimeEvent(RealtimeEvents.connected, () => {
+    recargarHilo();
+    loadConversations();
+  });
   useRealtimeEvent(RealtimeEvents.messageCreated, (payload) => {
     const incoming = (payload as { message?: ApiMessage }).message;
-    if (!incoming || incoming.conversationId !== activeConversationId) return;
+    if (!incoming?.conversationId) return;
+
+    const isActiveConversation =
+      incoming.conversationId === activeConversationId;
+    if (isActiveConversation) {
+      clearConversationUnreadCount(incoming.conversationId);
+      // An incoming message in the visible thread is immediately considered
+      // read. Refresh the summary after the PATCH so the server count cannot
+      // overwrite the optimistic zero with a stale unread value.
+      void markActiveConversationAsRead(incoming.conversationId)
+        .then(() => loadConversations())
+        .catch(() => undefined);
+    } else {
+      // message.created is also delivered to the user's personal room. Reload
+      // the summaries so preview, timestamp, unread count and ordering come
+      // from the API.
+      loadConversations();
+    }
+
+    // Keep the existing active-thread update direct and deduplicated. The
+    // list refresh above must not replace or reload the open thread.
+    if (incoming.conversationId !== activeConversationId) return;
     setRemoteMessages((current) =>
       replaceOrAppend(current, withStatus(incoming)),
     );
     setScrollToBottomToken((token) => token + 1);
   });
   useRealtimeEvent(RealtimeEvents.messageRead, (payload) => {
-    const conversationId = (payload as { conversationId?: string })
-      .conversationId;
+    const { conversationId, userId } = payload as {
+      conversationId?: string;
+      userId?: string;
+    };
+    if (!conversationId) return;
+    if (userId === viewer.id) {
+      clearConversationUnreadCount(conversationId);
+      loadConversations();
+    }
     if (conversationId !== activeConversationId) return;
     setRemoteMessages((current) =>
       current.map((item) =>
@@ -331,12 +432,15 @@ export function MessagesPage({
         id: conversation.id,
         userId: user.id,
         username: user.username,
+        avatarUrl: user.profile?.avatarUrl ?? null,
         initials: name.slice(0, 2).toUpperCase(),
         name,
         online: user.profile?.isOnline,
-        preview: 'No messages yet',
-        role: 'Colleague',
-        time: 'Now',
+        preview: '',
+        previewKey: 'messages.data.noMessages',
+        role: 'messages.roles.colleague',
+        time: '',
+        timeKey: 'messages.data.now',
       };
       setConversations((current) => [
         item,
@@ -379,12 +483,12 @@ export function MessagesPage({
     >
       <header className="messages-heading shrink-0 max-[1100px]:hidden">
         <span className="text-xs2 tracking-[.08em] text-muted">
-          CONVERSATIONS
+          {t('messages.eyebrow')}
         </span>
-        <h1 className="my-2 text-[1.875rem] font-medium">Messages</h1>
-        <p className="mb-7 text-sm text-muted">
-          Stay connected with colleagues through persistent conversations.
-        </p>
+        <h1 className="my-2 text-[1.875rem] font-medium">
+          {t('messages.title')}
+        </h1>
+        <p className="mb-7 text-sm text-muted">{t('messages.description')}</p>
       </header>
       <section className="grid min-h-0 flex-1 grid-cols-[330px_minmax(0,1fr)] overflow-hidden rounded-md border border-border bg-surface md:max-[1100px]:grid-cols-[260px_minmax(0,1fr)] max-md:block max-md:h-auto max-md:overflow-visible max-md:border-0">
         <ConversationList
@@ -393,6 +497,7 @@ export function MessagesPage({
           query={query}
           onQueryChange={setQuery}
           onSelect={(conversation) => {
+            if (conversation.id) clearConversationUnreadCount(conversation.id);
             setSelected(conversationKey(conversation));
             if (previewMode) {
               setRemoteMessages(

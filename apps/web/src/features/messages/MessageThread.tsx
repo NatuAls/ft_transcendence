@@ -1,5 +1,6 @@
 import { Avatar, IconButton, LoadingState } from 'ui';
 import { useEffect, useRef } from 'react';
+import { useTranslation } from '../../core/i18n';
 import type { MessageItem } from './messageData';
 import type { Conversation } from './messageData';
 
@@ -28,6 +29,7 @@ export function MessageThread({
   onRetry: (message: MessageItem) => void;
   scrollToBottomToken: number;
 }) {
+  const { t } = useTranslation();
   const threadBodyRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -44,37 +46,47 @@ export function MessageThread({
         <IconButton
           className="!hidden max-md:!grid"
           icon="chevron-left"
-          label="Back to conversations"
+          label={t('messages.thread.backToConversations')}
           onClick={onBack}
           size="sm"
         />
         <button
-          aria-label={`View ${active.name} profile`}
+          aria-label={t('messages.thread.viewProfile', { name: active.name })}
           className="-m-1 flex min-w-0 flex-1 items-center gap-2.5 rounded-sm border-0 bg-transparent p-1 text-left hover:bg-surface-secondary focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-focus"
           onClick={onOpenProfile}
-          title={`View ${active.name} profile`}
+          title={t('messages.thread.viewProfile', { name: active.name })}
           type="button"
         >
           <Avatar
             className="!size-[34px] !basis-[34px] !text-2xs"
             initials={active.initials}
             online={Boolean(active.online)}
+            src={active.avatarUrl ?? undefined}
           />
           <span className="grid min-w-0 gap-[3px]">
             <strong className="truncate text-sm">{active.name}</strong>
             <small className="truncate text-2xs text-muted">
-              {active.online ? 'Online' : 'Offline'} · {active.role}
+              {active.online
+                ? t('messages.thread.online')
+                : t('messages.thread.offline')}{' '}
+              · {active.role ? t(active.role) : ''}
             </small>
           </span>
         </button>
         <button
-          aria-label={`View tickets related to ${active.name} (2)`}
+          aria-label={t('messages.thread.viewTicketsAria', {
+            name: active.name,
+          })}
           className="min-h-10 shrink-0 rounded-sm px-2 text-xs2 text-primary hover:bg-surface-secondary focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-focus max-[360px]:px-1.5"
           onClick={onViewTickets}
           type="button"
         >
-          <span className="max-md:hidden">View tickets (2)</span>
-          <span className="hidden max-md:inline">Tickets (2)</span>
+          <span className="max-md:hidden">
+            {t('messages.thread.viewTickets')}
+          </span>
+          <span className="hidden max-md:inline">
+            {t('messages.thread.mobileTickets')}
+          </span>
         </button>
       </header>
       <div
@@ -86,9 +98,13 @@ export function MessageThread({
             onLoadOlder();
         }}
       >
-        {loadingOlder ? <LoadingState label="Loading older messages…" /> : null}
+        {loadingOlder ? (
+          <LoadingState label={t('messages.thread.loadingOlder')} />
+        ) : null}
         {active.id && !messages.length ? (
-          <p className="text-center text-xs text-muted">No messages yet.</p>
+          <p className="text-center text-xs text-muted">
+            {t('messages.thread.empty')}
+          </p>
         ) : null}
         {messages.map((item) => {
           const mine = item.sender.id === viewerId;
@@ -109,11 +125,13 @@ export function MessageThread({
                     onClick={() => onRetry(item)}
                     type="button"
                   >
-                    No enviado · Reintentar
+                    {t('messages.status.failedRetry')}
                   </button>
                 ) : (
                   <small className="text-3xs text-muted">
-                    {item.status === 'sending' ? 'Enviando' : 'Enviado'}
+                    {item.status === 'sending'
+                      ? t('messages.status.sending')
+                      : t('messages.status.sent')}
                     {mine ? ` · ${item.read ? '✓✓' : '✓'}` : ''}
                   </small>
                 )}

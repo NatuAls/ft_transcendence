@@ -14,7 +14,9 @@ export function attachEventBridge({ io, sockets }: RealtimeServer): void {
   ) =>
     events.on<P>(event, (payload) => {
       const { rooms, body } = route(payload);
-      for (const room of rooms) io.to(room).emit(event, body);
+      // Socket.IO treats an array of rooms as a union. Sending once avoids
+      // duplicate events when a socket belongs to more than one target room.
+      io.to([...new Set(rooms)]).emit(event, body);
     });
 
   relay<{ ticket: { id: string; organizationId: string } }>(
@@ -130,17 +132,25 @@ export function attachEventBridge({ io, sockets }: RealtimeServer): void {
     },
   );
 
-  relay<{ message: { conversationId: string } }>(
-    DomainEvents.messageCreated,
+  relay<{
+    message: { conversationId: string };
+    recipientIds: string[];
+  }>(DomainEvents.messageCreated, (p) => ({
+    // The conversation room keeps the active thread live. The personal
+    // rooms also notify every open Messages list, including inactive chats.
+    rooms: [
+      `conv:${p.message.conversationId}`,
+      ...p.recipientIds.map((userId) => `user:${userId}`),
+    ],
+    body: p,
+  }));
+  relay<{ conversationId: string; userId: string }>(
+    DomainEvents.messageRead,
     (p) => ({
-      rooms: [`conv:${p.message.conversationId}`],
+      rooms: [`conv:${p.conversationId}`, `user:${p.userId}`],
       body: p,
     }),
   );
-  relay<{ conversationId: string }>(DomainEvents.messageRead, (p) => ({
-    rooms: [`conv:${p.conversationId}`],
-    body: p,
-  }));
 
   for (const event of [
     DomainEvents.friendshipRequested,
