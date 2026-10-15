@@ -105,11 +105,11 @@ export function SignInPage({
         }
       />
 
-      <section className="flex min-h-screen min-w-0 flex-col px-4 pt-6 pb-10 md:items-center md:justify-center md:p-12">
+      <section className="flex min-h-screen min-w-0 flex-col px-4 pt-6 pb-10 md:items-center md:p-12">
         <div className="md:hidden">
           <BrandHeader />
         </div>
-        <div className="mt-4 flex justify-end md:absolute md:top-6 md:right-6 md:mt-0">
+        <div className="mt-4 mb-8 flex w-full justify-end md:mt-0 md:mb-12">
           <LanguageSwitcher />
         </div>
 
@@ -123,7 +123,7 @@ export function SignInPage({
         </header>
 
         <section
-          className="auth-card-enter w-full rounded-lg border border-border bg-surface px-[23px] pt-[37px] pb-[72px] md:max-w-[520px] md:px-[51px] md:pt-[46px] md:pb-[118px]"
+          className="auth-card-enter my-auto w-full rounded-lg border border-border bg-surface px-[23px] pt-[37px] pb-[72px] md:max-w-[520px] md:px-[51px] md:pt-[46px] md:pb-[118px]"
           aria-labelledby="sign-in-heading"
         >
           <header className="mb-8 hidden md:block">
