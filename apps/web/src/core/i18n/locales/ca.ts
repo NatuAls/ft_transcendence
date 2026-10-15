@@ -519,6 +519,144 @@ export const ca: Translation = {
       },
     },
   },
+  legalPages: {
+    lastUpdated: '14 d’octubre de 2026',
+    openApp: 'Obre HelpDesk Lite',
+    signIn: 'Inicia la sessió',
+    back: 'Torna a HelpDesk Lite',
+    onThisPage: 'EN AQUESTA PÀGINA',
+    meta: 'LEGAL · DARRERA ACTUALITZACIÓ {{date}}',
+    privacy: {
+      label: 'Política de privacitat',
+      intro:
+        'HelpDesk Lite és una aplicació de servei d’assistència desenvolupada com a projecte acadèmic a 42 Barcelona. Aquesta política explica quines dades personals tracta l’aplicació, per què i durant quant de temps, i quins drets tens sobre aquestes dades. S’aplica a helpdesklite.me i a la seva API.',
+      sections: [
+        {
+          title: 'Qui n’és responsable',
+          copy: 'L’equip d’estudiants de HelpDesk Lite actua com a responsable del tractament en aquest desplegament. Contacte: privacy@helpdesklite.me.',
+        },
+        {
+          title: 'Quines dades recollim',
+          copy: [
+            'Compte: adreça electrònica, nom d’usuari, contrasenya (guardada només com a hash Argon2id amb pepper del servidor, mai en clar), estat de verificació del correu i idioma preferit.',
+            'Perfil: nom i cognoms i un avatar opcional, recodificat a WebP 512×512 sense metadades EXIF.',
+            'Contingut del servei d’assistència: tiquets, comentaris, notes internes dels agents, fitxers adjunts que puges (amb suma SHA-256) i historial de tiquets.',
+            'Membresia d’organitzacions: les organitzacions de què formes part i el teu rol a cadascuna.',
+            'Funcions socials: sol·licituds d’amistat, missatges directes i presència en línia.',
+            'Registres de seguretat i auditoria: adreça IP (l’últim octet es trunca als registres centralitzats) i agent del navegador d’accions rellevants, com ara inicis de sessió, canvis de rol, claus API i sol·licituds de dades; identificadors de sessió i comptador d’intents fallits.',
+            'Notificacions: notificacions dins l’aplicació i les teves preferències de notificació.',
+          ],
+        },
+        {
+          title: 'Per què les tractem',
+          copy: [
+            'Execució del servei (art. 6.1.b del RGPD): compte, perfil, tiquets, comentaris, fitxers adjunts, organitzacions, notificacions i missatges.',
+            'Interès legítim en la seguretat (art. 6.1.f): registres d’auditoria, sessions, límits d’ús, protecció contra força bruta i còpies de seguretat.',
+            'Obligació legal (art. 6.1.c): respondre a sol·licituds de drets i conservar-ne proves.',
+            'No fem servir les teves dades per a publicitat ni les venem.',
+          ],
+        },
+        {
+          title: 'Galetes i emmagatzematge local',
+          copy: 'L’aplicació fa servir una única galeta estrictament necessària, hd_refresh (HttpOnly, Secure, SameSite), per mantenir la sessió, i una galeta indicadora sense cap testimoni. El testimoni d’accés de curta durada es conserva a la memòria del navegador. No instal·lem galetes d’analítica ni de publicitat.',
+        },
+        {
+          title: 'Qui pot veure les teves dades',
+          copy: [
+            'Els agents i administradors de les teves organitzacions poden llegir els tiquets i comentaris d’aquella organització. Els membres d’altres organitzacions no hi poden accedir: l’aïllament entre organitzacions s’aplica al servidor.',
+            'Els administradors d’aquesta plataforma poden accedir a dades del compte i d’auditoria per motius de suport i seguretat.',
+            'Proveïdors d’infraestructura: Oracle Cloud (allotjament, UE, Frankfurt) i Cloudflare (DNS, TLS i tallafoc d’aplicacions web). Les còpies es xifren amb AES-256 abans de desar-se a Oracle Object Storage.',
+            'No transferim les teves dades fora de l’Espai Econòmic Europeu.',
+          ],
+        },
+        {
+          title: 'Quant de temps les conservem',
+          copy: [
+            'Compte i contingut del servei d’assistència: mentre existeixi el compte. Si l’elimines, les dades personals s’esborren de seguida. Si un administrador el tanca, ja no hi podràs iniciar sessió i les dades personals s’esborren 30 dies després; fins aleshores el tancament es pot desfer i pots demanar un esborrat anticipat escrivint-nos.',
+            'Què queda després de l’esborrat: els tiquets que vas obrir i els teus comentaris romanen als registres de les organitzacions corresponents amb autor anònim, perquè altres persones en depenen. El correu, nom d’usuari, perfil, foto, missatges privats, notificacions, fitxers i exportacions s’eliminen, i l’adreça es pot tornar a registrar.',
+            'Exportacions: l’arxiu es pot baixar durant 24 hores; després s’elimina.',
+            'Sessions: fins que caduquin (7 dies) o les revoquis.',
+            'Registres d’auditoria: 12 mesos i després s’eliminen automàticament.',
+            'Registres centralitzats de l’aplicació: 30 dies.',
+            'Còpies xifrades: 14 dies en local i al dipòsit extern; per tant, un compte eliminat pot persistir en una còpia fins a 14 dies.',
+          ],
+        },
+        {
+          title: 'Els teus drets',
+          copy: [
+            'Accés i portabilitat: demana una exportació des dels ajustos de Privacitat i dades. Rebràs un ZIP amb un data.json llegible per màquina després de confirmar la sol·licitud per correu.',
+            'Rectificació: edita el perfil en qualsevol moment.',
+            'Supressió: elimina el compte des de Privacitat i dades. L’esborrat requereix una doble confirmació: un enllaç enviat al correu i escriure el nom d’usuari. Si ja no pots iniciar sessió —per exemple, perquè un administrador ha tancat el compte— escriu-nos i un administrador esborrarà les dades.',
+            'Per a qualsevol altra qüestió o reclamació, escriu a privacy@helpdesklite.me. També pots reclamar davant l’autoritat espanyola de control (AEPD, aepd.es).',
+          ],
+        },
+        {
+          title: 'Seguretat',
+          copy: 'Les contrasenyes es xifren amb Argon2id; tot el trànsit se serveix mitjançant HTTPS; els fitxers es validen pel tipus de contingut, no per l’extensió; l’accés té límits; i tota acció sensible queda registrada en una auditoria que mai conté credencials.',
+        },
+        {
+          title: 'Canvis',
+          copy: 'Actualitzarem aquesta pàgina quan canviï el tractament i mantindrem al dia la data de darrera actualització.',
+        },
+      ],
+    },
+    terms: {
+      label: 'Termes del servei',
+      intro:
+        'Aquests termes regulen l’ús de HelpDesk Lite, una aplicació de servei d’assistència desenvolupada com a projecte acadèmic a 42 Barcelona. En crear un compte els acceptes. Si no hi estàs d’acord, no facis servir el servei.',
+      sections: [
+        {
+          title: 'El servei',
+          copy: 'HelpDesk Lite permet a les organitzacions rebre, assignar i resoldre tiquets de suport, amb comentaris, fitxers adjunts, notificacions, actualitzacions en temps real, missatges directes i una API pública per a integracions. S’ofereix com a projecte educatiu, de manera gratuïta i sense compromís de nivell de servei.',
+        },
+        {
+          title: 'El teu compte',
+          copy: [
+            'Has de proporcionar una adreça electrònica vàlida i verificar-la.',
+            'Ets responsable de mantenir en secret la contrasenya i de tota acció feta amb el compte. Pots revisar i revocar les sessions actives en qualsevol moment.',
+            'Una persona, un compte. Un administrador pot suspendre comptes en cas d’abús.',
+          ],
+        },
+        {
+          title: 'Organitzacions i rols',
+          copy: 'Un administrador pot convidar i eliminar membres i assignar els rols de membre, agent i administrador d’organització. Els agents poden veure els tiquets de la seva organització i escriure notes internes que els membres no veuen. Una organització mai pot quedar-se sense administrador.',
+        },
+        {
+          title: 'Ús acceptable',
+          copy: [
+            'No pugis programari maliciós ni contingut il·legal, abusiu o que no tinguis dret a compartir.',
+            'No intentis accedir a dades d’altres organitzacions ni als comptes d’altres usuaris.',
+            'No evitis els límits, sondegis la infraestructura ni interrompis el servei.',
+            'No facis servir l’API pública per sobre de les quotes de la clau (60 sol·licituds per minut, 1.000 per hora).',
+          ],
+        },
+        {
+          title: 'Contingut',
+          copy: 'Conserves els drets sobre el contingut que publiques. Concedeixes a l’organització que rep el tiquet permís per desar-lo i tractar-lo per gestionar la sol·licitud. Els fitxers adjunts tenen límits de mida i quantitat per tiquet i es comproven pel tipus de contingut.',
+        },
+        {
+          title: 'API pública',
+          copy: 'Les claus API les emeten els administradors d’organització, es mostren una sola vegada i es poden revocar en qualsevol moment. Les sol·licituds fetes amb una clau s’atribueixen a l’organització propietària.',
+        },
+        {
+          title: 'Disponibilitat i canvis',
+          copy: 'El servei es pot interrompre per manteniment o per necessitats del projecte acadèmic. Podem canviar o retirar funcions. Es fan còpies diàries, però has de conservar la teva còpia del que sigui important.',
+        },
+        {
+          title: 'Finalització',
+          copy: 'Pots eliminar el compte en qualsevol moment des dels ajustos de privacitat. Podem suspendre o tancar comptes que incompleixin aquests termes; les dades personals d’un compte tancat s’esborren 30 dies després del tancament.',
+        },
+        {
+          title: 'Responsabilitat',
+          copy: 'El servei s’ofereix «tal com és», sense garanties. En la mesura permesa per la llei, l’equip no respon dels danys derivats de l’ús. Res d’aquests termes limita els teus drets com a consumidor o titular de dades.',
+        },
+        {
+          title: 'Llei aplicable i contacte',
+          copy: 'Aquests termes es regeixen per la legislació espanyola. Consultes: privacy@helpdesklite.me. Les dades personals es tracten tal com es descriu a la Política de privacitat.',
+        },
+      ],
+    },
+  },
   auth: {
     brand: {
       name: 'HelpDesk Lite',

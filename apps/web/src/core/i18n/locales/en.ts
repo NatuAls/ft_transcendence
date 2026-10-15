@@ -513,6 +513,144 @@ export const en = {
       },
     },
   },
+  legalPages: {
+    lastUpdated: '14 October 2026',
+    openApp: 'Open HelpDesk Lite',
+    signIn: 'Sign in',
+    back: 'Back to HelpDesk Lite',
+    onThisPage: 'ON THIS PAGE',
+    meta: 'LEGAL · LAST UPDATED {{date}}',
+    privacy: {
+      label: 'Privacy Policy',
+      intro:
+        'HelpDesk Lite is a help-desk application developed as an academic project at 42 Barcelona. This policy explains which personal data the application processes, why, for how long, and which rights you have over it. It applies to helpdesklite.me and its API.',
+      sections: [
+        {
+          title: 'Who is responsible',
+          copy: 'The HelpDesk Lite student team acts as data controller for this deployment. Contact: privacy@helpdesklite.me.',
+        },
+        {
+          title: 'What data we collect',
+          copy: [
+            'Account: e-mail address, username, password (stored only as an Argon2id hash with a server-side pepper, never in clear), e-mail verification status and preferred language.',
+            'Profile: first and last name and an optional avatar, re-encoded to WebP 512×512 with EXIF metadata removed.',
+            'Help-desk content: tickets, comments, internal notes written by agents, attachments you upload (with a SHA-256 checksum) and ticket history.',
+            'Organization membership: the organizations you belong to and your role in each.',
+            'Social features: friend requests, direct messages and online presence.',
+            'Security and audit logs: IP address (last octet truncated in the centralized logs) and browser user-agent of security-relevant actions such as login, role changes, API keys and data requests; session identifiers and the failed-login counter.',
+            'Notifications: in-app notifications and your notification preferences.',
+          ],
+        },
+        {
+          title: 'Why we process it',
+          copy: [
+            'Performance of the service (Art. 6(1)(b) GDPR): account, profile, tickets, comments, attachments, organizations, notifications and messages.',
+            'Legitimate interest in security (Art. 6(1)(f)): audit logs, session records, rate limiting, brute-force protection and backups.',
+            'Legal obligation (Art. 6(1)(c)): answering data subject requests and keeping proof of them.',
+            'We do not use your data for advertising and we do not sell it.',
+          ],
+        },
+        {
+          title: 'Cookies and local storage',
+          copy: 'The application uses a single strictly necessary cookie, hd_refresh (HttpOnly, Secure, SameSite), to keep your session alive, plus a hint cookie without any token in it. The short-lived access token is kept in memory in your browser. No analytics or advertising cookies are set by us.',
+        },
+        {
+          title: 'Who can see your data',
+          copy: [
+            'Agents and administrators of the organizations you belong to can read the tickets and comments of that organization. Members of other organizations cannot: tenant isolation is enforced server-side.',
+            'Platform administrators of this deployment can access account and audit data for support and security purposes.',
+            'Infrastructure providers: Oracle Cloud (hosting, EU, Frankfurt) and Cloudflare (DNS, TLS and web application firewall). Backups are encrypted with AES-256 before being stored in Oracle Object Storage.',
+            'We do not transfer your data outside the European Economic Area.',
+          ],
+        },
+        {
+          title: 'How long we keep it',
+          copy: [
+            'Account and help-desk content: while your account exists. When you delete your account yourself, your personal data is erased at once. When a platform administrator closes it, you can no longer sign in and your personal data is erased 30 days later; until then the closure can be undone, and you can ask for the erasure sooner by writing to us.',
+            'What stays after the erasure: the tickets you opened and your comments on tickets remain in the records of the organizations they belong to, under an anonymous author, because other people depend on them. Your e-mail address, username, profile, photo, private messages, notifications, files and data exports are deleted, and the address can be used to sign up again.',
+            'Data exports: the archive can be downloaded for 24 hours; then it is deleted.',
+            'Sessions: until they expire (7 days) or you revoke them.',
+            'Audit logs: 12 months, then deleted automatically.',
+            'Centralized application logs: 30 days.',
+            'Encrypted backups: 14 days locally and in the off-site bucket, so a deleted account may persist in a backup for up to 14 days.',
+          ],
+        },
+        {
+          title: 'Your rights',
+          copy: [
+            'Access and portability: request an export of your data from Privacy & data settings. You receive a ZIP with a machine-readable data.json after confirming the request by e-mail.',
+            'Rectification: edit your profile at any time.',
+            'Erasure: delete your account from Privacy & data settings. Deletion requires a double confirmation: a link sent to your e-mail and typing your username. If you can no longer sign in — for instance because an administrator closed your account — write to us and an administrator erases your data.',
+            'For anything else, or to complain, write to privacy@helpdesklite.me. You also have the right to lodge a complaint with the Spanish supervisory authority (AEPD, aepd.es).',
+          ],
+        },
+        {
+          title: 'Security',
+          copy: 'Passwords are hashed with Argon2id; all traffic is served over HTTPS; uploads are validated by content type, not file extension; access is rate-limited; and every sensitive action is recorded in an audit log that never contains credentials.',
+        },
+        {
+          title: 'Changes',
+          copy: 'We will update this page when the processing changes and keep the "last updated" date current.',
+        },
+      ],
+    },
+    terms: {
+      label: 'Terms of Service',
+      intro:
+        'These terms govern the use of HelpDesk Lite, an academic help-desk application developed at 42 Barcelona. By creating an account you accept them. If you do not agree, do not use the service.',
+      sections: [
+        {
+          title: 'The service',
+          copy: 'HelpDesk Lite lets organizations receive, assign and resolve support tickets, with comments, attachments, notifications, real-time updates, direct messages between users and a public API for integrations. It is provided as an educational project, free of charge, without any service-level commitment.',
+        },
+        {
+          title: 'Your account',
+          copy: [
+            'You must provide a valid e-mail address and verify it.',
+            'You are responsible for keeping your password secret and for every action performed with your account. You can review and revoke your active sessions at any time.',
+            'One person, one account. Accounts may be suspended by a platform administrator in case of abuse.',
+          ],
+        },
+        {
+          title: 'Organizations and roles',
+          copy: 'An organization administrator can invite and remove members and assign the roles member, agent and organization admin. Agents can see the tickets of their organization and write internal notes that members do not see. An organization can never be left without an administrator.',
+        },
+        {
+          title: 'Acceptable use',
+          copy: [
+            'Do not upload malware, or content that is illegal, abusive or that you have no right to share.',
+            "Do not try to access other organizations' data or other users' accounts.",
+            'Do not circumvent rate limits, probe the infrastructure or disrupt the service.',
+            'Do not use the public API beyond the quotas of your API key (60 requests per minute, 1 000 per hour).',
+          ],
+        },
+        {
+          title: 'Content',
+          copy: 'You keep the rights over the content you post. You grant the organization that receives your ticket the permission to store and process it in order to handle your request. Attachments are limited in size and number per ticket and are checked by content type.',
+        },
+        {
+          title: 'Public API',
+          copy: 'API keys are issued by organization administrators, shown once, and can be revoked at any time. Requests made with a key are attributed to the organization that owns it.',
+        },
+        {
+          title: 'Availability and changes',
+          copy: 'The service may be interrupted for maintenance or for the needs of the academic project. We may change or discontinue features. Backups are taken daily, but you should keep your own copy of anything important.',
+        },
+        {
+          title: 'Termination',
+          copy: 'You can delete your account at any time from the privacy settings. We may suspend or close accounts that violate these terms; the personal data of a closed account is erased 30 days after its closure.',
+        },
+        {
+          title: 'Liability',
+          copy: 'The service is provided "as is", without warranties. To the extent permitted by law, the team is not liable for damages arising from its use. Nothing in these terms limits your rights as a consumer or data subject.',
+        },
+        {
+          title: 'Applicable law and contact',
+          copy: 'These terms are governed by Spanish law. Questions: privacy@helpdesklite.me. Personal data is handled as described in the Privacy Policy.',
+        },
+      ],
+    },
+  },
   auth: {
     brand: {
       name: 'HelpDesk Lite',

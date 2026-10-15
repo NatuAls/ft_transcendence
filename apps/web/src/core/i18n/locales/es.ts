@@ -518,6 +518,144 @@ export const es: Translation = {
       },
     },
   },
+  legalPages: {
+    lastUpdated: '14 de octubre de 2026',
+    openApp: 'Abrir HelpDesk Lite',
+    signIn: 'Iniciar sesión',
+    back: 'Volver a HelpDesk Lite',
+    onThisPage: 'EN ESTA PÁGINA',
+    meta: 'LEGAL · ÚLTIMA ACTUALIZACIÓN {{date}}',
+    privacy: {
+      label: 'Política de privacidad',
+      intro:
+        'HelpDesk Lite es una aplicación de mesa de ayuda desarrollada como proyecto académico en 42 Barcelona. Esta política explica qué datos personales trata la aplicación, por qué y durante cuánto tiempo, y qué derechos tienes sobre ellos. Se aplica a helpdesklite.me y a su API.',
+      sections: [
+        {
+          title: 'Quién es responsable',
+          copy: 'El equipo estudiantil de HelpDesk Lite actúa como responsable del tratamiento en este despliegue. Contacto: privacy@helpdesklite.me.',
+        },
+        {
+          title: 'Qué datos recopilamos',
+          copy: [
+            'Cuenta: dirección de correo, nombre de usuario, contraseña (guardada solo como hash Argon2id con pepper del servidor, nunca en claro), estado de verificación del correo e idioma preferido.',
+            'Perfil: nombre y apellidos y un avatar opcional, recodificado a WebP 512×512 sin metadatos EXIF.',
+            'Contenido de la mesa de ayuda: tickets, comentarios, notas internas de agentes, archivos adjuntos que subes (con suma SHA-256) e historial de tickets.',
+            'Pertenencia a organizaciones: las organizaciones a las que perteneces y tu rol en cada una.',
+            'Funciones sociales: solicitudes de amistad, mensajes directos y presencia en línea.',
+            'Registros de seguridad y auditoría: dirección IP (el último octeto se trunca en los registros centralizados) y agente del navegador de acciones relevantes, como inicios de sesión, cambios de rol, claves API y solicitudes de datos; identificadores de sesión y contador de intentos fallidos.',
+            'Notificaciones: notificaciones dentro de la aplicación y tus preferencias de notificación.',
+          ],
+        },
+        {
+          title: 'Por qué los tratamos',
+          copy: [
+            'Ejecución del servicio (art. 6.1.b del RGPD): cuenta, perfil, tickets, comentarios, archivos adjuntos, organizaciones, notificaciones y mensajes.',
+            'Interés legítimo en la seguridad (art. 6.1.f): registros de auditoría, sesiones, límites de uso, protección contra fuerza bruta y copias de seguridad.',
+            'Obligación legal (art. 6.1.c): responder a solicitudes de derechos y conservar pruebas de ellas.',
+            'No usamos tus datos para publicidad ni los vendemos.',
+          ],
+        },
+        {
+          title: 'Cookies y almacenamiento local',
+          copy: 'La aplicación usa una única cookie estrictamente necesaria, hd_refresh (HttpOnly, Secure, SameSite), para mantener tu sesión, además de una cookie de indicación sin ningún token. El token de acceso de corta duración se guarda en la memoria del navegador. No instalamos cookies de analítica ni publicidad.',
+        },
+        {
+          title: 'Quién puede ver tus datos',
+          copy: [
+            'Los agentes y administradores de tus organizaciones pueden leer los tickets y comentarios de esa organización. Los miembros de otras organizaciones no pueden: el aislamiento entre organizaciones se aplica en el servidor.',
+            'Los administradores de esta plataforma pueden acceder a datos de cuenta y auditoría para soporte y seguridad.',
+            'Proveedores de infraestructura: Oracle Cloud (alojamiento, UE, Frankfurt) y Cloudflare (DNS, TLS y cortafuegos de aplicaciones web). Las copias se cifran con AES-256 antes de guardarse en Oracle Object Storage.',
+            'No transferimos tus datos fuera del Espacio Económico Europeo.',
+          ],
+        },
+        {
+          title: 'Cuánto tiempo los conservamos',
+          copy: [
+            'Cuenta y contenido de la mesa de ayuda: mientras exista tu cuenta. Si la eliminas, tus datos personales se borran de inmediato. Si un administrador la cierra, no podrás iniciar sesión y tus datos se borrarán 30 días después; hasta entonces el cierre puede deshacerse y puedes pedir un borrado anticipado escribiéndonos.',
+            'Qué permanece tras el borrado: los tickets que abriste y tus comentarios permanecen en los registros de sus organizaciones con autor anónimo, porque otras personas dependen de ellos. Tu correo, nombre de usuario, perfil, foto, mensajes privados, notificaciones, archivos y exportaciones se eliminan, y la dirección puede volver a registrarse.',
+            'Exportaciones: el archivo puede descargarse durante 24 horas; después se elimina.',
+            'Sesiones: hasta que caduquen (7 días) o las revoques.',
+            'Registros de auditoría: 12 meses y después se eliminan automáticamente.',
+            'Registros centralizados de la aplicación: 30 días.',
+            'Copias cifradas: 14 días en local y en el depósito externo, por lo que una cuenta eliminada puede persistir en una copia hasta 14 días.',
+          ],
+        },
+        {
+          title: 'Tus derechos',
+          copy: [
+            'Acceso y portabilidad: solicita una exportación desde los ajustes de Privacidad y datos. Recibirás un ZIP con un data.json legible por máquinas tras confirmar la solicitud por correo.',
+            'Rectificación: edita tu perfil en cualquier momento.',
+            'Supresión: elimina tu cuenta desde Privacidad y datos. El borrado requiere doble confirmación: un enlace enviado a tu correo y escribir tu nombre de usuario. Si ya no puedes iniciar sesión —por ejemplo, porque un administrador cerró tu cuenta— escríbenos y un administrador borrará tus datos.',
+            'Para cualquier otra cuestión o reclamación, escribe a privacy@helpdesklite.me. También puedes reclamar ante la autoridad española de control (AEPD, aepd.es).',
+          ],
+        },
+        {
+          title: 'Seguridad',
+          copy: 'Las contraseñas se cifran con Argon2id; todo el tráfico se sirve mediante HTTPS; los archivos se validan por tipo de contenido, no por extensión; el acceso tiene límites; y toda acción sensible queda registrada en una auditoría que nunca contiene credenciales.',
+        },
+        {
+          title: 'Cambios',
+          copy: 'Actualizaremos esta página cuando cambie el tratamiento y mantendremos actualizada la fecha de última modificación.',
+        },
+      ],
+    },
+    terms: {
+      label: 'Términos del servicio',
+      intro:
+        'Estos términos regulan el uso de HelpDesk Lite, una aplicación de mesa de ayuda desarrollada como proyecto académico en 42 Barcelona. Al crear una cuenta los aceptas. Si no estás de acuerdo, no uses el servicio.',
+      sections: [
+        {
+          title: 'El servicio',
+          copy: 'HelpDesk Lite permite a las organizaciones recibir, asignar y resolver tickets de soporte, con comentarios, archivos adjuntos, notificaciones, actualizaciones en tiempo real, mensajes directos y una API pública para integraciones. Se ofrece como proyecto educativo, de forma gratuita y sin compromiso de nivel de servicio.',
+        },
+        {
+          title: 'Tu cuenta',
+          copy: [
+            'Debes proporcionar una dirección de correo válida y verificarla.',
+            'Eres responsable de mantener en secreto tu contraseña y de toda acción realizada con tu cuenta. Puedes revisar y revocar tus sesiones activas en cualquier momento.',
+            'Una persona, una cuenta. Un administrador puede suspender cuentas en caso de abuso.',
+          ],
+        },
+        {
+          title: 'Organizaciones y roles',
+          copy: 'Un administrador puede invitar y retirar miembros y asignar los roles de miembro, agente y administrador de organización. Los agentes pueden ver los tickets de su organización y escribir notas internas que los miembros no ven. Una organización nunca puede quedarse sin administrador.',
+        },
+        {
+          title: 'Uso aceptable',
+          copy: [
+            'No subas malware ni contenido ilegal, abusivo o que no tengas derecho a compartir.',
+            'No intentes acceder a datos de otras organizaciones ni a cuentas de otros usuarios.',
+            'No eludas los límites, investigues la infraestructura ni interrumpas el servicio.',
+            'No uses la API pública por encima de las cuotas de tu clave (60 solicitudes por minuto, 1.000 por hora).',
+          ],
+        },
+        {
+          title: 'Contenido',
+          copy: 'Conservas los derechos sobre el contenido que publicas. Concedes a la organización que recibe tu ticket permiso para guardarlo y tratarlo con el fin de gestionar tu solicitud. Los archivos adjuntos tienen límites de tamaño y cantidad por ticket y se comprueban por tipo de contenido.',
+        },
+        {
+          title: 'API pública',
+          copy: 'Las claves API las emiten los administradores de organización, se muestran una sola vez y pueden revocarse en cualquier momento. Las solicitudes hechas con una clave se atribuyen a la organización propietaria.',
+        },
+        {
+          title: 'Disponibilidad y cambios',
+          copy: 'El servicio puede interrumpirse por mantenimiento o por necesidades del proyecto académico. Podemos cambiar o retirar funciones. Se hacen copias a diario, pero debes conservar tu propia copia de lo importante.',
+        },
+        {
+          title: 'Terminación',
+          copy: 'Puedes eliminar tu cuenta en cualquier momento desde los ajustes de privacidad. Podemos suspender o cerrar cuentas que incumplan estos términos; los datos personales de una cuenta cerrada se borran 30 días después de su cierre.',
+        },
+        {
+          title: 'Responsabilidad',
+          copy: 'El servicio se ofrece «tal cual», sin garantías. En la medida permitida por la ley, el equipo no responde de los daños derivados de su uso. Nada de estos términos limita tus derechos como consumidor o titular de datos.',
+        },
+        {
+          title: 'Ley aplicable y contacto',
+          copy: 'Estos términos se rigen por la legislación española. Consultas: privacy@helpdesklite.me. Los datos personales se tratan como se describe en la Política de privacidad.',
+        },
+      ],
+    },
+  },
   auth: {
     brand: {
       name: 'HelpDesk Lite',
