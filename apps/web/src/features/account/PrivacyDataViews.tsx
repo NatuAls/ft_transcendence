@@ -230,6 +230,7 @@ export function PrivacyPage({
               {t('account.privacy.delete.action')}
             </Button>
           </section>
+
           <section className="rounded-md border border-border bg-surface p-[22px] max-md:mt-[14px]">
             <h2 className="text-base font-medium">
               {t('account.privacy.legal.title')}
@@ -238,7 +239,7 @@ export function PrivacyPage({
               {t('account.privacy.legal.description')}
             </p>
             <button
-              className="grid w-full grid-cols-[1fr_auto] border-t border-border py-[14px] text-left"
+              className="flex w-full items-center justify-between gap-4 border-t border-border py-[14px] text-left"
               onClick={onPrivacyPolicy}
               type="button"
             >
@@ -249,13 +250,13 @@ export function PrivacyPage({
                 {t('account.privacy.legal.privacyDescription')}
               </small>
               <Icon
-                className="col-start-2 row-span-2"
+                className="shrink-0"
                 name="chevron-right"
                 size={18}
               />
             </button>
             <button
-              className="grid w-full grid-cols-[1fr_auto] border-t border-border py-[14px] text-left"
+              className="flex w-full items-center justify-between gap-4 border-t border-border py-[14px] text-left"
               onClick={onTerms}
               type="button"
             >
@@ -266,7 +267,7 @@ export function PrivacyPage({
                 {t('account.privacy.legal.termsDescription')}
               </small>
               <Icon
-                className="col-start-2 row-span-2"
+                className="shrink-0"
                 name="chevron-right"
                 size={18}
               />
