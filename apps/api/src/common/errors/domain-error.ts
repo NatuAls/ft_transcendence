@@ -250,6 +250,15 @@ export const Errors = {
     ),
 
   // gdpr
+  // Restaurar o borrar ya sólo tiene sentido con una cuenta cerrada por un
+  // administrador y aún sin borrar: a una activa se la cierra primero, y una
+  // borrada ya no es de nadie.
+  accountNotClosed: () =>
+    conflict(
+      'USER_NOT_CLOSED',
+      'errors.user.notClosed',
+      'Only an account closed by an administrator, and not yet erased, can be restored or erased now.',
+    ),
   gdprPending: () =>
     conflict(
       'GDPR_PENDING',

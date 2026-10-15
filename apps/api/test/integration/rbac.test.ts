@@ -222,11 +222,13 @@ describe('integración · matriz RBAC sobre HTTP', { concurrency: false }, () =>
     if (!up) return t.skip(SKIP_MESSAGE);
     const ticket = await createTicket(member.token, organizationId);
 
+    // Ni lo ve ni lo toca, y no se le confirma que exista: el mismo 404 que un
+    // ticket inventado (tenancy.test.ts compara las dos respuestas enteras).
     assert.equal(
       (await api('GET', `/tickets/${ticket.id}`, { token: otherMember.token }))
         .status,
-      403,
-      'un MEMBER solo ve los tickets de los que es autor',
+      404,
+      'un MEMBER solo ve los tickets de los que es autor; los demás no existen para él',
     );
     assert.equal(
       (
@@ -235,7 +237,7 @@ describe('integración · matriz RBAC sobre HTTP', { concurrency: false }, () =>
           body: { priority: 'LOW' },
         })
       ).status,
-      403,
+      404,
     );
     assert.equal(
       (await api('DELETE', `/tickets/${ticket.id}`, { token: member.token }))

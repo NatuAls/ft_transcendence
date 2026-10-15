@@ -4,7 +4,8 @@ import { join } from 'node:path';
 import sharp from 'sharp';
 import { prisma } from '../../database/prisma.ts';
 import { DomainEvents, events } from '../../database/events.ts';
-import { membershipOf, assertPolicy } from '../../rbac/rbac.ts';
+import { membershipOf, assertPolicy, canPolicy } from '../../rbac/rbac.ts';
+import { canReadTicket } from '../tickets/tickets.service.ts';
 import { loadConfiguration } from '../../config/env.ts';
 import { Errors } from '../../common/errors/domain-error.ts';
 import { uuidv7 } from '../../common/utils/uuid.ts';
@@ -67,41 +68,80 @@ export async function upload(
   if (Boolean(ticketId) === Boolean(commentId))
     throw Errors.resourceNotFound('ticket');
 
-  let organizationId: string;
-  let resolvedTicketId: string;
+  // A ticket (or a comment) the caller cannot read does not exist for them:
+  // the same 404 as a made-up id, never «not a member» or a 403, which would
+  // confirm it exists. Nor can anyone hang a file on it. An internal note is
+  // part of that: only whoever may read internal notes can attach to one.
+  const missing = ticketId ? 'ticket' : 'comment';
+  let resolved: {
+    organizationId: string;
+    ticketId: string;
+    createdById: string;
+    isInternal: boolean;
+    attachmentsOnTicket: number;
+  } | null = null;
 
   if (ticketId) {
     const ticket = await prisma.ticket.findUnique({
       where: { id: ticketId },
       select: {
         organizationId: true,
+        createdById: true,
         // The `where` matters: deletion is soft, so counting every row meant
         // five uploads followed by five deletions left the ticket permanently
         // unable to accept another attachment.
         _count: { select: { attachments: { where: { deletedAt: null } } } },
       },
     });
-    if (!ticket) throw Errors.resourceNotFound('ticket');
-    if (ticket._count.attachments >= config.UPLOAD_MAX_PER_TICKET) {
-      throw Errors.tooManyAttachments(config.UPLOAD_MAX_PER_TICKET);
-    }
-    organizationId = ticket.organizationId;
-    resolvedTicketId = ticketId;
+    if (ticket)
+      resolved = {
+        organizationId: ticket.organizationId,
+        ticketId,
+        createdById: ticket.createdById,
+        isInternal: false,
+        attachmentsOnTicket: ticket._count.attachments,
+      };
   } else {
     const comment = await prisma.ticketComment.findUnique({
       where: { id: commentId as string },
-      select: { ticketId: true, ticket: { select: { organizationId: true } } },
+      select: {
+        ticketId: true,
+        isInternal: true,
+        ticket: { select: { organizationId: true, createdById: true } },
+      },
     });
-    if (!comment) throw Errors.resourceNotFound('comment');
-    organizationId = comment.ticket.organizationId;
-    resolvedTicketId = comment.ticketId;
+    if (comment)
+      resolved = {
+        organizationId: comment.ticket.organizationId,
+        ticketId: comment.ticketId,
+        createdById: comment.ticket.createdById,
+        isInternal: comment.isInternal,
+        attachmentsOnTicket: 0,
+      };
   }
+  if (!resolved) throw Errors.resourceNotFound(missing);
 
   const effectiveMembership =
-    membership ?? (await membershipOf(actor.id, organizationId));
-  if (!effectiveMembership && actor.globalRole !== 'GLOBAL_ADMIN')
-    throw Errors.notAMember();
+    membership?.organizationId === resolved.organizationId
+      ? membership
+      : await membershipOf(actor.id, resolved.organizationId);
+  if (
+    !canReadTicket(actor, effectiveMembership, resolved) ||
+    (resolved.isInternal &&
+      !canPolicy(
+        'ticket:viewInternalNotes',
+        subject(actor, effectiveMembership),
+      ))
+  )
+    throw Errors.resourceNotFound(missing);
+  // Only now, for someone who can see the ticket: answering «too many
+  // attachments» first told an outsider that the ticket existed and was full.
+  if (resolved.attachmentsOnTicket >= config.UPLOAD_MAX_PER_TICKET)
+    throw Errors.tooManyAttachments(config.UPLOAD_MAX_PER_TICKET);
   assertPolicy('attachment:create', subject(actor, effectiveMembership));
+
+  const organizationId = resolved.organizationId;
+  const resolvedTicketId = resolved.ticketId;
 
   const extension = ALLOWED.get(mime) ?? TEXT_TYPES.get(mime) ?? 'bin';
   const storageKey = `${uuidv7()}.${extension}`;
@@ -165,18 +205,16 @@ export async function listForTicket(
     where: { id: ticketId },
     select: { id: true, organizationId: true, createdById: true },
   });
-  if (!ticket) throw Errors.resourceNotFound('ticket');
-
   const effectiveMembership =
-    membership?.organizationId === ticket.organizationId
+    ticket && membership?.organizationId === ticket.organizationId
       ? membership
-      : await membershipOf(actor.id, ticket.organizationId);
-  if (!effectiveMembership && actor.globalRole !== 'GLOBAL_ADMIN')
-    throw Errors.notAMember();
+      : ticket
+        ? await membershipOf(actor.id, ticket.organizationId)
+        : undefined;
+  // Same 404 as a made-up id for a ticket the caller cannot read (findOne).
+  if (!ticket || !canReadTicket(actor, effectiveMembership, ticket))
+    throw Errors.resourceNotFound('ticket');
 
-  assertPolicy('ticket:read', subject(actor, effectiveMembership), {
-    ownerId: ticket.createdById,
-  });
   assertPolicy('attachment:read', subject(actor, effectiveMembership), {
     ownerId: ticket.createdById,
   });
@@ -223,6 +261,7 @@ export async function metadata(actor: RequestActor, id: string) {
       ticket: { select: { id: true, organizationId: true, createdById: true } },
       comment: {
         select: {
+          isInternal: true,
           ticket: {
             select: { id: true, organizationId: true, createdById: true },
           },
@@ -230,14 +269,23 @@ export async function metadata(actor: RequestActor, id: string) {
       },
     },
   });
-  if (!attachment) throw Errors.resourceNotFound('attachment');
-
-  const ticket = attachment.ticket ?? attachment.comment?.ticket;
-  if (!ticket) throw Errors.resourceNotFound('attachment');
-
-  const membership = await membershipOf(actor.id, ticket.organizationId);
-  if (!membership && actor.globalRole !== 'GLOBAL_ADMIN')
-    throw Errors.notAMember();
+  const ticket = attachment?.ticket ?? attachment?.comment?.ticket;
+  const membership = ticket
+    ? await membershipOf(actor.id, ticket.organizationId)
+    : undefined;
+  // An attachment whose ticket the caller cannot read, or that belongs to an
+  // internal note they cannot see, does not exist for them: the same 404 as a
+  // made-up id. Before, a foreign one answered «not a member», which confirmed
+  // it existed, and the author of a ticket could download an internal note's
+  // attachment by its id.
+  if (
+    !attachment ||
+    !ticket ||
+    !canReadTicket(actor, membership, ticket) ||
+    (attachment.comment?.isInternal &&
+      !canPolicy('ticket:viewInternalNotes', subject(actor, membership)))
+  )
+    throw Errors.resourceNotFound('attachment');
   assertPolicy('attachment:read', subject(actor, membership), {
     ownerId: ticket.createdById,
   });

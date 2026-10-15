@@ -35,10 +35,10 @@ export function CreateTicketPage({
   const { t } = useTranslation();
   const toast = useToast();
 
-  const categoriesQuery = useAsync(
-    () => listCategories(organizationId),
-    [organizationId],
-  );
+  const categoriesQuery = useAsync(async () => {
+    if (!organizationId) return [];
+    return listCategories(organizationId);
+  }, [organizationId]);
 
   const [description, setDescription] = useState('');
   const [priority, setPriority] =
@@ -52,7 +52,6 @@ export function CreateTicketPage({
 
   const categories = categoriesQuery.data ?? [];
   const activeCategories = categories.filter((c) => c.isActive);
-  const hasCategories = activeCategories.length > 0;
   const selectedCategory = categories.find((c) => c.id === categoryId);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -161,14 +160,10 @@ export function CreateTicketPage({
               <SelectField
                 label={t('tickets.create.fields.category')}
                 onChange={(event) => setCategoryId(event.target.value)}
-                disabled={!hasCategories}
-                required={hasCategories}
                 value={categoryId}
               >
                 <option value="">
-                  {hasCategories
-                    ? t('tickets.create.fields.categoryPlaceholder')
-                    : t('tickets.create.fields.noCategories')}
+                  {t('tickets.create.fields.categoryPlaceholder')}
                 </option>
                 {activeCategories.map((item) => (
                   <option key={item.id} value={item.id}>
@@ -177,7 +172,11 @@ export function CreateTicketPage({
                 ))}
               </SelectField>
             </div>
-            {selectedCategory?.description ? (
+            {categoryId === '' || !categoryId ? (
+              <p className="-mt-4 text-xs2 text-muted">
+                {t('tickets.create.fields.categoryUnassignedHelp')}
+              </p>
+            ) : selectedCategory?.description ? (
               <p className="-mt-4 text-xs2 text-muted">
                 {selectedCategory.description}
               </p>
@@ -185,9 +184,10 @@ export function CreateTicketPage({
             <label className="relative grid gap-[7px] text-xs leading-[1.2] font-medium text-ink">
               <span>{t('tickets.create.fields.description')}</span>
               <textarea
-                className="min-h-[130px] w-full min-w-0 resize-y rounded-[10px] border border-border bg-[#f7faf8] p-4 text-sm leading-[1.2] text-ink max-md:min-h-[120px]"
+                className="min-h-[130px] w-full min-w-0 resize-y rounded-[10px] border border-border bg-surface p-4 text-sm leading-[1.2] text-ink max-md:min-h-[120px]"
                 minLength={10}
                 maxLength={5000}
+                name="description"
                 onChange={(event) => setDescription(event.target.value)}
                 placeholder={t('tickets.create.fields.descriptionPlaceholder')}
                 required

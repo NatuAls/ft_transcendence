@@ -1,5 +1,6 @@
 {
   "private": true,
+  "license": "UNLICENSED",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -39,5 +40,9 @@
   "allowScripts": {
     "prisma@7.9.1": true,
     "@prisma/engines@7.9.1": true
+  },
+  "dependencies": {
+    "i18next": "^26.4.4",
+    "react-i18next": "^17.0.16"
   }
 }

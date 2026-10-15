@@ -1,8 +1,11 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { VerifyEmailPage } from '../src/features/auth/VerifyEmailPage';
+import { initI18n } from '../src/core/i18n';
 import type { ViewerSession } from '../src/app/session';
 import { apiError, mockApi, reply } from './support/api';
+
+beforeAll(() => initI18n());
 
 /**
  * The link of the confirmation e-mail. Verifying is also the moment every

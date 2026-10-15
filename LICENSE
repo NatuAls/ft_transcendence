@@ -1,0 +1,28 @@
+HelpDesk Lite
+
+Copyright (c) 2026 the authors of HelpDesk Lite (see README.md, «Team
+Information»). All rights reserved.
+
+EDUCATIONAL USE ONLY. HelpDesk Lite is an academic project built for the
+ft_transcendence subject at 42 Barcelona. It is published so that it can be
+read and evaluated, not for reuse: no permission is granted to use, copy,
+modify, merge, publish, distribute, sublicense or sell it, in whole or in
+part, in any other product, without the prior written permission of its
+authors.
+
+The software is provided "as is", without warranty of any kind, express or
+implied.
+
+The package manifests declare it with npm's convention for code that grants
+no licence: "license": "UNLICENSED", together with "private": true.
+
+===============================================================================
+Third-party material
+===============================================================================
+
+The dependencies installed through npm keep their own licences, which are
+distributed with each package.
+
+The interface icons are the project's own: inline SVG drawn for its design
+system and served by its own component (packages/ui/src/Icon.tsx), with no
+third-party icon set or icon dependency.

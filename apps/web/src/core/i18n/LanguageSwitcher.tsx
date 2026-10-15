@@ -1,16 +1,12 @@
 import { useTranslation } from 'react-i18next';
+import { SelectField } from 'ui';
 import {
   LANGUAGES,
   currentLanguage,
   setLanguage,
+  toApiLocale,
   type Language,
 } from './index';
-
-const LABELS: Record<Language, string> = {
-  en: 'English',
-  es: 'Español',
-  ca: 'Català',
-};
 
 /** Selector de idioma para el menú de perfil. onChange recibe el código de la API para persistirlo. */
 export function LanguageSwitcher({
@@ -20,23 +16,20 @@ export function LanguageSwitcher({
 }) {
   const { t } = useTranslation();
   return (
-    <label className="ui-field">
-      {t('common.language')}
-      <select
-        className="ui-field__input"
-        value={currentLanguage()}
-        onChange={(e) => {
-          const lang = e.target.value as Language;
-          void setLanguage(lang);
-          onChange?.(lang.toUpperCase() as 'EN' | 'ES' | 'CA');
-        }}
-      >
-        {LANGUAGES.map((l) => (
-          <option key={l} value={l}>
-            {LABELS[l]}
-          </option>
-        ))}
-      </select>
-    </label>
+    <SelectField
+      label={t('common.language')}
+      onChange={(event) => {
+        const lang = event.target.value as Language;
+        void setLanguage(lang);
+        onChange?.(toApiLocale(lang));
+      }}
+      value={currentLanguage()}
+    >
+      {LANGUAGES.map((lang) => (
+        <option key={lang} value={lang}>
+          {t(`account.preferences.languages.${lang}`)}
+        </option>
+      ))}
+    </SelectField>
   );
 }

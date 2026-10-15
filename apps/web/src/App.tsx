@@ -36,7 +36,6 @@ import { ForgotPasswordPage } from './features/auth/ForgotPasswordPage';
 import { ResetPasswordPage } from './features/auth/ResetPasswordPage';
 import { VerifyEmailPage } from './features/auth/VerifyEmailPage';
 import { LegalPage } from './features/legal/LegalPage';
-import { initialTickets, type Ticket } from './features/tickets/ticketData';
 import {
   getOrganizationInitials,
   organizationsForViewer,
@@ -51,12 +50,9 @@ import { RealtimeEvents } from './core/realtime/socket';
 import { useRealtimeEvent } from './core/realtime/useRealtime';
 import { ToastProvider } from './core/feedback/ToastProvider';
 import { RealtimeProvider } from './core/realtime/RealtimeProvider';
-
-const roleLabels = {
-  AGENT: 'Support agent',
-  MEMBER: 'Member',
-  ORG_ADMIN: 'Organization admin',
-} as const;
+import { fromApiLocale, hasStoredLanguage, setLanguage } from './core/i18n';
+import { applyTheme } from './core/theme';
+import { getPreferences } from './api/users';
 
 /**
  * The organizations the viewer can switch between.
@@ -77,13 +73,13 @@ async function loadOrganizations(
     // The memberships still name every organization of the account; only the
     // descriptions and counters wait for the next successful load.
     return viewer.memberships.map((membership) => ({
+      counts: null,
       description: membership.organizationDescription ?? '',
       id: membership.organizationId,
       initials: getOrganizationInitials(membership.organizationName),
       name: membership.organizationName,
-      roleLabel: roleLabels[membership.role],
+      role: membership.role,
       slug: membership.organizationSlug,
-      summary: '',
     }));
   }
 }
@@ -118,7 +114,6 @@ function App() {
     initialViewer?.profile ?? null,
   );
   const [sessionReady, setSessionReady] = useState(previewMode);
-  const [tickets, setTickets] = useState<Ticket[]>(initialTickets);
   const [organizations, setOrganizations] =
     useState<OrganizationSummary[]>(initialOrganizations);
   const [organizationId, setOrganizationId] = useState(
@@ -179,6 +174,12 @@ function App() {
       user: AuthResponse['user'],
       options: { force?: boolean; preferredId?: string } = {},
     ) => {
+      if (!hasStoredLanguage()) {
+        await setLanguage(fromApiLocale(user.locale));
+      }
+      void getPreferences()
+        .then(({ theme }) => applyTheme(theme))
+        .catch(() => {});
       const nextViewer = viewerFromAuthUser(user);
       setViewer(nextViewer);
       setAccountProfile(nextViewer.profile);
@@ -511,18 +512,10 @@ function App() {
               current ? { ...current, profile } : current,
             );
           }}
-          onTicketChange={(updatedTicket) =>
-            setTickets((current) =>
-              current.map((ticket) =>
-                ticket.id === updatedTicket.id ? updatedTicket : ticket,
-              ),
-            )
-          }
           organizationDescription={organizationDescription}
           organizationId={organizationId}
           organizationName={organizationName}
           organizations={organizations}
-          tickets={tickets}
           viewer={scopedViewer}
         />
       </AppShell>

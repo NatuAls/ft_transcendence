@@ -142,7 +142,7 @@ export const socialPaths: Paths = {
       operationId: 'sendMessage',
       summary: 'Send a message',
       description:
-        'Stores it and pushes `message.created` to the `conv:<id>` room over Socket.IO, so the other side sees it without polling. The realtime layer re-checks membership before letting anyone into that room.',
+        'Stores it and pushes `message.created` to the conversation and participant user rooms over Socket.IO, so active threads and conversation lists update without polling. The realtime layer re-checks membership before letting anyone into the conversation room.',
       security: session,
       parameters: [{ $ref: '#/components/parameters/IdPath' }],
       requestBody: body('SendMessageInput'),

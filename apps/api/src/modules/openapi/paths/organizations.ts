@@ -356,7 +356,7 @@ export const organizationsPaths: Paths = {
       requestBody: body('CreateApiKeyInput'),
       responses: {
         '201': created(
-          'Key created. Copy the `key` field now.',
+          'Key created. Copy the `secret` field now: it is the only time it is sent.',
           ref('ApiKeyCreated'),
         ),
         ...errs('400', '401', '403', '404'),

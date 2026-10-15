@@ -5,10 +5,12 @@ import { PreviewIdentitySelect } from '../app/PreviewIdentitySelect';
 import {
   can,
   previewMode,
+  type Permission,
   type PreviewIdentity,
   type ViewerSession,
 } from '../app/session';
 import { getInitials } from '../app/text';
+import { useTranslation } from '../core/i18n';
 import { AppFooter } from './AppFooter';
 import { GlobalSearchDialog } from './GlobalSearchDialog';
 import { ProfileMenu } from './ProfileMenu';
@@ -39,41 +41,54 @@ const workspaceNavigation: Array<{
   label: string;
   section: AppSection;
 }> = [
-  { icon: 'ticket', label: 'Tickets', section: 'tickets' },
-  { icon: 'users', label: 'People', section: 'people' },
-  { icon: 'message', label: 'Messages', section: 'messages' },
+  { icon: 'ticket', label: 'nav.tickets', section: 'tickets' },
+  { icon: 'users', label: 'nav.people', section: 'people' },
+  { icon: 'message', label: 'nav.messages', section: 'messages' },
   {
     icon: 'building',
-    label: 'Organization settings',
+    label: 'nav.organization',
     section: 'organization',
   },
-  { icon: 'shield', label: 'Roles & access', section: 'organization-roles' },
+  {
+    icon: 'shield',
+    label: 'nav.organizationRoles',
+    section: 'organization-roles',
+  },
 ];
 
 const platformNavigation: Array<{
   icon: IconName;
   label: string;
+  /** Lo que hace falta para verla, además de administrar la plataforma. */
+  permission?: Permission;
   section: AppSection;
 }> = [
-  { icon: 'users', label: 'Users', section: 'admin' },
-  { icon: 'building', label: 'Organizations', section: 'organizations' },
-  { icon: 'shield', label: 'Platform roles', section: 'platform-roles' },
+  { icon: 'users', label: 'nav.users', section: 'admin' },
+  { icon: 'building', label: 'nav.organizations', section: 'organizations' },
+  { icon: 'shield', label: 'nav.platformRoles', section: 'platform-roles' },
+  {
+    icon: 'history',
+    label: 'nav.auditLog',
+    permission: 'audit:read',
+    section: 'admin/audit',
+  },
 ];
 
 const mobileNavigation = workspaceNavigation
   .slice(0, 3)
-  .concat({ icon: 'user' as const, label: 'Account', section: 'account' });
+  .concat({ icon: 'user' as const, label: 'nav.account', section: 'account' });
 
 const mobileTitles: Record<AppSection, string> = {
-  account: 'Account',
-  admin: 'Users',
-  messages: 'Messages',
-  organization: 'Organization',
-  organizations: 'Organizations',
-  'organization-roles': 'Roles & access',
-  people: 'People',
-  'platform-roles': 'Platform roles',
-  tickets: 'Tickets',
+  account: 'nav.account',
+  admin: 'nav.users',
+  messages: 'nav.messages',
+  organization: 'nav.organization',
+  organizations: 'nav.organizations',
+  'organization-roles': 'nav.organizationRoles',
+  people: 'nav.people',
+  'platform-roles': 'nav.platformRoles',
+  'admin/audit': 'nav.auditLog',
+  tickets: 'nav.tickets',
 };
 
 function NavButton({
@@ -123,6 +138,7 @@ export function AppShell({
   userName,
   viewer,
 }: AppShellProps) {
+  const { t } = useTranslation();
   const [searchOpen, setSearchOpen] = useState(false);
   const [organizationMenuOpen, setOrganizationMenuOpen] = useState(false);
   const organizationPickerRef = useRef<HTMLDivElement>(null);
@@ -150,7 +166,7 @@ export function AppShell({
 
   return (
     <div className="min-h-dvh bg-canvas max-[1100px]:bg-surface">
-      <aside className="fixed inset-y-0 left-0 z-20 flex w-[260px] flex-col bg-[#183039] px-5 pt-7 pb-5 text-surface max-[1100px]:hidden">
+      <aside className="fixed inset-y-0 left-0 z-20 flex w-[260px] flex-col bg-[#183039] px-5 pt-7 pb-5 text-aside-text max-[1100px]:hidden">
         <button
           className="flex items-center gap-3 px-2 pb-10 text-left text-lg font-medium"
           onClick={() => onNavigate('tickets')}
@@ -159,9 +175,9 @@ export function AppShell({
           <BrandMark className="!size-9 !rounded-[10px]" />
           <span>HelpDesk Lite</span>
         </button>
-        <nav aria-label="Main navigation" className="grid gap-1.5">
+        <nav aria-label={t('common.mainNavigation')} className="grid gap-1.5">
           <span className="px-3 pb-1 text-2xs tracking-[.08em] text-[#a9b9ba]">
-            ORGANIZATION
+            {t('nav.organizationGroup')}
           </span>
           {workspaceNavigation.map((item) => (
             <NavButton
@@ -171,8 +187,8 @@ export function AppShell({
               label={
                 item.section === 'organization' &&
                 !can(viewer, 'organization:update')
-                  ? 'Organization'
-                  : item.label
+                  ? t('nav.organization')
+                  : t(item.label)
               }
               onClick={() => onNavigate(item.section)}
             />
@@ -180,17 +196,21 @@ export function AppShell({
           {showAdministration ? (
             <>
               <span className="mt-5 px-3 pb-1 text-2xs tracking-[.08em] text-[#a9b9ba]">
-                PLATFORM
+                {t('nav.platformGroup')}
               </span>
-              {platformNavigation.map((item) => (
-                <NavButton
-                  active={item.section === activeSection}
-                  icon={item.icon}
-                  key={item.section}
-                  label={item.label}
-                  onClick={() => onNavigate(item.section)}
-                />
-              ))}
+              {platformNavigation
+                .filter(
+                  (item) => !item.permission || can(viewer, item.permission),
+                )
+                .map((item) => (
+                  <NavButton
+                    active={item.section === activeSection}
+                    icon={item.icon}
+                    key={item.section}
+                    label={t(item.label)}
+                    onClick={() => onNavigate(item.section)}
+                  />
+                ))}
             </>
           ) : null}
         </nav>
@@ -204,7 +224,7 @@ export function AppShell({
         <div className="relative mt-auto flex items-center rounded-sm">
           <button
             className="flex min-w-0 flex-1 items-center gap-2.5 border-0 bg-transparent px-2 py-3 text-left font-[inherit] text-inherit"
-            onClick={() => onNavigate('account/profile')}
+            onClick={() => onNavigate('account')}
             type="button"
           >
             <Avatar
@@ -220,12 +240,13 @@ export function AppShell({
             </span>
           </button>
           <ProfileMenu
-            label="Open account menu"
+            label={t('common.openAccountMenu')}
             onNavigate={onNavigate}
             onPreviewIdentityChange={onPreviewIdentityChange}
             onSignOut={onSignOut}
             previewIdentity={viewer.previewIdentity}
             showAdministration={showAdministration}
+            showAudit={can(viewer, 'audit:read')}
             placement="sidebar"
           >
             <span aria-hidden="true">•••</span>
@@ -247,10 +268,10 @@ export function AppShell({
                 >
                   <span className="grid gap-0.5">
                     <small className="text-3xs tracking-[.06em] text-muted">
-                      ACTIVE ORGANIZATION
+                      {t('common.activeOrganization')}
                     </small>
                     <strong className="text-sm font-medium">
-                      {organizationName || 'None yet'}
+                      {organizationName || t('common.noneYet')}
                     </strong>
                   </span>
                   <Icon name="chevron-down" size={15} />
@@ -258,16 +279,16 @@ export function AppShell({
               ) : (
                 <span className="grid gap-0.5 px-2 py-1">
                   <small className="text-3xs tracking-[.06em] text-muted">
-                    ACTIVE ORGANIZATION
+                    {t('common.activeOrganization')}
                   </small>
                   <strong className="text-sm font-medium">
-                    {organizationName || 'None yet'}
+                    {organizationName || t('common.noneYet')}
                   </strong>
                 </span>
               )}
               {organizationMenuOpen ? (
                 <div
-                  aria-label="Choose active organization"
+                  aria-label={t('common.chooseOrganization')}
                   className="absolute top-[calc(100%+8px)] left-0 z-60 grid min-w-[240px] overflow-hidden rounded-md border border-border bg-surface p-1.5 shadow-lg"
                   role="menu"
                 >
@@ -300,23 +321,24 @@ export function AppShell({
             </div>
             {previewMode ? (
               <span className="rounded-full bg-surface-secondary px-[9px] py-[5px] text-2xs text-muted">
-                Frontend preview · local data
+                {t('common.previewMode')}
               </span>
             ) : null}
           </div>
           <div className="flex items-center gap-[18px]">
             <IconButton
               icon="search"
-              label="Search HelpDesk Lite"
+              label={t('search.title')}
               onClick={() => setSearchOpen(true)}
             />
             <ProfileMenu
-              label="Open account menu"
+              label={t('common.openAccountMenu')}
               onNavigate={onNavigate}
               onPreviewIdentityChange={onPreviewIdentityChange}
               onSignOut={onSignOut}
               previewIdentity={viewer.previewIdentity}
               showAdministration={showAdministration}
+              showAudit={can(viewer, 'audit:read')}
               placement="topbar"
             >
               <Avatar
@@ -331,7 +353,7 @@ export function AppShell({
           className={`${hideMobileHeader ? '' : 'max-[1100px]:grid'} sticky top-0 z-10 hidden h-[68px] grid-cols-[40px_1fr_40px] items-center border-b border-border bg-surface/94 px-[18px]`}
         >
           <button
-            aria-label="Go to tickets"
+            aria-label={t('common.goToTickets')}
             className="grid size-10 place-items-center rounded-[10px]"
             onClick={() => onNavigate('tickets')}
             type="button"
@@ -339,16 +361,17 @@ export function AppShell({
             <BrandMark className="!size-9 !rounded-[10px]" />
           </button>
           <strong className="text-center text-lg">
-            {mobileTitles[activeSection]}
+            {t(mobileTitles[activeSection])}
           </strong>
           <ProfileMenu
             className="justify-self-end"
-            label="Open account menu"
+            label={t('common.openAccountMenu')}
             onNavigate={onNavigate}
             onPreviewIdentityChange={onPreviewIdentityChange}
             onSignOut={onSignOut}
             previewIdentity={viewer.previewIdentity}
             showAdministration={showAdministration}
+            showAudit={can(viewer, 'audit:read')}
             placement="mobile"
           >
             <Avatar
@@ -361,7 +384,7 @@ export function AppShell({
         <main className="min-w-0 flex-1">{children}</main>
         <AppFooter from={activeRoute} />
         <nav
-          aria-label="Mobile navigation"
+          aria-label={t('common.mobileNavigation')}
           className="fixed right-0 bottom-0 left-0 z-20 hidden h-[74px] grid-cols-4 border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] max-[1100px]:grid"
         >
           {mobileNavigation.map((item) => (
@@ -369,7 +392,7 @@ export function AppShell({
               active={item.section === activeSection}
               icon={item.icon}
               key={item.section}
-              label={item.label}
+              label={t(item.label)}
               mobile
               onClick={() => onNavigate(item.section)}
             />
@@ -380,7 +403,7 @@ export function AppShell({
         <GlobalSearchDialog
           onClose={() => setSearchOpen(false)}
           onNavigate={onNavigate}
-          organizationName={organizationName}
+          organizationId={activeOrganizationId}
         />
       ) : null}
     </div>

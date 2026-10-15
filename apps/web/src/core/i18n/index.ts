@@ -21,6 +21,15 @@ export function fromApiLocale(locale: string | undefined | null): Language {
   return (LANGUAGES as readonly string[]).includes(l) ? (l as Language) : 'en';
 }
 
+export function hasStoredLanguage(): boolean {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return Boolean(stored && (LANGUAGES as readonly string[]).includes(stored));
+  } catch {
+    return false;
+  }
+}
+
 function detectLanguage(): Language {
   let stored: string | null = null;
   try {
@@ -39,6 +48,7 @@ function detectLanguage(): Language {
 export async function initI18n() {
   if (i18next.isInitialized) return i18next;
   await i18next.use(initReactI18next).init({
+    // showSupportNotice: false,
     resources: {
       en: { translation: en },
       es: { translation: es },
@@ -48,9 +58,48 @@ export async function initI18n() {
     fallbackLng: 'en',
     interpolation: { escapeValue: false }, // React ya escapa
     returnNull: false,
+    // Desde la 25.x i18next anuncia Locize en la consola en cada carga.
+    showSupportNotice: false,
+    // Una clave de error que la API emite y aquí no está traducida se
+    // enseñaría tal cual —«errors.org.slugTaken»—, que es peor que el mensaje
+    // en inglés de antes. Para las de error se da el genérico en el idioma de
+    // la persona; para el resto se deja la clave, que en desarrollo es lo que
+    // permite ver qué falta. `api-error-keys.test.ts` vigila que no haga falta
+    // llegar aquí.
+    //
+    // Un `defaultValue` explícito gana siempre: quien lo pasa —el cambio de
+    // contraseña pasa el mensaje de la API— ha elegido un respaldo mejor que
+    // éste, y pisarlo sería empeorar la pantalla.
+    parseMissingKeyHandler: (key: string, defaultValue?: string) => {
+      if (defaultValue !== undefined && defaultValue !== key)
+        return defaultValue;
+      return key.startsWith('errors.') && key !== 'errors.common.unexpected'
+        ? i18next.t('errors.common.unexpected')
+        : key;
+    },
   });
   document.documentElement.lang = i18next.language;
+  followLanguageOfOtherTabs();
   return i18next;
+}
+
+/**
+ * El idioma elegido en una pestaña llega a las demás del mismo navegador.
+ *
+ * `setLanguage` lo guarda en `localStorage`, y el navegador avisa a las otras
+ * pestañas con el evento `storage` (a la que lo ha escrito, no). Sin esto, cada
+ * pestaña se quedaba con su idioma hasta recargar.
+ */
+function followLanguageOfOtherTabs() {
+  window.addEventListener('storage', (event) => {
+    const lang = event.newValue;
+    if (event.key !== STORAGE_KEY || !lang) return;
+    if (!(LANGUAGES as readonly string[]).includes(lang)) return;
+    if (lang === i18next.language) return;
+    void i18next.changeLanguage(lang).then(() => {
+      document.documentElement.lang = lang;
+    });
+  });
 }
 
 /** Cambia el idioma en la interfaz; la pantalla de cuenta lo persiste en la API. */

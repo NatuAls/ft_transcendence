@@ -10,6 +10,7 @@ import { prisma } from '../../database/prisma.ts';
 import { DomainEvents } from '../../database/events.ts';
 import { createLogger } from '../../common/logger.ts';
 import { registerChatSocketHandlers } from '../chat/chat.socket.ts';
+import { uuidSchema } from 'contracts';
 
 const logger = createLogger('realtime');
 
@@ -36,7 +37,8 @@ export interface RealtimeServer {
 
 /**
  * Rooms, never global broadcast:
- *   user:{id}     every tab of one user      -> notifications, account changes
+ *   user:{id}     every tab of one user      -> notifications, account changes,
+ *                                               conversation-list messages
  *   org:{id}      members of an organization -> ticket / category / member events
  *   ticket:{id}   whoever has it open        -> comments, attachments, diffs
  *   conv:{id}     the two chat participants  -> messages, read receipts
@@ -232,6 +234,8 @@ export function createSocketServer(httpServer: HttpServer): RealtimeServer {
         void (async () => {
           const user = sockets.get(client.id);
           if (!user || !body?.ticketId) return ack?.({ ok: false });
+          if (!uuidSchema.safeParse(body.ticketId).success)
+            return ack?.({ ok: false });
           // Re-check access at subscribe time: room membership is an authorisation decision.
           const ticket = await prisma.ticket.findUnique({
             where: { id: body.ticketId },

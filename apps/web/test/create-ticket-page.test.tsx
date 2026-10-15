@@ -108,20 +108,20 @@ describe('tickets · nueva creación', () => {
     expect(campo.disabled).toBe(true);
   });
 
-  it('sin categorías activas, el desplegable queda apagado de verdad', async () => {
-    // El caso en el que `disabled` tiene que llegar al control: con la lista
-    // vacía no hay nada que elegir, y un desplegable que se abre para enseñar
-    // sólo «no hay categorías» invita a pulsarlo para nada.
+  it('sin categorías activas, permite dejar la categoría sin asignar', async () => {
     mockApi({
       [`GET /organizations/${ORG_ID}/categories`]: { status: 200, body: [] },
     });
 
     renderCreatePage();
 
-    await waitFor(() => {
-      const desplegable = screen.getByRole('combobox') as HTMLSelectElement;
-      expect(desplegable.disabled).toBe(true);
-    });
+    const desplegable = (await screen.findByRole(
+      'combobox',
+    )) as HTMLSelectElement;
+    expect(desplegable.value).toBe('');
+    expect(
+      screen.getByRole('option', { name: 'Select a category (optional)...' }),
+    ).toBeTruthy();
   });
 
   it('error al cargar categorías: lo dice y deja reintentar', async () => {
@@ -164,10 +164,12 @@ describe('tickets · nueva creación', () => {
       screen.getByRole('button', { name: 'Create ticket' }).closest('form')!,
     );
 
-    // Verificamos que se pintaron los mensajes de error bajo los campos
-    // (Asegúrate de que 'Check this field.' es lo que devuelve errors.ts actualmente)
-    const errorMessages = await screen.findAllByText('Check this field.');
-    expect(errorMessages.length).toBeGreaterThan(0);
+    // Verificamos que se pintaron los mensajes de error bajo los campos.
+    // Desde el 13/10 salen traducidos y concretos —«Title is too short.»— en
+    // vez del genérico «Check this field.» que daba errors.ts mientras no
+    // había traducción de los errores de campo.
+    expect(await screen.findByText('Title is too short.')).toBeTruthy();
+    expect(screen.getByText('Description is too short.')).toBeTruthy();
 
     // Comprobamos que NUNCA salió la petición POST
     expect(calls.filter((call) => call.method === 'POST')).toHaveLength(0);

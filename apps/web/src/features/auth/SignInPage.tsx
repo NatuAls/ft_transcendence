@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { loginSchema } from 'contracts';
-import { Alert, Button, Checkbox, TextField } from 'ui';
+import { Alert, Button, Checkbox, IconButton, TextField } from 'ui';
 import { AuthBrandPanel, BrandHeader } from './AuthBrand';
 import { login, type AuthResponse } from '../../api/auth';
+import { LanguageSwitcher } from '../../core/i18n/LanguageSwitcher';
+import { ApiError, errorKey } from '../../core/api/errors';
+import { useTranslation } from '../../core/i18n';
 
 export interface SignInValues {
   email: string;
@@ -21,6 +24,7 @@ export function SignInPage({
   onOpenPreview,
   onSubmit,
 }: SignInPageProps) {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [keepSignedIn, setKeepSignedIn] = useState(true);
@@ -43,7 +47,7 @@ export function SignInPage({
 
     const parsed = loginSchema.safeParse({ email, password });
     if (!parsed.success) {
-      setError('Please check the form fields.');
+      setError(t('errors.common.validationFailed'));
       return;
     }
 
@@ -55,10 +59,15 @@ export function SignInPage({
       // Si fue exitoso, pasamos el usuario al router/padre
       void onSubmit(authData.user);
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
+      // Un usuario inexistente y una contraseña incorrecta deben mostrar el
+      // mismo mensaje. La API responde 401 en ambos casos para no revelar si
+      // una dirección está registrada (enumeración de usuarios). Este fallback
+      // también mantiene el mensaje correcto si la respuesta no trae el
+      // `messageKey` esperado.
+      if (err instanceof ApiError && err.status === 401) {
+        setError(t('errors.auth.invalidCredentials'));
       } else {
-        setError('An unexpected error occurred.');
+        setError(t(errorKey(err)));
       }
     } finally {
       setIsSubmitting(false);
@@ -70,12 +79,12 @@ export function SignInPage({
       <AuthBrandPanel
         title={
           <>
-            Support work,
+            {t('auth.signIn.brandLine1')}
             <br />
-            without the noise.
+            {t('auth.signIn.brandLine2')}
           </>
         }
-        description="Track requests, collaborate clearly and keep every resolution in one dependable place."
+        description={t('auth.signIn.brandDescription')}
         insight={
           <section
             className="mt-36 max-w-[452px] rounded-lg bg-[#244148] p-6"
@@ -85,12 +94,12 @@ export function SignInPage({
               className="mb-[21px] text-xs2 font-medium text-[#bfd8cf] uppercase"
               id="benefits-heading"
             >
-              Built for dependable support
+              {t('auth.signIn.benefitsTitle')}
             </h2>
             <ul className="grid list-none gap-[15px] p-0 text-[0.8125rem] text-[#f7faf8] [&_li]:flex [&_li]:items-center [&_li]:gap-3 [&_li]:before:grid [&_li]:before:size-5 [&_li]:before:shrink-0 [&_li]:before:place-items-center [&_li]:before:rounded-full [&_li]:before:bg-[#86afa4] [&_li]:before:text-xs2 [&_li]:before:font-medium [&_li]:before:text-[#183039] [&_li]:before:content-['✓']">
-              <li>Clear ownership from request to resolution</li>
-              <li>Shared context for requesters and agents</li>
-              <li>A searchable record of every decision</li>
+              <li>{t('auth.signIn.benefitOwnership')}</li>
+              <li>{t('auth.signIn.benefitContext')}</li>
+              <li>{t('auth.signIn.benefitRecord')}</li>
             </ul>
           </section>
         }
@@ -100,13 +109,16 @@ export function SignInPage({
         <div className="md:hidden">
           <BrandHeader />
         </div>
+        <div className="mt-4 flex justify-end md:absolute md:top-6 md:right-6 md:mt-0">
+          <LanguageSwitcher />
+        </div>
 
         <header className="mx-2 mt-[55px] mb-[18px] md:hidden">
           <h1 className="text-[1.75rem] leading-[1.2] font-medium">
-            Welcome back
+            {t('auth.signIn.welcomeBack')}
           </h1>
           <p className="mt-2.5 text-[0.8125rem] leading-[1.45] text-muted">
-            Sign in to continue to your organization workspace.
+            {t('auth.signIn.mobileDescription')}
           </p>
         </header>
 
@@ -116,26 +128,26 @@ export function SignInPage({
         >
           <header className="mb-8 hidden md:block">
             <p className="mb-[17px] text-xs2 font-medium tracking-[.01em] text-primary uppercase">
-              Welcome back
+              {t('auth.signIn.welcomeBack')}
             </p>
             <h1
               className="text-[1.75rem] leading-[1.2] font-medium"
               id="sign-in-heading"
             >
-              Sign in to your workspace
+              {t('auth.signIn.title')}
             </h1>
             <p className="mt-2.5 text-[0.8125rem] leading-[1.45] text-muted">
-              Use the credentials provided by your organization.
+              {t('auth.signIn.description')}
             </p>
           </header>
 
           <form className="grid gap-7 md:gap-5" onSubmit={handleSubmit}>
             <TextField
-              label="Email address"
+              label={t('auth.signIn.email')}
               name="email"
               type="email"
               autoComplete="email"
-              placeholder="name@company.com"
+              placeholder={t('auth.signIn.emailPlaceholder')}
               value={email}
               onChange={handleChange(setEmail)}
               required
@@ -143,23 +155,32 @@ export function SignInPage({
             <div>
               <div className="relative">
                 <TextField
-                  label="Password"
+                  label={t('auth.signIn.password')}
                   name="password"
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
-                  placeholder="••••••••••"
+                  placeholder={t('auth.signIn.passwordPlaceholder')}
                   value={password}
                   onChange={handleChange(setPassword)}
                   required
                 />
-                <button
-                  type="button"
+                <IconButton
+                  aria-label={
+                    showPassword
+                      ? t('auth.common.hidePassword')
+                      : t('auth.common.showPassword')
+                  }
+                  aria-pressed={showPassword}
                   className="absolute right-3 bottom-0 flex h-12 items-center border-0 bg-transparent px-1 text-xs2 font-medium text-muted hover:text-primary hover:underline md:h-[52px] md:text-xs"
+                  icon={showPassword ? 'eye-off' : 'eye'}
+                  label={
+                    showPassword
+                      ? t('auth.common.hidePassword')
+                      : t('auth.common.showPassword')
+                  }
                   onClick={() => setShowPassword(!showPassword)}
-                  tabIndex={-1} // Evita que el usuario caiga aquí accidentalmente al usar la tecla Tab
-                >
-                  {showPassword ? 'Hide' : 'Show'}
-                </button>
+                  size="sm"
+                />
               </div>
             </div>
             {/* La API tenía /auth/forgot-password desde el principio y esta
@@ -170,7 +191,7 @@ export function SignInPage({
                 className="font-medium text-primary no-underline hover:underline"
                 href="#forgot-password"
               >
-                Forgot your password?
+                {t('auth.signIn.forgotPassword')}
               </a>
             </div>
             <Checkbox
@@ -178,9 +199,11 @@ export function SignInPage({
               label={
                 <>
                   <span className="hidden md:inline">
-                    Keep me signed in on this device
+                    {t('auth.signIn.keepSignedIn')}
                   </span>
-                  <span className="md:hidden">Keep me signed in</span>
+                  <span className="md:hidden">
+                    {t('auth.signIn.keepSignedInShort')}
+                  </span>
                 </>
               }
               checked={keepSignedIn}
@@ -193,17 +216,19 @@ export function SignInPage({
               type="submit"
               disabled={isSubmitting || !!error}
             >
-              {isSubmitting ? 'Signing in...' : 'Sign in'}
+              {isSubmitting
+                ? t('auth.signIn.submitting')
+                : t('auth.signIn.submit')}
             </Button>
             {onOpenPreview ? (
               <Button fullWidth onClick={onOpenPreview} variant="secondary">
-                Open frontend preview
+                {t('auth.signIn.preview')}
               </Button>
             ) : null}
           </form>
 
           <div className="mt-[26px] flex justify-center gap-3 border-t border-border pt-[29px] text-xs2 text-muted md:mt-[31px] md:border-0 md:pt-0 md:text-[0.8125rem] [&_a]:font-medium [&_a]:text-primary [&_a]:no-underline hover:[&_a]:underline">
-            <span>New to HelpDesk Lite?</span>
+            <span>{t('auth.signIn.newToHelpDesk')}</span>
             <a
               href="#register"
               onClick={(event) => {
@@ -211,17 +236,17 @@ export function SignInPage({
                 onCreateAccount();
               }}
             >
-              Create an account
+              {t('auth.signIn.createAccount')}
             </a>
           </div>
         </section>
 
         <footer className="mt-auto pt-[47px] text-center text-2xs text-muted md:mt-7 md:p-0 md:text-xs [&_a]:font-medium [&_a]:text-primary [&_a]:no-underline hover:[&_a]:underline">
           <p>
-            <a href="#terms">Terms of Service</a> ·{' '}
-            <a href="#privacy-policy">Privacy Policy</a>
+            <a href="#terms">{t('auth.common.terms')}</a> ·{' '}
+            <a href="#privacy-policy">{t('auth.common.privacy')}</a>
           </p>
-          <p className="mt-8 md:hidden">Secure access · Privacy-first</p>
+          <p className="mt-8 md:hidden">{t('auth.common.secureFooter')}</p>
         </footer>
       </section>
     </main>

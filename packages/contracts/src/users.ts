@@ -31,6 +31,7 @@ export const updatePreferencesSchema = z.object({
   notifyOnComment: z.boolean().optional(),
   notifyOnMention: z.boolean().optional(),
   notifyOnMessage: z.boolean().optional(),
+  notifyOnFriendship: z.boolean().optional(),
 });
 
 /**
@@ -47,10 +48,20 @@ export const adminUpdateUserSchema = z.object({
 export const setGlobalRoleSchema = z.object({ globalRole: globalRoleSchema });
 export const setUserStatusSchema = z.object({ isActive: z.boolean() });
 
+/**
+ * Days between an administrator closing an account and the erasure of its
+ * personal data. One month: the time GDPR gives to act on an erasure request
+ * (art. 12.3). Until then the account can be restored; the person deleting
+ * their own account is erased at once instead.
+ */
+export const ACCOUNT_ERASURE_GRACE_DAYS = 30;
+
 export const listUsersQuerySchema = paginationQuerySchema.extend({
   q: z.string().trim().max(120).optional(),
   globalRole: globalRoleSchema.optional(),
   isActive: z.stringbool().optional(),
+  /** Also the accounts closed by an administrator and not yet erased. */
+  includeClosed: z.stringbool().optional(),
   sort: z
     .enum(['createdAt', 'username', 'email', 'lastLoginAt'])
     .default('createdAt'),

@@ -11,6 +11,7 @@ import {
 import type { Navigate } from '../app/routes';
 import { PreviewIdentitySelect } from '../app/PreviewIdentitySelect';
 import { previewMode, type PreviewIdentity } from '../app/session';
+import { useTranslation } from '../core/i18n';
 
 export function ProfileMenu({
   children,
@@ -21,6 +22,7 @@ export function ProfileMenu({
   onSignOut,
   placement = 'topbar',
   showAdministration = false,
+  showAudit = false,
   previewIdentity,
 }: {
   children: ReactNode;
@@ -31,8 +33,11 @@ export function ProfileMenu({
   onSignOut: () => void | Promise<void>;
   placement?: 'mobile' | 'sidebar' | 'topbar';
   showAdministration?: boolean;
+  /** `audit:read`: the audit log entry, inside the platform group. */
+  showAudit?: boolean;
   previewIdentity?: PreviewIdentity;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const menuId = useId();
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -91,7 +96,7 @@ export function ProfileMenu({
         <DropdownMenu
           className={`absolute z-60 grid w-[220px] overflow-hidden text-ink ${placement === 'sidebar' ? 'bottom-[calc(100%+8px)] left-0' : 'top-[calc(100%+10px)] right-0'}`}
           id={menuId}
-          label="Account menu"
+          label={t('common.accountMenu')}
           onKeyDown={(event) => {
             if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key))
               return;
@@ -120,31 +125,47 @@ export function ProfileMenu({
             onClick={() => navigate('account/profile')}
             ref={firstItemRef}
           >
-            Profile settings
+            {t('account.home.profileTitle')}
+          </MenuItem>
+          <MenuItem
+            icon="ticket"
+            onClick={() => navigate('account/preferences')}
+          >
+            {t('account.home.preferences.title')}
           </MenuItem>
           <MenuItem icon="shield" onClick={() => navigate('account/privacy')}>
-            Privacy &amp; data
+            {t('account.home.privacy.title')}
           </MenuItem>
           <MenuItem icon="building" onClick={() => navigate('organizations')}>
-            {showAdministration ? 'Organizations' : 'Your organizations'}
+            {showAdministration
+              ? t('nav.organizations')
+              : t('nav.yourOrganizations')}
           </MenuItem>
           <MenuItem
             icon="shield"
             onClick={() => navigate('organization-roles')}
           >
-            Roles &amp; access
+            {t('nav.organizationRoles')}
           </MenuItem>
           {showAdministration ? (
             <>
               <MenuItem icon="users" onClick={() => navigate('admin')}>
-                Platform users
+                {t('nav.platformUsers')}
               </MenuItem>
               <MenuItem
                 icon="shield"
                 onClick={() => navigate('platform-roles')}
               >
-                Platform roles
+                {t('nav.platformRoles')}
               </MenuItem>
+              {showAudit ? (
+                <MenuItem
+                  icon="history"
+                  onClick={() => navigate('admin/audit')}
+                >
+                  {t('nav.auditLog')}
+                </MenuItem>
+              ) : null}
             </>
           ) : null}
           {previewMode && previewIdentity && onPreviewIdentityChange ? (
@@ -166,7 +187,7 @@ export function ProfileMenu({
               void onSignOut();
             }}
           >
-            Sign out
+            {t('common.actions.signOut')}
           </MenuItem>
         </DropdownMenu>
       ) : null}

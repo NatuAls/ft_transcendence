@@ -138,7 +138,12 @@ model User {
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
   lastLoginAt      DateTime?
+  /// Closed: by the person (erased at once) or by an administrator (erased
+  /// `ACCOUNT_ERASURE_GRACE_DAYS` later, restorable until then).
   deletedAt        DateTime?
+  /// When its personal data was erased: e-mail, username, profile, files.
+  /// What is left is an anonymous author for the tickets it opened.
+  erasedAt         DateTime?
 
   profile              UserProfile?
   preferences          NotificationPreference?

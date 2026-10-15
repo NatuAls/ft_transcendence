@@ -57,6 +57,42 @@ function subject(actor: RequestActor, membership?: RequestMembership) {
   };
 }
 
+/**
+ * Si quien pregunta puede leer el ticket: administrador de plataforma, o
+ * miembro de SU organización con `ticket:read` (AGENT o más, o su autor).
+ */
+export function canReadTicket(
+  actor: RequestActor,
+  membership: RequestMembership | undefined,
+  ticket: { organizationId: string; createdById: string },
+): boolean {
+  if (
+    actor.globalRole !== 'GLOBAL_ADMIN' &&
+    membership?.organizationId !== ticket.organizationId
+  )
+    return false;
+  return canPolicy('ticket:read', subject(actor, membership), {
+    ownerId: ticket.createdById,
+  });
+}
+
+function canAccessConversation(
+  actor: RequestActor,
+  membership: RequestMembership | undefined,
+  ticket: {
+    createdBy: { id: string };
+    assignedTo: { id: string } | null;
+  },
+) {
+  return (
+    actor.globalRole === 'GLOBAL_ADMIN' ||
+    membership?.role === 'ORG_ADMIN' ||
+    membership?.role === 'AGENT' ||
+    ticket.createdBy.id === actor.id ||
+    ticket.assignedTo?.id === actor.id
+  );
+}
+
 export async function create(
   actor: RequestActor,
   membership: RequestMembership | undefined,
@@ -118,18 +154,19 @@ export async function findOne(
     where: { id },
     select: TICKET_SELECT,
   });
-  if (!ticket) throw Errors.resourceNotFound('ticket');
-
-  const isGlobalAdmin = actor.globalRole === 'GLOBAL_ADMIN';
+  // Lo que no se puede leer no existe para quien pregunta, y se contesta igual
+  // que a un identificador inventado. Un 403, o un 404 con otro código («no
+  // eres miembro»), confirmaba que el ticket existe: en otra organización, o
+  // de otra persona si pregunta un MEMBER. Es la regla de orgScope() aplicada
+  // al ticket y a todo lo que cuelga de él: historial, comentarios, adjuntos.
   if (
-    !isGlobalAdmin &&
-    (!membership || membership.organizationId !== ticket.organizationId)
-  ) {
-    throw Errors.notAMember();
-  }
-  assertPolicy('ticket:read', subject(actor, membership), {
-    ownerId: ticket.createdBy.id,
-  });
+    !ticket ||
+    !canReadTicket(actor, membership, {
+      organizationId: ticket.organizationId,
+      createdById: ticket.createdBy.id,
+    })
+  )
+    throw Errors.resourceNotFound('ticket');
   return ticket;
 }
 
@@ -396,7 +433,9 @@ export async function listComments(
   membership: RequestMembership | undefined,
   ticketId: string,
 ) {
-  await findOne(actor, membership, ticketId);
+  const ticket = await findOne(actor, membership, ticketId);
+  if (!canAccessConversation(actor, membership, ticket))
+    throw Errors.forbiddenAction('access this ticket conversation');
   const canSeeInternal = canPolicy(
     'ticket:viewInternalNotes',
     subject(actor, membership),
@@ -441,6 +480,8 @@ export async function addComment(
   input: CreateCommentInput,
 ) {
   const ticket = await findOne(actor, membership, ticketId);
+  if (!canAccessConversation(actor, membership, ticket))
+    throw Errors.forbiddenAction('access this ticket conversation');
   assertPolicy('comment:create', subject(actor, membership));
   if (input.isInternal)
     assertPolicy('comment:createInternal', subject(actor, membership));

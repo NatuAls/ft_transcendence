@@ -4,6 +4,8 @@
 // messageKey empieza por "errors." y coincide con las claves de i18n, así
 // que la pantalla puede hacer t(error.messageKey) sin mapas intermedios.
 
+import i18next from 'i18next';
+
 export interface ApiFieldError {
   path: string;
   code: string;
@@ -84,41 +86,130 @@ export function errorKey(error: unknown): string {
  * rechace la API producen así exactamente la misma pantalla.
  */
 export function fieldErrorsFromIssues(
-  issues: ReadonlyArray<{ path: ReadonlyArray<PropertyKey>; message: string }>,
+  issues: ReadonlyArray<{
+    code?: string;
+    message: string;
+    minimum?: unknown;
+    origin?: string;
+    path: ReadonlyArray<PropertyKey>;
+  }>,
 ): Record<string, string> {
   const campos: Record<string, string> = {};
   for (const issue of issues) {
     const path = issue.path.map(String).join('.') || '(root)';
-    if (!(path in campos)) campos[path] = describeFieldCode(issue.message);
+    if (!(path in campos))
+      campos[path] = describeFieldCode(
+        // El mensaje propio de un esquema compartido es una clave `errors.*`.
+        // Cuando el esquema no trae uno —`min(3)` a secas—, Zod deja una
+        // frase técnica en inglés («Too small: expected string to have >=3
+        // characters») y lo que de verdad dice está en el código.
+        issue.message.startsWith('errors.')
+          ? issue.message
+          : requiredWhenEmpty(issue),
+      );
   }
   return campos;
 }
 
 /**
- * Una frase para las claves que de verdad se repiten. Mientras las pantallas
- * no estén traducidas, esto es lo que ve el usuario; cuando lo estén, se
- * sustituye por `t(errorKey(error))` y ninguna pantalla se entera, porque
- * todas pasan por aquí.
+ * `min(1)` es «obligatorio»: un campo vacío no es «demasiado corto». El dato
+ * está en el propio aviso de Zod —su mínimo—, así que vale en cualquier
+ * idioma, sin mirar la frase en inglés que trae.
  */
-function describeFieldCode(code: string): string {
-  const frases: Record<string, string> = {
-    'errors.email.invalid': 'Enter a valid e-mail address.',
-    'errors.field.required': 'This field is required.',
-    'errors.password.tooShort': 'Use at least 10 characters.',
-    'errors.password.tooLong': 'Use at most 128 characters.',
-    'errors.password.needsLowercase': 'Add a lowercase letter.',
-    'errors.password.needsUppercase': 'Add an uppercase letter.',
-    'errors.password.needsDigit': 'Add a digit.',
-    'errors.password.needsSymbol': 'Add a symbol, such as ! or -.',
-    'errors.password.mismatch': 'The two passwords do not match.',
-    'errors.terms.required': 'You have to accept the terms to continue.',
-    invalid_type: 'This field is required.',
-    too_small: 'This value is too short.',
-    too_big: 'This value is too long.',
+function requiredWhenEmpty(issue: {
+  code?: string;
+  message: string;
+  minimum?: unknown;
+  origin?: string;
+}): string {
+  if (
+    issue.code === 'too_small' &&
+    Number(issue.minimum) === 1 &&
+    issue.origin !== 'number'
+  )
+    return 'invalid_type';
+  return issue.code ?? issue.message;
+}
+
+/**
+ * La clave de un error de campo, para las pantallas que traducen ellas mismas
+ * con `t(fieldErrorKey(…))`.
+ *
+ * Acepta las tres formas en que puede llegar: una clave `errors.*`, una de
+ * las frases en inglés que devolvía `fieldErrorsFromIssues` hasta el 13/10, o
+ * —lo que devuelve ahora— el texto ya traducido al idioma activo, que se
+ * busca entre las traducciones de errores de ese idioma. Así esas pantallas
+ * enseñan el mensaje concreto, y no el genérico, en los tres idiomas.
+ */
+export function fieldErrorKey(message: string): string {
+  const keys: Record<string, string> = {
+    'Enter a valid e-mail address.': 'errors.email.invalid',
+    'This field is required.': 'errors.field.required',
+    'Use at least 10 characters.': 'errors.password.tooShort',
+    'Use at most 128 characters.': 'errors.password.tooLong',
+    'Add a lowercase letter.': 'errors.password.needsLowercase',
+    'Add an uppercase letter.': 'errors.password.needsUppercase',
+    'Add a digit.': 'errors.password.needsDigit',
+    'Add a symbol, such as ! or -.': 'errors.password.needsSymbol',
+    'The two passwords do not match.': 'errors.password.mismatch',
+    'You have to accept the terms to continue.': 'errors.terms.required',
   };
-  if (frases[code]) return frases[code];
-  // Un mensaje que no es una clave ya viene escrito para leerse.
-  return code.startsWith('errors.') ? 'Check this field.' : code;
+  const codes: Record<string, string> = {
+    invalid_type: 'errors.field.required',
+    too_small: 'errors.password.tooShort',
+    too_big: 'errors.password.tooLong',
+  };
+  if (codes[message]) return codes[message];
+  if (message.startsWith('errors.')) return message;
+  return keys[message] ?? errorKeyOfText(message) ?? 'errors.field.invalid';
+}
+
+/** La clave `errors.*` cuyo texto, en el idioma activo, es exactamente éste. */
+function errorKeyOfText(text: string): string | undefined {
+  const bundle = i18next.getResourceBundle(i18next.language, 'translation') as
+    { errors?: Record<string, Record<string, unknown>> } | undefined;
+  for (const [group, entries] of Object.entries(bundle?.errors ?? {}))
+    for (const [name, value] of Object.entries(entries))
+      if (value === text) return `errors.${group}.${name}`;
+  return undefined;
+}
+
+/**
+ * El texto de un error de campo, en el idioma de la persona.
+ *
+ * Hasta el 13/10 esto era un diccionario fijo en inglés, y su comentario ya
+ * avisaba: «cuando las pantallas estén traducidas, se sustituye por la
+ * traducción y ninguna pantalla se entera, porque todas pasan por aquí». Es
+ * lo que hace ahora. El cambio de contraseña, que no podía esperar, se había
+ * hecho su propio apaño retraduciendo cada error; ya no hace falta.
+ *
+ * Tres orígenes posibles, en este orden:
+ *   · una clave `errors.*` del esquema compartido o de la API → su traducción;
+ *   · un código de Zod sin mensaje propio (`too_small`…) → su equivalente;
+ *   · un texto que ya viene escrito para leerse → tal cual.
+ * Una clave que no esté traducida da «Check this field.» en su idioma, nunca
+ * la clave en crudo; `api-error-keys.test.ts` vigila que no haga falta.
+ */
+const CODIGOS_DE_ZOD: Record<string, string> = {
+  invalid_type: 'errors.field.required',
+  too_small: 'errors.field.tooShort',
+  too_big: 'errors.field.tooLong',
+  // Los demás códigos de Zod no tienen una frase mejor que la genérica, pero
+  // tienen que estar: un código que no está aquí se enseñaría tal cual.
+  custom: 'errors.field.invalid',
+  invalid_element: 'errors.field.invalid',
+  invalid_format: 'errors.field.invalid',
+  invalid_key: 'errors.field.invalid',
+  invalid_union: 'errors.field.invalid',
+  invalid_value: 'errors.field.invalid',
+  not_multiple_of: 'errors.field.invalid',
+  unrecognized_keys: 'errors.field.invalid',
+};
+
+function describeFieldCode(code: string): string {
+  const clave = CODIGOS_DE_ZOD[code] ?? code;
+  if (!clave.startsWith('errors.')) return code;
+  return i18next.t(clave, { defaultValue: i18next.t('errors.field.invalid') });
 }
 
 /**

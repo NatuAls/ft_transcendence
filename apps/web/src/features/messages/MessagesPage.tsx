@@ -1,28 +1,34 @@
-import { Avatar, Button, Dialog, Icon, IconButton, LoadingState } from 'ui';
-import { io, type Socket } from 'socket.io-client';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  conversationKey,
-  initialConversations,
-  newConversationCandidates,
-  type Conversation,
-} from './messageData';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { ViewerSession } from '../../app/session';
+import { previewMode } from '../../app/session';
+import { useTranslation } from '../../core/i18n';
 import {
   listConversations,
   listMessages,
   markConversationRead,
   openConversation,
-  sendMessage as sendChatMessage,
   searchUsers,
-  socketOrigin,
-  currentUserId,
-  type ChatUser,
+  sendMessage as sendChatMessage,
+  type ApiConversation,
   type ApiMessage,
-} from './messagesApi';
-import { getAccessToken } from '../../api/auth';
-import { previewMode } from '../../app/session';
+  type ChatUser,
+} from '../../api/messages';
+import { RealtimeEvents } from '../../core/realtime/socket';
+import {
+  useConversationRoom,
+  useRealtimeEvent,
+} from '../../core/realtime/useRealtime';
+import {
+  conversationKey,
+  initialConversations,
+  type Conversation,
+  type MessageItem,
+} from './messageData';
+import { ConversationList } from './ConversationList';
+import { MessageComposer } from './MessageComposer';
+import { MessageThread } from './MessageThread';
 
-const previewMessages: ApiMessage[] = [
+const previewMessages: MessageItem[] = [
   {
     body: 'I reviewed the latest ticket update.',
     conversationId: 'preview-conversation-maya',
@@ -30,26 +36,71 @@ const previewMessages: ApiMessage[] = [
     editedAt: null,
     id: 'preview-message-1',
     sender: { id: 'preview-maya', username: 'maya.singh' },
+    status: 'sent',
   },
   {
     body: 'Great, I will follow up with the requester.',
     conversationId: 'preview-conversation-maya',
     createdAt: '2026-09-28T12:05:00.000Z',
     editedAt: null,
-    id: 'preview-message-2',
+    id: 'preview-message-9',
     sender: { id: 'preview-current-user', username: 'preview.user' },
+    status: 'sent',
   },
 ];
 
+function withStatus(
+  message: ApiMessage,
+  status: MessageItem['status'] = 'sent',
+): MessageItem {
+  return { ...message, status };
+}
+
+function replaceOrAppend(
+  messages: MessageItem[],
+  next: MessageItem,
+): MessageItem[] {
+  const index = messages.findIndex((message) => message.id === next.id);
+  if (index === -1) return [...messages, next];
+  const updated = [...messages];
+  updated[index] = { ...updated[index], ...next };
+  return updated;
+}
+
+function toConversation(row: ApiConversation): Conversation | null {
+  if (!row.participant) return null;
+  const name = row.participant.profile?.displayName ?? row.participant.username;
+  return {
+    id: row.id,
+    userId: row.participant.id,
+    username: row.participant.username,
+    avatarUrl: row.participant.profile?.avatarUrl ?? null,
+    initials: name.slice(0, 2).toUpperCase(),
+    name,
+    online: row.participant.profile?.isOnline ?? false,
+    preview: row.lastMessage?.body ?? '',
+    previewKey: row.lastMessage ? undefined : 'messages.data.noMessages',
+    role: 'messages.roles.colleague',
+    time: row.lastMessageAt
+      ? new Date(row.lastMessageAt).toLocaleDateString()
+      : '',
+    timeKey: row.lastMessageAt ? undefined : 'messages.data.newConversation',
+    unreadCount: row.unreadCount,
+  };
+}
+
 export function MessagesPage({
+  viewer,
   initialPerson,
   onOpenProfile,
   onViewTickets,
 }: {
+  viewer: ViewerSession;
   initialPerson?: string;
   onOpenProfile: (personName: string) => void;
-  onViewTickets: (personName: string) => void;
+  onViewTickets: (personId: string, personName: string) => void;
 }) {
+  const { t } = useTranslation();
   const previewInitialConversation =
     initialConversations.find(
       (conversation) => conversation.name === initialPerson,
@@ -57,10 +108,6 @@ export function MessagesPage({
   const [conversations, setConversations] = useState<Conversation[]>(
     previewMode ? initialConversations : [],
   );
-  // Guarda la IDENTIDAD de la conversación, no su nombre: dos cuentas
-  // distintas pueden llamarse igual. En la aplicación real empieza vacía y la
-  // fija la carga, que es quien sabe qué conversación corresponde a la
-  // persona que venía en la dirección.
   const [selected, setSelected] = useState<string | null>(
     previewMode && previewInitialConversation
       ? conversationKey(previewInitialConversation)
@@ -72,7 +119,7 @@ export function MessagesPage({
   const [candidateQuery, setCandidateQuery] = useState('');
   const [candidates, setCandidates] = useState<ChatUser[]>([]);
   const [candidateResultsQuery, setCandidateResultsQuery] = useState('');
-  const [remoteMessages, setRemoteMessages] = useState<ApiMessage[]>(
+  const [remoteMessages, setRemoteMessages] = useState<MessageItem[]>(
     previewMode &&
       previewInitialConversation?.id === 'preview-conversation-maya'
       ? previewMessages
@@ -84,72 +131,59 @@ export function MessagesPage({
   const [messagePage, setMessagePage] = useState(1);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
-  const socketRef = useRef<Socket | null>(null);
-  const socketAuthenticatedRef = useRef(false);
-  const threadBodyRef = useRef<HTMLDivElement | null>(null);
-  const scrollToLatestRef = useRef(false);
+  const [scrollToBottomToken, setScrollToBottomToken] = useState(0);
   const active = conversations.find(
     (conversation) => conversationKey(conversation) === selected,
-  ) ??
-    conversations[0] ?? {
-      initials: '?',
-      name: 'Selecciona una conversación',
-      preview: '',
-      role: '',
-      time: '',
-    };
+  ) ?? {
+    initials: '?',
+    name: t('messages.data.selectConversation'),
+    preview: '',
+    role: '',
+    time: '',
+  };
   const activeConversationId = active.id;
-  const userId = previewMode ? 'preview-current-user' : currentUserId();
+
+  const loadConversations = useCallback(
+    (selectInitialPerson = false) => {
+      if (previewMode) return;
+      void listConversations()
+        .then((rows) => {
+          const loaded = rows
+            .map(toConversation)
+            .filter((conversation): conversation is Conversation =>
+              Boolean(conversation),
+            );
+          setConversations(loaded);
+          if (selectInitialPerson && initialPerson) {
+            const matching = loaded.find((conversation) =>
+              [conversation.name, conversation.username].includes(
+                initialPerson,
+              ),
+            );
+            if (matching) {
+              setSelected(conversationKey(matching));
+              setConversations((current) =>
+                current.map((conversation) =>
+                  conversation.id === matching.id
+                    ? { ...conversation, unreadCount: 0 }
+                    : conversation,
+                ),
+              );
+            }
+          }
+        })
+        .catch((error: unknown) => console.error('Unable to load chat', error));
+    },
+    [initialPerson, setConversations, setSelected],
+  );
 
   useEffect(() => {
-    if (previewMode) return;
-    const token = getAccessToken();
-    if (!token) return;
-    let cancelled = false;
-    void listConversations()
-      .then((rows) => {
-        if (cancelled) return;
-        const loaded = rows.flatMap((row) => {
-          if (!row.participant) return [];
-          const name =
-            row.participant.profile?.displayName ?? row.participant.username;
-          return [
-            {
-              id: row.id,
-              userId: row.participant.id,
-              username: row.participant.username,
-              initials: name.slice(0, 2).toUpperCase(),
-              name,
-              online: row.participant.profile?.isOnline ?? false,
-              preview: row.lastMessage?.body ?? 'No messages yet',
-              role: 'Colleague',
-              time: row.lastMessageAt
-                ? new Date(row.lastMessageAt).toLocaleDateString()
-                : 'New',
-            },
-          ];
-        });
-        setConversations(loaded);
-        if (initialPerson) {
-          const matching = loaded.find((conversation) =>
-            [conversation.name, conversation.username].includes(initialPerson),
-          );
-          if (matching) setSelected(conversationKey(matching));
-        }
-      })
-      .catch((error: unknown) => console.error('Unable to load chat', error));
-    return () => {
-      cancelled = true;
-    };
-  }, [initialPerson]);
+    loadConversations(true);
+  }, [loadConversations]);
 
   useEffect(() => {
-    if (previewMode) return;
-    if (!newConversationOpen || candidateQuery.trim().length < 2) {
-      // setCandidates([]); // Sustituido: visibleCandidates filtra la UI sin
-      // ejecutar setState síncrono dentro del efecto.
+    if (previewMode || !newConversationOpen || candidateQuery.trim().length < 2)
       return;
-    }
     const normalizedQuery = candidateQuery.trim();
     let cancelled = false;
     void searchUsers(normalizedQuery)
@@ -167,148 +201,152 @@ export function MessagesPage({
     };
   }, [candidateQuery, newConversationOpen]);
 
-  useEffect(() => {
-    if (previewMode) return;
-    const token = getAccessToken();
-    if (!token) return;
-    const socket = io(`${socketOrigin() ?? window.location.origin}/rt`, {
-      path: '/socket.io',
-      auth: { token },
-      transports: ['websocket', 'polling'],
-    });
-    const handleConnected = () => {
-      socketAuthenticatedRef.current = true;
-    };
-    const handleDisconnected = () => {
-      socketAuthenticatedRef.current = false;
-    };
-    socket.on('connected', handleConnected);
-    socket.on('disconnect', handleDisconnected);
-    socketRef.current = socket;
-    return () => {
-      socket.off('connected', handleConnected);
-      socket.off('disconnect', handleDisconnected);
-      socket.disconnect();
-      socketRef.current = null;
-      socketAuthenticatedRef.current = false;
-    };
-  }, []);
+  useConversationRoom(activeConversationId);
 
-  useEffect(() => {
-    if (!activeConversationId) {
-      // setRemoteMessages([]); // Sustituido: visibleRemoteMessages evita
-      // mostrar mensajes de una conversación que ya no está activa.
-      return;
-    }
-    scrollToLatestRef.current = true;
-    if (previewMode) return;
-    let cancelled = false;
-    const socket = socketRef.current;
-    void listMessages(activeConversationId)
-      .then((page) => {
-        if (!cancelled) {
-          setRemoteMessages(page.data);
-          setMessagesConversationId(activeConversationId);
-          setMessagePage(page.meta.page);
-          setHasMoreMessages(page.meta.page < page.meta.pages);
-        }
-      })
-      .catch((error: unknown) =>
-        console.error('Unable to load messages', error),
+  const clearConversationUnreadCount = useCallback(
+    (conversationId: string) => {
+      setConversations((current) =>
+        current.map((conversation) =>
+          conversation.id === conversationId
+            ? { ...conversation, unreadCount: 0 }
+            : conversation,
+        ),
       );
-    const subscribe = () => {
-      socket?.emit(
-        'conversation.subscribe',
-        {
-          conversationId: activeConversationId,
-        },
-        (result: { ok: boolean }) => {
-          if (!result.ok) {
-            console.warn('Chat room subscription was rejected');
-          }
-        },
-      );
-    };
-    if (socketAuthenticatedRef.current) subscribe();
-    socket?.on('connected', subscribe);
-    const onMessage = (event: { message?: ApiMessage }) => {
-      if (event.message?.conversationId !== activeConversationId) return;
-      setRemoteMessages((current) =>
-        current.some((message) => message.id === event.message!.id)
-          ? current
-          : [...current, event.message!],
-      );
-    };
-    socket?.on('message.created', onMessage);
-    void markConversationRead(activeConversationId).catch(() => undefined);
-    return () => {
-      cancelled = true;
-      socket?.off('message.created', onMessage);
-      socket?.off('connected', subscribe);
-      socket?.emit('conversation.unsubscribe', {
-        conversationId: activeConversationId,
-      });
-    };
-  }, [activeConversationId]);
-
-  const visibleCandidates = previewMode
-    ? newConversationOpen && candidateQuery.trim().length >= 2
-      ? newConversationCandidates
-          .filter((candidate) =>
-            candidate.name
-              .toLowerCase()
-              .includes(candidateQuery.trim().toLowerCase()),
-          )
-          .map((candidate) => ({
-            id: `preview-${candidate.name.toLowerCase().replaceAll(' ', '-')}`,
-            profile: { displayName: candidate.name },
-            username: candidate.name.toLowerCase().replaceAll(' ', '.'),
-          }))
-      : []
-    : newConversationOpen &&
-        candidateQuery.trim().length >= 2 &&
-        candidateResultsQuery === candidateQuery.trim()
-      ? candidates
-      : [];
-  const visibleRemoteMessages =
-    activeConversationId && messagesConversationId === activeConversationId
-      ? remoteMessages
-      : [];
-
-  useEffect(() => {
-    const body = threadBodyRef.current;
-    if (!body) return;
-    if (scrollToLatestRef.current) {
-      body.scrollTop = body.scrollHeight;
-      scrollToLatestRef.current = false;
-      return;
-    }
-    const distanceFromBottom =
-      body.scrollHeight - body.scrollTop - body.clientHeight;
-    if (distanceFromBottom < 160) body.scrollTop = body.scrollHeight;
-  }, [remoteMessages, messagesConversationId, activeConversationId]);
-  const visibleConversations = useMemo(
-    () =>
-      conversations.filter((conversation) =>
-        conversation.name.toLowerCase().includes(query.trim().toLowerCase()),
-      ),
-    [conversations, query],
+    },
+    [setConversations],
   );
 
+  const markActiveConversationAsRead = useCallback(
+    (conversationId: string) =>
+      previewMode ? Promise.resolve() : markConversationRead(conversationId),
+    [],
+  );
+
+  const loadThread = useCallback(
+    (conversationId: string) => {
+      if (previewMode) return;
+      void listMessages(conversationId)
+        .then((page) => {
+          if (conversationId !== activeConversationId) return;
+          // setRemoteMessages(page.data.map(withStatus));
+          setRemoteMessages(page.data.map((message) => withStatus(message)));
+          setMessagesConversationId(conversationId);
+          setMessagePage(page.meta.page);
+          setHasMoreMessages(page.meta.page < page.meta.pages);
+          setScrollToBottomToken((token) => token + 1);
+        })
+        .catch((error: unknown) =>
+          console.error('Unable to load messages', error),
+        );
+    },
+    [activeConversationId],
+  );
+
+  useEffect(() => {
+    if (!activeConversationId) return;
+    if (previewMode) return;
+    loadThread(activeConversationId);
+    void markActiveConversationAsRead(activeConversationId).catch(
+      () => undefined,
+    );
+  }, [activeConversationId, loadThread, markActiveConversationAsRead]);
+
+  useEffect(() => {
+    if (!activeConversationId || previewMode) return;
+    const markReadWhenVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      void markActiveConversationAsRead(activeConversationId).catch(
+        () => undefined,
+      );
+    };
+    window.addEventListener('focus', markReadWhenVisible);
+    document.addEventListener('visibilitychange', markReadWhenVisible);
+    return () => {
+      window.removeEventListener('focus', markReadWhenVisible);
+      document.removeEventListener('visibilitychange', markReadWhenVisible);
+    };
+  }, [activeConversationId, markActiveConversationAsRead]);
+
+  useEffect(() => {
+    const closeActiveConversation = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && selected && !newConversationOpen)
+        setSelected(null);
+    };
+    document.addEventListener('keydown', closeActiveConversation);
+    return () => {
+      document.removeEventListener('keydown', closeActiveConversation);
+    };
+  }, [newConversationOpen, selected]);
+
+  function recargarHilo() {
+    if (activeConversationId) loadThread(activeConversationId);
+  }
+
+  useRealtimeEvent(RealtimeEvents.connected, () => {
+    recargarHilo();
+    loadConversations();
+  });
+  useRealtimeEvent(RealtimeEvents.messageCreated, (payload) => {
+    const incoming = (payload as { message?: ApiMessage }).message;
+    if (!incoming?.conversationId) return;
+
+    const isActiveConversation =
+      incoming.conversationId === activeConversationId;
+    if (isActiveConversation) {
+      clearConversationUnreadCount(incoming.conversationId);
+      // An incoming message in the visible thread is immediately considered
+      // read. Refresh the summary after the PATCH so the server count cannot
+      // overwrite the optimistic zero with a stale unread value.
+      void markActiveConversationAsRead(incoming.conversationId)
+        .then(() => loadConversations())
+        .catch(() => undefined);
+    } else {
+      // message.created is also delivered to the user's personal room. Reload
+      // the summaries so preview, timestamp, unread count and ordering come
+      // from the API.
+      loadConversations();
+    }
+
+    // Keep the existing active-thread update direct and deduplicated. The
+    // list refresh above must not replace or reload the open thread.
+    if (incoming.conversationId !== activeConversationId) return;
+    setRemoteMessages((current) =>
+      replaceOrAppend(current, withStatus(incoming)),
+    );
+    setScrollToBottomToken((token) => token + 1);
+  });
+  useRealtimeEvent(RealtimeEvents.messageRead, (payload) => {
+    const { conversationId, userId } = payload as {
+      conversationId?: string;
+      userId?: string;
+    };
+    if (!conversationId) return;
+    if (userId === viewer.id) {
+      clearConversationUnreadCount(conversationId);
+      loadConversations();
+    }
+    if (conversationId !== activeConversationId) return;
+    setRemoteMessages((current) =>
+      current.map((item) =>
+        item.sender.id === viewer.id ? { ...item, read: true } : item,
+      ),
+    );
+  });
+
   async function loadOlderMessages() {
-    const body = threadBodyRef.current;
-    if (!body || !activeConversationId || !hasMoreMessages || loadingOlder)
-      return;
-    const oldHeight = body.scrollHeight;
+    if (!activeConversationId || !hasMoreMessages || loadingOlder) return;
     setLoadingOlder(true);
     try {
       const page = await listMessages(activeConversationId, messagePage + 1);
-      setRemoteMessages((current) => [...page.data, ...current]);
+      setRemoteMessages((current) => [
+        // ...page.data.map(withStatus),
+        ...page.data.map((message) => withStatus(message)),
+        ...current.filter(
+          (item) => !page.data.some((older) => older.id === item.id),
+        ),
+      ]);
       setMessagePage(page.meta.page);
       setHasMoreMessages(page.meta.page < page.meta.pages);
-      requestAnimationFrame(() => {
-        body.scrollTop += body.scrollHeight - oldHeight;
-      });
     } catch (error) {
       console.error('Unable to load older messages', error);
     } finally {
@@ -316,58 +354,93 @@ export function MessagesPage({
     }
   }
 
+  async function postMessage(
+    localId: string,
+    conversationId: string,
+    body: string,
+  ) {
+    setRemoteMessages((current) =>
+      current.map((item) =>
+        item.id === localId ? { ...item, status: 'sending' } : item,
+      ),
+    );
+    try {
+      const created = await sendChatMessage(conversationId, body);
+      setRemoteMessages((current) =>
+        replaceOrAppend(
+          current.filter((item) => item.id !== localId),
+          withStatus(created),
+        ),
+      );
+    } catch (error) {
+      setRemoteMessages((current) =>
+        current.map((item) =>
+          item.id === localId ? { ...item, status: 'error' } : item,
+        ),
+      );
+      console.error('Unable to send message', error);
+    }
+  }
+
   function sendMessage() {
     const text = message.trim();
-    if (!text) return;
-    if (activeConversationId) {
-      if (previewMode) {
-        setRemoteMessages((current) => [
-          ...current,
-          {
-            body: text,
-            conversationId: activeConversationId,
-            createdAt: new Date().toISOString(),
-            editedAt: null,
-            id: `preview-message-${current.length + 1}`,
-            sender: {
-              id: 'preview-current-user',
-              username: 'preview.user',
-            },
-          },
-        ]);
-        setMessage('');
-        return;
-      }
-      void sendChatMessage(activeConversationId, text)
-        .then((created) =>
-          setRemoteMessages((current) =>
-            current.some((item) => item.id === created.id)
-              ? current
-              : [...current, created],
-          ),
-        )
-        .catch((error: unknown) =>
-          console.error('Unable to send message', error),
-        );
+    if (!text || !activeConversationId) return;
+    if (previewMode) {
+      setRemoteMessages((current) => [
+        ...current,
+        withStatus({
+          body: text,
+          conversationId: activeConversationId,
+          createdAt: new Date().toISOString(),
+          editedAt: null,
+          id: `preview-message-${current.length + 1}`,
+          sender: { id: viewer.id, username: viewer.profile.username },
+        }),
+      ]);
+      setScrollToBottomToken((token) => token + 1);
       setMessage('');
       return;
     }
+    const localId = `local-message-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const optimistic: MessageItem = {
+      body: text,
+      conversationId: activeConversationId,
+      createdAt: new Date().toISOString(),
+      editedAt: null,
+      id: localId,
+      sender: { id: viewer.id, username: viewer.profile.username },
+      status: 'sending',
+    };
+    setRemoteMessages((current) => [...current, optimistic]);
+    setScrollToBottomToken((token) => token + 1);
     setMessage('');
+    void postMessage(localId, activeConversationId, text);
+  }
+
+  function retryMessage(item: MessageItem) {
+    if (item.conversationId)
+      void postMessage(item.id, item.conversationId, item.body);
   }
 
   async function startConversation(user: ChatUser) {
-    if (previewMode) {
+    try {
+      const conversation = previewMode
+        ? { id: `preview-conversation-${user.id}` }
+        : await openConversation(user.id);
       const name = user.profile?.displayName ?? user.username;
       const item: Conversation = {
-        id: `preview-conversation-${user.id}`,
+        id: conversation.id,
+        userId: user.id,
+        username: user.username,
+        avatarUrl: user.profile?.avatarUrl ?? null,
         initials: name.slice(0, 2).toUpperCase(),
         name,
         online: user.profile?.isOnline,
-        preview: 'No messages yet',
-        role: 'Colleague',
-        time: 'Now',
-        userId: user.id,
-        username: user.username,
+        preview: '',
+        previewKey: 'messages.data.noMessages',
+        role: 'messages.roles.colleague',
+        time: '',
+        timeKey: 'messages.data.now',
       };
       setConversations((current) => [
         item,
@@ -378,30 +451,7 @@ export function MessagesPage({
       setSelected(conversationKey(item));
       setRemoteMessages([]);
       setMessagesConversationId(item.id ?? null);
-      setNewConversationOpen(false);
-      setCandidateQuery('');
-      return;
-    }
-    try {
-      const conversation = await openConversation(user.id);
-      const name = user.profile?.displayName ?? user.username;
-      const item: Conversation = {
-        id: conversation.id,
-        userId: user.id,
-        username: user.username,
-        initials: name.slice(0, 2).toUpperCase(),
-        name,
-        preview: 'No messages yet',
-        role: 'Colleague',
-        time: 'Now',
-      };
-      setConversations((current) => [
-        item,
-        ...current.filter(
-          (existing) => conversationKey(existing) !== conversationKey(item),
-        ),
-      ]);
-      setSelected(conversationKey(item));
+      setScrollToBottomToken((token) => token + 1);
       setNewConversationOpen(false);
       setCandidateQuery('');
     } catch (error) {
@@ -409,254 +459,98 @@ export function MessagesPage({
     }
   }
 
+  const visibleConversations = useMemo(
+    () =>
+      conversations.filter((conversation) =>
+        conversation.name.toLowerCase().includes(query.trim().toLowerCase()),
+      ),
+    [conversations, query],
+  );
+  const visibleMessages =
+    activeConversationId && messagesConversationId === activeConversationId
+      ? remoteMessages
+      : [];
+  const visibleCandidates =
+    newConversationOpen &&
+    candidateQuery.trim().length >= 2 &&
+    candidateResultsQuery === candidateQuery.trim()
+      ? candidates
+      : [];
+
   return (
     <div
       className={`mx-auto w-[calc(100%_-_48px)] max-w-[1480px] pt-8 pb-12 min-[1100px]:flex min-[1100px]:h-[calc(100dvh-80px)] min-[1100px]:flex-col md:max-[1100px]:flex md:max-[1100px]:h-[calc(100dvh-142px)] md:max-[1100px]:flex-col md:max-[1100px]:p-8 max-md:w-auto max-md:px-4 max-md:pt-0 max-md:pb-5 ${selected ? 'max-md:[&_.conversation-list]:hidden' : ''}`}
     >
       <header className="messages-heading shrink-0 max-[1100px]:hidden">
         <span className="text-xs2 tracking-[.08em] text-muted">
-          CONVERSATIONS
+          {t('messages.eyebrow')}
         </span>
-        <h1 className="my-2 text-[1.875rem] font-medium">Messages</h1>
-        <p className="mb-7 text-sm text-muted">
-          Stay connected with colleagues through persistent conversations.
-        </p>
+        <h1 className="my-2 text-[1.875rem] font-medium">
+          {t('messages.title')}
+        </h1>
+        <p className="mb-7 text-sm text-muted">{t('messages.description')}</p>
       </header>
       <section className="grid min-h-0 flex-1 grid-cols-[330px_minmax(0,1fr)] overflow-hidden rounded-md border border-border bg-surface md:max-[1100px]:grid-cols-[260px_minmax(0,1fr)] max-md:block max-md:h-auto max-md:overflow-visible max-md:border-0">
-        <aside className="conversation-list flex min-h-0 flex-col border-r border-border max-md:border-0">
-          <div className="flex h-[62px] items-center justify-between px-5 max-md:hidden">
-            <h2 className="text-base font-medium">Conversations</h2>
-            <IconButton
-              icon="plus"
-              label="New conversation"
-              onClick={() => setNewConversationOpen(true)}
-              size="sm"
-            />
-          </div>
-          <label className="mx-4 mb-2 flex h-[38px] items-center gap-2 rounded-sm border border-border px-2.5 focus-within:border-focus focus-within:outline-3 focus-within:outline-focus max-md:mx-0 max-md:mt-4 max-md:mb-[18px] max-md:h-11">
-            <Icon name="search" size={15} />
-            <span className="sr-only">Search conversations</span>
-            <input
-              className="min-w-0 border-0 bg-transparent outline-0 focus-visible:!outline-none"
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search conversations"
-              type="search"
-              value={query}
-            />
-          </label>
-          <div className="min-h-0 overflow-y-auto">
-            {visibleConversations.map((conversation) => (
-              <button
-                className={`grid h-[82px] w-full grid-cols-[34px_1fr_auto] items-center gap-2.5 border-t border-border px-4 py-3 text-left max-md:h-[104px] max-md:px-2 ${conversationKey(active) === conversationKey(conversation) ? 'bg-surface-secondary' : ''}`}
-                key={conversationKey(conversation)}
-                onClick={() => {
-                  setSelected(conversationKey(conversation));
-                  if (previewMode) {
-                    setRemoteMessages(
-                      conversation.id === 'preview-conversation-maya'
-                        ? previewMessages
-                        : [],
-                    );
-                    setMessagesConversationId(conversation.id ?? null);
-                  }
-                }}
-                type="button"
-              >
-                <Avatar
-                  className="!size-[34px] !basis-[34px] !text-2xs"
-                  initials={conversation.initials}
-                  online={conversation.online}
-                />
-                <span className="grid gap-1.5">
-                  <strong className="text-xs font-medium">
-                    {conversation.name}
-                  </strong>
-                  <small className="text-3xs text-muted">
-                    {conversation.preview}
-                  </small>
-                </span>
-                <time className="text-3xs text-muted">{conversation.time}</time>
-              </button>
-            ))}
-            {!visibleConversations.length ? (
-              <p className="px-4 py-7 text-center text-xs2 text-muted">
-                No conversations found.
-              </p>
-            ) : null}
-          </div>
-        </aside>
-        <section
-          className={`min-h-0 min-w-0 grid-rows-[72px_1fr_82px] ${selected ? 'max-md:grid max-md:h-[calc(100dvh-142px)] max-md:grid-rows-[68px_1fr_72px]' : 'max-md:hidden'} md:grid`}
-        >
-          <header className="flex items-center gap-2.5 border-b border-border px-[18px] max-md:px-0">
-            <IconButton
-              className="!hidden max-md:!grid"
-              icon="chevron-left"
-              label="Back to conversations"
-              onClick={() => setSelected(null)}
-              size="sm"
-            />
-            <button
-              aria-label={`View ${active.name} profile`}
-              className="-m-1 flex min-w-0 flex-1 items-center gap-2.5 rounded-sm border-0 bg-transparent p-1 text-left hover:bg-surface-secondary focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-focus"
-              onClick={() =>
-                // The profile route takes the username outside the preview.
+        <ConversationList
+          conversations={visibleConversations}
+          active={active}
+          query={query}
+          onQueryChange={setQuery}
+          onSelect={(conversation) => {
+            if (conversation.id) clearConversationUnreadCount(conversation.id);
+            setSelected(conversationKey(conversation));
+            if (previewMode) {
+              setRemoteMessages(
+                conversation.id === 'preview-conversation-maya'
+                  ? previewMessages
+                  : [],
+              );
+              setMessagesConversationId(conversation.id ?? null);
+            }
+          }}
+          newConversationOpen={newConversationOpen}
+          onNewConversation={() => setNewConversationOpen(true)}
+          onCloseNewConversation={() => setNewConversationOpen(false)}
+          candidateQuery={candidateQuery}
+          onCandidateQueryChange={setCandidateQuery}
+          candidates={visibleCandidates}
+          onStartConversation={(user) => void startConversation(user)}
+          previewMode={previewMode}
+        />
+        {activeConversationId ? (
+          <div
+            className={`min-h-0 min-w-0 md:grid md:grid-rows-[1fr_82px] max-md:grid max-md:grid-rows-[1fr_72px] ${selected ? '' : 'max-md:hidden'}`}
+          >
+            <MessageThread
+              active={active}
+              messages={visibleMessages}
+              viewerId={viewer.id}
+              loadingOlder={loadingOlder}
+              hasMoreMessages={hasMoreMessages}
+              onLoadOlder={() => void loadOlderMessages()}
+              onBack={() => setSelected(null)}
+              onOpenProfile={() =>
                 onOpenProfile(
                   previewMode ? active.name : (active.username ?? active.name),
                 )
               }
-              title={`View ${active.name} profile`}
-              type="button"
-            >
-              <Avatar
-                className="!size-[34px] !basis-[34px] !text-2xs"
-                initials={active.initials}
-                online={Boolean(active.online)}
-              />
-              <span className="grid min-w-0 gap-[3px]">
-                <strong className="truncate text-sm">{active.name}</strong>
-                <small className="truncate text-2xs text-muted">
-                  {active.online ? 'Online' : 'Offline'} · {active.role}
-                </small>
-              </span>
-            </button>
-            <button
-              aria-label={`View tickets related to ${active.name} (2)`}
-              className="min-h-10 shrink-0 rounded-sm px-2 text-xs2 text-primary hover:bg-surface-secondary focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-focus max-[360px]:px-1.5"
-              onClick={() => onViewTickets(active.name)}
-              type="button"
-            >
-              <span className="max-md:hidden">View tickets (2)</span>
-              <span className="hidden max-md:inline">Tickets (2)</span>
-            </button>
-          </header>
-          <div
-            aria-live="polite"
-            className="min-h-0 overflow-x-hidden overflow-y-auto p-6 [scroll-behavior:smooth] max-md:px-0.5 max-md:py-5"
-            onScroll={(event) => {
-              if (event.currentTarget.scrollTop <= 24) {
-                void loadOlderMessages();
+              onViewTickets={() =>
+                onViewTickets(active.userId ?? '', active.name)
               }
-            }}
-            ref={threadBodyRef}
-          >
-            {loadingOlder ? (
-              <LoadingState label="Loading older messages…" />
-            ) : null}
-            {activeConversationId && !visibleRemoteMessages.length ? (
-              <p className="text-center text-xs text-muted">No messages yet.</p>
-            ) : null}
-            {visibleRemoteMessages.map((item) => (
-              <article
-                className={`my-5 flex max-w-[82%] gap-2.5 ${item.sender.id === userId ? 'ml-auto justify-end' : ''}`}
-                key={item.id}
-              >
-                <div className="grid gap-[5px]">
-                  <p
-                    className={`rounded-[4px_12px_12px] bg-surface-secondary p-[13px] text-xs2 leading-[1.5] ${item.sender.id === userId ? 'rounded-[12px_4px_12px_12px] bg-[#dce9e4]' : ''}`}
-                  >
-                    {item.body}
-                  </p>
-                  <time
-                    className={`text-3xs text-muted ${item.sender.id === userId ? 'text-right' : ''}`}
-                  >
-                    {new Date(item.createdAt).toLocaleTimeString([], {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </time>
-                </div>
-              </article>
-            ))}
-          </div>
-          <form
-            className="grid grid-cols-[1fr_42px] items-center gap-2.5 border-t border-border p-[15px] max-md:px-0 max-md:py-[11px]"
-            onSubmit={(event) => {
-              event.preventDefault();
-              sendMessage();
-            }}
-          >
-            <label className="sr-only" htmlFor="message-composer-input">
-              Write a message
-            </label>
-            <textarea
-              className="min-h-12 max-h-28 resize-y rounded-sm border border-border px-[14px] py-3"
-              id="message-composer-input"
-              onChange={(event) => setMessage(event.target.value)}
-              onKeyDown={(event) => {
-                if (
-                  event.key === 'Enter' &&
-                  !event.shiftKey &&
-                  !event.nativeEvent.isComposing
-                ) {
-                  event.preventDefault();
-                  sendMessage();
-                }
-              }}
-              placeholder="Write a message…"
-              rows={1}
+              onRetry={retryMessage}
+              scrollToBottomToken={scrollToBottomToken}
+            />
+            <MessageComposer
               value={message}
-            />
-            <Button
-              className="!min-w-[42px] !p-0"
-              aria-label="Send message"
+              onChange={setMessage}
+              onSendMessage={sendMessage}
               disabled={!activeConversationId || !message.trim()}
-              type="submit"
-            >
-              →
-            </Button>
-          </form>
-        </section>
-      </section>
-      {newConversationOpen ? (
-        <Dialog
-          description="Choose a colleague to begin a conversation."
-          eyebrow="MESSAGES"
-          onClose={() => setNewConversationOpen(false)}
-          title="New conversation"
-        >
-          <div className="grid min-w-0 gap-1.5 p-[5px]">
-            <input
-              className="min-h-10 w-full min-w-0 rounded-sm border border-border px-3"
-              aria-label="Search colleagues"
-              onChange={(event) => setCandidateQuery(event.target.value)}
-              placeholder="Search by username"
-              type="search"
-              value={candidateQuery}
             />
-            {!candidateQuery.trim() || candidateQuery.trim().length < 2 ? (
-              <p className="text-xs text-muted">
-                Write at least 2 characters to search.
-              </p>
-            ) : null}
-            {visibleCandidates.map((user) => (
-              <button
-                className="grid grid-cols-[44px_1fr_24px] items-center gap-3 rounded-sm p-2.5 text-left hover:bg-surface-secondary"
-                key={user.id}
-                onClick={() => void startConversation(user)}
-                type="button"
-              >
-                <Avatar
-                  className="!size-[42px] !basis-[42px]"
-                  initials={(user.profile?.displayName ?? user.username)
-                    .slice(0, 2)
-                    .toUpperCase()}
-                />
-                <span className="grid gap-1">
-                  <strong>{user.profile?.displayName ?? user.username}</strong>
-                  <small className="text-xs2 text-muted">
-                    @{user.username}
-                  </small>
-                </span>
-                <Icon name="chevron-right" size={18} />
-              </button>
-            ))}
-            {candidateQuery.trim().length >= 2 && !visibleCandidates.length ? (
-              <p className="text-xs text-muted">No users found.</p>
-            ) : null}
           </div>
-        </Dialog>
-      ) : null}
+        ) : (
+          <section className="hidden md:block" />
+        )}
+      </section>
     </div>
   );
 }

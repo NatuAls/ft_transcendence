@@ -12,6 +12,7 @@ import { loadConfiguration } from '../../config/env.ts';
 import { Errors } from '../../common/errors/domain-error.ts';
 import { uuidv7 } from '../../common/utils/uuid.ts';
 import { createLogger } from '../../common/logger.ts';
+import { removeAvatarFile } from '../users/avatar-storage.ts';
 
 const logger = createLogger('gdpr');
 
@@ -131,7 +132,7 @@ export async function confirm(
     return { id: req.id, status: 'PROCESSING' as const };
   }
 
-  await purge(userId);
+  await erase(userId);
   await prisma.gdprRequest
     .update({
       where: { id: req.id },
@@ -371,27 +372,67 @@ export async function downloadPath(
 }
 
 /**
- * Real erasure. Content that must survive for the integrity of other people's
- * records (a ticket someone else is working on) is anonymised rather than
- * deleted, which is what GDPR actually allows.
+ * Real erasure, and the only way an account is erased: the person deleting
+ * their own (at once, after the two confirmations), an administrator erasing
+ * a closed account early, and the maintenance job when the grace period of a
+ * closed account ends.
+ *
+ * Content that must survive for the integrity of other people's records is
+ * anonymised rather than deleted, which is what GDPR actually allows: the
+ * tickets the person opened and their comments on tickets stay, under an
+ * anonymous author. Everything that is only theirs goes: profile, photo,
+ * private messages, notifications, friendships, memberships, sessions, files,
+ * data exports, and the roles still reserved for their address. Open tickets
+ * assigned to them go back to the unassigned queue, as when a member leaves,
+ * and the API keys they created are revoked — they stopped working anyway,
+ * and the list would say otherwise.
+ *
+ * Erasing an account that is already erased does nothing.
  */
-async function purge(userId: string): Promise<void> {
+export async function erase(userId: string): Promise<void> {
   const config = loadConfiguration();
-  const anon = `deleted_${userId.slice(0, 8)}`;
-  const attachments = await prisma.attachment.findMany({
-    where: { uploadedById: userId },
-    select: { storageKey: true },
-  });
+  const now = new Date();
+  // El id entero, no un trozo. Los ids son UUIDv7 y sus primeros caracteres
+  // son la hora: con `slice(0, 8)` dos cuentas creadas en el mismo minuto
+  // recibían el mismo `deleted_…`, y la segunda en borrarse chocaba con el
+  // correo único de la primera — un 409 que dejaba sus datos sin borrar.
+  const anon = `deleted_${userId.replace(/-/g, '')}`;
+  const [user, attachments, exports] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        deletedAt: true,
+        email: true,
+        erasedAt: true,
+        profile: { select: { avatarUrl: true } },
+      },
+    }),
+    prisma.attachment.findMany({
+      where: { uploadedById: userId },
+      select: { storageKey: true },
+    }),
+    prisma.gdprRequest.findMany({
+      where: { userId, artifactPath: { not: null } },
+      select: { artifactPath: true },
+    }),
+  ]);
+  if (!user || user.erasedAt) return;
 
   await prisma.$transaction([
     prisma.message.updateMany({
       where: { senderId: userId },
-      data: { body: '[deleted]', deletedAt: new Date() },
+      data: { body: '[deleted]', deletedAt: now },
     }),
-    prisma.ticketComment.updateMany({
-      where: { authorId: userId },
-      data: { body: '[deleted]', deletedAt: new Date() },
+    prisma.ticket.updateMany({
+      where: { assignedToId: userId, status: { in: ['OPEN', 'IN_PROGRESS'] } },
+      data: { assignedToId: null },
     }),
+    prisma.apiKey.updateMany({
+      where: { createdById: userId, revokedAt: null },
+      data: { revokedAt: now },
+    }),
+    prisma.platformRoleGrant.deleteMany({ where: { email: user.email } }),
+    prisma.organizationRoleGrant.deleteMany({ where: { email: user.email } }),
     prisma.notification.deleteMany({ where: { userId } }),
     prisma.friendship.deleteMany({
       where: { OR: [{ requesterId: userId }, { addresseeId: userId }] },
@@ -402,14 +443,18 @@ async function purge(userId: string): Promise<void> {
     prisma.verificationToken.deleteMany({ where: { userId } }),
     prisma.attachment.updateMany({
       where: { uploadedById: userId },
-      data: { deletedAt: new Date(), status: 'DELETED' },
+      data: { deletedAt: now, status: 'DELETED' },
     }),
-    prisma.userProfile.update({
+    prisma.gdprRequest.updateMany({
+      where: { userId, artifactPath: { not: null } },
+      data: { artifactPath: null },
+    }),
+    prisma.userProfile.updateMany({
       where: { userId },
       data: {
         firstName: 'Deleted',
         lastName: 'User',
-        displayName: anon,
+        displayName: 'Deleted user',
         bio: null,
         jobTitle: null,
         avatarUrl: null,
@@ -419,21 +464,58 @@ async function purge(userId: string): Promise<void> {
     prisma.user.update({
       where: { id: userId },
       data: {
+        // The address is free again from here on: the person can come back
+        // with it as somebody new.
         email: `${anon}@deleted.local`,
         username: anon,
         passwordHash: 'deleted',
         isActive: false,
-        deletedAt: new Date(),
+        deletedAt: user.deletedAt ?? now,
+        erasedAt: now,
       },
     }),
   ]);
 
+  // The files after the database: if the transaction had failed, nothing
+  // would be half gone. Each of them was reachable by whoever had its link or
+  // its download, so none stays behind.
   for (const attachment of attachments) {
     await unlink(
       join(config.UPLOAD_DIR, 'attachments', attachment.storageKey),
     ).catch(() => undefined);
   }
-  logger.info(`GDPR purge completed for ${userId}`);
+  for (const { artifactPath } of exports) {
+    if (artifactPath)
+      await unlink(join(exportDir(), artifactPath)).catch(() => undefined);
+  }
+  await removeAvatarFile(user.profile?.avatarUrl);
+  logger.info(`erasure completed for ${userId}`);
+}
+
+/**
+ * Data exports whose download window has closed lose their file too: the
+ * archive holds everything about a person, and nobody can download it any
+ * more. Returns how many were removed.
+ */
+export async function pruneExpiredExports(): Promise<number> {
+  const stale = await prisma.gdprRequest.findMany({
+    where: {
+      type: 'EXPORT',
+      artifactPath: { not: null },
+      expiresAt: { lt: new Date() },
+    },
+    select: { id: true, artifactPath: true },
+  });
+  for (const { artifactPath } of stale) {
+    if (artifactPath)
+      await unlink(join(exportDir(), artifactPath)).catch(() => undefined);
+  }
+  if (stale.length)
+    await prisma.gdprRequest.updateMany({
+      where: { id: { in: stale.map((row) => row.id) } },
+      data: { artifactPath: null },
+    });
+  return stale.length;
 }
 
 export function listRequests(userId: string) {

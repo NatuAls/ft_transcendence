@@ -17,6 +17,7 @@ export function PreviewIdentitySelect({
       <select
         aria-label="Preview identity"
         className="min-h-9 max-w-[210px] rounded-sm border border-border bg-surface px-2 text-xs normal-case tracking-normal text-ink"
+        name="previewIdentity"
         onChange={(event) => onChange(event.target.value as PreviewIdentity)}
         value={value}
       >

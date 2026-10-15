@@ -19,8 +19,14 @@ describe('routes', () => {
     expect(location.route).toBe('verify-email');
     expect(location.params.get('token')).toBe('abc123');
     expect(at('#account/sessions').route).toBe('account/sessions');
+    expect(at('#account/password').route).toBe('account/password');
     expect(at('#platform-roles').route).toBe('platform-roles');
     expect(at('#organization-roles').route).toBe('organization-roles');
+    // El registro de auditoría: su ruta, sus filtros y su sitio en el menú.
+    const audit = at('#admin/audit?action=user.role.changed&page=2');
+    expect(audit.route).toBe('admin/audit');
+    expect(audit.params.get('action')).toBe('user.role.changed');
+    expect(getActiveSection('admin/audit')).toBe('admin/audit');
   });
 
   it('opens the sign-in without a hash and a not-found page for anything unknown', () => {
@@ -75,6 +81,7 @@ describe('routes', () => {
     expect(getActiveSection('people-profile')).toBe('people');
     expect(getActiveSection('account/sessions')).toBe('account');
     expect(getAccountView('account/sessions')).toBe('sessions');
+    expect(getAccountView('account/password')).toBe('password');
     expect(getAccountView('account')).toBe('home');
   });
 });
