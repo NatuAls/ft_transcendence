@@ -548,7 +548,10 @@ export function MessagesPage({
             />
           </div>
         ) : (
-          <section className="hidden md:block" />
+          <section
+            aria-hidden="true"
+            className="hidden h-full min-h-0 bg-surface bg-[url('/char.svg')] bg-center bg-no-repeat md:block"
+          />
         )}
       </section>
     </div>
