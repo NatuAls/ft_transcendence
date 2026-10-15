@@ -1472,6 +1472,8 @@ export const es: Translation = {
       invalidIdentifier: 'Ese identificador no es válido.',
       notFound: 'No existe, o no tienes acceso.',
       rateLimited: 'Demasiadas solicitudes. Inténtalo de nuevo en un minuto.',
+      serverUnavailable:
+        'El servidor no está disponible temporalmente. Inténtalo de nuevo.',
       routeNotFound: 'Esa dirección no existe.',
       stillReferenced: 'No se puede borrar mientras algo lo siga usando.',
     },
