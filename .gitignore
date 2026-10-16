@@ -30,6 +30,13 @@ fix/
 docs/
 Audit/
 
+# Credenciales que generan las herramientas del propio repositorio: las de la
+# siembra local (`make seed-dev` escribe doc/seed.txt) y la configuración de
+# rclone de `gen-secrets.sh --rclone` (rclone/rclone.conf). Un `git add .` las
+# subiría.
+doc/
+rclone/
+
 # Tokens de /api/metrics que lee Prometheus (uno por entorno). Se crean a mano
 # en el servidor; sólo se versiona la plantilla .example con un valor ficticio.
 config/prometheus/metrics_token*
@@ -37,6 +44,9 @@ config/prometheus/metrics_token*
 
 # Nginx SSL Certificates
 config/nginx/certs/
+# Certificado HTTPS del entorno local (make cert). Su autoridad vive fuera del
+# repositorio, en ~/.local/share/helpdesk-lite/local-ca.
+config/local-tls/
 *.key
 *.crt
 

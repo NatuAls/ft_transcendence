@@ -43,7 +43,12 @@ import {
   type OrganizationSummary,
 } from './features/organizations/organizationsData';
 import { AppShell } from './layout/AppShell';
-import { logout, refreshSession, type AuthResponse } from './api/auth';
+import {
+  getAccessToken,
+  logout,
+  refreshSession,
+  type AuthResponse,
+} from './api/auth';
 import { listOrganizations } from './api/organizations';
 import { setUnauthorizedHandler } from './core/api/client';
 import { RealtimeEvents } from './core/realtime/socket';
@@ -225,7 +230,8 @@ function App() {
   );
 
   /**
-   * Que te metan en una organización, o te saquen, cambia el selector.
+   * Que te metan en una organización, te saquen o te cambien el rol cambia
+   * lo que puedes ver y hacer.
    *
    * El servidor avisa al socket de la persona afectada (`user:<id>`) y además
    * le mete en la sala de la organización nueva. Sin escucharlo, la
@@ -248,6 +254,12 @@ function App() {
   useRealtimeEvent(RealtimeEvents.memberRemoved, (payload) => {
     if (esSobreMi(payload)) void reloadSession();
   });
+  // Sin esto, a quien le cambiaban el rol se le quedaba la pantalla del rol
+  // anterior hasta recargar a mano: botones que la API rechaza y, en la
+  // organización, las estadísticas pedidas cada minuto con un 403 cada vez.
+  useRealtimeEvent(RealtimeEvents.memberUpdated, (payload) => {
+    if (esSobreMi(payload)) void reloadSession();
+  });
 
   /**
    * La sesión al abrir la aplicación.
@@ -262,6 +274,13 @@ function App() {
    */
   useEffect(() => {
     if (previewMode) return;
+    // Con la sesión ya abierta en esta página no hay nada que restaurar. El
+    // efecto vuelve a correr en cada cambio de ruta, porque es el que manda al
+    // inicio de sesión a quien entra sin sesión en una ruta privada, y eso
+    // renovaba la sesión en cada navegación: una rotación de la cookie por
+    // pantalla, y cualquiera que se cortase a medias (una recarga justo
+    // entonces) dejaba al navegador con la cookie ya gastada.
+    if (getAccessToken()) return;
     let cancelado = false;
     let temporizador: number | undefined;
     let intento = 0;

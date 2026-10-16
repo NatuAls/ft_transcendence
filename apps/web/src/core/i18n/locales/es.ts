@@ -1868,6 +1868,8 @@ export const es: Translation = {
         'Sólo se puede asignar a un agente de esta organización.',
       invalidTransition: 'El ticket no puede pasar a ese estado desde aquí.',
       locked: 'Este ticket ya no puede ser editado por su autor.',
+      changed:
+        'Alguien ha cambiado este ticket mientras tanto. Recárgalo y vuelve a intentarlo.',
       notFound: 'Ese ticket no existe, o no tienes acceso.',
     },
     comment: {

@@ -1861,6 +1861,8 @@ export const ca: Translation = {
         "Només es pot assignar a un agent d'aquesta organització.",
       invalidTransition: "El tiquet no pot passar a aquest estat des d'aquí.",
       locked: 'Aquest tiquet ja no pot ser editat pel seu autor.',
+      changed:
+        "Algú ha canviat aquest tiquet mentrestant. Torna'l a carregar i torna-ho a provar.",
       notFound: 'Aquest tiquet no existeix, o no hi tens accés.',
     },
     comment: {

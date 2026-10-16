@@ -198,6 +198,7 @@ export function RegisterPage({
               placeholder={t('auth.register.firstNamePlaceholder')}
               value={firstName}
               onChange={handleChange(setFirstName)}
+              minLength={2}
               required
             />
             <TextField
@@ -206,6 +207,7 @@ export function RegisterPage({
               placeholder={t('auth.register.lastNamePlaceholder')}
               value={lastName}
               onChange={handleChange(setLastName)}
+              minLength={2}
               required
             />
             <div>
@@ -216,6 +218,7 @@ export function RegisterPage({
                 placeholder={t('auth.register.usernamePlaceholder')}
                 value={username}
                 onChange={handleChange(setUsername)}
+                minLength={3}
                 required
               />
               <p className="mt-[5px] text-xs2 leading-[1.4] text-muted">
@@ -230,6 +233,7 @@ export function RegisterPage({
               placeholder={t('auth.register.emailPlaceholder')}
               value={email}
               onChange={handleChange(setEmail)}
+              minLength={3}
               required
             />
             <div>

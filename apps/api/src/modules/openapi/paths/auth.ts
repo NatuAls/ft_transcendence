@@ -62,11 +62,12 @@ export const authPaths: Paths = {
       operationId: 'refresh',
       summary: 'Renew the session',
       description:
-        'Rotates the refresh token: the old one is invalidated and **reuse is detected**, so replaying a stolen cookie kills the whole family of tokens instead of handing over a session. Uses the cookie, not a body.',
+        'Rotates the refresh token: the old one is invalidated and **reuse is detected**, so replaying a stolen cookie kills the whole family of tokens instead of handing over a session. The one exception is an answer that never arrived: within 30 seconds of a rotation, and only while its replacement has never been used, the previous token gets a new pair and the unused replacement is voided. A refused renewal (401/403) also clears both cookies. Uses the cookie, not a body.',
       security: cookie,
       responses: {
         '200': ok('New access token.', sessionResponse),
-        ...errs('401', '429'),
+        // 403: the account was disabled while the session was alive.
+        ...errs('401', '403', '429'),
       },
     }),
   },

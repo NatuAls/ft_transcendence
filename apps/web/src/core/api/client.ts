@@ -1,10 +1,12 @@
 // Cliente HTTP único del frontend. Todas las pantallas pasan por aquí:
 //  - añade el Bearer y las credenciales (cookie de refresh),
 //  - serializa JSON (o deja pasar FormData),
-//  - ante un 401 renueva la sesión UNA vez (refreshSession) y reintenta,
+//  - renueva la sesión antes de usar un token a punto de caducar y, ante un
+//    401, la renueva UNA vez (refreshSession) y reintenta,
 //  - convierte cualquier fallo en ApiError / NetworkError (errors.ts),
 //  - upload() sube ficheros con progreso (XHR: fetch no lo expone).
 import {
+  accessTokenExpiresSoon,
   getAccessToken,
   refreshSession,
   clearAccessToken,
@@ -80,10 +82,26 @@ function apiErrorFrom(body: Partial<ApiErrorBody>, status: number): ApiError {
   return new ApiError(body, status);
 }
 
+/**
+ * Renueva la sesión antes de una petición si el access token está a punto de
+ * caducar (ver `accessTokenExpiresSoon`). Si la renovación no se puede hacer,
+ * la petición sale igual y el 401 sigue su camino de siempre.
+ */
+async function renewIfExpiring(): Promise<void> {
+  const token = getAccessToken();
+  if (!token || !accessTokenExpiresSoon(token)) return;
+  try {
+    await refreshSession();
+  } catch {
+    // Sin respuesta del servidor: lo dirá la propia petición.
+  }
+}
+
 export async function request<T>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
+  await renewIfExpiring();
   const isForm = options.body instanceof FormData;
   let response: Response;
   try {
@@ -139,12 +157,13 @@ export const api = {
 };
 
 /** Subida con progreso (adjuntos, avatar). Reintenta una vez tras renovar la sesión. */
-export function upload<T>(
+export async function upload<T>(
   path: string,
   form: FormData,
   onProgress?: (percent: number) => void,
   retried = false,
 ): Promise<T> {
+  await renewIfExpiring();
   return new Promise<T>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', buildUrl(path));

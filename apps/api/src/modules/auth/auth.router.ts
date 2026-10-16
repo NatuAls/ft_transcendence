@@ -15,7 +15,7 @@ import {
   rateLimitDefault,
 } from '../../common/middleware/rate-limit.ts';
 import { validate } from '../../common/middleware/validate.ts';
-import { Errors } from '../../common/errors/domain-error.ts';
+import { DomainError, Errors } from '../../common/errors/domain-error.ts';
 import { originOf, param } from '../../common/utils/http.ts';
 import { loadConfiguration } from '../../config/env.ts';
 import { verifyAccessToken } from '../../common/jwt.ts';
@@ -103,10 +103,25 @@ authRouter.post('/refresh', rateLimitDefault, async (req, res) => {
   const token = (req.cookies as Record<string, string> | undefined)?.[
     REFRESH_COOKIE
   ];
-  if (!token) throw Errors.tokenInvalid();
-  const result = await auth.refresh(token, contextOf(req));
-  setRefreshCookie(res, result.refreshToken, result.refreshExpiresAt);
-  res.status(200).json({ user: result.user, accessToken: result.accessToken });
+  try {
+    if (!token) throw Errors.tokenInvalid();
+    const result = await auth.refresh(token, contextOf(req));
+    setRefreshCookie(res, result.refreshToken, result.refreshExpiresAt);
+    res
+      .status(200)
+      .json({ user: result.user, accessToken: result.accessToken });
+  } catch (error) {
+    // A refused renewal ends the session in this browser too. The cookies
+    // used to stay, so the readable hint outlived the session and every later
+    // load asked again, and wrote the same 401 to the console. A 5xx says
+    // nothing about the session and keeps them.
+    if (
+      error instanceof DomainError &&
+      (error.status === 401 || error.status === 403)
+    )
+      clearAuthCookies(res);
+    throw error;
+  }
 });
 
 authRouter.post('/logout', rateLimitDefault, async (req, res) => {

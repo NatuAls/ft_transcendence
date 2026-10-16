@@ -288,8 +288,12 @@ export async function changeStatus(
   assertTransition(current.status as TicketStatus, input.status);
 
   return events.runInTransaction(async (tx) => {
-    const ticket = await tx.ticket.update({
-      where: { id },
+    // Sólo si sigue en el estado contra el que se comprobó la transición. Dos
+    // cambios simultáneos leían los dos el mismo estado, los dos pasaban la
+    // máquina de estados y el historial registraba dos veces la misma
+    // transición. Ahora el segundo no encuentra la fila y recibe un 409.
+    const claimed = await tx.ticket.updateMany({
+      where: { id, status: current.status },
       data: {
         status: input.status,
         ...(input.resolution ? { resolution: input.resolution } : {}),
@@ -301,6 +305,10 @@ export async function changeStatus(
           ? { assignedToId: actor.id }
           : {}),
       },
+    });
+    if (claimed.count === 0) throw Errors.ticketChanged();
+    const ticket = await tx.ticket.findUniqueOrThrow({
+      where: { id },
       select: TICKET_SELECT,
     });
 
@@ -354,9 +362,16 @@ export async function assign(
   }
 
   return events.runInTransaction(async (tx) => {
-    const ticket = await tx.ticket.update({
-      where: { id },
+    // Igual que el cambio de estado: sólo si el responsable sigue siendo el
+    // que se leyó. Dos agentes que se lo asignaban a la vez quedaban los dos
+    // en el historial como primer responsable, y ganaba el último.
+    const claimed = await tx.ticket.updateMany({
+      where: { id, assignedToId: current.assignedTo?.id ?? null },
       data: { assignedToId: input.assigneeId },
+    });
+    if (claimed.count === 0) throw Errors.ticketChanged();
+    const ticket = await tx.ticket.findUniqueOrThrow({
+      where: { id },
       select: TICKET_SELECT,
     });
     await tx.ticketHistory.create({
@@ -510,10 +525,11 @@ export async function addComment(
       },
     });
 
-    // First agent reply stamps the first-response metric.
+    // First agent reply stamps the first-response metric, once: of two
+    // replies at the same time, the later one must not move it forward.
     if (!ticket.firstResponseAt && membership && membership.role !== 'MEMBER') {
-      await tx.ticket.update({
-        where: { id: ticketId },
+      await tx.ticket.updateMany({
+        where: { id: ticketId, firstResponseAt: null },
         data: { firstResponseAt: new Date() },
       });
     }
