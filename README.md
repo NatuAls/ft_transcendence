@@ -158,7 +158,24 @@ drafted is not a declaration.
   overly broad suggestions were corrected, and all retained code had to be
   verified before integration.
 - **elerazo-:** _to be written by Elizabeth._
-- **israetor:** _to be written by Israel._
+- **israetor:** I used ChatGPT as a pair-programming and quality-assurance assistant during
+the project. It supported the investigation of implementation errors, helped
+analyse possible causes, and suggested approaches for fixing issues in the
+front end, API integration, authentication flows, and UI components. I also
+used it to assist with writing, reviewing, and improving code, as well as
+planning and checking tests for the implemented functionality.
+
+Gemini was used primarily for documentation-related work. It helped me search
+for and understand official technical documentation, compare relevant options,
+and draft or improve project documentation in English. This was useful when
+researching technologies, implementation details, and architectural choices.
+
+AI output was used as assistance, not as an automatic source of truth. I
+reviewed every suggestion, checked it against the project requirements and
+official documentation, and verified the final code through testing and
+integration with the existing application. Incorrect, incomplete, or unsuitable
+suggestions were revised or discarded before being included in the project.
+
 
 ## Team Information
 
@@ -1031,14 +1048,41 @@ this note.
 -  designing and defining the main backend structure, selecting the technology
 -  stack, and setting up the base Docker/DevOps environment
 
-### israetor — Reviews and infrastructure
+### israetor — Reviews, Architecture, Front-End Integration and Infrastructure
 
-*Draft from the history; Israel to confirm and add the challenges.*
+-  My work focused on code quality, architecture decisions, front-end integration,
+and infrastructure reliability.
+-  I reviewed and merged most pull requests, including infrastructure changes.
+The reviews checked expected behaviour, API and UI integration, authentication
+flows, and compatibility with the existing development and deployment setup.
+This helped identify issues before integration and keep the codebase stable.
 
-- Pinned the Node version in the images (24.19.0 instead of a moving tag),
-  which is what keeps a build from changing under the project without notice.
-- Reviewed and merged most of the pull requests, including the infrastructure
-  ones.
+-  I integrated API endpoints into the front end, especially on account-related
+pages, and ensured that API responses and user states were handled correctly.
+I also fixed UI issues in reusable components and account screens, improving
+consistency and usability. Additional front-end work included:
+
+-  A dark mode option, allowing users to use the interface with a theme better
+  suited to low-light environments and personal preference.
+-  Initial internationalisation support with Vite i18n for translated UI
+  content.
+-  I corrected the fields used in login and registration, aligning the forms with
+the API contract and improving the consistency of the authentication flow.
+
+-  I participated in the evaluation of the architecture and technology stack. We
+compared Express and NestJS for the back end, considering maintainability,
+complexity, and the project scope. Express was chosen for its explicit and
+lightweight TypeScript-friendly HTTP layer. PostgreSQL was selected for its
+strong relational model, transactions, data integrity, and mature backup
+tooling, which fit the application's users, organisations, tickets, and
+comments.
+
+-  I pinned the Node.js version in the container images to `24.19.0` instead of
+using a moving tag. This makes builds reproducible and avoids unexpected
+runtime changes caused by upstream image updates.
+
+-  At the foundation of the project, *elerazo- and israetor collaborated* on designing and defining the main backend structure, selecting the technology stack, and setting up the base Docker/DevOps environment.
+
 
 ## Known limitations
 
