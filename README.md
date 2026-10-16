@@ -1,5 +1,5 @@
-*This project has been created as part of the 42 curriculum by fcela-ga,
-nalesso, arhea, elerazo- and israetor.*
+*This project has been created as part of the 42 curriculum by `fcela-ga`,
+`nalesso`, `arhea`, `elerazo-` and `israetor`.*
 
 <!-- Required project roles and personal declarations marked with placeholders
      must be completed and approved by the team member they belong to. -->
@@ -200,8 +200,29 @@ drafted is not a declaration.
   and team review. AI generated output was not accepted blindly: incorrect or
   overly broad suggestions were corrected, and all retained code had to be
   verified before integration.
-- **elerazo-:** _to be written by Elizabeth._
-- **israetor:** _to be written by Israel._
+- **elerazo-:** elerazo-: AI tools (such as Claude and ChatGPT) were used as a development assistant and technical reference throughout the project. Specifically, AI assisted in:
+Debugging & Error Correction: Analyzing stack traces, identifying edge cases in TypeScript and C++/web integration, and suggesting fixes for complex concurrency and memory management issues.
+Concept Documentation & Research: Summarizing and explaining advanced TypeScript patterns, modern JavaScript features, and specific framework APIs to streamline architectural decisions.
+Refactoring & Translations: Assisting with code cleanup, ensuring consistent style across modules, and helping draft clear error messages and documentation content.
+Every line of code generated or suggested by AI was thoroughly reviewed, tested, and integrated by the author to ensure correctness, security, and alignment with the project's requirements.
+- **israetor:** I used ChatGPT as a pair-programming and quality-assurance assistant during
+the project. It supported the investigation of implementation errors, helped
+analyse possible causes, and suggested approaches for fixing issues in the
+front end, API integration, authentication flows, and UI components. I also
+used it to assist with writing, reviewing, and improving code, as well as
+planning and checking tests for the implemented functionality.
+
+Gemini was used primarily for documentation-related work. It helped me search
+for and understand official technical documentation, compare relevant options,
+and draft or improve project documentation in English. This was useful when
+researching technologies, implementation details, and architectural choices.
+
+AI output was used as assistance, not as an automatic source of truth. I
+reviewed every suggestion, checked it against the project requirements and
+official documentation, and verified the final code through testing and
+integration with the existing application. Incorrect, incomplete, or unsuitable
+suggestions were revised or discarded before being included in the project.
+
 
 ## Team Information
 
@@ -840,7 +861,7 @@ memory.
 |---|---|---|
 | Authentication & sessions (API) | fcela-ga | Register, e-mail verification, login with lockout, refresh rotation, logout everywhere |
 | Organizations, roles, categories, API keys | fcela-ga | Multi-tenant model with RBAC policies |
-| Tickets, comments, attachments, history | fcela-ga | Workflow, assignment, internal notes, upload validation |
+| Tickets, comments, attachments, history | fcela-ga (API) · arhea (UI) · nalesso (front-end/API integration, internal notes, realtime & tests) | Workflow, assignment, internal notes, upload validation, live conversation and server-side pagination |
 | Real-time (socket layer) | fcela-ga | Socket.IO layer with the authenticated handshake, rooms per user, organization, ticket and conversation, presence with a reconnect grace period, and the transactional event bus that feeds it — a module never imports the socket layer. It is what every screen other than the chat runs on |
 | Chat | elerazo- | Most of it: the Messages screen and **the chat's own realtime service** on top of the socket layer. fcela-ga's part is limited to moving its API calls onto the shared client (session renewal and a 204 that used to be parsed as JSON) and the font-size units |
 | Notifications & e-mail | fcela-ga | In-app + SMTP, user preferences |
@@ -1110,31 +1131,99 @@ add the challenges you hit and how you solved them, and delete this note.
   focus management, keyboard navigation, accessible labels, touch targets and
   responsive behaviour at the target viewport sizes.
 
-### elerazo- — Project Manager · Front end
+### elerazo- — Scrum Master - Developer
 
-*Draft from the history; Elizabeth to confirm and add the challenges.*
+- Managed the task backlog and assigned work to team members according to the
+  project areas and priorities, keeping ownership and dependencies visible.
+- Organised and scheduled follow-up meetings to coordinate progress, review
+  blockers and agree the next steps for the project.
 
-- Built most of the chat: the Messages screen — conversations, messages and
-  unread counts — and its own realtime service on top of the socket layer.
-- Connected sign-in between the front end and the API, and documented it.
-- Set up the Makefile that the team has used since August.
+- Code: GitHub, feature branches (backend, frontend, dev-ops) merged
+  into develop through pull requests reviewed by another member; main
+  only receives develop and is what production runs. Pull request
+  template with a merge checklist; CODEOWNERS for the infrastructure paths.
+- Documentation: Notion workspace (endpoints, integration guides) and the
+  Markdown files in this repository.
+- Communication: WhatsApp and Discord for the day to day, Slack for the
+  threads that needed to stay findable.
+- Task tracking: Trello for the board, Notion for the written material
+  (endpoints, integration guides and the meeting notes).
+- Meetings: in person at the campus and remote, with *minutes written down*,
+  progress reports and periodic audits of the state of the project. Those
+  audits are what produced the pending-work inventories that drove the last
+  weeks of the project, and the reason several defects were found before an
+  evaluator would have found them.
+- How the work was split: by area rather than by ticket, which is what the
+  commit history shows — infrastructure and API on one side, the interface on
+  the other, and the modules assigned to whoever owned the area they touched.
+  «Team Information» above names who took each one.
 
+- Delivered the Messages area end to end: conversation discovery and creation,
+  paginated threads, optimistic sending with retry states, read receipts, and
+  server-backed unread counts. The view keeps the active thread current while
+  refreshing inactive conversation summaries without duplicating messages.
 ### israetor — Technical Lead · Front end
 
-*Draft from the history; Israel to confirm and add the challenges.*
+- Built the chat realtime client on the shared Socket.IO layer. It authenticates
+  the handshake with the session access token, joins and leaves authorised
+  conversation rooms, restores that subscription after reconnecting, and
+  consumes message.created and message.read events to update messages,
+  read state and unread badges immediately.
 
-- Reviewed and merged most of the pull requests (21 of the 53 merged into
-  `develop`), including the infrastructure ones.
-- In August, the first API skeleton: the initial Prisma schema, migrations on
-  start-up that wait for PostgreSQL's health check, live editing in the
-  development containers, and the Node version pinned in the images (24.19.0
-  instead of a moving tag), which is what keeps a build from changing under the
-  project without notice.
-- The change-password page (09/10); the light/dark/system theme engine and the
-  preferences that save themselves (13/10); the English, Spanish and Catalan
-  translation of the sign-in, account and API-error screens, secure
-  autocomplete and «show password», and the security, accessibility and
-  rate-limit tests of the sign-in forms (14/10).
+- Connected sign-in to the API and documented the frontend–backend contract:
+  validated credentials are submitted to /auth/login, the access token stays
+  in memory, the refresh token remains in an HttpOnly cookie, and the shared
+  HTTP client renews the session once before retrying an expired request.
+
+- Improved the messaging UX and accessibility: Escape deselects an open chat
+  only when no dialog is active; toast notifications provide consistent
+  feedback; the thread owns a bounded, smooth scroll area that follows new or
+  loaded messages while requesting older history at its top; and all Messages
+  copy is translated through the application i18n catalogues.
+
+- Set up and maintained the team Makefile used since August, with reproducible
+  development and production Compose targets, local TLS/secrets setup, seeded
+  development data, local CI and guarded cleanup commands.
+
+-  At the foundation of the project, *elerazo- and israetor collaborated* on
+-  designing and defining the main backend structure, selecting the technology
+-  stack, and setting up the base Docker/DevOps environment
+
+### israetor — Reviews, Architecture, Front-End Integration and Infrastructure
+
+-  My work focused on code quality, architecture decisions, front-end integration,
+and infrastructure reliability.
+-  I reviewed and merged most pull requests, including infrastructure changes.
+The reviews checked expected behaviour, API and UI integration, authentication
+flows, and compatibility with the existing development and deployment setup.
+This helped identify issues before integration and keep the codebase stable.
+
+-  I integrated API endpoints into the front end, especially on account-related
+pages, and ensured that API responses and user states were handled correctly.
+I also fixed UI issues in reusable components and account screens, improving
+consistency and usability. Additional front-end work included:
+
+-  A dark mode option, allowing users to use the interface with a theme better
+  suited to low-light environments and personal preference.
+-  Initial internationalisation support with Vite i18n for translated UI
+  content.
+-  I corrected the fields used in login and registration, aligning the forms with
+the API contract and improving the consistency of the authentication flow.
+
+-  I participated in the evaluation of the architecture and technology stack. We
+compared Express and NestJS for the back end, considering maintainability,
+complexity, and the project scope. Express was chosen for its explicit and
+lightweight TypeScript-friendly HTTP layer. PostgreSQL was selected for its
+strong relational model, transactions, data integrity, and mature backup
+tooling, which fit the application's users, organisations, tickets, and
+comments.
+
+-  I pinned the Node.js version in the container images to `24.19.0` instead of
+using a moving tag. This makes builds reproducible and avoids unexpected
+runtime changes caused by upstream image updates.
+
+-  At the foundation of the project, *elerazo- and israetor collaborated* on designing and defining the main backend structure, selecting the technology stack, and setting up the base Docker/DevOps environment.
+
 
 ## Known limitations
 
