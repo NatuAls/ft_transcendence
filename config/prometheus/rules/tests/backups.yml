@@ -124,3 +124,4 @@ tests:
             exp_annotations:
               summary: 'El último ensayo de restauración de staging ha fallado 2 comprobaciones'
               description: 'Hay copias, pero NO son restaurables. Es peor que no tener copias, porque da falsa seguridad.'
+              runbook: 'bash scripts/restore.sh --drill a mano, para ver qué comprobación falla. Hasta que pase, ninguna copia de staging es de fiar.'

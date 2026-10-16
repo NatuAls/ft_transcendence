@@ -94,6 +94,7 @@ groups:
         labels: { severity: warning }
         annotations:
           summary: 'p95 por encima de 1,5 s en {{ $labels.env }}'
+          runbook: 'Qué rutas suben: Grafana, panel helpdesk-overview. docker stats --no-stream para CPU y memoria; en Loki, {container="helpdesk-api-{{ $labels.env }}"}. Si es la base de datos, ver PostgresConexionesAlLimite.'
 
       - alert: RateLimitDisparado
         expr: sum by (env) (rate(helpdesk_rate_limit_blocked_total[5m])) > 5
@@ -129,6 +130,7 @@ groups:
         labels: { severity: critical }
         annotations:
           summary: 'Menos del 7% de disco libre: PostgreSQL dejará de aceptar escrituras'
+          runbook: 'Urgente. df -h / y docker system df para ver qué ocupa; docker image prune -f; revisar /opt/helpdesk/*/backups y la retención.'
 
       - alert: MemoriaAlta
         expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 0.90
@@ -136,6 +138,7 @@ groups:
         labels: { severity: warning }
         annotations:
           summary: 'Memoria del host por encima del 90%'
+          runbook: 'docker stats --no-stream: qué contenedor crece. Si es uno de la aplicación, reiniciarlo (docker restart helpdesk-api-prod, por ejemplo); si no es ninguno, free -m y top en el host.'
 
       - alert: PostgresConexionesAlLimite
         expr: |
@@ -145,6 +148,7 @@ groups:
         labels: { severity: warning }
         annotations:
           summary: 'PostgreSQL de {{ $labels.env }} al 80% de conexiones'
+          runbook: 'Quién las tiene: pg_stat_activity por usuario y estado, con psql dentro de helpdesk-db-{{ $labels.env }}. Muchas inactivas de la API: reiniciarla las libera (docker restart helpdesk-api-{{ $labels.env }}); muchas activas: consultas lentas, ver LatenciaAlta.'
 
       # Guarda `redis_memory_max_bytes > 0`: sin `maxmemory` configurado el
       # exportador informa 0 y la división daba +Inf (falso positivo permanente
@@ -158,6 +162,7 @@ groups:
         annotations:
           summary: 'Redis de {{ $labels.env }} por encima del 90% de su límite'
           description: 'Redis aquí es caché, presencia y ventanas de rate limit: si empieza a expulsar claves, el rate limit se vuelve inexacto.'
+          runbook: 'docker exec helpdesk-redis-{{ $labels.env }} redis-cli info memory, y redis-cli --bigkeys para ver qué ocupa. Las ventanas de rate limit y la presencia caducan solas; si no baja, subir --maxmemory en compose.prod.yml.'
 
   # ----------------------------------------------------------------- copias --
   - name: copias_de_seguridad
@@ -177,6 +182,7 @@ groups:
         annotations:
           summary: 'Hace más de 36 h que no hay una copia correcta de {{ $labels.env }}'
           description: 'El RPO acordado es de 24 h. Este es el fallo silencioso clásico: el cron dejó de correr y nadie se entera hasta el desastre.'
+          runbook: 'cat /opt/helpdesk/{{ $labels.env }}/backups/cron.log; docker ps --filter name=helpdesk-backup-{{ $labels.env }}. Copia a mano: docker compose -f compose.prod.yml run --rm --entrypoint "sh /backup.sh" backup'
 
       - alert: SinMetricaDeBackup
         # BackupAntiguo/BackupFallido necesitan que la serie exista: si el cron
@@ -199,6 +205,7 @@ groups:
         annotations:
           summary: 'El último dump de {{ $labels.env }} pesa menos de la mitad de la media de la semana'
           description: 'O han borrado muchos datos, o el volcado se ha hecho contra una base equivocada.'
+          runbook: 'ls -lh /opt/helpdesk/{{ $labels.env }}/backups y su cron.log: contra qué base se hizo el volcado. Si de verdad faltan datos, no tocar las copias anteriores: son las buenas.'
 
       - alert: EnsayoDeRestauracionAntiguo
         expr: time() - helpdesk_restore_drill_last_timestamp_seconds > 10 * 24 * 3600
@@ -223,6 +230,7 @@ groups:
         annotations:
           summary: 'El último ensayo de restauración de {{ $labels.env }} ha fallado {{ $value }} comprobaciones'
           description: 'Hay copias, pero NO son restaurables. Es peor que no tener copias, porque da falsa seguridad.'
+          runbook: 'bash scripts/restore.sh --drill a mano, para ver qué comprobación falla. Hasta que pase, ninguna copia de {{ $labels.env }} es de fiar.'
 
   # -------------------------------------------------------------------- TLS --
   - name: certificados
@@ -241,3 +249,4 @@ groups:
         labels: { severity: critical }
         annotations:
           summary: 'El certificado de {{ $labels.instance }} caduca en menos de una semana'
+          runbook: "Urgente: Nginx Proxy Manager -> SSL Certificates -> Renew Now, como en CertificadoCaducaPronto. Si no lo emite Let's Encrypt, es el de Cloudflare: SSL/TLS -> Edge Certificates."
