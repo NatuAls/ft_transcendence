@@ -53,22 +53,43 @@ Key features:
 
 | Tool | Version | Notes |
 |---|---|---|
-| Node.js | 24 (`.nvmrc`) | npm ≥ 11 |
-| Docker | ≥ 27 with Compose v2 | PostgreSQL 15, Redis 7 and Mailpit run in containers |
-| GNU Make | any | convenience targets (`make up-dev`, `make down-dev`, …) |
+| Docker | ≥ 27 with Compose v2 | The whole stack runs in containers: PostgreSQL 15, Redis 7, Mailpit, the API and the web app |
+| GNU Make | any | `make` starts everything (targets below) |
+| OpenSSL | any recent | Creates the local HTTPS certificate |
+| Node.js | 24 (`.nvmrc`), npm ≥ 11 | Only on the host, for `make seed-dev` and to run the quality gates outside Docker (`make ci` brings its own) |
 
 ### Run it locally (development)
 
 ```bash
-git clone <repo-url> && cd <repo>
-cp .env.example .env            # defaults work for local development
-make up-dev                     # generates dev secrets, builds and starts db, redis, mailpit, api and web
-npm install                     # workspaces: apps/api, apps/web, packages/contracts, packages/ui
-npm run dev:api                 # http://localhost:5000  (API, hot reload)
-npm run dev:web                 # http://localhost:5173  (Vite)
+git clone <repo-url> helpdesk && cd helpdesk
+make              # = make up-dev: writes .env with random secrets (scripts/gen-secrets.sh),
+                  #   creates the local HTTPS certificate (scripts/dev/local-cert.sh),
+                  #   then builds and starts db, redis, mailpit, api and web
+make seed-dev     # optional: demo organizations, people, categories and tickets
+                  #   (the demo credentials are written to doc/seed.txt)
 ```
 
-- Mailpit (captured e-mails): http://localhost:8025
+- Application: https://localhost:5173 · API reference (Swagger UI):
+  https://localhost:5173/api/v1/docs · captured e-mail (Mailpit):
+  http://localhost:8025
+- The first `make` prints the primary administrator: sign in with
+  `<BOOTSTRAP_ADMIN_USERNAME>@helpdesk.invalid` and the password it shows. Both
+  stay in `.env`.
+- HTTPS: the certificate is signed by a certificate authority that `make`
+  creates once per machine in `~/.local/share/helpdesk-lite/local-ca`, valid
+  only for `localhost`, and imports into Chrome/Chromium and Firefox for your
+  user (with the system `certutil`, or with one in a container when there is
+  none). Reopen the browser once to pick it up. `make cert` shows the
+  certificate and whether the authority is trusted, and asks before replacing
+  anything.
+- Do not copy `.env.example` by hand: `make` generates `.env` and leaves an
+  existing one untouched. To regenerate it: `bash scripts/gen-secrets.sh --force`
+  (it keeps a backup).
+- Start again from an empty database: `make reset-dev` (asks for
+  confirmation). Stop: `make down-dev`.
+- Hot reload already works inside the containers (the source tree is mounted
+  into `api` and `web`): there is no need to run `npm run dev:*` on the host,
+  and doing it while the containers are up fails with the port in use.
 - API reference: [`apps/api/ENDPOINTS.md`](apps/api/ENDPOINTS.md) (111 routes)
 - Front/back integration notes: [`apps/web/INTEGRATION.md`](apps/web/INTEGRATION.md)
 - Frontend conventions: [`apps/web/FRONTEND_GUIDE.md`](apps/web/FRONTEND_GUIDE.md)
@@ -81,8 +102,9 @@ npm run dev:web                 # http://localhost:5173  (Vite)
 (`DATABASE_URL`, `POSTGRES_*`), `REDIS_URL`, `JWT_ACCESS_SECRET`,
 `JWT_REFRESH_SECRET`, `PASSWORD_PEPPER`, token TTLs, `SMTP_*`/`MAIL_FROM`,
 upload limits, rate limits, `CORS_ORIGINS`, `METRICS_TOKEN` (optional),
-`BOOTSTRAP_ADMIN_EMAIL` (optional: the account with that e-mail becomes
-`GLOBAL_ADMIN` on first start).
+`BOOTSTRAP_ADMIN_USERNAME` and `BOOTSTRAP_ADMIN_PASSWORD` (the primary
+administrator, created on start-up), `BOOTSTRAP_ADMIN_EMAIL` (optional: while
+there is no `GLOBAL_ADMIN`, the account with that e-mail becomes one).
 
 ### Production
 
@@ -124,12 +146,13 @@ The subject asks each of us to declare this, so each bullet is written by the
 person it names. Nobody writes anybody else's: a declaration that somebody else
 drafted is not a declaration.
 
-- **DevOps (fcela-ga):** Claude Code (Anthropic) was used as a pair for the
+- **fcela-ga:** Claude Code (Anthropic) was used as a pair for the
   infrastructure work: reviewing the two external audits against the real
   code and server, diagnosing alerts and incidents from logs and metrics,
   drafting the operations scripts (`scripts/ops/*`, `scripts/backup.sh`,
-  `scripts/restore.sh`), the alert rules, the production gate and this
-  runbook, and analysing the automated review comments on pull requests.
+  `scripts/restore.sh`), the alert rules, the production gate and the
+  operations runbook, and analysing the automated review comments on pull
+  requests.
   Every script was executed and verified on the server by the author; the
   decisions (what to fix, what to leave out of scope, what to ask the team)
   were taken by the author and are recorded in the audit reports.
@@ -141,7 +164,28 @@ drafted is not a declaration.
   address, the account created by the person — and reviewed the result; the
   security decision that a reserved role is claimed on verification, not on
   sign-up, is documented in «Users, organizations and roles».
-- **nalesso:** I used Gemini as a technical tutor and architectural guide, alongside GitHub Copilot integrated into VS Code for code completion and boilerplate reduction. Gemini assisted me in structuring the initial monorepo and Docker dev/prod configurations, designing the shared front-end core (`client.ts` with silent token refresh, `useAsync`/`AsyncState`, `useToast`, i18n, and real-time hooks), debugging CSS specificity conflicts between Tailwind forms and native browser styles, and refactoring the ticket views (`TicketListPage`, `TicketDetailPage`, `RelatedTicketsPage`, and `GlobalSearchDialog`) to use server-side pagination and real API endpoints. GitHub Copilot sped up repetitive TypeScript typings, translation keys (`en`/`es`/`ca`), and Vitest test scaffolding. Every AI suggestion was critically reviewed, adapted by hand to match our Zod contracts and OpenAPI schemas, and validated locally with Prettier, ESLint, TypeScript, and the Vitest suite before opening a pull request.
+  In the last two weeks it was also used for what testing turned up before
+  the evaluation: reproducing and fixing it (sessions across tabs and
+  reloads, two people changing the same ticket at once, the same 404 for what
+  you may not read as for what does not exist, errors in the browser
+  console), setting up HTTPS on localhost with a local certificate authority,
+  and checking this README and the team's evaluation protocol (`tmp/Eval/`)
+  against the code and the evaluation sheet. Each fix carries tests that fail
+  without it, and another member approved it before it was merged.
+- **nalesso:** I used Gemini as a technical tutor and architectural guide,
+  alongside GitHub Copilot integrated into VS Code for code completion and
+  boilerplate reduction. Gemini assisted me in structuring the initial monorepo
+  and Docker dev/prod configurations, designing the shared front-end core
+  (`client.ts` with silent token refresh, `useAsync`/`AsyncState`, `useToast`,
+  i18n, and real-time hooks), debugging CSS specificity conflicts between
+  Tailwind forms and native browser styles, and refactoring the ticket views
+  (`TicketListPage`, `TicketDetailPage`, `RelatedTicketsPage`, and
+  `GlobalSearchDialog`) to use server-side pagination and real API endpoints.
+  GitHub Copilot sped up repetitive TypeScript typings, translation keys
+  (`en`/`es`/`ca`), and Vitest test scaffolding. Every AI suggestion was
+  critically reviewed, adapted by hand to match our Zod contracts and OpenAPI
+  schemas, and validated locally with Prettier, ESLint, TypeScript, and the
+  Vitest suite before opening a pull request.
 - **arhea:** I used OpenAI Codex as a pair programming, design review and
   quality assurance tool throughout the front end work. It assisted me in
   exploring and refining the HelpDesk Lite concept, reviewing the Penpot
@@ -191,16 +235,16 @@ on, not a nominal split: they match the commit history of the areas named.
 |---|---|
 | Product Owner | arhea |
 | Project Manager / Scrum Master | elerazo- |
-| Technical Lead / Architect |  fcela-ga, nalesso, israetor  |
+| Technical Lead / Architect | fcela-ga, nalesso, israetor |
 | Developers | fcela-ga, nalesso, arhea, elerazo-, israetor |
 
 | Member | Role(s) | Responsibilities |
 |---|---|---|
-| fcela-ga | DevOps / infrastructure · back end | The back end: data model and Prisma, the API and its structure, the public API; roles by e-mail, GDPR and the screens that complete those modules. And the whole of operations: CI/CD and both deployments, hosting and security hardening, backups and recovery, observability and alerting, operations documentation |
+| fcela-ga | Technical Lead / Architect · DevOps / infrastructure · back end | Architecture and stack decisions, and the review of the infrastructure, deployment and security paths, which `.github/CODEOWNERS` assigns to him. The back end: data model and Prisma, the API and its structure, the public API; roles by e-mail, GDPR and the screens that complete those modules. And the whole of operations: CI/CD and both deployments, hosting and security hardening, backups and recovery, observability and alerting, operations documentation |
 | nalesso | Technical Lead · Infrastructure · Front end | Bootstrapped the repository and monorepo architecture (React/Vite + Express workspaces); set up the Docker dev/prod environments, initial Nginx/SSL scripts, rootless campus adaptations and backup scripts; built the shared front-end core merged in #53 (HTTP client with session refresh, `useAsync`/`AsyncState`, toasts, i18n, realtime hooks); integrated authentication/session flows, profile settings, and the end-to-end Tickets and Global Search modules |
 | arhea | Product Owner · Developer · Frontend lead / UI & UX | HelpDesk Lite product concept, Penpot prototypes and user flows, shared design system, React application architecture and integration specifications, responsive and accessible interfaces, Tailwind v4 migration, role-aware UX |
-| elerazo- | Chat · front end | Most of the chat, screen and realtime service, the sign-in connection between front and back, and the Makefile |
-| israetor | Reviews · infrastructure | Pinned the Node version in the images, and reviewed and merged most of the pull requests, the infrastructure ones included |
+| elerazo- | Project Manager / Scrum Master · Chat · front end | Most of the chat, screen and realtime service, the sign-in connection between front and back, and the Makefile |
+| israetor | Technical Lead / Architect · Developer | Reviewed and merged most of the pull requests (21 of the 53 merged into `develop`), the infrastructure ones included. Developer: the first Prisma schema and migrations on start-up, the Node version pinned in the images, the change-password page, the light/dark/system theme engine and the preferences that save themselves, the English/Spanish/Catalan translation of the sign-in, account and error screens, and the security, accessibility and rate-limit tests of the sign-in forms |
 
 ## Project Management
 
@@ -265,8 +309,8 @@ production is bit-for-bit what passed the tests.
 | Job | What it checks |
 |---|---|
 | `quality` | Prettier, ESLint, TypeScript across every workspace, and a full build |
-| `unit-tests` | API: 123 cases (`node --test`), including a test that walks the real routers and fails if any route is missing from the OpenAPI document. Web: 51 cases (Vitest + jsdom) whose fake API answers are validated against that same document, plus a cross-check of the interface's permissions with the server's policy table |
-| `integration-tests` | 100 cases against **real** PostgreSQL and Redis, with migrations applied, including one that validates the real answers of the API against the OpenAPI document in strict mode |
+| `unit-tests` | API: 135 cases (`node --test`), including a test that walks the real routers and fails if any route is missing from the OpenAPI document. Web: 232 cases (Vitest + jsdom) whose fake API answers are validated against that same document, plus a cross-check of the interface's permissions with the server's policy table |
+| `integration-tests` | 130 cases against **real** PostgreSQL and Redis, with migrations applied, including one that validates the real answers of the API against the OpenAPI document in strict mode |
 | `compose-validation` | The three Compose files parse, and no external image is pinned to a moving tag |
 | `docker-build` | Both production images build (pull requests only) |
 | `security` | gitleaks over the branch's commits, `npm audit` (critical blocks), Trivy over the tree, SBOM |
@@ -435,7 +479,8 @@ is the human-readable face of that last one; see below.
 ### The 23 alert rules
 
 Grouped by what they protect (`config/prometheus/rules/`), every one of them
-carrying a link to its runbook entry:
+carrying a `runbook` annotation with the first commands to run, so the message
+that arrives already says what to do:
 
 | Area | Rules |
 |---|---|
@@ -843,34 +888,36 @@ bonus), so the margin is deliberate: a module an evaluator rejects does not
 take the project down with it.
 
 Every row is implemented and can be demonstrated running. Where a module was
-built by more than one person, both are named.
+built by more than one person, both are named. «Why we chose it» is the reason
+each module earns its place in a help desk, which is what the subject asks
+for next to every choice.
 
-| Module | Type | Points | Owner | Implementation |
-|---|---|---|---|---|
-| Custom-made design system with reusable components | Minor | 1 | arhea | 15 generic reusable components in `packages/ui` — the module asks for ten — built on semantic tokens rather than raw values: a `@theme` palette (canvas, surface, border, ink, muted, primary and the four feedback colours), one type scale, shared radii and a typed `Icon` set. `packages/ui/README.md` is the catalogue: every component with its API, its variants, what it is used for, and the keyboard and accessibility behaviour it guarantees. `BrandMark` is exported too but deliberately not counted, because it is product branding and not a generic component |
-| Public API with authentication, rate limiting and documentation | Major | 2 | fcela-ga | 14 endpoints with `X-API-Key` (Argon2id secret shown once), per-key scopes, 60/min and 1000/h limits and organization tenancy; OpenAPI 3.0.3 with 110 operations generated from the Zod contracts, browsable at `/api/v1/docs` behind two independent doors, and a test that fails if any route is undocumented. See «Public API» above |
-| CI/CD pipeline with automated testing and deployment | Major | 2 | fcela-ga | Seven CI jobs on every pull request, images built once per SHA on a native ARM64 runner and promoted by SHA, a production gate enforced in code (`scripts/ci/prod-gate.mjs`) because environment reviewers do not pause anything in a private repository, encrypted pre-deploy backup, smoke test and automatic rollback, and the whole pipeline reproducible locally with `make ci` / `make deploy-*`. See «Continuous Integration and Delivery» above |
-| Monitoring system with Prometheus and Grafana | Major | 2 | fcela-ga | `compose.observability.yml`: Prometheus 3.14, Grafana 13.2, Alertmanager, five exporters and blackbox probes; nine application metrics behind `METRICS_TOKEN`; 23 alert rules with runbooks, delivery verified by e-mail and Telegram. See «Observability and Alerting» above |
-| Health check and status page system with automated backups and disaster recovery | Minor | 1 | fcela-ga · nalesso | Liveness, readiness and a public per-area traffic light (`/api/health`, `/ready`, `/status`), the last one answering with full detail only to the operation token; a status page at `/status` served as a static file so it survives both the application bundle and the API; nightly AES-256 backups to Oracle Object Storage, `restore.sh` with integrity checks and a weekly automated restore drill with the recovery time measured; seven alert rules watch backups and drills, three of them on the absence of the metric. See «Health checks, the status page and recovery» above |
-| GDPR compliance features | Minor | 1 | fcela-ga | The module's four subpoints, end to end from the browser: request your data (`POST /gdpr/export`), deletion with confirmation (`POST /gdpr/delete`, needing both the e-mailed code **and** your own username typed back), export in a readable format (a ZIP of JSON built in the background and served through a short-lived authenticated download) and confirmation e-mails at every step. Content other people depend on is anonymised rather than erased, which is what the regulation allows. See «Privacy and data rights» below |
-| Standard user management and authentication | Major | 2 | fcela-ga (API, friends, profile, sessions and avatar) · arhea (profile and account screens) | The module's four requirements, from the browser and against the API: profile editing; avatar upload re-encoded to WebP without EXIF, with the initials as default avatar and "Remove photo" that also deletes the file; friends with requests both ways and **live** online status (one Socket.IO connection for the whole signed-in session, `presence.changed` followed by the screens); a profile page with presence, organizations and activity. On top, revocable sessions with the current device marked, which the Terms of Service promise. See «Users, organizations and roles» above |
-| Advanced permissions system | Major | 2 | fcela-ga (RBAC, roles by e-mail, role screens) · arhea (users screen) | Users CRUD (list, invite, edit, suspend, change role, delete) with your own account and the primary administrator locked; five fixed roles on two levels decided by one pure policy function on every request; roles given **by e-mail address** at platform and organization level, reaching the account only when the address is verified; and screens that change with the role — the same «Roles & access» route is three different screens for `MEMBER`, `AGENT` and `ORG_ADMIN`. 19 integration cases cover the assignment and the membership rules around it, 7 more the platform user administration, and the web tests check that each role sees its own screen and that the interface never offers what the API refuses. See «Users, organizations and roles» above |
-| Organization system | Major | 2 | fcela-ga (API and the wiring to it) · arhea (organization screens) | Create (with its first administrator given by e-mail), edit and delete organizations; add users by e-mail address and remove them; the active organization taken from the API and switchable; inside it, categories created and edited, members re-roled, and per-organization statistics — every rule enforced again by the server (`orgScope`, 404 rather than 403 to outsiders, the last-administrator rule). See «Users, organizations and roles» above |
-| Use a framework for both front end and back end | Major | 2 | arhea (front) · fcela-ga (back) | React 19 with TypeScript and Vite 8 on the front; Express 5 on Node 24 on the back. Both typed end to end by the Zod contracts of `packages/contracts`, which are the same objects the two sides validate against |
-| Use a database ORM | Minor | 1 | fcela-ga | Prisma 7 with `@prisma/adapter-pg` and versioned migrations applied on every deploy; 22 tables with their constraints and cascades |
-| Real-time features with WebSockets | Major | 2 | fcela-ga (socket layer, rooms, presence, event bus) · elerazo- (the chat's realtime service) · nalesso (front-end provider) | Socket.IO with rooms per user, organization, ticket and conversation, and no global broadcast: one-to-one chat with unread counts, and presence held by one connection for the whole session that People and Profile follow live. Verified with two browsers: online at once, offline sixty seconds after leaving |
-| User interaction features | Major | 2 | elerazo- (chat) · fcela-ga (friendships API, friends and profile screens) | One-to-one chat; friendships with requests both ways, accept, decline and withdraw; public profiles with presence, organizations, role in each and activity; and finding people among the colleagues of the active organization or across the platform |
-| Advanced search functionality | Minor | 1 | arhea (search and filter UX) · nalesso (front-end/API integration and global search) · fcela-ga (search API and integration tests) | Ticket search connected end to end to the API, with text queries, status, priority and category filters, creation-date sorting and server-side pagination. Filter state is reflected in the URL, and global search queries tickets and people through the API. |
-| **Total** | | **23** | | |
+| Module | Type | Points | Owner | Why we chose it | Implementation |
+|---|---|---|---|---|---|
+| Custom-made design system with reusable components | Minor | 1 | arhea | Five people building screens in parallel needed one visual language; semantic tokens make the dark theme a redefinition, not a rewrite | 15 generic reusable components in `packages/ui` — the module asks for ten — built on semantic tokens rather than raw values: a `@theme` palette (canvas, surface, border, ink, muted, primary and the four feedback colours), one type scale, shared radii and a typed `Icon` set. `packages/ui/README.md` is the catalogue: every component with its API, its variants, what it is used for, and the keyboard and accessibility behaviour it guarantees. `BrandMark` is exported too but deliberately not counted, because it is product branding and not a generic component |
+| Public API with authentication, rate limiting and documentation | Major | 2 | fcela-ga | Organizations feed tickets from their own tools (monitoring, web forms) without sharing anybody's credentials | 14 endpoints with `X-API-Key` (Argon2id secret shown once), per-key scopes, 60/min and 1000/h limits and organization tenancy; OpenAPI 3.0.3 with 110 operations generated from the Zod contracts, browsable at `/api/v1/docs` behind two independent doors, and a test that fails if any route is undocumented. See «Public API» above |
+| CI/CD pipeline with automated testing and deployment | Major | 2 | fcela-ga | The real risk of a team project on one server is a deployment nobody can undo, or a change that reaches production unread; see «Why this is claimed as a Module of Choice (Major)» | Seven CI jobs on every pull request, images built once per SHA on a native ARM64 runner and promoted by SHA, a production gate enforced in code (`scripts/ci/prod-gate.mjs`) because environment reviewers do not pause anything in a private repository, encrypted pre-deploy backup, smoke test and automatic rollback, and the whole pipeline reproducible locally with `make ci` / `make deploy-*`. See «Continuous Integration and Delivery» above |
+| Monitoring system with Prometheus and Grafana | Major | 2 | fcela-ga | Two environments on one free server: without metrics and alerts, an outage or a full disk would be found by the users | `compose.observability.yml`: Prometheus 3.14, Grafana 13.2, Alertmanager, five exporters and blackbox probes; nine application metrics behind `METRICS_TOKEN`; 23 alert rules with runbooks, delivery verified by e-mail and Telegram. See «Observability and Alerting» above |
+| Health check and status page system with automated backups and disaster recovery | Minor | 1 | fcela-ga · nalesso | A help desk keeps the history of every incident; losing it, or not knowing that the service is down, is the worst failure it can have | Liveness, readiness and a public per-area traffic light (`/api/health`, `/ready`, `/status`), the last one answering with full detail only to the operation token; a status page at `/status` served as a static file so it survives both the application bundle and the API; nightly AES-256 backups to Oracle Object Storage, `restore.sh` with integrity checks and a weekly automated restore drill with the recovery time measured; seven alert rules watch backups and drills, three of them on the absence of the metric. See «Health checks, the status page and recovery» above |
+| GDPR compliance features | Minor | 1 | fcela-ga | It stores personal data of other organizations' staff; access and erasure are legal duties in the EU, not extras | The module's four subpoints, end to end from the browser: request your data (`POST /gdpr/export`), deletion with confirmation (`POST /gdpr/delete`, needing both the e-mailed code **and** your own username typed back), export in a readable format (a ZIP of JSON built in the background and served through a short-lived authenticated download) and confirmation e-mails at every step. Content other people depend on is anonymised rather than erased, which is what the regulation allows. See «Privacy and data rights» below |
+| Standard user management and authentication | Major | 2 | fcela-ga (API, friends, profile, sessions and avatar) · arhea (profile and account screens) | Profiles, avatars, presence and sessions tell people who is answering their ticket | The module's four requirements, from the browser and against the API: profile editing; avatar upload re-encoded to WebP without EXIF, with the initials as default avatar and "Remove photo" that also deletes the file; friends with requests both ways and **live** online status (one Socket.IO connection for the whole signed-in session, `presence.changed` followed by the screens); a profile page with presence, organizations and activity. On top, revocable sessions with the current device marked, which the Terms of Service promise. See «Users, organizations and roles» above |
+| Advanced permissions system | Major | 2 | fcela-ga (RBAC, roles by e-mail, role screens) · arhea (users screen) | Members, agents and administrators at two levels must see and do different things; one policy table decides it | Users CRUD (list, invite, edit, suspend, change role, delete) with your own account and the primary administrator locked; five fixed roles on two levels decided by one pure policy function on every request; roles given **by e-mail address** at platform and organization level, reaching the account only when the address is verified; and screens that change with the role — the same «Roles & access» route is three different screens for `MEMBER`, `AGENT` and `ORG_ADMIN`. 19 integration cases cover the assignment and the membership rules around it, 7 more the platform user administration, and the web tests check that each role sees its own screen and that the interface never offers what the API refuses. See «Users, organizations and roles» above |
+| Organization system | Major | 2 | fcela-ga (API and the wiring to it) · arhea (organization screens) | Several organizations share one installation without seeing each other's tickets | Create (with its first administrator given by e-mail), edit and delete organizations; add users by e-mail address and remove them; the active organization taken from the API and switchable; inside it, categories created and edited, members re-roled, and per-organization statistics — every rule enforced again by the server (`orgScope`, 404 rather than 403 to outsiders, the last-administrator rule). See «Users, organizations and roles» above |
+| Use a framework for both front end and back end | Major | 2 | arhea (front) · fcela-ga (back) | Typed contracts end to end with React and Express, mature ecosystems the team already knew | React 19 with TypeScript and Vite 8 on the front; Express 5 on Node 24 on the back. Both typed end to end by the Zod contracts of `packages/contracts`, which are the same objects the two sides validate against |
+| Use a database ORM | Minor | 1 | fcela-ga | Versioned migrations applied on every deploy, and typed queries instead of hand-written SQL | Prisma 7 with `@prisma/adapter-pg` and versioned migrations applied on every deploy; 22 tables with their constraints and cascades |
+| Real-time features with WebSockets | Major | 2 | fcela-ga (socket layer, rooms, presence, event bus) · elerazo- (the chat's realtime service) · nalesso (front-end provider) | Agents and requesters see a ticket change while they look at it, without reloading | Socket.IO with rooms per user, organization, ticket and conversation, and no global broadcast: one-to-one chat with unread counts, and presence held by one connection for the whole session that People and Profile follow live. Verified with two browsers: online at once, offline sixty seconds after leaving |
+| User interaction features | Major | 2 | elerazo- (chat) · fcela-ga (friendships API, friends and profile screens) | Agents and users talk about an incident outside the ticket; friendships and profiles give context about who is who | One-to-one chat; friendships with requests both ways, accept, decline and withdraw; public profiles with presence, organizations, role in each and activity; and finding people among the colleagues of the active organization or across the platform |
+| Advanced search functionality | Minor | 1 | arhea (search and filter UX) · nalesso (front-end/API integration and global search) · fcela-ga (search API and integration tests) | Agents work through hundreds of tickets: finding the right one by text, state and priority is the core of the job | Ticket search connected end to end to the API, with text queries, status, priority and category filters, creation-date sorting and server-side pagination. Filter state is reflected in the URL, and global search queries tickets and people through the API. |
+| **Total** | | **23** | | | |
 
 ## Individual Contributions
 
-Each person writes their own. The four sections below are a **draft** taken
-from the commit history of each area, so that nobody starts from a blank page:
-correct them, add the challenges you hit and how you solved them, and delete
-this note.
+Each person writes their own. fcela-ga, arhea and nalesso have written
+theirs; the other two sections are still a **draft** taken from the commit
+history of each area, so that nobody starts from a blank page: correct it,
+add the challenges you hit and how you solved them, and delete this note.
 
-### fcela-ga — Back end and DevOps
+### fcela-ga — Technical Lead · Back end and DevOps
 
 - Built the back end: the Prisma data model and its migrations, the structure
   the API modules follow, and the modules themselves — authentication and
@@ -917,6 +964,16 @@ this note.
   administration screens wired to the API, friends with live presence,
   profiles, sessions and the default avatar, and the legal footer on every
   screen.
+- Hardened the application with what testing turned up before the
+  evaluation: what you may not read answers exactly like what does not exist
+  (the same 404 for tickets, comments and attachments); the session survives
+  an API restart, several tabs and a reload in the middle of a renewal; two
+  people changing the same ticket at once no longer both win (conditional
+  updates and `409 TICKET_CHANGED`); and the client renews a token that is
+  about to expire instead of waiting for a 401.
+- HTTPS on localhost: a certificate authority per machine, restricted to
+  `localhost`, that `make` creates and imports into the browser, so the local
+  stack is served at https://localhost:5173 like production.
 - Challenges: deciding that a role reserved for an address is claimed on
   verification and not on sign-up (otherwise registering somebody else's
   address first would steal their role), and finding that the verification
@@ -925,7 +982,11 @@ this note.
   hand-over, an Alertmanager that started with an empty config because a
   template path was a directory, a court-ordered block of Cloudflare IPs in
   Spain (fallback plan documented), and keeping every secret out of the
-  repository and the chat while automating everything.
+  repository and the chat while automating everything. In the last week, a
+  reload in the middle of a token renewal logged people out: the refresh-token
+  reuse detection was doing its job against our own client. A 30-second
+  window for an answer that never reached the browser solved it without
+  weakening the detection.
 
 ### nalesso — Technical Lead, Infrastructure and Front-End Integration
 
@@ -1101,6 +1162,7 @@ this note.
   paginated threads, optimistic sending with retry states, read receipts, and
   server-backed unread counts. The view keeps the active thread current while
   refreshing inactive conversation summaries without duplicating messages.
+### israetor — Technical Lead · Front end
 
 - Built the chat realtime client on the shared Socket.IO layer. It authenticates
   the handshake with the session access token, joins and leaves authorised

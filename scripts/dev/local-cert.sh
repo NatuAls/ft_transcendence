@@ -28,9 +28,14 @@
 #    make                   llama a este script con --ensure: lo crea si falta,
 #                           lo rehace si caduca o no es de esta CA, y nunca pregunta
 #
-#  Sólo necesita openssl. Si está `certutil` (paquete libnss3-tools), además
-#  importa la CA en Chrome/Chromium y Firefox; si no, explica cómo hacerlo a
-#  mano.
+#  Además importa la autoridad en Chrome/Chromium y Firefox de esta cuenta (sus
+#  bases NSS: ~/.pki/nssdb y los perfiles de Firefox), con el `certutil` del
+#  sistema o, si no está —lo normal en los puestos de 42, sin sudo—, con el de un
+#  contenedor. Lo reintenta en cada `make` hasta que sale, y anota la huella de
+#  la autoridad importada para no repetirlo. Chrome la toma al volver a abrirlo.
+#  Para quitarla: certutil -d sql:$HOME/.pki/nssdb -D -n "HelpDesk Lite local CA"
+#
+#  Necesita openssl (y Docker, que la pila ya exige, si no hay certutil).
 # =============================================================================
 set -euo pipefail
 
@@ -42,6 +47,8 @@ CA_DIR="${HELPDESK_LOCAL_CA:-${XDG_DATA_HOME:-$HOME/.local/share}/helpdesk-lite/
 CA_CRT="$CA_DIR/ca.crt"
 CA_KEY="$CA_DIR/ca.key"
 CA_NICK="HelpDesk Lite local CA"
+TRUST_MARK="$CA_DIR/trusted.sha256"
+CERTUTIL_IMAGE="helpdesk-certutil:alpine-3.20"
 ENV_FILE="$ROOT/.env"
 DEV_PROJECT="${DEV_PROJECT:-helpdesk-dev}"
 URL="https://localhost:5173"
@@ -162,33 +169,68 @@ describe_leaf() {
 }
 
 # -----------------------------------------------------------------------------
-#  Confianza del navegador: automática con certutil, si no a mano
+#  Confianza del navegador: con certutil (del sistema o de un contenedor)
+#
+#  El 15/10, en un puesto sin certutil y sin sudo, la autoridad no llegó nunca
+#  a Chrome: el script sólo lo intentaba al crearla, explicaba los pasos a mano
+#  una vez, y ni `make` ni `make cert` volvían a probar. Chrome seguía con
+#  NET::ERR_CERT_AUTHORITY_INVALID por mucho que se rehiciese el certificado,
+#  que no era el problema.
 # -----------------------------------------------------------------------------
+ca_fingerprint() { openssl x509 -in "$CA_CRT" -noout -fingerprint -sha256 | cut -d= -f2; }
+trust_recorded() { [ -s "$TRUST_MARK" ] && [ "$(cat "$TRUST_MARK")" = "$(ca_fingerprint)" ]; }
+
+# certutil sobre una base NSS: el del sistema o, si no está, el de un contenedor
+# (Alpine con nss-tools, construido la primera vez). La autoridad va como /ca.crt.
+nss() {
+  local db="$1" arg args=()
+  shift
+  if command -v certutil > /dev/null; then
+    for arg in "$@"; do
+      [ "$arg" = /ca.crt ] && arg="$CA_CRT"
+      args+=("$arg")
+    done
+    certutil -d "sql:$db" "${args[@]}"
+    return
+  fi
+  command -v docker > /dev/null || return 1
+  if ! docker image inspect "$CERTUTIL_IMAGE" > /dev/null 2>&1; then
+    printf 'FROM alpine:3.20\nRUN apk add --no-cache nss-tools\n' |
+      docker build -q -t "$CERTUTIL_IMAGE" - > /dev/null 2>&1 || return 1
+  fi
+  # Con Docker normal se entra como el propio usuario, para que la base siga
+  # siendo suya. Con Docker sin root (los puestos de 42) el root del contenedor
+  # YA es el usuario; con --user sería otro y no podría escribirla.
+  local as_user=(--user "$(id -u):$(id -g)")
+  docker info --format '{{.SecurityOptions}}' 2> /dev/null | grep -q rootless && as_user=()
+  docker run --rm "${as_user[@]}" -v "$db:/nssdb" -v "$CA_CRT:/ca.crt:ro" \
+    "$CERTUTIL_IMAGE" certutil -d sql:/nssdb "$@"
+}
+
 trust_ca() {
-  command -v certutil > /dev/null || return 1
   local dbs=("$HOME/.pki/nssdb") db imported=1
   for db in "$HOME"/.mozilla/firefox/*/; do
     [ -f "$db/cert9.db" ] && dbs+=("${db%/}")
   done
   for db in "${dbs[@]}"; do
-    if [ ! -d "$db" ] &&
-      ! { mkdir -p "$db" && certutil -d "sql:$db" -N --empty-password > /dev/null 2>&1; }; then
+    if [ ! -f "$db/cert9.db" ] &&
+      ! { mkdir -p "$db" && nss "$db" -N --empty-password > /dev/null 2>&1; }; then
       continue
     fi
-    certutil -d "sql:$db" -D -n "$CA_NICK" > /dev/null 2>&1 || true
-    certutil -d "sql:$db" -A -t "C,," -n "$CA_NICK" -i "$CA_CRT" > /dev/null 2>&1 && imported=0
+    nss "$db" -D -n "$CA_NICK" > /dev/null 2>&1 || true
+    nss "$db" -A -t "C,," -n "$CA_NICK" -i /ca.crt > /dev/null 2>&1 && imported=0
   done
+  [ "$imported" = 0 ] && ca_fingerprint > "$TRUST_MARK"
   return "$imported"
 }
 
 trust_by_hand() {
-  c_warn "  ${1:-Falta un paso, una vez por navegador: confiar en la autoridad local.}"
+  c_warn "  ${1:-No se ha podido importar la autoridad local: hay que hacerlo a mano, una vez por navegador.}"
   printf '    Chrome / Chromium: chrome://certificate-manager → certificados importados de Linux\n'
   printf '                       → Autoridades → Importar → %s\n' "$CA_CRT"
   printf '                       → «Confiar en este certificado para identificar sitios web»\n'
   printf '    Firefox:           about:preferences#privacy → Ver certificados → Autoridades\n'
   printf '                       → Importar → %s → «Confiar en esta CA para identificar sitios web»\n' "$CA_CRT"
-  printf '    (O instalar certutil —paquete libnss3-tools— y repetir: make cert FORCE=1)\n'
 }
 
 # -----------------------------------------------------------------------------
@@ -253,15 +295,17 @@ if [ "$leaf_changed" = 1 ]; then
   describe_leaf
 fi
 
-if [ "$ca_created" = 1 ]; then
-  c_info "  Autoridad local nueva en $CA_DIR (su clave no sale de ahí)."
+[ "$ca_created" = 1 ] && c_info "  Autoridad local nueva en $CA_DIR (su clave no sale de ahí)."
+if ! trust_recorded; then
   if trust_ca; then
-    c_ok "  Importada en los navegadores de esta máquina (certutil). Reinícialos si estaban abiertos."
+    c_ok "  Autoridad local importada en los navegadores de esta cuenta (Chrome/Chromium y, si tiene perfiles, Firefox)."
+    c_info "  Cierra Chrome del todo y vuelve a abrirlo: la toma al arrancar."
   else
     trust_by_hand
   fi
-elif [ "$MODE" = "ask" ] && ! command -v certutil > /dev/null; then
-  trust_by_hand "Si el navegador todavía avisa, falta confiar en la autoridad local (una vez):"
+elif [ "$MODE" = "ask" ]; then
+  c_ok "  La autoridad local ya está importada en los navegadores de esta cuenta."
+  printf '  Si Chrome todavía avisa, ciérralo del todo y vuelve a abrirlo.\n'
 fi
 
 # La web sólo lee el certificado al arrancar; la API, el .env al crearse. Con

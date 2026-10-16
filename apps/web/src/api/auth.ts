@@ -38,6 +38,35 @@ export function clearAccessToken(): void {
   inMemoryAccessToken = null;
 }
 
+/**
+ * Si el access token caduca en menos de `marginMs`, o no se puede leer.
+ *
+ * Dura 15 minutos. El cliente HTTP y el socket lo miran ANTES de usarlo y, si
+ * está a punto de caducar, renuevan primero: si no, la petición salía con él,
+ * volvía con un 401 —que Chrome anota en rojo en la consola, aunque la
+ * pantalla se recupere sola— y sólo entonces se renovaba y se repetía. Sólo se
+ * lee `exp`; la firma la valida siempre la API.
+ */
+export function accessTokenExpiresSoon(
+  token: string | null,
+  marginMs = 30_000,
+): boolean {
+  if (!token) return true;
+  try {
+    const encodedPayload = token.split('.')[1];
+    if (!encodedPayload) return true;
+    const payload = JSON.parse(
+      atob(encodedPayload.replace(/-/g, '+').replace(/_/g, '/')),
+    ) as { exp?: unknown };
+    return (
+      typeof payload.exp !== 'number' ||
+      payload.exp * 1000 <= Date.now() + marginMs
+    );
+  } catch {
+    return true;
+  }
+}
+
 const API_URL = import.meta.env.VITE_API_URL ?? '/api/v1';
 
 async function readJson<T>(response: Response): Promise<T | null> {
