@@ -74,6 +74,7 @@
 - [Anexo A — Consultas SQL](#anexo-a--consultas-sql)
 - [Anexo B — Preguntas difíciles](#anexo-b--preguntas-difíciles)
 - [Anexo C — Rutas de la aplicación](#anexo-c--rutas-de-la-aplicación)
+- [Anexo D — Cloudflare, paso a paso](#anexo-d--cloudflare-paso-a-paso)
 
 ---
 
@@ -85,15 +86,15 @@ Estado al 15/10 por la tarde: ✅ resuelto · ⏳ hecho, falta aprobar/fusionar 
 
 | # | Estado | Qué | Por qué | Cómo se comprueba |
 |---|---|---|---|---|
-| B1 | ❌ a medias | **Roles PO, PM, Tech Lead y Developers en el README.** Tras #95, «Required project roles» tiene *Product Owner* = arhea y *Developers* = los cinco, pero *Project Manager / Scrum Master* y *Technical Lead / Architect* siguen con el marcador `login`. La tabla de responsabilidades aún dice de israetor sólo «Reviews · infrastructure» | El enunciado (II.1.1) y la hoja (*README Verification* y *Individual Contributions*) piden expresamente **PO, PM, Tech Lead, Developers**. Es el primer punto que se mira | `grep -n "\| login \|" README.md` no debe devolver nada |
+| B1 | ⏳ PR del README (16/10) | **Roles PO, PM, Tech Lead y Developers en el README.** *16/10, decidido por el equipo (fichero de Nahuel y captura del grupo): PM = elerazo-; Tech Lead = fcela-ga, nalesso e israetor. Falta que Elizabeth cuente, en su fila y en su sección, lo que hizo como PM, y que lo sepa explicar.* Tras #95, «Required project roles» tiene *Product Owner* = arhea y *Developers* = los cinco, pero *Project Manager / Scrum Master* y *Technical Lead / Architect* siguen con el marcador `login`. La tabla de responsabilidades aún dice de israetor sólo «Reviews · infrastructure» | El enunciado (II.1.1) y la hoja (*README Verification* y *Individual Contributions*) piden expresamente **PO, PM, Tech Lead, Developers**. Es el primer punto que se mira | `grep -n "\| login \|" README.md` no debe devolver nada |
 | B2 | ✅ #95 | Primera línea del README con los cinco logins (ya incluye `arhea`) | Formato obligatorio | `head -2 README.md` |
-| B3 | ❌ | **«How AI was used»**: faltan nalesso, elerazo- e israetor (arhea ya está) | Requisito de *Resources* | `grep -n "_to be written" README.md` no debe devolver nada |
-| B4 | ❌ | **«Individual Contributions»** sigue con los borradores de Nahuel, Elizabeth e Israel («*Draft from the history; … to confirm*») y la nota «Each person writes their own…» (ver 3.2) | La hoja pide «Individual contributions of each member» y lo contrasta con lo que dice cada uno y con Git | `grep -nE "Draft from the history\|Each person writes their own" README.md` vacío |
-| B5 | ❌ | **«Instructions» falla si se sigue al pie de la letra**: dice `cp .env.example .env` (deja el `.env` sin administrador) y `npm run dev:api` / `npm run dev:web` en `http://localhost:5173`, que chocan con los contenedores y, con #97, ya ni siquiera es la dirección | Quien evalúa sigue el README desde un clon vacío | Sección 1; texto nuevo, ya con HTTPS, en 0.4 |
+| B3 | ❌ | **«How AI was used»**: faltan elerazo- e israetor (arhea y nalesso ya están; la de fcela-ga, puesta al día el 16/10). Cada declaración la escribe su autor | Requisito de *Resources* | `grep -n "_to be written" README.md` no debe devolver nada |
+| B4 | ❌ | *16/10: la de Nahuel, escrita por él e integrada; el borrador de Israel, completado con el historial (el tema, el i18n, el cambio de contraseña); falta que Elizabeth e Israel confirmen el suyo y añadan sus retos.* **«Individual Contributions»** sigue con los borradores de Nahuel, Elizabeth e Israel («*Draft from the history; … to confirm*») y la nota «Each person writes their own…» (ver 3.2) | La hoja pide «Individual contributions of each member» y lo contrasta con lo que dice cada uno y con Git | `grep -nE "Draft from the history\|Each person writes their own" README.md` vacío |
+| B5 | ⏳ PR del README (16/10), con el texto de 0.4 | **«Instructions» falla si se sigue al pie de la letra**: dice `cp .env.example .env` (deja el `.env` sin administrador) y `npm run dev:api` / `npm run dev:web` en `http://localhost:5173`, que chocan con los contenedores y, con #97, ya ni siquiera es la dirección | Quien evalúa sigue el README desde un clon vacío | Sección 1; texto nuevo, ya con HTTPS, en 0.4 |
 | B6 | ⏳ a medias | **Todo en `main`, desplegado y en el repositorio de la intra.** `main` = `cb3bba5` (#94) está desplegado (*Deploy Production* en verde, 15/10 16:42). Falta: aprobar y fusionar #97 y #98, la PR `develop` → `main` con la aprobación de **otra** persona sobre el último commit, el despliegue, y subir esa versión a vogsphere | Sólo se evalúa lo que hay en el repositorio entregado, y producción es donde se enseña el HTTPS público | 🖥 `git log -1 origin/main` = commit desplegado (`/api/version` con token o la etiqueta de la imagen, 2.6) |
 | B7 | ❌ equipo | **Ensayo de restauración en verde hoy, en prod y en staging.** Último verde: 12/10 (el programado). Hay que lanzarlo a mano; al asistente se lo bloquea el clasificador | Es la mitad del módulo «Health check… backups and disaster recovery» | 🐙 Actions → *Ensayo de restauración* → *Run workflow*, primero `prod` y al acabar `staging` (7.4) |
 | B8 | ❌ equipo | **Exportadores de Prometheus levantados** (rev5: «siguen borrados») | Sin ellos Grafana enseña paneles vacíos | ☁ `bash scripts/ops/check-server.sh` (2.5) y *Status → Targets* todo `UP` |
-| B9 | ❌ equipo | **Cloudflare en SSL/TLS «Full (strict)»** y no «Flexible» | Con *Flexible*, el tramo Cloudflare → Oracle va en HTTP y «¿todo es HTTPS?» tiene mala respuesta | ☁ `sudo python3 scripts/ops/npm-tls.py --dry-run` y luego sin `--dry-run` (certificado en el origen); después, panel de Cloudflare → SSL/TLS → *Overview* → *Full (strict)*; si la web da **526**, volver a *Full* y revisar NPM (5.7) |
+| B9 | ❌ equipo | **Cloudflare en SSL/TLS «Full (strict)»** y no «Flexible» (paso a paso en el Anexo D.3) | Con *Flexible*, el tramo Cloudflare → Oracle va en HTTP y «¿todo es HTTPS?» tiene mala respuesta | ☁ `sudo python3 scripts/ops/npm-tls.py --dry-run` y luego sin `--dry-run` (certificado en el origen); después, panel de Cloudflare → SSL/TLS → *Overview* → *Full (strict)*; si la web da **526**, volver a *Full* y revisar NPM (5.7) |
 | B10 | ✅ `develop` (#97; la importación automática, #101) | **HTTPS en el entorno local:** hecho, probado y fusionado en `develop` (falta llevarlo a `main`, B6). Con él, `make` sirve **https://localhost:5173** con un certificado firmado por una autoridad local. **Importar esa autoridad una vez en el navegador del portátil de la defensa** (1.9) | El enunciado (III.3): «*Any connection to the backend, from a browser, from a script, from an external API, etc., must use HTTPS*»; la hoja mira la barra de direcciones justo después del despliegue local | 1.9 y 5.7: candado en Chrome y `openssl s_client` |
 | B11 | ✅ #98 y #99 | **`apps/api/.env_api` fuera del repositorio** (cinco claves con valores de marcador, sin uso), y `.env_*` en el `.gitignore`: fusionado en `develop` (#98) y en `main` (#99) | La hoja: «*Any credentials … found in the repository (outside of .env) will result in immediate project failure*» | `git ls-files \| grep -iE '(^\|/)\.env'` sólo devuelve los dos `.example` |
 | B12 | ❌ decidir hoy | **Lo que aún habla con la API por HTTP en local.** Con #97 el navegador va por HTTPS, pero `dev_api` sigue publicando el 5000 (`'5000:5000'`, en todas las interfaces), y `make seed-dev`, `make reset-dev` y los ejemplos antiguos lo usaban por `http://127.0.0.1:5000` | El mismo III.3 dice «*from a script*». Un `curl http://localhost:5000/…` o un script que lo use delante de quien evalúa contradice el punto, aunque el navegador vaya por HTTPS | Opción **a** (ya aplicada en esta guía, ✅ probada): delante de quien evalúa, todo por `https://localhost:5173` —siembras incluidas— o desde dentro de los contenedores, que el enunciado permite sin cifrar. Opción **b**, en código: dejar de publicar el 5000 (o sólo en `127.0.0.1`) y que `seed-dev`/`reset-dev` usen HTTPS. Es una PR pequeña, pero cambia el flujo de todo el equipo la víspera (5.7) |
@@ -124,6 +125,10 @@ Y en la tabla de responsabilidades, la fila de israetor con lo que de verdad hiz
 de los formularios de acceso, revisión y fusión de la mayoría de PR), no sólo
 «Reviews · infrastructure».
 
+> ✅ **Decidido por el equipo el 16/10:** PM = elerazo-; Tech Lead = fcela-ga,
+> nalesso e israetor (lo que hay ahora en el README). La propuesta de arriba queda
+> superada.
+>
 > ⚠️ El historial apoya que israetor sea quien revisaba y fusionaba (PM) y que
 > fcela-ga sea el Tech Lead. Lo que no apoya es inventar un rol que nadie ejerció:
 > la hoja pide a cada persona explicar el suyo.
@@ -132,17 +137,17 @@ de los formularios de acceso, revisión y fusión de la mayoría de PR), no sól
 
 | # | Estado | Qué | Por qué |
 |---|---|---|---|
-| R1 | ❌ | Actualizar las cifras del README («Continuous Integration and Delivery», tabla de *jobs*): dice 123 pruebas unitarias de API, 51 de web y 100 de integración; hoy son **135 / 227 / 125** en `develop` y **135 / 229 / 130** con #97 | La hoja final pregunta «Is the README complete and **accurate**?». Que no se contradiga con lo que se ejecuta delante |
+| R1 | ⏳ PR del README (16/10): 135 / 232 / 130 | Actualizar las cifras del README («Continuous Integration and Delivery», tabla de *jobs*): dice 123 pruebas unitarias de API, 51 de web y 100 de integración; hoy son **135 / 227 / 125** en `develop` y **135 / 229 / 130** con #97 | La hoja final pregunta «Is the README complete and **accurate**?». Que no se contradiga con lo que se ejecuta delante |
 | R2 | ❌ | Borrar el comentario HTML de las líneas 4–5 del README («Required project roles and personal declarations marked with placeholders…») cuando estén B1, B3 y B4 | Se ve en la vista *raw* y en el editor |
 | R3 | — | *(Subido a bloqueante: B11)* | — |
-| R4 | ❌ | Añadir `doc/` y `rclone/` al `.gitignore` | `make seed-dev` escribe contraseñas en `doc/seed.txt` y **`doc/` NO está ignorado** en el repositorio (en el clon de Felipe sí, pero por `.git/info/exclude`, que no se comparte). Un `git add .` las subiría. Mientras tanto: sembrar con `--salida ../seed.txt` (fuera del repo) |
+| R4 | ⏳ PR del README (16/10) | Añadir `doc/` y `rclone/` al `.gitignore` | `make seed-dev` escribe contraseñas en `doc/seed.txt` y **`doc/` NO está ignorado** en el repositorio (en el clon de Felipe sí, pero por `.git/info/exclude`, que no se comparte). Un `git add .` las subiría. Mientras tanto: sembrar con `--salida ../seed.txt` (fuera del repo) |
 | R5 | ✅ cambiado el 16/10 | **`tmp/Eval/` sí se entrega** (decisión de Felipe, 16/10): la guía, la hoja, el estado y los dos scripts entran por `backend` y llegan a `develop` con #101; con la PR `develop` → `main`, también al clon de la defensa, y `seed-defensa.sh` y `obs-local.sh` se lanzan desde ahí (1.5, M11). **El resto de `tmp/` no:** el enunciado y el informe rev5 siguen sólo en la rama `docs` del repositorio personal, y esa rama no se fusiona entera nunca | El repositorio del equipo es público: lo que entra lo puede leer cualquiera, también quien evalúa. Revisado antes de subirlo: ni secretos ni la IP del servidor (sólo marcadores); `deployer`, las rutas de `/opt/helpdesk` y los correos del `.mailmap` (3.5) ya estaban en los workflows, el README y el historial. El informe rev5 se queda fuera porque es material interno («el ensayo de restauración automático no ha estado verde ni una vez») |
 | R6 | ❌ opcional | Un `.mailmap` para que `git shortlog` no reparta a cada persona en 2–3 identidades (3.5) | Que la hoja de «Git History» se lea de un vistazo |
 | R7 | ❌ | Abrir sesión **antes** de la defensa, en perfiles de navegador separados, con las cuentas demo de producción | En producción las rutas de credenciales están limitadas a **5 por minuto y por IP** en nginx y a 10 en la API. Cinco personas entrando desde la misma red del campus agotan la ventana enseguida |
-| R8 | ❌ | Corregir en el README la frase de las alertas («*every one of them carrying a link to its runbook entry*», «Observability and Alerting») o completar las anotaciones: **14 de las 23** reglas llevan `runbook`; no lo llevan `LatenciaAlta`, `DiscoCritico`, `MemoriaAlta`, `PostgresConexionesAlLimite`, `RedisSinMemoria`, `BackupAntiguo`, `BackupSospechosamentePequeno`, `EnsayoDeRestauracionFallido` y `CertificadoCaducaYa` | M11 se enseña abriendo ese fichero, y la hoja pregunta si el README es «*accurate*» |
+| R8 | ⏳ PR del README (16/10): las 9 anotaciones `runbook` que faltaban y la frase corregida (no eran enlaces, sino los primeros comandos); en el servidor se ven al recargar Prometheus | Corregir en el README la frase de las alertas («*every one of them carrying a link to its runbook entry*», «Observability and Alerting») o completar las anotaciones: **14 de las 23** reglas llevan `runbook`; no lo llevan `LatenciaAlta`, `DiscoCritico`, `MemoriaAlta`, `PostgresConexionesAlLimite`, `RedisSinMemoria`, `BackupAntiguo`, `BackupSospechosamentePequeno`, `EnsayoDeRestauracionFallido` y `CertificadoCaducaYa` | M11 se enseña abriendo ese fichero, y la hoja pregunta si el README es «*accurate*» |
 | R9 | ⏳ | #97, #98 y #99 ya están fusionadas. Queda **#101** (dos errores de consola, la importación de la autoridad y, desde el 16/10, esta carpeta `tmp/Eval/`): que **otra** persona la apruebe esta noche, con «Create a merge commit», y la PR `develop` → `main` | Sin eso, los errores de consola siguen en staging y producción |
 | R10 | ❌ | **Filtros con varios valores en Swagger.** El documento OpenAPI declara `status` y `priority` de `GET /tickets` y `GET /public/tickets` con `explode: true` (valores repetidos: `status=OPEN&status=CLOSED`), y la API sólo acepta comas (`status=OPEN,CLOSED`): repetidos contesta `400 VALIDATION_FAILED` (✅ comprobado en las dos rutas). Arreglo de una línea por parámetro: `explode: false` en `apps/api/src/modules/openapi/paths/tickets.ts` (líneas 45 y 54) y `paths/public-api.ts` (105 y 114) | Swagger es lo que se enseña en M5 y M14: elegir dos estados en *Try it out* da un 400 delante de quien evalúa. Mientras no se arregle, un solo valor por filtro en Swagger |
-| R11 | ❌ | **Una justificación por módulo en el README.** El enunciado (cap. VI, *Modules*) pide «*Justification for each module choice*», y la tabla de «Modules» sólo dice cómo se hizo cada uno; el porqué sólo está para el de libre elección. Propuesta, una frase por fila (abajo) | La hoja verifica el README contra el enunciado; con la columna basta |
+| R11 | ⏳ PR del README (16/10): columna «Why we chose it» | **Una justificación por módulo en el README.** El enunciado (cap. VI, *Modules*) pide «*Justification for each module choice*», y la tabla de «Modules» sólo dice cómo se hizo cada uno; el porqué sólo está para el de libre elección. Propuesta, una frase por fila (abajo) | La hoja verifica el README contra el enunciado; con la columna basta |
 
 Propuesta para R11 (una columna *Why* en la tabla de «Modules», en el orden del README):
 
@@ -731,8 +736,8 @@ y **lo enseña funcionando**.
 | Persona | Qué contar (evidencia en Git) | Lo que demuestra en directo |
 |---|---|---|
 | **fcela-ga** | Back end entero: modelo Prisma y migraciones, estructura de módulos de la API, autenticación y sesiones, RBAC (`apps/api/src/rbac/policies.ts`), bus de eventos transaccional, capa de Socket.IO, búsqueda, API pública, RGPD, sondas. DevOps: CI/CD, despliegues con puerta, Oracle + Cloudflare, copias y ensayos, Prometheus/Grafana/Loki y alertas. Roles por correo y pantallas de roles, organizaciones, amigos, perfil, sesiones | API pública con `curl`, CI/CD en Actions, Grafana, ensayo de restauración |
-| **nalesso** (NatuAls / Nahuel) | El Docker inicial del proyecto (02–05/09: composes, rotación de logs, copias); la infraestructura compartida del front (#53: cliente HTTP con renovación de sesión, estado asíncrono, toasts, i18n, proveedor de tiempo real); **todas las pantallas de tickets contra la API**: alta con validación (07/10), lista paginada en servidor con eventos en tiempo real (09/10), detalle y conversación del ticket (13/10), notas internas y edición de comentarios, búsqueda global conectada a la API (14/10) | Crear un ticket, filtrar y buscar, nota interna que el MEMBER no ve, la lista que se actualiza sola en otra ventana |
-| **arhea** (Aren; en Git, `arielrhea`) | *Product Owner* en el README (#95): concepto del producto, prototipos y flujos en Penpot. Montó el monorepo (10–13/08: ESLint, Prettier, paquetes `contracts` y `ui`, plantilla de PR, versiones de Node y npm); la base de la interfaz (04/09); el **design system con Tailwind v4** y la migración de todas las vistas (27/09); el comportamiento responsive (28/09–01/10); la experiencia de búsqueda y filtros (M14) | `packages/ui` y sus componentes, `@theme` con los tokens, la app en móvil, los filtros de tickets |
+| **nalesso** (NatuAls / Nahuel) | Creó el repositorio y la base del monorepo (05–08/08: workspaces, `apps/web` con Vite y React, `apps/api` con Express); el Docker inicial del proyecto (02–05/09: composes, rotación de logs, copias); la infraestructura compartida del front (#53: cliente HTTP con renovación de sesión, estado asíncrono, toasts, i18n, proveedor de tiempo real); **todas las pantallas de tickets contra la API**: alta con validación (07/10), lista paginada en servidor con eventos en tiempo real (09/10), detalle y conversación del ticket (13/10), notas internas y edición de comentarios, búsqueda global conectada a la API (14/10) | Crear un ticket, filtrar y buscar, nota interna que el MEMBER no ve, la lista que se actualiza sola en otra ventana |
+| **arhea** (Aren; en Git, `arielrhea`) | *Product Owner* en el README (#95): concepto del producto, prototipos y flujos en Penpot. Configuró el monorepo (10–13/08: ESLint, Prettier, paquetes `contracts` y `ui`, plantilla de PR, versiones de Node y npm); la base de la interfaz (04/09); el **design system con Tailwind v4** y la migración de todas las vistas (27/09); el comportamiento responsive (28/09–01/10); la experiencia de búsqueda y filtros (M14) | `packages/ui` y sus componentes, `@theme` con los tokens, la app en móvil, los filtros de tickets |
 | **elerazo-** (Elizabeth) | La primera pantalla de login y su conexión con la API (21/08), el Makefile, el **módulo de chat en tiempo real** y su integración con WebSocket (16/09) y la interfaz del chat integrada con el tiempo real (14/10) | Chat entre dos navegadores |
 | **israetor** (Israel) | Esquema Prisma inicial y arranque con migraciones (19–26/08), Node fijado a 24.19.0 en las imágenes, flujo login/registro y proxy de Vite; **cambio de contraseña** (09/10), **motor de tema claro/oscuro/sistema** y preferencias con autoguardado (13/10), **i18n** de acceso, cuenta y errores de la API en/es/ca, autocompletado seguro y «ver contraseña», pruebas de seguridad, accesibilidad y rate limit de los formularios de acceso (14/10). Revisó y fusionó la mayoría de PR | Cambiar idioma y tema, cambiar la contraseña, validación de los formularios de acceso |
 
@@ -755,17 +760,17 @@ git log --no-merges --author="felipecela\|Felipe" --format='%h %ad %s' --date=sh
 | Lo que pide la hoja | Dónde está en el README | Estado |
 |---|---|---|
 | Project name and description | `# HelpDesk Lite` + «Description» (línea 12) con *key features* | ✅ |
-| Team members with assigned roles (PO, PM, Tech Lead, Developers) | «Team Information» (163), «Required project roles» (168) | ⚠️ **B1**: PO y Developers sí; PM y Tech Lead siguen en `login` |
+| Team members with assigned roles (PO, PM, Tech Lead, Developers) | «Team Information» (163), «Required project roles» (168) | ✅ B1 (PR del 16/10): PO arhea; PM elerazo-; Tech Lead fcela-ga, nalesso e israetor; Developers, los cinco |
 | Project management approach | «Project Management» (185): ramas y PR revisadas, Trello, Notion, WhatsApp/Discord/Slack, reuniones con actas, auditorías | ✅ |
 | Technologies used with justifications | «Technical Stack» (207): tabla capa · elección · porqué | ✅ |
 | Database schema | «Database Schema» (500): diagrama Mermaid, campos clave, cascadas | ✅ |
 | List of features and who implemented them | «Features List» (790) | ⚠️ B4: revisar autores |
 | Chosen modules with justifications and point calculation | «Modules» (819): **14 filas, total 23** (nuevo: *Advanced search*, M14); justificación del módulo de libre elección en «Why this is claimed as a Module of Choice (Major)» (328) | ✅ |
-| Individual contributions of each member | «Individual Contributions» (846) | ⚠️ B4: tres borradores |
+| Individual contributions of each member | «Individual Contributions» (846) | ⚠️ B4: quedan dos borradores (Elizabeth e Israel) |
 
 Además, del enunciado (cap. VI): primera línea en cursiva con los logins (B2 ✅),
-«Instructions» con requisitos y pasos (B5 ❌), «Resources» con referencias y uso de IA
-(B3 ❌), y README en inglés ✅.
+«Instructions» con requisitos y pasos (B5 ✅ en la PR del 16/10), «Resources» con
+referencias y uso de IA (B3 ❌: faltan Elizabeth e Israel), y README en inglés ✅.
 
 ### 3.4 Project Coherence — dos personas distintas
 
@@ -922,8 +927,8 @@ Argumentos:
   tiene desafío: su API contesta nuestro JSON y su socket sube con `101`.
   Arreglo, en el panel de Cloudflare: alargar el *Challenge Passage* (Security →
   Settings) para que un desafío resuelto dure toda la jornada, o añadir las IP del
-  equipo como excepción en la regla de staging. Y la demostración, en producción o
-  en local, no en staging.
+  equipo como excepción en la regla de staging; paso a paso, y las demás opciones,
+  en el **Anexo D.1**. Y la demostración, en producción o en local, no en staging.
 
 > ⚠️ **Cloudflare** puede añadir, en una muestra de las respuestas, una CSP
 > *report-only* para su inventario de scripts (lo explica la cabecera de
@@ -934,9 +939,9 @@ Argumentos:
 > *report-only*. Es el monitor de scripts y de conexiones de Cloudflare
 > (*Page Shield / Client-side security*), que añade su propia CSP de sólo informe a
 > una muestra de las respuestas; nuestra CSP (`script-src 'self'`…) va aparte.
-> Desactivarlo en el panel de Cloudflare para las dos zonas antes de la defensa
-> (Security → Page Shield / Client-side security → monitor de scripts y de
-> conexiones), o explicarlo así.
+> Desactivarlo en el panel de Cloudflare antes de la defensa (una sola zona,
+> `helpdesklite.me`, para producción y staging; paso a paso en el **Anexo D.2**), o
+> explicarlo así.
 
 > ⚠️ **Los 4xx que provoque la prueba de validación aparecen en rojo en la consola**
 > («POST …/auth/login 401»). Chrome registra así cualquier respuesta HTTP de error: no
@@ -2558,3 +2563,124 @@ docker exec dev_database sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "S
 | `#privacy-policy`, `#terms` | Legales |
 | `/status` (local: `/status.html`) | Página de estado (estática) |
 | `/api/v1/docs`, `/api/v1/openapi.json` | Documentación de la API |
+
+---
+
+## Anexo D — Cloudflare, paso a paso
+
+Comprobado el 16/10. Los menús son los del panel nuevo de Cloudflare; entre
+paréntesis, los del antiguo. Todo se hace en https://dash.cloudflare.com → la
+cuenta → el dominio `helpdesklite.me`, que es una sola zona para producción y
+staging.
+
+### D.1 Los 403 de staging (el desafío)
+
+**Qué pasa.** La regla personalizada del WAF «Proteger entorno Staging» (desde
+el 08/09) tiene la expresión `(http.host eq "staging.helpdesklite.me")`, más una
+excepción para la IP del servidor, y la acción *Managed Challenge*. Al resolver el
+desafío, el navegador recibe la cookie `cf_clearance`, que dura lo que diga
+*Challenge Passage* (30 min; Cloudflare da una hora más a las peticiones XHR). La
+aplicación no recarga la página, así que pasada esa hora y media las llamadas a la
+API y la reconexión del WebSocket reciben el `403` de Cloudflare
+(`cf-mitigated: challenge`). Un desafío no se puede resolver desde un `fetch` ni
+desde un WebSocket: sólo recargando la página. Producción no tiene desafío.
+
+**Antes de tocar nada.** *Security → Security rules* (*Security → WAF → Custom
+rules*) → «Proteger entorno Staging» → *Edit* → *Edit expression*. Copiar la
+expresión entera a un fichero: es lo que se restaura si algo sale mal. La parte
+con `ip.src` es la excepción del servidor y **no se puede perder**: es la que deja
+a Prometheus comprobar `https://staging.helpdesklite.me/api/health` (comprobado:
+desde el servidor da `200`, desde fuera `403`). Sin ella salta `SitioCaido` para
+staging.
+
+**Opción A — alargar el *Challenge Passage* (la recomendada hoy).**
+
+1. *Security → Settings* (*Security → Settings*), categoría *DDoS attacks*, o
+   buscar «Challenge passage».
+2. El lápiz de *Challenge passage* → **1 day** (u 8 horas) → *Save*.
+3. Cada persona recarga staging una vez: el cambio vale para los desafíos que se
+   resuelven a partir de ahora.
+4. Comprobar: Chrome → DevTools → *Application* → *Cookies* →
+   `https://staging.helpdesklite.me` → `cf_clearance` caduca dentro de un día.
+
+Es un ajuste de toda la zona, pero sólo staging tiene desafío. Cloudflare
+recomienda entre 15 y 45 minutos: con un día, una cookie robada vale un día, que
+para un staging con datos de prueba es aceptable. Después de la defensa se puede
+volver a 30 minutos. Por API: `PATCH /zones/<ZONE_ID>/settings/challenge_ttl` con
+`{"value": 86400}` y un token con *Zone Settings: Edit*.
+
+**Opción B — sin desafío desde las IP del equipo.**
+
+1. La IP pública de cada sitio: `curl -s https://www.cloudflare.com/cdn-cgi/trace | grep '^ip='`.
+2. *Security → Security rules* → *Create rule* → *Custom rules*. Nombre:
+   «Staging: equipo sin desafío».
+3. *Edit expression*:
+   `(http.host eq "staging.helpdesklite.me" and ip.src in {<IP_CAMPUS> <IP_CASA>})`
+4. *Choose action*: **Skip** → marcar **All remaining custom rules**.
+5. Orden: **First**. Tiene que quedar **encima** de «Proteger entorno Staging» (si
+   no, no hace nada); si sale debajo, arrastrarla arriba en la lista.
+6. *Deploy*. Comprobar desde esa red:
+   `curl -s -o /dev/null -w '%{http_code}\n' https://staging.helpdesklite.me/api/health`
+   → `200` (antes, `403`).
+
+Variante sin regla nueva: añadir a la expresión de la regla existente, dentro del
+paréntesis exterior, `and not ip.src in {<IP_CAMPUS> <IP_CASA>}`. Coste: la IP del
+campus la comparten todos los estudiantes y las de casa cambian. La aplicación
+sigue pidiendo sesión. El plan gratuito admite 5 reglas personalizadas.
+
+**Opción C — no desafiar la API ni el WebSocket.** Añadir a la expresión de la
+regla, dentro del paréntesis exterior:
+`and not starts_with(http.request.uri.path, "/api/") and not starts_with(http.request.uri.path, "/socket.io/")`.
+La página se sigue desafiando al abrirla y las llamadas de la aplicación nunca:
+arregla el síntoma de raíz. Coste: la API de staging queda sin desafío para
+cualquiera (sigue pidiendo sesión, con *rate limit* en nginx y en la API, y
+`/api/v1/docs` con su contraseña).
+
+**Opción D — apagar el desafío durante la defensa.** *Security → Security
+rules* → el interruptor de «Proteger entorno Staging» en *Off*; encenderlo después.
+Staging queda público, con su inicio de sesión.
+
+**Opción E — Cloudflare Access en vez del desafío (no hoy).** *Zero Trust →
+Access → Applications → Add an application → Self-hosted* para
+`staging.helpdesklite.me`: una política *Allow* con los correos del equipo
+(*One-time PIN*), sesión de 24 h, y una política *Bypass* para la IP del servidor
+(si no, la sonda de Prometheus se queda fuera); después, apagar la regla del
+desafío. Gratis hasta 50 usuarios, pero es más trabajo y más que probar.
+
+**En el código, no en Cloudflare:** el cliente HTTP y el socket podrían detectar
+`cf-mitigated: challenge` y recargar la página para que el navegador resuelva el
+desafío. Es poco código, pero el día de la defensa, no.
+
+**Recomendación:** A (un día) y, si se trabaja desde el campus, B con su IP. Si no
+se quiere tocar nada más, D durante la defensa. La demostración, en producción o en
+local, no en staging (4.3).
+
+### D.2 Las líneas «[Report Only]» de la consola (monitor de scripts)
+
+Es *Client-side security* (antes *Page Shield*): añade a una muestra de las
+respuestas su propia cabecera `Content-Security-Policy-Report-Only`
+(`script-src 'none'; connect-src 'none'`, con informe a Cloudflare). No bloquea
+nada, pero Chrome lo escribe en la consola.
+
+1. *Security → Settings*, categoría *Client-side abuse* (*Security → Client-side
+   security*, antes *Page Shield*) → **Continuous script monitoring** → *Off*. Una vez por zona: vale para
+   producción y staging.
+2. Si en *Security rules* hay reglas de tipo *Content security* con acción *Log*,
+   añaden otra cabecera *report-only*: desactivarlas también.
+3. Comprobar: recargar varias veces con DevTools abierto (es una muestra, no todas
+   las respuestas) y, desde una terminal,
+   `for i in $(seq 30); do curl -s -o /dev/null -D - https://helpdesklite.me/ | grep -ci '^content-security-policy-report-only'; done | sort | uniq -c`
+   → todo `0` (el 16/10 por la mañana producción ya daba 30 de 30 sin ella).
+
+### D.3 SSL/TLS «Full (strict)» (B9), sólo si da tiempo
+
+1. Mirar primero: *SSL/TLS → Overview*, el modo actual; y *Rules → Configuration
+   Rules*, donde puede haber ya una regla con *SSL: Strict* para algún host (el
+   informe del 26/09 la cita: no tocarla).
+2. Si el modo general no es *Full (strict)*: en el servidor,
+   `sudo python3 scripts/ops/npm-tls.py --dry-run` y después sin `--dry-run`
+   (certificado válido en el origen).
+3. *SSL/TLS → Overview → Configure → Custom SSL/TLS* → **Full (strict)** → *Save*.
+4. Comprobar que https://helpdesklite.me y staging cargan. Si dan **526**
+   (certificado del origen no válido), volver a *Full* y revisar Nginx Proxy
+   Manager (5.7).
