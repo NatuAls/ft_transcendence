@@ -1,5 +1,5 @@
-*This project has been created as part of the 42 curriculum by fcela-ga,
-nalesso, arhea, elerazo- and israetor.*
+*This project has been created as part of the 42 curriculum by `fcela-ga`,
+`nalesso`, `arhea`, `elerazo-` and `israetor`.*
 
 <!-- Required project roles and personal declarations marked with placeholders
      must be completed and approved by the team member they belong to. -->
@@ -141,8 +141,7 @@ drafted is not a declaration.
   address, the account created by the person — and reviewed the result; the
   security decision that a reserved role is claimed on verification, not on
   sign-up, is documented in «Users, organizations and roles».
-- **nalesso:** _to be written by Nahuel — which tools, for what, and what was
-  reviewed or rewritten by hand._
+- **nalesso:** I used Gemini as a technical tutor and architectural guide, alongside GitHub Copilot integrated into VS Code for code completion and boilerplate reduction. Gemini assisted me in structuring the initial monorepo and Docker dev/prod configurations, designing the shared front-end core (`client.ts` with silent token refresh, `useAsync`/`AsyncState`, `useToast`, i18n, and real-time hooks), debugging CSS specificity conflicts between Tailwind forms and native browser styles, and refactoring the ticket views (`TicketListPage`, `TicketDetailPage`, `RelatedTicketsPage`, and `GlobalSearchDialog`) to use server-side pagination and real API endpoints. GitHub Copilot sped up repetitive TypeScript typings, translation keys (`en`/`es`/`ca`), and Vitest test scaffolding. Every AI suggestion was critically reviewed, adapted by hand to match our Zod contracts and OpenAPI schemas, and validated locally with Prettier, ESLint, TypeScript, and the Vitest suite before opening a pull request.
 - **arhea:** I used OpenAI Codex as a pair programming, design review and
   quality assurance tool throughout the front end work. It assisted me in
   exploring and refining the HelpDesk Lite concept, reviewing the Penpot
@@ -157,7 +156,11 @@ drafted is not a declaration.
   and team review. AI generated output was not accepted blindly: incorrect or
   overly broad suggestions were corrected, and all retained code had to be
   verified before integration.
-- **elerazo-:** _to be written by Elizabeth._
+- **elerazo-:** elerazo-: AI tools (such as Claude and ChatGPT) were used as a development assistant and technical reference throughout the project. Specifically, AI assisted in:
+Debugging & Error Correction: Analyzing stack traces, identifying edge cases in TypeScript and C++/web integration, and suggesting fixes for complex concurrency and memory management issues.
+Concept Documentation & Research: Summarizing and explaining advanced TypeScript patterns, modern JavaScript features, and specific framework APIs to streamline architectural decisions.
+Refactoring & Translations: Assisting with code cleanup, ensuring consistent style across modules, and helping draft clear error messages and documentation content.
+Every line of code generated or suggested by AI was thoroughly reviewed, tested, and integrated by the author to ensure correctness, security, and alignment with the project's requirements.
 - **israetor:** I used ChatGPT as a pair-programming and quality-assurance assistant during
 the project. It supported the investigation of implementation errors, helped
 analyse possible causes, and suggested approaches for fixing issues in the
@@ -194,7 +197,7 @@ on, not a nominal split: they match the commit history of the areas named.
 | Member | Role(s) | Responsibilities |
 |---|---|---|
 | fcela-ga | DevOps / infrastructure · back end | The back end: data model and Prisma, the API and its structure, the public API; roles by e-mail, GDPR and the screens that complete those modules. And the whole of operations: CI/CD and both deployments, hosting and security hardening, backups and recovery, observability and alerting, operations documentation |
-| nalesso | Infrastructure · front end | The Docker setup of the whole project (images, dev and production composes) and CI/CD together with fcela-ga; the shared front-end infrastructure merged in #53 (HTTP client, async state, toasts, i18n, realtime) |
+| nalesso | Technical Lead · Infrastructure · Front end | Bootstrapped the repository and monorepo architecture (React/Vite + Express workspaces); set up the Docker dev/prod environments, initial Nginx/SSL scripts, rootless campus adaptations and backup scripts; built the shared front-end core merged in #53 (HTTP client with session refresh, `useAsync`/`AsyncState`, toasts, i18n, realtime hooks); integrated authentication/session flows, profile settings, and the end-to-end Tickets and Global Search modules |
 | arhea | Product Owner · Developer · Frontend lead / UI & UX | HelpDesk Lite product concept, Penpot prototypes and user flows, shared design system, React application architecture and integration specifications, responsive and accessible interfaces, Tailwind v4 migration, role-aware UX |
 | elerazo- | Chat · front end | Most of the chat, screen and realtime service, the sign-in connection between front and back, and the Makefile |
 | israetor | Reviews · infrastructure | Pinned the Node version in the images, and reviewed and merged most of the pull requests, the infrastructure ones included |
@@ -813,7 +816,7 @@ memory.
 |---|---|---|
 | Authentication & sessions (API) | fcela-ga | Register, e-mail verification, login with lockout, refresh rotation, logout everywhere |
 | Organizations, roles, categories, API keys | fcela-ga | Multi-tenant model with RBAC policies |
-| Tickets, comments, attachments, history | fcela-ga | Workflow, assignment, internal notes, upload validation |
+| Tickets, comments, attachments, history | fcela-ga (API) · arhea (UI) · nalesso (front-end/API integration, internal notes, realtime & tests) | Workflow, assignment, internal notes, upload validation, live conversation and server-side pagination |
 | Real-time (socket layer) | fcela-ga | Socket.IO layer with the authenticated handshake, rooms per user, organization, ticket and conversation, presence with a reconnect grace period, and the transactional event bus that feeds it — a module never imports the socket layer. It is what every screen other than the chat runs on |
 | Chat | elerazo- | Most of it: the Messages screen and **the chat's own realtime service** on top of the socket layer. fcela-ga's part is limited to moving its API calls onto the shared client (session renewal and a 204 that used to be parsed as JSON) and the font-size units |
 | Notifications & e-mail | fcela-ga | In-app + SMTP, user preferences |
@@ -924,18 +927,94 @@ this note.
   Spain (fallback plan documented), and keeping every secret out of the
   repository and the chat while automating everything.
 
-### nalesso — Infrastructure and shared front end
+### nalesso — Technical Lead, Infrastructure and Front-End Integration
 
-*Draft from the history; Nahuel to confirm and add the challenges.*
+- **Monorepo foundation and stack selection:** Created the repository and
+  bootstrapped the initial monorepo structure (`package.json` workspaces,
+  shared `tsconfig.base.json`), setting up both the React + Vite web
+  application (`apps/web`) and the Express + TypeScript API workspace
+  (`apps/api`), as well as the root orchestration scripts. Participated as
+  Technical Lead alongside `fcela-ga` and `israetor` in defining the core
+  JavaScript/TypeScript full-stack architecture.
+- **Dockerization, database setup and campus environment adaptation:** Split
+  the container setup into dedicated development and production configurations
+  (`Dockerfile.dev`, `Dockerfile.prod`, `compose.dev.yml`, `compose.prod.yml`),
+  integrated PostgreSQL extensions and full-text search configurations directly
+  into Prisma migrations, wrote the initial reverse proxy/SSL certificate
+  generation and backup/log-rotation scripts (`scripts/gen-certs.sh`,
+  `scripts/gen-secrets.sh`, `scripts/backup.sh`), and adapted the Compose stack
+  to run reliably on 42's rootless Docker environment.
+- **Shared front-end infrastructure (`src/core/*` & `packages/ui`, PR #53):**
+  Built the transversal core that powers the front-end screens: a single HTTP
+  client (`core/api/client.ts`) with automatic access-token renewal and
+  structured API/field error parsing (`core/api/errors.ts`), declarative async
+  state management (`useAsync` and `AsyncState`) paired with shared UI feedback
+  primitives (`EmptyState`, `ErrorState`, `Skeleton`, `Toast`), the toast
+  notification system (`ToastProvider`, `useToast`), the three-language
+  internationalization engine (`en`, `es`, `ca` and `LanguageSwitcher`), theme
+  persistence (`core/theme.ts`), and the front-end Socket.IO provider and hooks
+  (`RealtimeProvider`, `useRealtime`, `useTicketRoom`).
+- **Authentication, session lifecycle and account settings:** Implemented
+  real-time password validation and UI polish on the sign-in and registration
+  screens, prevented double-submission bugs, wired session restoration and
+  sign-out across the application shell, fixed the API logout route to allow
+  signing out even after access-token expiry, and connected the account
+  `ProfileSettings` screen to the live user endpoints.
+- **Tickets workflow and Global Search integration (end to end):** Connected
+  the entire ticketing lifecycle to the live API and removed obsolete static
+  mocks (`ticketData.ts`):
+  - **Ticket creation (`CreateTicketPage`):** Form validation with shared Zod
+    contracts, dynamic active-category selection, translated field errors, and
+    API integration.
+  - **Ticket listing (`TicketListPage` & `TicketListResults`):** Migrated
+    filtering (status, priority, category, text query), sorting, facet stats,
+    and pagination to the server side, synchronised filter state with the URL,
+    and added debounced real-time Socket.IO listeners for live list updates.
+  - **Ticket detail (`TicketDetailPage`):** Integrated live ticket metadata,
+    status transitions (`OPEN → IN_PROGRESS → RESOLVED → CLOSED` with
+    resolution dialogs), agent assignment and self-assignment, public replies
+    and agent-only internal notes, comment editing and deletion, user avatar
+    rendering, and real-time room subscriptions (including backend permission
+    fixes for agent access to ticket conversations).
+  - **Related tickets & Global Search (`RelatedTicketsPage` &
+    `GlobalSearchDialog`):** Refactored related tickets to use `AsyncState` and
+    server-side pagination via `TicketListResults`, fixed route parameter
+    fallbacks, and connected the global search modal to query both tickets and
+    people concurrently with a 300 ms debounce, `AbortController` cancellation,
+    and keyboard navigation.
+- **Automated front-end test coverage:** Wrote and maintained Vitest + Testing
+  Library suites for `create-ticket-page`, `ticket-list-page`,
+  `ticket-detail-page`, `related-tickets-page`, and `global-search-dialog`,
+  validated against the OpenAPI contract fixtures.
 
-- Set up Docker for the whole project on 02/09: the development and production
-  images of both applications and the composes that separate the two
-  environments. It is what let everybody run the same stack.
-- Built the CI/CD pipeline together with fcela-ga.
-- Wrote the shared front-end infrastructure merged in PR #53: one HTTP client
-  with session renewal, the async state with its four states, toasts,
-  internationalisation in three languages and the realtime provider. It is what
-  the rest of the screens are now built on.
+**Key challenges and solutions**
+
+- **Coordinating silent token refresh without false logouts:** When an access
+  token expired, multiple concurrent requests from a screen could trigger
+  simultaneous `401` responses, risking race conditions in token rotation or
+  kicking the user out mid-action — and even preventing an explicit sign-out if
+  the token had just expired. I centralized token renewal inside
+  `core/api/client.ts` so failed requests await a single refresh cycle before
+  retrying, and updated the backend logout route to cleanly revoke the session
+  even when the access token is already expired.
+- **Migrating complex ticket views from static mocks to server-side pagination
+  and real-time updates without breaking tests:** Moving `TicketListPage`,
+  `TicketDetailPage`, and `RelatedTicketsPage` from in-memory arrays to
+  server-side queries (`take: 30`, facets, URL-synced filters) and reusing
+  `TicketListResults` changed both the network timing and the DOM structure
+  (since the responsive table renders both desktop rows and mobile cards). I
+  refactored state updates to happen synchronously in event handlers to avoid
+  cascading React renders, wrapped views in `AsyncState` for unified loading
+  and retry handling, and updated the Vitest suites to assert against API query
+  parameters and responsive DOM elements.
+- **Containerizing the monorepo across rootless campus machines and
+  production:** Early Docker setups struggled with slow database startups on
+  42's rootless Docker daemon and custom PostgreSQL extensions living in a
+  separate database image. I moved the required PostgreSQL extensions and
+  search indexes into versioned Prisma migrations, split Dockerfiles and
+  Compose files into dedicated `dev` and `prod` targets, and tuned container
+  healthchecks and dependency startup order so `make up-dev` worked reliably on
+  any machine.
 
 ### arhea — Product Owner · Frontend lead / UI & UX
 
