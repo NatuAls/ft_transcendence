@@ -236,7 +236,7 @@ services:
     networks: [observability, backend_staging]
 
   redis-exporter-prod:
-    image: oliver006/redis_exporter:v1.69.0
+    image: oliver006/redis_exporter:v1.94.0
     container_name: helpdesk-redisexporter-prod
     restart: always
     logging: *default-logging
@@ -244,7 +244,7 @@ services:
     networks: [observability, backend_prod]
 
   redis-exporter-staging:
-    image: oliver006/redis_exporter:v1.69.0
+    image: oliver006/redis_exporter:v1.94.0
     container_name: helpdesk-redisexporter-staging
     restart: always
     logging: *default-logging
