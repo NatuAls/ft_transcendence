@@ -254,7 +254,7 @@ services:
   # Sondas HTTPS desde fuera + caducidad del certificado, que es una de las
   # alertas que pide explícitamente la tarea 9.
   blackbox-exporter:
-    image: prom/blackbox-exporter:v0.26.0
+    image: prom/blackbox-exporter:v0.29.1
     container_name: helpdesk-blackbox
     restart: always
     logging: *default-logging
